@@ -8,7 +8,6 @@ export default function ConversationsView() {
   const head = headline();
   const byMarket = totalConversationsByMarket();
 
-  // Per-rep / per-market breakdown for the stacked bar
   const byRep = REPS.map((rep) => {
     const row = { rep: rep.name.split(' ')[0] };
     rep.markets.forEach((m) => {
@@ -18,64 +17,67 @@ export default function ConversationsView() {
     return row;
   });
 
-  // Sum daily across all pairs for trend line
   const trend = (() => {
     const map = new Map();
     REPS.forEach((rep) =>
       rep.markets.forEach((m) => {
         const p = getPair(rep.id, m);
         if (!p) return;
-        p.daily.forEach((d) => {
-          map.set(d.label, (map.get(d.label) || 0) + d.count);
-        });
+        p.daily.forEach((d) => map.set(d.label, (map.get(d.label) || 0) + d.count));
       })
     );
     return Array.from(map.entries()).map(([label, count]) => ({ label, count }));
   })();
 
   return (
-    <div className="grid grid-cols-12 gap-4 h-full">
+    <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-3 gap-4">
         <BigStat label="Conversations Today" value={head.conversationsToday} accent="emerald" />
         <BigStat label="This Week" value={head.conversationsWeek} accent="blue" />
         <BigStat label="Avg / Day" value={Math.round(head.conversationsWeek / 7)} accent="violet" />
       </div>
 
-      <Panel className="col-span-7 min-h-0" title="By Rep × Market" subtitle="this week" accent="Conversations">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={byRep} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
-            <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+      <Panel className="col-span-12 lg:col-span-7 min-h-0" title="By Rep × Market" subtitle="this week" accent="Conversations">
+        <div className="h-full flex flex-col gap-2 min-h-0">
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byRep} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                {MARKETS.map((m) => (
+                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 shrink-0">
             {MARKETS.map((m) => (
-              <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} />
+              <div key={m.id} className="flex items-center gap-1.5 text-[11px] text-zinc-400 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: m.color }} />
+                <span className="truncate">{m.name}</span>
+              </div>
             ))}
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-2">
-          {MARKETS.map((m) => (
-            <div key={m.id} className="flex items-center gap-1.5 text-xs text-zinc-400">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: m.color }} />
-              <span className="truncate">{m.name}</span>
-            </div>
-          ))}
+          </div>
         </div>
       </Panel>
 
-      <Panel className="col-span-5 min-h-0" title="7-Day Trend" subtitle="all reps" accent="Conversations">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-            <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#a78bfa' }} activeDot={{ r: 6 }} />
-          </LineChart>
-        </ResponsiveContainer>
+      <Panel className="col-span-12 lg:col-span-5 min-h-0" title="7-Day Trend" subtitle="all reps" accent="Conversations">
+        <div className="h-full min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="count" stroke="#a78bfa" strokeWidth={3} dot={{ r: 4, fill: '#a78bfa' }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </Panel>
 
-      <div className="col-span-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {byMarket.map((m) => (
           <div key={m.market} className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3 flex items-center gap-3 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.color }} />
@@ -103,7 +105,7 @@ function BigStat({ label, value, accent }) {
   return (
     <div className={`rounded-xl border p-5 ${colors[accent]} min-w-0`}>
       <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-400 mb-2 truncate">{label}</div>
-      <div className="text-4xl xl:text-5xl font-bold tabular-nums truncate">{formatNumber(value)}</div>
+      <div className="text-3xl xl:text-4xl 2xl:text-5xl font-bold tabular-nums truncate">{formatNumber(value)}</div>
     </div>
   );
 }
