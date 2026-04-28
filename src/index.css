@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background: #06070b;
+  color: #f4f4f5;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 0.6; }
+  50% { box-shadow: 0 0 0 6px transparent; opacity: 0.2; }
+}
+
+.live-dot {
+  animation: pulse-ring 1.8s ease-in-out infinite;
+}
+
+.recharts-default-tooltip {
+  background: #0d0e15 !important;
+  border: 1px solid #2a2b35 !important;
+  border-radius: 8px !important;
+  color: #f4f4f5 !important;
+}

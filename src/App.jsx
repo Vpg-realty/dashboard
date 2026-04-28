@@ -1,0 +1,101 @@
+import { useEffect, useState, useRef, useCallback } from 'react';
+import Header from './components/Header.jsx';
+import ViewNav from './components/ViewNav.jsx';
+import ConversationsView from './views/ConversationsView.jsx';
+import AgentsView from './views/AgentsView.jsx';
+import OpportunitiesView from './views/OpportunitiesView.jsx';
+import RevenueView from './views/RevenueView.jsx';
+import MasterView from './views/MasterView.jsx';
+import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
+
+const VIEWS = {
+  conversations: { label: 'Conversations · live', component: ConversationsView },
+  agents: { label: 'Agents · pipeline growth', component: AgentsView },
+  opportunities: { label: 'Opportunities · KPI tracking', component: OpportunitiesView },
+  revenue: { label: 'Revenue · this month', component: RevenueView },
+  master: { label: 'Master · all metrics', component: MasterView },
+};
+
+export default function App() {
+  const [view, setView] = useState('conversations');
+  const [isCycling, setIsCycling] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const indexRef = useRef(0);
+
+  // Cycle through views every N seconds
+  useEffect(() => {
+    if (!isCycling) return;
+    const timer = setInterval(() => {
+      indexRef.current = (indexRef.current + 1) % CYCLE_VIEWS.length;
+      setView(CYCLE_VIEWS[indexRef.current]);
+    }, CYCLE_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isCycling]);
+
+  const handleViewChange = useCallback((v) => {
+    setView(v);
+    setIsCycling(false);
+    if (CYCLE_VIEWS.includes(v)) {
+      indexRef.current = CYCLE_VIEWS.indexOf(v);
+    }
+  }, []);
+
+  const handleToggleCycle = useCallback(() => {
+    setIsCycling((c) => {
+      if (!c && !CYCLE_VIEWS.includes(view)) {
+        setView(CYCLE_VIEWS[0]);
+        indexRef.current = 0;
+      }
+      return !c;
+    });
+  }, [view]);
+
+  const handleFullscreen = useCallback(() => {
+    const el = document.documentElement;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Keep state in sync with native fullscreen toggle (e.g. Esc key)
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const ActiveView = VIEWS[view].component;
+
+  return (
+    <div className="h-screen flex flex-col bg-[#06070b]">
+      <Header
+        viewName={VIEWS[view].label}
+        isCycling={isCycling}
+        onToggleCycle={handleToggleCycle}
+        onFullscreen={handleFullscreen}
+        isFullscreen={isFullscreen}
+      />
+      <ViewNav active={view} onChange={handleViewChange} />
+
+      <main key={view} className="flex-1 min-h-0 px-8 py-5 fade-in">
+        <div className="h-full animate-fadein">
+          <ActiveView />
+        </div>
+      </main>
+
+      <style>{`
+        @keyframes fadein {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadein {
+          animation: fadein 0.4s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+}
