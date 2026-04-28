@@ -1,5 +1,5 @@
-// Sample data for the demo. Mirrors the shape of what the live GHL integration will return.
-// All numbers are realistic but invented — replace with API data when backend is wired.
+// Sample data for the demo. Mirrors the shape the live GHL integration will return.
+// Replace `PAIRS` and the aggregator helpers with API-backed values when wiring backend.
 
 import { REPS, MARKETS, TIERS } from './config.js';
 
@@ -22,6 +22,22 @@ const last7Days = () => {
     days.push({
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
       date: d.toISOString().slice(0, 10),
+      ts: d.getTime(),
+    });
+  }
+  return days;
+};
+
+const lastNDays = (n) => {
+  const days = [];
+  const today = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push({
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      date: d.toISOString().slice(0, 10),
+      ts: d.getTime(),
     });
   }
   return days;
@@ -29,18 +45,19 @@ const last7Days = () => {
 
 // Build a deterministic dataset keyed by (rep, market).
 const buildPair = (repId, marketId) => {
-  const rand = seedRand(repId.charCodeAt(0) * 31 + marketId.charCodeAt(0) * 7 + marketId.charCodeAt(1));
+  const seed =
+    repId.charCodeAt(0) * 31 +
+    marketId.charCodeAt(0) * 7 +
+    marketId.charCodeAt(1);
+  const rand = seedRand(seed);
 
-  // Conversations — daily counts last 7 days
+  // --- recent (last 7 days) ---
   const days = last7Days();
-  const dailyConvos = days.map((d) => ({
-    ...d,
-    count: Math.floor(rand() * 12) + 2,
-  }));
+  const dailyConvos = days.map((d) => ({ ...d, count: Math.floor(rand() * 12) + 2 }));
   const convosToday = dailyConvos[dailyConvos.length - 1].count;
   const convosWeek = dailyConvos.reduce((a, d) => a + d.count, 0);
 
-  // Agent tier counts
+  // --- agent tiers (cumulative) ---
   const agentTiers = {
     1: Math.floor(rand() * 4) + 1,
     2: Math.floor(rand() * 8) + 3,
@@ -50,15 +67,41 @@ const buildPair = (repId, marketId) => {
   const agentsAddedToday = Math.floor(rand() * 3);
   const agentsAddedWeek = Math.floor(rand() * 9) + 2;
 
-  // Opportunities — weekly + monthly counters
-  const offersWeek = Math.floor(rand() * 13);          // target 10
-  const contractsMonth = Math.floor(rand() * 7);       // target 5
-  const dealsClosedMonth = Math.floor(rand() * 4);     // target 2
+  // --- opportunities ---
+  const offersWeek = Math.floor(rand() * 13);
+  const contractsMonth = Math.floor(rand() * 7);
+  const dealsClosedMonth = Math.floor(rand() * 4);
   const abandoned = Math.floor(rand() * 4);
   const lost = Math.floor(rand() * 3);
-
-  // Revenue this month (per closed deal we'd assume avg $8-25k assignment fee)
   const revenueMonth = dealsClosedMonth * (Math.floor(rand() * 17000) + 8000);
+
+  // --- lifetime stats (cumulative since rep started) ---
+  const lifetimeStart = new Date();
+  lifetimeStart.setDate(lifetimeStart.getDate() - 540 - Math.floor(rand() * 200));
+  const lifetimeMonths = Math.max(6, Math.floor((Date.now() - lifetimeStart.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+
+  const lifetime = {
+    startDate: lifetimeStart.toISOString().slice(0, 10),
+    months: lifetimeMonths,
+    conversations: lifetimeMonths * (40 + Math.floor(rand() * 25)),
+    agentsTotal: agentTiers[1] + agentTiers[2] + agentTiers[3] + agentTiers[4],
+    offersTotal: lifetimeMonths * (Math.floor(rand() * 18) + 8),
+    contractsTotal: lifetimeMonths * (Math.floor(rand() * 4) + 1),
+    closedTotal: lifetimeMonths * Math.max(1, Math.floor(rand() * 2)),
+  };
+  lifetime.revenueTotal = lifetime.closedTotal * (Math.floor(rand() * 12000) + 9000);
+
+  // --- daily history for last 90 days (used by Advanced view) ---
+  const history90 = lastNDays(90).map((d, i) => {
+    const r = seedRand(seed + i);
+    return {
+      ...d,
+      conversations: Math.floor(r() * 14) + 1,
+      agentsAdded: Math.floor(r() * 2),
+      offers: Math.floor(r() * 3),
+      revenue: Math.floor(r() * 4) === 0 ? Math.floor(r() * 18000) + 7000 : 0,
+    };
+  });
 
   return {
     repId,
@@ -75,6 +118,8 @@ const buildPair = (repId, marketId) => {
     abandoned,
     lost,
     revenueMonth,
+    lifetime,
+    history90,
   };
 };
 
@@ -91,13 +136,6 @@ export const getPairsForRep = (repId) => PAIRS.filter((p) => p.repId === repId);
 export const getPairsForMarket = (marketId) => PAIRS.filter((p) => p.marketId === marketId);
 
 // --- aggregations --------------------------------------------------------
-
-export const totalConversationsByRep = () =>
-  REPS.map((rep) => ({
-    rep: rep.name.split(' ')[0],
-    today: getPairsForRep(rep.id).reduce((a, p) => a + p.convosToday, 0),
-    week: getPairsForRep(rep.id).reduce((a, p) => a + p.convosWeek, 0),
-  }));
 
 export const totalConversationsByMarket = () =>
   MARKETS.map((market) => ({
@@ -140,7 +178,7 @@ export const totalRevenueByRep = () =>
     byMarket: rep.markets.map((m) => {
       const pair = getPair(rep.id, m);
       const market = MARKETS.find((mk) => mk.id === m);
-      return { market: m, name: market.name, color: market.color, value: pair.revenueMonth };
+      return { market: m, name: market.name, color: market.color, value: pair?.revenueMonth ?? 0 };
     }),
   }));
 
@@ -158,3 +196,9 @@ export const headline = () => ({
   dealsClosedMonth: PAIRS.reduce((a, p) => a + p.dealsClosedMonth, 0),
   revenueMonth: PAIRS.reduce((a, p) => a + p.revenueMonth, 0),
 });
+
+// Slice a pair's 90-day history down to the last `days` days.
+export const sliceHistory = (pair, days) => {
+  if (!pair?.history90) return [];
+  return pair.history90.slice(-days);
+};

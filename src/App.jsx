@@ -1,28 +1,32 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Header from './components/Header.jsx';
 import ViewNav from './components/ViewNav.jsx';
+import AddSubaccountModal from './components/AddSubaccountModal.jsx';
 import ConversationsView from './views/ConversationsView.jsx';
 import AgentsView from './views/AgentsView.jsx';
 import OpportunitiesView from './views/OpportunitiesView.jsx';
 import RevenueView from './views/RevenueView.jsx';
 import MasterView from './views/MasterView.jsx';
+import AdvancedView from './views/AdvancedView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
 
 const VIEWS = {
-  conversations: { label: 'Conversations · live', component: ConversationsView },
-  agents: { label: 'Agents · pipeline growth', component: AgentsView },
-  opportunities: { label: 'Opportunities · KPI tracking', component: OpportunitiesView },
-  revenue: { label: 'Revenue · this month', component: RevenueView },
-  master: { label: 'Master · all metrics', component: MasterView },
+  conversations: { label: 'Conversations · live',           component: ConversationsView },
+  agents:        { label: 'Agents · pipeline growth',       component: AgentsView },
+  opportunities: { label: 'Opportunities · KPI tracking',   component: OpportunitiesView },
+  revenue:       { label: 'Revenue · this month',           component: RevenueView },
+  master:        { label: 'Master · all metrics',           component: MasterView },
+  advanced:      { label: 'Advanced · per-subaccount drill-down', component: AdvancedView },
 };
 
 export default function App() {
   const [view, setView] = useState('conversations');
   const [isCycling, setIsCycling] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const indexRef = useRef(0);
 
-  // Cycle through views every N seconds
+  // Cycle through views every N seconds (paused on advanced/master)
   useEffect(() => {
     if (!isCycling) return;
     const timer = setInterval(() => {
@@ -34,8 +38,11 @@ export default function App() {
 
   const handleViewChange = useCallback((v) => {
     setView(v);
-    setIsCycling(false);
-    if (CYCLE_VIEWS.includes(v)) {
+    // Auto-pause cycling when manually navigating off the cycle path
+    if (!CYCLE_VIEWS.includes(v)) {
+      setIsCycling(false);
+    } else {
+      setIsCycling(false);
       indexRef.current = CYCLE_VIEWS.indexOf(v);
     }
   }, []);
@@ -78,14 +85,17 @@ export default function App() {
         onToggleCycle={handleToggleCycle}
         onFullscreen={handleFullscreen}
         isFullscreen={isFullscreen}
+        onAddSubaccount={() => setShowModal(true)}
       />
       <ViewNav active={view} onChange={handleViewChange} />
 
-      <main key={view} className="flex-1 min-h-0 px-8 py-5 fade-in">
+      <main key={view} className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
         <div className="h-full animate-fadein">
           <ActiveView />
         </div>
       </main>
+
+      <AddSubaccountModal open={showModal} onClose={() => setShowModal(false)} />
 
       <style>{`
         @keyframes fadein {
