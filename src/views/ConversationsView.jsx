@@ -1,7 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS } from '../data/config.js';
-import { getPair, totalConversationsByMarket, headline } from '../data/mockData.js';
+import { getPair, totalConversationsByMarket, headline } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
 export default function ConversationsView() {

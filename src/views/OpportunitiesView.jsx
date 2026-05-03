@@ -1,7 +1,7 @@
 import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { REPS, MARKETS, KPI_TARGETS } from '../data/config.js';
-import { getPair, getPairsForMarket, headline } from '../data/mockData.js';
+import { getPair, getPairsForMarket, headline } from '../data/source.js';
 import { kpiStatus, pct } from '../utils/format.js';
 
 export default function OpportunitiesView() {

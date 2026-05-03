@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
 import { REPS, MARKETS, DATE_RANGES, KPI_TARGETS } from '../data/config.js';
-import { PAIRS, getPair, sliceHistory } from '../data/mockData.js';
+import { PAIRS, getPair, sliceHistory } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 
 export default function AdvancedView() {

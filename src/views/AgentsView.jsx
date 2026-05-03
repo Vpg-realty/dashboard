@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
-import { getPair, tierTotals, headline } from '../data/mockData.js';
+import { getPair, tierTotals, headline } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
 export default function AgentsView() {

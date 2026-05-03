@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Line, LineChart } from 'recharts';
 import { REPS, MARKETS, TIERS, KPI_TARGETS } from '../data/config.js';
-import { getPair, headline, tierTotals, totalRevenueByMarket, totalConversationsByMarket } from '../data/mockData.js';
+import { getPair, headline, tierTotals, totalRevenueByMarket, totalConversationsByMarket } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 
 // Compact 4-quadrant dashboard. Built specifically for the master view —

@@ -1,0 +1,12 @@
+name = "vpg-dashboard-api"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+
+# Allowed origins for CORS — set after CF Pages domain is known.
+# Default permissive value lets local dev and any *.pages.dev subdomain through.
+[vars]
+ALLOWED_ORIGIN = "*"
+SNAPSHOT_TTL_SECONDS = "30"
+
+# Secrets (set via `wrangler secret put NAME` — never commit these):
+#   GHL_TOKENS    JSON: { "<locationId>": "<pit_token>", ... } — one entry per sub-account
