@@ -17,8 +17,11 @@
 import { useEffect, useReducer } from 'react';
 import { REPS, MARKETS, TIERS } from './config.js';
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL || '';
-const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 20_000);
+// API_URL is the base of the dashboard backend. Default '' = same-origin
+// (when the React build is served by server/index.mjs). Override only if
+// the API and the static bundle live on different hosts.
+const API_URL = import.meta.env.VITE_API_URL || '';
+const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 15_000);
 const LS_KEY = 'vpg.snapshot.v1';
 const STALE_RELOAD_MS = 30 * 60 * 1000;  // 30 min of failures → reload page
 
@@ -89,17 +92,11 @@ let pollTimer = null;
 let inFlight = false;
 
 async function fetchSnapshot() {
-  if (!WORKER_URL) {
-    lastError = 'VITE_WORKER_URL not set';
-    notify();
-    return;
-  }
   if (inFlight) return;
   inFlight = true;
   try {
-    const res = await fetch(`${WORKER_URL.replace(/\/$/, '')}/api/snapshot`, {
-      cache: 'no-store',
-    });
+    const base = API_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/snapshot`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Worker responded ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data?.pairs)) throw new Error('Malformed snapshot');

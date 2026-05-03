@@ -4,26 +4,33 @@ Live KPI scoreboard for **Valley Property Group** — projected on the office TV
 
 ## Architecture
 
+Self-contained. Runs as a single Node process on the office machine. No external hosting, no cloud dependencies, no database.
+
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ Office TV (Cloudflare Pages)                             │
-│  React app · polls /api/snapshot every 20s               │
-│  - last-good data cached in localStorage                 │
-│  - auto page-reload after 30 min of failures             │
-│  - Wake Lock keeps screen on                             │
-└─────────────────┬────────────────────────────────────────┘
-                  │ JSON snapshot
-                  ▼
-┌──────────────────────────────────────────────────────────┐
-│ Cloudflare Worker (vpg-dashboard-api)                    │
-│  - holds GHL Private Integration tokens                  │
-│  - aggregates every (rep × market) sub-account           │
-│  - 30s edge cache so concurrent loads don't hit GHL      │
-│  - one sub-account error never kills the whole snapshot  │
-└─────────────────┬────────────────────────────────────────┘
-                  │ HTTPS · Bearer <PIT>
-                  ▼
-              GHL API (services.leadconnectorhq.com)
+│ Office machine (Mac mini / mini PC / NUC / etc.)         │
+│                                                          │
+│   ┌────────────────────────────────────────────────┐     │
+│   │ node server/index.mjs                           │     │
+│   │   - serves dist/ (the React build)             │     │
+│   │   - /api/snapshot aggregates all GHL accounts  │     │
+│   │   - holds GHL PIT tokens in process env        │     │
+│   │   - 15s in-memory cache                        │     │
+│   └────────────────────┬───────────────────────────┘     │
+│                        │                                 │
+│                        ▼                                 │
+│   ┌────────────────────────────────────────────────┐     │
+│   │ Browser → http://localhost:3000                │     │
+│   │   - polls /api/snapshot every 15s              │     │
+│   │   - last-good-data cached in localStorage      │     │
+│   │   - auto-reload after 30 min of failures       │     │
+│   │   - Wake Lock keeps screen on                  │     │
+│   └────────────────────────────────────────────────┘     │
+│                                                          │
+└──────────────────────────┬───────────────────────────────┘
+                           │ HTTPS · Bearer <PIT>
+                           ▼
+                  GHL API (services.leadconnectorhq.com)
 ```
 
 ## Stack
@@ -32,11 +39,10 @@ Live KPI scoreboard for **Valley Property Group** — projected on the office TV
 |----------|-----------------------------------------|
 | Frontend | React 19 + Vite 8 + Tailwind 4          |
 | Charts   | Recharts                                 |
-| Hosting  | Cloudflare Pages                         |
-| Backend  | Cloudflare Worker (in `worker/`)        |
+| Backend  | Node.js (built-in `http`, no Express)   |
 | Data     | GoHighLevel (GHL) v2 API                |
 
-No database. No Netlify. No backend servers. Worker is stateless and uses CF edge cache; full snapshot history isn't persisted (the dashboard only shows current period).
+Node 18+ required (uses global `fetch`).
 
 ## KPI targets (locked from Apr 28 meeting)
 
@@ -46,91 +52,81 @@ No database. No Netlify. No backend servers. Worker is stateless and uses CF edg
 
 Weekly metrics reset Mon–Sun. Monthly resets on the 1st.
 
-## Quick start (mock mode)
+## Quick start (mock mode — for UI work)
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173 — uses mockData.js
+npm run dev          # http://localhost:5173, sample data, no GHL needed
 ```
 
-## Wiring up live GHL data
-
-### 1. Set up the Worker
+## Production setup on the office machine
 
 ```bash
-cd worker
+git clone https://github.com/Vpg-realty/dashboard.git vpg-dashboard
+cd vpg-dashboard
 npm install
-npx wrangler login
+
+# Configure GHL access (see .env.example)
+cp .env.example .env
+# edit .env — paste GHL_TOKENS as JSON of locationId → PIT token
+
+# Fill in locationId for each (rep × market) pair
+$EDITOR server/config.js
+
+# Build + serve
+npm start            # http://localhost:3000
 ```
 
-Edit `worker/src/config.js` — fill in `locationId` for each (rep × market) pair Luke sends over.
+Open the TV browser at `http://localhost:3000`. That's it.
 
-Set the secret with all PIT tokens as a single JSON object:
+### Auto-launch on boot (macOS)
 
-```bash
-# Build a JSON string mapping locationId → PIT token, then pipe it in:
-npx wrangler secret put GHL_TOKENS
-# Paste: {"abc123":"pit_xxx...","def456":"pit_yyy..."}
+Save this as `~/Library/LaunchAgents/com.vpg.dashboard.plist`, edit the path, then `launchctl load` it:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>             <string>com.vpg.dashboard</string>
+  <key>ProgramArguments</key>  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /path/to/vpg-dashboard && /usr/local/bin/npm start</string>
+  </array>
+  <key>RunAtLoad</key>         <true/>
+  <key>KeepAlive</key>         <true/>
+  <key>StandardOutPath</key>   <string>/tmp/vpg-dashboard.log</string>
+  <key>StandardErrorPath</key> <string>/tmp/vpg-dashboard.err</string>
+</dict>
+</plist>
 ```
 
-Deploy:
+`KeepAlive=true` means launchd auto-restarts the dashboard if it ever crashes.
 
-```bash
-npx wrangler deploy
-# → https://vpg-dashboard-api.<your-cf-account>.workers.dev
-```
-
-Verify:
-
-```bash
-curl https://vpg-dashboard-api.<account>.workers.dev/api/health
-# {"ok":true,"version":"0.1.0","configuredCount":11}
-```
-
-### 2. Set up the dashboard on Cloudflare Pages
-
-In the Cloudflare dashboard:
-
-- **Pages → Create → Connect to Git → `Vpg-realty/dashboard`**
-- Build command: `npm run build`
-- Build output: `dist`
-- Environment variables (Production):
-  - `VITE_USE_LIVE = 1`
-  - `VITE_WORKER_URL = https://vpg-dashboard-api.<your-account>.workers.dev`
-  - `VITE_POLL_MS = 20000` (optional — default is 20s)
-
-Each push to `main` redeploys automatically. The dashboard URL is `https://dashboard.pages.dev` (or the custom domain you set).
-
-### 3. Lock down the Worker CORS
-
-After Pages is live, edit `worker/wrangler.toml`:
-
-```toml
-[vars]
-ALLOWED_ORIGIN = "https://your-pages-domain.pages.dev"
-```
-
-Then `npx wrangler deploy` again. This stops other origins from hitting your Worker.
+To open the browser fullscreen on login, add Chrome/Brave to Login Items with the flags:
+`--kiosk http://localhost:3000`
 
 ## What Luke (VPG) needs to send
 
-The dashboard runs on mock data until these are in place:
+The dashboard runs on placeholder data until these are in place:
 
 1. **Private Integration Token** for each GHL sub-account, with these scopes:
    `contacts.readonly`, `conversations.readonly`, `opportunities.readonly`, `users.readonly`
 2. **Location ID** for each sub-account (in the GHL URL: `/location/{id}/...`)
-3. Confirmation that the **pipeline stages** map cleanly to: `New Lead`, `Review/Underwriting`, `Offer Submitted`, `Negotiation Active`, `Under Contract`, `DISPO Active`, `Assigned`, `Closed`, `Abandoned`, `Lost`. Stage name aliases live in `worker/src/config.js`.
-4. **Tag taxonomy:** what tag identifies an "agent" contact, and what tags map to tier 1/2/3/4. Edit `AGENT_TAGS` in `worker/src/config.js`.
+3. Confirmation that the **pipeline stages** map cleanly to: `New Lead`, `Review/Underwriting`, `Offer Submitted`, `Negotiation Active`, `Under Contract`, `DISPO Active`, `Assigned`, `Closed`, `Abandoned`, `Lost`. Stage name aliases live in `server/config.js`.
+4. **Tier tag taxonomy:** what tags map to tier 1/2/3/4. The `agent` tag is already confirmed. Edit `AGENT_TAGS` in `server/config.js`.
 
 ## Reliability features (already built in)
 
-- **Stale data fallback:** if the Worker or GHL goes down, the dashboard keeps showing the last successful snapshot and flags it red ("Stale · 4m") in the header.
+- **Stale data fallback:** if GHL goes down, the dashboard keeps showing the last successful snapshot and flags it red ("Stale · 4m") in the header.
 - **Persistent cache:** snapshots are mirrored to `localStorage` so a fresh page load shows last-known data instantly, then refreshes.
-- **Auto-recover:** after 30 minutes of failed polls, the page reloads itself — recovers from network blips, expired CF Worker, frozen JS state.
+- **Auto-recover:** after 30 minutes of failed polls, the page reloads itself — recovers from network blips, frozen JS state, etc.
 - **Page Visibility API:** polling pauses when the TV's tab is hidden, resumes instantly when visible.
 - **Screen Wake Lock:** prevents the office monitor from sleeping (where supported).
 - **Per-pair error isolation:** if one sub-account's GHL token expires, that pair shows zeros while every other pair keeps updating.
-- **Edge cache:** 30s CF cache in front of the snapshot — even if 5 TVs in 5 offices opened the dashboard, GHL only gets hit twice per minute.
+- **In-memory cache:** the server caches the snapshot for 15s; concurrent reloads or multiple TVs don't fan out to GHL.
+- **launchd KeepAlive:** if the Node process ever crashes, macOS auto-restarts it.
 
 ## Views
 

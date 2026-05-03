@@ -42,10 +42,11 @@ export const STAGE_ALIASES = {
   'Lost':                  'lost',
 };
 
-// Tags or custom-field values that classify a contact as an "agent" of a given tier.
-// Adjust to match VPG's actual tagging once Luke confirms.
+// Tags that classify a contact as an "agent" of a given tier.
+// `isAgent` = confirmed by VPG (2026-05-03) — the tag is literally "agent".
+// Tier tags below are still placeholders pending Luke's tag taxonomy.
 export const AGENT_TAGS = {
-  isAgent: ['agent', 'realtor', 'broker'],
+  isAgent: ['agent'],
   tier1:   ['tier-1', 'tier1', 'vip'],
   tier2:   ['tier-2', 'tier2', 'engaged'],
   tier3:   ['tier-3', 'tier3', 'nurture'],
