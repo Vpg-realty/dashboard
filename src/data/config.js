@@ -1,34 +1,41 @@
-// KPI targets — locked from Apr 28 meeting with Luke (VPG).
+// KPI targets — locked from May 4 feedback round with Luke (VPG).
 // Weekly metrics reset Mon–Sun; monthly metrics reset on the 1st.
+// 4 reps actively offering. Per-rep × team = team total at top of dashboard.
 export const KPI_TARGETS = {
-  offersPerWeek: 10,        // per subaccount (per market)
-  contractsPerMonth: 5,
-  dealsClosedPerMonth: 2,
+  offersPerWeek: 10,        // per rep
+  contractsPerMonth: 8,     // per rep
+  dealsClosedPerMonth: 2,   // per rep
 };
 
+export const TEAM_TARGETS = {
+  offersPerWeek: 40,
+  contractsPerMonth: 32,
+  dealsClosedPerMonth: 8,
+  revenuePerMonth: 100_000,  // $100k/mo minimum
+};
+
+// 7 markets VPG operates in. Color is the stable visual anchor for each market.
 export const MARKETS = [
-  { id: 'GA', name: 'Georgia',         color: '#10b981' },
-  { id: 'NC', name: 'North Carolina',  color: '#3b82f6' },
   { id: 'AZ', name: 'Arizona',         color: '#f59e0b' },
-  { id: 'FL', name: 'Florida',         color: '#ec4899' },
+  { id: 'NC', name: 'North Carolina',  color: '#3b82f6' },
+  { id: 'GA', name: 'Georgia',         color: '#10b981' },
   { id: 'TX', name: 'Texas',           color: '#a855f7' },
-  { id: 'NV', name: 'Nevada',          color: '#06b6d4' },
+  { id: 'FL', name: 'Florida',         color: '#ec4899' },
+  { id: 'OH', name: 'Ohio',            color: '#ef4444' },
+  { id: 'MI', name: 'Michigan',        color: '#06b6d4' },
 ];
 
-// Reps mapped to their assigned markets (subaccounts).
-// Each (rep × market) pair is a "subaccount" in GHL terms.
+// 5 reps (Luke, May 4). Each (rep × market) is a GHL sub-account — 13 total.
+// Per-rep colors are fixed across every chart on every view.
 export const REPS = [
-  { id: 'patrick', name: 'Patrick Jeffries', markets: ['GA'] },
-  { id: 'jack',    name: 'Jack Jeffries',    markets: ['NC'] },
-  { id: 'daniel',  name: 'Daniel Hayes',     markets: ['AZ'] },
-  { id: 'luke',    name: 'Luke Counts',      markets: ['GA', 'NC'] },
-  { id: 'mike',    name: 'Mike Torres',      markets: ['AZ', 'FL'] },
-  { id: 'sarah',   name: 'Sarah Chen',       markets: ['FL', 'TX'] },
-  { id: 'tom',     name: 'Tom Walsh',        markets: ['TX'] },
-  { id: 'erica',   name: 'Erica Bell',       markets: ['NV'] },
+  { id: 'jack',    name: 'Jack Jeffries',     color: '#3b82f6', markets: ['AZ', 'NC'] },
+  { id: 'anthony', name: 'Anthony Sheffield', color: '#10b981', markets: ['AZ', 'MI', 'OH', 'NC'] },
+  { id: 'patrick', name: 'Patrick Jeffries',  color: '#f59e0b', markets: ['AZ', 'GA', 'NC'] },
+  { id: 'daniel',  name: 'Daniel Diaz',       color: '#a855f7', markets: ['AZ', 'TX'] },
+  { id: 'axel',    name: 'Axel Contreras',    color: '#ec4899', markets: ['AZ', 'FL'] },
 ];
 
-// Tier definitions per Luke (VPG-specific).
+// Tier definitions — Luke uses literal "Tier 1/2/3/4" tags in GHL.
 export const TIERS = [
   { id: 1, label: 'Tier 1 — VIP',     color: '#fbbf24', desc: 'Routine deals, easy follow-up' },
   { id: 2, label: 'Tier 2 — Engaged', color: '#10b981', desc: '1–2 deals/year' },

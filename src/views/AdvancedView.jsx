@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, AreaChart, Area } from 'recharts';
 import { REPS, MARKETS, DATE_RANGES, KPI_TARGETS } from '../data/config.js';
 import { PAIRS, getPair, sliceHistory } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 
+// Per-subaccount drill-down. Luke (May 4):
+//  - Top KPI row: Convos (new / first outreach) / Agents Added / Offers / Contracts
+//  - Second row: two tiles — Closed Deals + Revenue Generated
+//  - Charts as they were
+//  - Killed the duplicate KPI status row at the bottom
 export default function AdvancedView() {
   const [selectedPair, setSelectedPair] = useState(`${PAIRS[0].repId}__${PAIRS[0].marketId}`);
   const [range, setRange] = useState('month');
@@ -20,12 +25,16 @@ export default function AdvancedView() {
     conversations: slice.reduce((a, d) => a + d.conversations, 0),
     agentsAdded: slice.reduce((a, d) => a + d.agentsAdded, 0),
     offers: slice.reduce((a, d) => a + d.offers, 0),
+    contracts: pair?.contractsMonth ?? 0,
     revenue: slice.reduce((a, d) => a + d.revenue, 0),
     closed: slice.filter((d) => d.revenue > 0).length,
-  }), [slice]);
+  }), [slice, pair]);
 
   const useLifetime = range === 'lifetime';
   const lifetimeStats = pair?.lifetime;
+
+  const offerTarget = KPI_TARGETS.offersPerWeek * Math.max(1, Math.round(rangeCfg.days / 7));
+  const contractTarget = KPI_TARGETS.contractsPerMonth * Math.max(1, Math.round(rangeCfg.days / 30));
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full overflow-y-auto">
@@ -74,22 +83,27 @@ export default function AdvancedView() {
       {/* Selected pair header */}
       <div className="col-span-12 rounded-xl border border-zinc-800 bg-gradient-to-r from-zinc-900/60 to-zinc-900/30 p-5 flex items-center justify-between gap-4 min-w-0">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: market.color }} />
+          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
           <div className="min-w-0">
             <div className="text-xl font-semibold text-zinc-100 truncate">{rep.name}</div>
-            <div className="text-sm text-zinc-500 truncate">{market.name} · {market.id}</div>
+            <div className="text-sm text-zinc-500 truncate flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: market.color }} />
+              {market.name} · {market.id}
+            </div>
           </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Subaccount Active Since</div>
-          <div className="text-sm text-zinc-300 tabular-nums">{lifetimeStats.startDate}</div>
-        </div>
+        {lifetimeStats?.startDate && (
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Subaccount Active Since</div>
+            <div className="text-sm text-zinc-300 tabular-nums">{lifetimeStats.startDate}</div>
+          </div>
+        )}
       </div>
 
-      {/* Stats — either range totals or lifetime */}
-      <div className="col-span-12 grid grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* Row 1: Convos (new) / Agents Added / Offers / Contracts */}
+      <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Stat
-          label={useLifetime ? 'Conversations · Lifetime' : `Convos · ${rangeCfg.label}`}
+          label={useLifetime ? 'Convos · Lifetime' : `New Convos · ${rangeCfg.label}`}
           value={formatNumber(useLifetime ? lifetimeStats.conversations : totals.conversations)}
           accent="violet"
         />
@@ -98,24 +112,35 @@ export default function AdvancedView() {
           value={formatNumber(useLifetime ? lifetimeStats.agentsTotal : totals.agentsAdded)}
           accent="amber"
         />
-        <Stat
-          label={useLifetime ? 'Offers · Lifetime' : `Offers · ${rangeCfg.label}`}
-          value={formatNumber(useLifetime ? lifetimeStats.offersTotal : totals.offers)}
-          accent="blue"
+        <KpiStat
+          label={`Offers · ${rangeCfg.label}`}
+          actual={useLifetime ? lifetimeStats.offersTotal : totals.offers}
+          target={useLifetime ? null : offerTarget}
         />
-        <Stat
-          label={useLifetime ? 'Closed · Lifetime' : `Closed · ${rangeCfg.label}`}
+        <KpiStat
+          label={`Contracts · ${rangeCfg.label}`}
+          actual={totals.contracts}
+          target={useLifetime ? null : contractTarget}
+        />
+      </div>
+
+      {/* Row 2: Closed Deals + Revenue Generated (two tiles) */}
+      <div className="col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <BigTile
+          label={`Closed Deals · ${rangeCfg.label}`}
           value={formatNumber(useLifetime ? lifetimeStats.closedTotal : totals.closed)}
+          sublabel="status: WON"
           accent="rose"
         />
-        <Stat
-          label={useLifetime ? 'Revenue · Lifetime' : `Revenue · ${rangeCfg.label}`}
+        <BigTile
+          label={`Revenue Generated · ${rangeCfg.label}`}
           value={formatCompactCurrency(useLifetime ? lifetimeStats.revenueTotal : totals.revenue)}
+          sublabel={`${formatCurrency(useLifetime ? lifetimeStats.revenueTotal : totals.revenue)}`}
           accent="emerald"
         />
       </div>
 
-      {/* Charts */}
+      {/* Charts — kept as they were per Luke. */}
       <div className="col-span-12 lg:col-span-7 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 min-h-[280px]">
         <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
           <div className="min-w-0">
@@ -171,16 +196,6 @@ export default function AdvancedView() {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* KPI status against targets */}
-      <div className="col-span-12 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 min-w-0">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500 mb-3">KPI Status · Current Period</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KpiStatusRow label="Offers / week" actual={pair.offersWeek} target={KPI_TARGETS.offersPerWeek} />
-          <KpiStatusRow label="Contracts / month" actual={pair.contractsMonth} target={KPI_TARGETS.contractsPerMonth} />
-          <KpiStatusRow label="Closed / month" actual={pair.dealsClosedMonth} target={KPI_TARGETS.dealsClosedPerMonth} />
-        </div>
-      </div>
     </div>
   );
 }
@@ -201,13 +216,17 @@ function Stat({ label, value, accent }) {
   );
 }
 
-function KpiStatusRow({ label, actual, target }) {
+// Stat with KPI status coloring + a tiny progress sliver vs target.
+function KpiStat({ label, actual, target }) {
+  if (target == null) {
+    return <Stat label={label} value={formatNumber(actual)} accent="blue" />;
+  }
   const s = kpiStatus(actual, target);
-  const pct = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
+  const pctVal = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
   return (
     <div className={`rounded-xl border ${s.border} ${s.bg} p-4 min-w-0`}>
-      <div className="flex items-center justify-between mb-2 min-w-0">
-        <span className="text-xs text-zinc-300 truncate">{label}</span>
+      <div className="flex items-baseline justify-between mb-1.5 gap-2">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400 truncate">{label}</div>
         <span className={`text-[10px] font-bold uppercase tracking-widest ${s.text} shrink-0`}>{s.label}</span>
       </div>
       <div className="flex items-baseline gap-2 mb-2">
@@ -215,8 +234,22 @@ function KpiStatusRow({ label, actual, target }) {
         <span className="text-sm text-zinc-500 tabular-nums">/ {target}</span>
       </div>
       <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: s.color }} />
+        <div className="h-full rounded-full" style={{ width: `${pctVal}%`, background: s.color }} />
       </div>
+    </div>
+  );
+}
+
+function BigTile({ label, value, sublabel, accent }) {
+  const colors = {
+    rose: 'text-rose-400 border-rose-500/30 bg-rose-500/5',
+    emerald: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',
+  };
+  return (
+    <div className={`rounded-xl border p-5 ${colors[accent]} min-w-0`}>
+      <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-400 mb-2 truncate">{label}</div>
+      <div className="text-5xl font-bold tabular-nums truncate">{value}</div>
+      <div className="text-xs text-zinc-500 mt-1.5 truncate">{sublabel}</div>
     </div>
   );
 }

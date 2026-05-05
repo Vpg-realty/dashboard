@@ -78,7 +78,7 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
 
   // --- conversations --------------------------------------------------------
   // 7-day daily breakdown.
-  const dailyConvos = [];
+  const daily = [];
   for (let i = 6; i >= 0; i--) {
     const dayStart = startOfDay(i).getTime();
     const dayEnd = startOfDay(i - 1).getTime();
@@ -87,22 +87,22 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
       return t >= dayStart && t < dayEnd;
     }).length;
     const d = new Date(dayStart);
-    dailyConvos.push({
+    daily.push({
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
       date: d.toISOString().slice(0, 10),
       ts: dayStart,
       count,
     });
   }
-  const convosToday = dailyConvos[dailyConvos.length - 1].count;
-  const convosWeek = dailyConvos.reduce((a, d) => a + d.count, 0);
+  const convosToday = daily[daily.length - 1].count;
+  const convosWeek = daily.reduce((a, d) => a + d.count, 0);
 
   return {
     repId,
     marketId,
     convosToday,
     convosWeek,
-    dailyConvos,
+    daily,
     agentTiers,
     agentsAddedToday,
     agentsAddedWeek,
@@ -123,7 +123,7 @@ export function emptyPair(repId, marketId) {
     marketId,
     convosToday: 0,
     convosWeek: 0,
-    dailyConvos: [],
+    daily: [],
     agentTiers: { 1: 0, 2: 0, 3: 0, 4: 0 },
     agentsAddedToday: 0,
     agentsAddedWeek: 0,

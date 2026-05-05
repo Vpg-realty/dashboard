@@ -8,10 +8,19 @@ export default function AgentsView() {
   const head = headline();
   const tiers = tierTotals();
 
+  // Each row is one (rep × market) pair. Bar fill comes from the REP's
+  // fixed color (Luke, May 4: "fixed color per rep across every chart")
+  // while the row label keeps the market visible ("data per market").
   const addedByRep = REPS.flatMap((rep) =>
     rep.markets.map((m) => {
       const p = getPair(rep.id, m);
-      return { label: `${rep.name.split(' ')[0]} · ${m}`, added: p.agentsAddedWeek, market: m };
+      return {
+        label: `${rep.name.split(' ')[0]} · ${m}`,
+        added: p?.agentsAddedWeek ?? 0,
+        repId: rep.id,
+        repColor: rep.color,
+        market: m,
+      };
     })
   );
 
@@ -61,10 +70,9 @@ export default function AgentsView() {
               <YAxis dataKey="label" type="category" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
               <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
               <Bar dataKey="added" radius={[0, 4, 4, 0]}>
-                {addedByRep.map((row, i) => {
-                  const m = MARKETS.find((mk) => mk.id === row.market);
-                  return <Cell key={i} fill={m.color} />;
-                })}
+                {addedByRep.map((row, i) => (
+                  <Cell key={i} fill={row.repColor} />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

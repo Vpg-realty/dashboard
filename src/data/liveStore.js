@@ -1,11 +1,11 @@
 // Live data store for the VPG dashboard.
 //
-// Polls the Cloudflare Worker (`/api/snapshot`) every POLL_MS milliseconds,
-// keeps the latest pairs in module-local state, and exposes the same API
-// surface as mockData.js so views can be source-agnostic.
+// Fetches `${BASE_URL}data.json` — a static snapshot rebuilt every 15 min
+// by the GitHub Actions cron job. PIT tokens never reach the browser.
+// Exposes the same API surface as mockData.js so views stay source-agnostic.
 //
 // Design goals:
-//   - Single fetch per poll for the whole dashboard (worker aggregates).
+//   - Pure static fetch — no GHL credentials in the bundle.
 //   - Last-good-data fallback: if a fetch fails, keep showing prior pairs.
 //   - Persistent fallback: snapshot is mirrored to localStorage so a fresh
 //     page load shows the prior good data immediately, then refreshes.
@@ -17,11 +17,9 @@
 import { useEffect, useReducer } from 'react';
 import { REPS, MARKETS, TIERS } from './config.js';
 
-// API_URL is the base of the dashboard backend. Default '' = same-origin
-// (when the React build is served by server/index.mjs). Override only if
-// the API and the static bundle live on different hosts.
-const API_URL = import.meta.env.VITE_API_URL || '';
-const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 15_000);
+// File is rebuilt upstream every 15 min; 60s is plenty for the client poll.
+const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 60_000);
+const DATA_URL = `${import.meta.env.BASE_URL || '/'}data.json`;
 const LS_KEY = 'vpg.snapshot.v1';
 const STALE_RELOAD_MS = 30 * 60 * 1000;  // 30 min of failures → reload page
 
@@ -33,7 +31,7 @@ const placeholderPairs = REPS.flatMap((rep) =>
     marketId: m,
     convosToday: 0,
     convosWeek: 0,
-    dailyConvos: [],
+    daily: [],
     agentTiers: { 1: 0, 2: 0, 3: 0, 4: 0 },
     agentsAddedToday: 0,
     agentsAddedWeek: 0,
@@ -95,9 +93,9 @@ async function fetchSnapshot() {
   if (inFlight) return;
   inFlight = true;
   try {
-    const base = API_URL.replace(/\/$/, '');
-    const res = await fetch(`${base}/api/snapshot`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Worker responded ${res.status}`);
+    // Cache-bust so we always pick up the freshest GH Pages bundle.
+    const res = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Snapshot responded ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data?.pairs)) throw new Error('Malformed snapshot');
     replacePairs(data.pairs.map(hydratePair));
@@ -110,7 +108,7 @@ async function fetchSnapshot() {
     lastError = String(err?.message || err);
     if (!lastFailureAt) lastFailureAt = Date.now();
     // If we've been failing for a long time, reload — recovers from broken
-    // JS state, expired CF caches, etc.
+    // JS state, stale caches, etc.
     if (Date.now() - lastFailureAt > STALE_RELOAD_MS && typeof window !== 'undefined') {
       window.location.reload();
     }
@@ -125,7 +123,7 @@ async function fetchSnapshot() {
 function hydratePair(p) {
   return {
     history90: [],
-    dailyConvos: p.dailyConvos || [],
+    daily: p.daily || [],
     agentTiers: p.agentTiers || { 1: 0, 2: 0, 3: 0, 4: 0 },
     ...p,
   };

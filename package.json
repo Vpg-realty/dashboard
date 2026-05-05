@@ -8,8 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "serve": "node server/index.mjs",
-    "start": "VITE_USE_LIVE=1 npm run build && npm run serve"
+    "snapshot": "node scripts/build-snapshot.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",

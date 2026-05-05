@@ -1,5 +1,6 @@
 // Snapshot builder — pure function. Aggregates every sub-account into one
-// dashboard payload. Used by the local Node server (server/index.mjs).
+// dashboard payload. Run by scripts/build-snapshot.mjs inside the GitHub
+// Actions cron job; result is written to public/data.json.
 //
 // Result shape: { generatedAt, pairs: [...], errors: [...] }
 
