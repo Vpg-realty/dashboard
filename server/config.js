@@ -3,30 +3,27 @@
 //
 // `locationId` is the GHL sub-account location ID (find it in the GHL URL: /location/{id}/...).
 // The matching PIT token must be present in env.GHL_TOKENS keyed by the same locationId.
-//
-// FILL IN locationId values once Luke (VPG) sends them. Until then, the snapshot returns
-// `{ ok: false, reason: "unconfigured" }` for unfilled subaccounts so the dashboard
-// renders mock data instead of failing.
+// Location IDs filled in May 5 from Ram's GHL admin access; PITs live in the GHL_TOKENS secret.
 
 export const SUBACCOUNTS = [
   // Jack Jeffries
-  { repId: 'jack',    marketId: 'AZ', locationId: '' },
-  { repId: 'jack',    marketId: 'NC', locationId: '' },
+  { repId: 'jack',    marketId: 'AZ', locationId: 'IjTrTBLsiRDWZAvPPgFd' },
+  { repId: 'jack',    marketId: 'NC', locationId: 'ZNHJiLMXDDtxCvOX1oxT' },
   // Anthony Sheffield
-  { repId: 'anthony', marketId: 'AZ', locationId: '' },
-  { repId: 'anthony', marketId: 'MI', locationId: '' },
-  { repId: 'anthony', marketId: 'OH', locationId: '' },
-  { repId: 'anthony', marketId: 'NC', locationId: '' },
+  { repId: 'anthony', marketId: 'AZ', locationId: 'O1lZGP1vlqfU0GzbCPTO' },
+  { repId: 'anthony', marketId: 'MI', locationId: '4UtYECpuatg8Q1XMfGqk' },
+  { repId: 'anthony', marketId: 'OH', locationId: '9qFG0hfeVy6kaSL28RMd' },
+  { repId: 'anthony', marketId: 'NC', locationId: 'HcRtBNpPRDI4nHPpO9zb' },
   // Patrick Jeffries
-  { repId: 'patrick', marketId: 'AZ', locationId: '' },
-  { repId: 'patrick', marketId: 'GA', locationId: '' },
-  { repId: 'patrick', marketId: 'NC', locationId: '' },
+  { repId: 'patrick', marketId: 'AZ', locationId: 'kUB590U9xsaXCtInnuvF' },
+  { repId: 'patrick', marketId: 'GA', locationId: 'y6AYkI53ArJpgyrqKqA1' },
+  { repId: 'patrick', marketId: 'NC', locationId: 'rrN44jJQPaDQ8rfhFMed' },
   // Daniel Diaz
-  { repId: 'daniel',  marketId: 'AZ', locationId: '' },
-  { repId: 'daniel',  marketId: 'TX', locationId: '' },
+  { repId: 'daniel',  marketId: 'AZ', locationId: 'fzh8Ebl8UytO3UEtR24p' },
+  { repId: 'daniel',  marketId: 'TX', locationId: '4O98H14LqmZr5Lk30E7A' },
   // Axel Contreras
-  { repId: 'axel',    marketId: 'AZ', locationId: '' },
-  { repId: 'axel',    marketId: 'FL', locationId: '' },
+  { repId: 'axel',    marketId: 'AZ', locationId: 'xtyFkqv9DKxqhb8Iolmg' },
+  { repId: 'axel',    marketId: 'FL', locationId: 'jgK6encOpnzh9SI4mt90' },
 ];
 
 // Stage names → canonical stage keys used by the dashboard.
