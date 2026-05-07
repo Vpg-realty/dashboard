@@ -4,7 +4,7 @@
 const GHL_BASE = 'https://services.leadconnectorhq.com';
 const GHL_VERSION = '2021-07-28';
 
-async function ghlFetch(path, token, { params, retries = 2 } = {}) {
+async function ghlFetch(path, token, { params, body, method = 'GET', retries = 2 } = {}) {
   const url = new URL(GHL_BASE + path);
   if (params) for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -13,22 +13,23 @@ async function ghlFetch(path, token, { params, retries = 2 } = {}) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url.toString(), {
+        method,
         headers: {
           Authorization: `Bearer ${token}`,
           Version: GHL_VERSION,
           Accept: 'application/json',
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
-        // CF Workers: 30s default timeout is plenty for GHL.
+        body: body ? JSON.stringify(body) : undefined,
       });
       if (res.status === 429 || res.status >= 500) {
-        // Backoff and retry.
         await sleep(250 * (attempt + 1) * (attempt + 1));
         lastErr = new Error(`GHL ${res.status} on ${path}`);
         continue;
       }
       if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`GHL ${res.status} on ${path}: ${body.slice(0, 200)}`);
+        const text = await res.text();
+        throw new Error(`GHL ${res.status} on ${path}: ${text.slice(0, 200)}`);
       }
       return await res.json();
     } catch (err) {
@@ -41,13 +42,12 @@ async function ghlFetch(path, token, { params, retries = 2 } = {}) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// --- typed helpers (one per resource we touch) ----------------------------
+// --- opportunities -------------------------------------------------------
 
 export async function getOpportunities(locationId, token) {
-  // Search all opportunities for this location. Pagination handled here.
   const out = [];
   let page = 1;
-  while (page <= 20) {  // hard cap to avoid runaway loops
+  while (page <= 20) {
     const data = await ghlFetch('/opportunities/search', token, {
       params: { location_id: locationId, page, limit: 100 },
     });
@@ -66,38 +66,75 @@ export async function getPipelines(locationId, token) {
   return data?.pipelines || [];
 }
 
-export async function getContacts(locationId, token) {
-  // Used to count agents and classify by tier. Pulls all contacts; on large
-  // sub-accounts you'll want to filter server-side eventually.
-  const out = [];
-  let page = 1;
-  while (page <= 50) {
-    const data = await ghlFetch('/contacts/', token, {
-      params: { locationId, page, limit: 100 },
-    });
-    const items = data?.contacts || [];
-    out.push(...items);
-    if (items.length < 100) break;
-    page++;
-  }
-  return out;
+// --- conversations -------------------------------------------------------
+//
+// /conversations/search supports (verified May 7 against the official spec):
+//   - startDate / endDate (Unix ms) → filters by `dateAdded` (when conversation
+//     was created — = first outreach for that contact)
+//   - sort=asc|desc and startAfterDate (cursor = the `sort` value of the last
+//     item from the previous page) → real cursor pagination
+//   - limit max is 100
+//
+// `total` in the response reflects the filtered count, so we can get exact
+// counts without paginating just by reading total.
+
+// Counts conversations created in [startMs, now). Uses GHL's `total` field —
+// no pagination needed for the count itself.
+export async function countConversationsCreated(locationId, token, startMs) {
+  const params = { locationId, limit: 1 };
+  if (startMs != null) params.startDate = startMs;
+  const data = await ghlFetch('/conversations/search', token, { params });
+  return data?.total ?? 0;
 }
 
-// GHL's /conversations/search has hard-coded behavior we worked out (May 7):
-//   - `limit` max is 100; any value above returns 0 results
-//   - `page` and `offset` are silently ignored — every call returns the same
-//     100 most-recent conversations (sorted by lastMessageDate desc)
-//   - No date-range filters work (`startAfterDate`/`endBeforeDate` ignored)
+// Returns conversations created in [startMs, now), paginated forward via the
+// `sort` cursor. Caller passes a maxItems cap to avoid runaway fetches.
+export async function listConversationsCreated(locationId, token, { startMs, maxItems = 1000 } = {}) {
+  const out = [];
+  let cursor = undefined;
+  let total = 0;
+  for (let i = 0; i < 50; i++) {
+    const params = { locationId, limit: 100, sort: 'desc' };
+    if (startMs != null) params.startDate = startMs;
+    if (cursor != null) params.startAfterDate = cursor;
+    const data = await ghlFetch('/conversations/search', token, { params });
+    if (i === 0) total = data?.total ?? 0;
+    const items = data?.conversations || [];
+    if (!items.length) break;
+    out.push(...items);
+    if (out.length >= maxItems) break;
+    if (items.length < 100) break;
+    const last = items[items.length - 1];
+    const nextCursor = last?.sort?.[0] ?? last?.lastMessageDate ?? last?.dateAdded;
+    if (!nextCursor || nextCursor === cursor) break;
+    cursor = nextCursor;
+  }
+  return { conversations: out, total };
+}
+
+// --- contacts (agent counts) --------------------------------------------
 //
-// So this returns the 100 most recent conversations + the all-time `total`
-// field GHL provides. The dashboard treats convosWeek as a floor when this
-// caps (100+ flag in the UI for high-volume sub-accounts).
-export async function getConversations(locationId, token) {
-  const data = await ghlFetch('/conversations/search', token, {
-    params: { locationId, limit: 100 },
+// /contacts/search (POST) supports filter array with `tags` + `dateAdded`
+// fields. Returns total count via response.total — so for "how many agents
+// tagged X were added this week" we can just read total without paginating.
+
+const PAGE_LIMIT = 1; // we only need totals, not records
+
+export async function countContactsByFilters(locationId, token, filters) {
+  const data = await ghlFetch('/contacts/search', token, {
+    method: 'POST',
+    body: { locationId, pageLimit: PAGE_LIMIT, filters },
   });
-  return {
-    conversations: data?.conversations || [],
-    total: data?.total ?? 0,
-  };
+  return data?.total ?? 0;
+}
+
+// Convenience: count contacts with a given tag (case-insensitive contains
+// match in GHL). Aliases lets us union counts when sub-accounts have
+// inconsistent tag names.
+export async function countContactsByTag(locationId, token, tag, { sinceMs } = {}) {
+  const filters = [{ field: 'tags', operator: 'contains', value: tag }];
+  if (sinceMs != null) {
+    filters.push({ field: 'dateAdded', operator: 'range', value: { gte: sinceMs } });
+  }
+  return countContactsByFilters(locationId, token, filters);
 }

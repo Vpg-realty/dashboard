@@ -1,12 +1,17 @@
 // Aggregates raw GHL data for one subaccount into the PAIR shape the
-// dashboard already expects from mockData.js. Keeping the shape stable means
-// the React components don't need to change when we flip mock → live.
+// dashboard expects. Pure function — no I/O.
+//
+// Most counts now arrive PRE-COMPUTED from snapshot.js (using GHL's
+// server-side filters). This file mostly does:
+//   - opportunity stage breadcrumb logic (counts opps that *touched* a
+//     stage in the period, not just opps currently parked there)
+//   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
-import { STAGE_ALIASES, AGENT_TAGS } from './config.js';
+import { STAGE_ALIASES } from './config.js';
 
 const startOfWeek = () => {
   const d = new Date();
-  const day = d.getDay() || 7;       // Mon=1..Sun=7
+  const day = d.getDay() || 7;
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - (day - 1));
   return d;
@@ -25,72 +30,92 @@ const startOfDay = (offset = 0) => {
 };
 
 const ts = (v) => (v ? new Date(v).getTime() : 0);
-
-const tagMatch = (tags, list) =>
-  Array.isArray(tags) && tags.some((t) => list.includes(String(t).toLowerCase()));
-
 const stageKey = (name) => STAGE_ALIASES[name] || STAGE_ALIASES[String(name).trim()] || null;
 
-export function aggregatePair({ repId, marketId, opportunities, contacts, conversations, pipelines, conversationsAllTime = 0 }) {
+// Funnel-order rank — lets us say "this opp has at least passed through
+// stage N" given its current stage.
+const STAGE_RANK = {
+  new_lead: 1,
+  review: 2,
+  offer_submitted: 3,
+  negotiation: 4,
+  under_contract: 5,
+  dispo: 6,
+  assigned: 7,
+  closed: 8,
+  abandoned: 99,
+  lost: 99,
+};
+
+export function aggregatePair({
+  repId, marketId,
+  opportunities, pipelines,
+  convosNewToday = 0, convosNewWeek = 0, convosAllTime = 0,
+  dailyConversations = [],
+  agentsTotal = 0, agentsAddedToday = 0, agentsAddedWeek = 0,
+  agentTierTotals = { 1: 0, 2: 0, 3: 0, 4: 0 },
+}) {
   const wkStart = startOfWeek().getTime();
   const moStart = startOfMonth().getTime();
 
-  // Stage lookup: opportunity has a `pipelineStageId`. Resolve to a name via the pipelines array.
   const stageById = {};
   for (const p of pipelines || []) {
     for (const s of p.stages || []) stageById[s.id] = s.name;
   }
 
-  // --- opportunities --------------------------------------------------------
-  // GHL exposes `lastStageChangeAt` and `lastStatusChangeAt` per opp — those are
-  // the canonical "this opp moved" timestamps. updatedAt churns on every edit,
-  // so it over-counts (e.g., notes added to old deals re-counted as recent).
-  let offersWeek = 0, contractsMonth = 0, dealsClosedMonth = 0, abandoned = 0, lost = 0;
+  // --- opportunities — stage breadcrumb logic ----------------------------
+  // GHL exposes only current stage + lastStageChangeAt / lastStatusChangeAt.
+  // To count opps that *passed through* a stage in the period, we use the
+  // breadcrumb principle: an opp currently at stage N (rank R) must have
+  // been at every stage with rank ≤ R at some point. So if an opp moved
+  // to stage rank ≥ Offer Submitted this week, we count it as an offer.
+  let offersWeek = 0, contractsMonth = 0, dealsClosedMonth = 0;
+  let abandoned = 0, lost = 0;
   let revenueMonth = 0;
+
+  const OFFER_RANK = STAGE_RANK.offer_submitted;
+  const UC_RANK = STAGE_RANK.under_contract;
+
   for (const o of opportunities) {
     const stageName = stageById[o.pipelineStageId] || o.stage || '';
     const key = stageKey(stageName);
+    const rank = STAGE_RANK[key] || 0;
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
 
-    // Currently-in-stage + entered the stage in the period.
-    if (key === 'offer_submitted' && stageChange >= wkStart) offersWeek++;
-    if (key === 'under_contract' && stageChange >= moStart) contractsMonth++;
+    // Offers this week — current stage is at-or-past Offer Submitted AND
+    // entered current stage this week (so this is the move that put it
+    // at-or-past offer).
+    if (rank >= OFFER_RANK && rank < 99 && stageChange >= wkStart) offersWeek++;
 
-    // status='won' is the canonical "closed" marker; sticks once set.
+    // Contracts this month — at-or-past Under Contract AND entered current
+    // stage this month, OR closed-won this month (deals that closed past UC).
+    if (rank >= UC_RANK && rank < 99 && stageChange >= moStart) contractsMonth++;
+    else if (o.status === 'won' && statusChange >= moStart && rank !== STAGE_RANK.closed) {
+      // Edge case: closed-won via status without typical stage progression.
+      contractsMonth++;
+    }
+
+    // Closed this month — status went to 'won' this month.
     if (o.status === 'won' && statusChange >= moStart) {
       dealsClosedMonth++;
       revenueMonth += Number(o.monetaryValue || 0);
     }
 
-    // Abandoned/Lost — filter to current month so the dashboard reflects
-    // dead deals THIS month, not lifetime totals.
+    // Abandoned / Lost — month-filtered via lastStatusChangeAt.
     if (o.status === 'abandoned' && statusChange >= moStart) abandoned++;
     if (o.status === 'lost' && statusChange >= moStart) lost++;
   }
 
-  // --- agents ---------------------------------------------------------------
-  const agents = contacts.filter((c) =>
-    tagMatch((c.tags || []).map((t) => String(t).toLowerCase()), AGENT_TAGS.isAgent)
-  );
-  const tier = (n) => agents.filter((c) =>
-    tagMatch((c.tags || []).map((t) => String(t).toLowerCase()), AGENT_TAGS[`tier${n}`])
-  ).length;
-  const agentTiers = { 1: tier(1), 2: tier(2), 3: tier(3), 4: tier(4) };
-
-  // Today/week adds — based on contact dateAdded.
-  const todayStart = startOfDay(0).getTime();
-  const agentsAddedToday = agents.filter((c) => ts(c.dateAdded) >= todayStart).length;
-  const agentsAddedWeek = agents.filter((c) => ts(c.dateAdded) >= wkStart).length;
-
-  // --- conversations --------------------------------------------------------
-  // 7-day daily breakdown.
+  // --- conversations: 7-day daily breakdown of NEW conversations ---------
+  // Luke (May 4): "convos (only new convos / first outreach)".
+  // dailyConversations was filtered server-side by dateAdded >= 7 days ago.
   const daily = [];
   for (let i = 6; i >= 0; i--) {
     const dayStart = startOfDay(i).getTime();
     const dayEnd = startOfDay(i - 1).getTime();
-    const count = conversations.filter((c) => {
-      const t = ts(c.lastMessageDate || c.dateUpdated || c.dateAdded);
+    const count = dailyConversations.filter((c) => {
+      const t = ts(c.dateAdded);
       return t >= dayStart && t < dayEnd;
     }).length;
     const d = new Date(dayStart);
@@ -101,24 +126,22 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
       count,
     });
   }
-  const convosToday = daily[daily.length - 1].count;
-  const convosWeek = daily.reduce((a, d) => a + d.count, 0);
-  // True if we hit GHL's 100-result hard cap (which means convosWeek/Today
-  // are floors, not exact counts). UI can show a "+" suffix.
-  const convosCapped = conversations.length >= 100;
 
   return {
     repId,
     marketId,
-    convosToday,
-    convosWeek,
-    convosCapped,
-    convosAllTime: conversationsAllTime,
+    // Conversation metrics — based on dateAdded ("first outreach").
+    convosToday: convosNewToday,
+    convosWeek: convosNewWeek,
+    convosAllTime,
+    convosCapped: false,  // accurate now via GHL's filtered total
     daily,
-    agentTiers,
+    // Agent metrics — direct from GHL filtered counts.
+    agentsTotal,
     agentsAddedToday,
     agentsAddedWeek,
-    agentsTotal: agents.length,  // only contacts with the "Agent – confirmed" tag
+    agentTiers: agentTierTotals,
+    // Opportunity metrics — stage breadcrumb logic.
     offersWeek,
     contractsMonth,
     dealsClosedMonth,
@@ -128,18 +151,19 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
   };
 }
 
-// Builds the empty/unconfigured pair so the dashboard renders something
-// even when a sub-account hasn't been wired yet.
 export function emptyPair(repId, marketId) {
   return {
     repId,
     marketId,
     convosToday: 0,
     convosWeek: 0,
+    convosAllTime: 0,
+    convosCapped: false,
     daily: [],
-    agentTiers: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    agentsTotal: 0,
     agentsAddedToday: 0,
     agentsAddedWeek: 0,
+    agentTiers: { 1: 0, 2: 0, 3: 0, 4: 0 },
     offersWeek: 0,
     contractsMonth: 0,
     dealsClosedMonth: 0,
