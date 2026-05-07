@@ -10,8 +10,20 @@ import {
   getPipelines,
   countConversationsCreated,
   listConversationsCreated,
-  countContactsByTag,
+  countContactsByAnyTag,
 } from './ghl.js';
+
+// Tag variants to tolerate human-typed inconsistencies across sub-accounts.
+// GHL's `contains` operator is case + dash-character sensitive, so we query
+// every plausible variant and sum the totals.
+const AGENT_CONFIRMED_VARIANTS = [
+  'agent - confirmed',
+  'Agent - Confirmed',
+  'AGENT - CONFIRMED',
+  'agent-confirmed',
+  'Agent-Confirmed',
+];
+const TIER_VARIANTS = (n) => [`tier ${n}`, `Tier ${n}`, `TIER ${n}`, `tier-${n}`, `Tier-${n}`, `tier${n}`];
 import { aggregatePair, emptyPair } from './aggregate.js';
 
 export const VERSION = '0.2.0';
@@ -80,15 +92,15 @@ export async function buildSnapshot({ tokens }) {
           countConversationsCreated(locationId, token, wkStart),
           countConversationsCreated(locationId, token, null),
           listConversationsCreated(locationId, token, { startMs: sevenDaysAgo, maxItems: 2000 }),
-          countContactsByTag(locationId, token, 'agent - confirmed'),
-          countContactsByTag(locationId, token, 'agent - confirmed', { sinceMs: todayStart }),
-          countContactsByTag(locationId, token, 'agent - confirmed', { sinceMs: wkStart }),
-          // Tag search is case-sensitive in GHL — verified all subs use
-          // lowercase 'tier N'.
-          countContactsByTag(locationId, token, 'tier 1'),
-          countContactsByTag(locationId, token, 'tier 2'),
-          countContactsByTag(locationId, token, 'tier 3'),
-          countContactsByTag(locationId, token, 'tier 4'),
+          // Tag matching is case + dash-character sensitive in GHL. Query every
+          // plausible variant per tag and sum so typos don't drop counts.
+          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS),
+          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS, { sinceMs: todayStart }),
+          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS, { sinceMs: wkStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(1)),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(2)),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(3)),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(4)),
         ]);
 
         return aggregatePair({

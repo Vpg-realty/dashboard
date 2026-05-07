@@ -19,8 +19,11 @@ import { REPS, MARKETS, TIERS } from './config.js';
 
 // File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
 const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 30_000);
-const DATA_URL = `${import.meta.env.BASE_URL || '/'}data.json`;
+const BASE = import.meta.env.BASE_URL || '/';
+const DATA_URL = `${BASE}data.json`;
+const HISTORY_URL = `${BASE}history.json`;
 const LS_KEY = 'vpg.snapshot.v1';
+const HISTORY_LS_KEY = 'vpg.history.v1';
 const STALE_RELOAD_MS = 30 * 60 * 1000;  // 30 min of failures → reload page
 
 // Build placeholder pairs so the dashboard renders zeros (not crashes) before
@@ -55,6 +58,7 @@ export const PAIRS = (initial?.pairs || placeholderPairs).map((p) => ({ ...p }))
 let lastSync = initial?.generatedAt || null;
 let lastError = null;
 let lastFailureAt = null;
+let HISTORY = loadHistoryFromStorage() || [];   // array of daily snapshot entries
 const subscribers = new Set();
 
 function replacePairs(newPairs) {
@@ -76,6 +80,29 @@ function loadFromStorage() {
   } catch {
     return null;
   }
+}
+
+function loadHistoryFromStorage() {
+  try {
+    const raw = localStorage.getItem(HISTORY_LS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchHistory() {
+  try {
+    const r = await fetch(`${HISTORY_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (Array.isArray(d?.entries)) {
+      HISTORY = d.entries;
+      try { localStorage.setItem(HISTORY_LS_KEY, JSON.stringify(HISTORY)); } catch {}
+    }
+  } catch { /* fall back to whatever's in localStorage */ }
 }
 
 function saveToStorage(snapshot) {
@@ -132,6 +159,7 @@ function hydratePair(p) {
 function startPolling() {
   if (pollTimer) return;
   fetchSnapshot();  // immediate
+  fetchHistory();   // history changes at most once a day; one fetch per visibility resume is plenty
   pollTimer = setInterval(fetchSnapshot, POLL_MS);
 }
 function stopPolling() {
@@ -243,6 +271,65 @@ export const sliceHistory = (pair, days) => {
   if (!pair?.history90) return [];
   return pair.history90.slice(-days);
 };
+
+// --- snapshot history helpers --------------------------------------------
+// HISTORY is an array of { date: 'YYYY-MM-DD', generatedAt, pairs: [...] }
+// indexed by day. Used to compute true period deltas (e.g. how many agents
+// became confirmed in the past 7 days).
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+function historyEntryNDaysAgo(daysAgo) {
+  if (!HISTORY.length) return null;
+  const target = new Date();
+  target.setDate(target.getDate() - daysAgo);
+  const targetDate = target.toISOString().slice(0, 10);
+  // Exact-match preferred; otherwise return the oldest entry on or after the target date.
+  const exact = HISTORY.find((e) => e.date === targetDate);
+  if (exact) return exact;
+  return HISTORY.find((e) => e.date >= targetDate) || HISTORY[0];
+}
+
+function historyPairValue(entry, repId, marketId, field) {
+  if (!entry) return null;
+  const p = entry.pairs?.find((x) => x.repId === repId && x.marketId === marketId);
+  if (!p) return null;
+  return Number(p[field] || 0);
+}
+
+// Number of distinct days we have on file (used by views to decide whether
+// to show "added this week" delta or fall back to "lifetime total").
+export const historyDayCount = () => HISTORY.length;
+
+// Returns the delta of `field` between today's snapshot and `daysAgo` days
+// ago (or the oldest entry if we have less than `daysAgo` days). Returns
+// null when we don't have enough history yet.
+export function historyDelta(repId, marketId, field, daysAgo) {
+  const todayEntry = HISTORY.find((e) => e.date === today()) || HISTORY[HISTORY.length - 1];
+  const pastEntry = historyEntryNDaysAgo(daysAgo);
+  if (!todayEntry || !pastEntry || todayEntry === pastEntry) return null;
+  const cur = historyPairValue(todayEntry, repId, marketId, field);
+  const past = historyPairValue(pastEntry, repId, marketId, field);
+  if (cur == null || past == null) return null;
+  return cur - past;
+}
+
+// Sums the same delta across all pairs (team total).
+export function historyDeltaTotal(field, daysAgo) {
+  const todayEntry = HISTORY.find((e) => e.date === today()) || HISTORY[HISTORY.length - 1];
+  const pastEntry = historyEntryNDaysAgo(daysAgo);
+  if (!todayEntry || !pastEntry || todayEntry === pastEntry) return null;
+  const sumFor = (entry) => (entry.pairs || []).reduce((a, p) => a + Number(p[field] || 0), 0);
+  return sumFor(todayEntry) - sumFor(pastEntry);
+}
+
+// How far back the available history actually reaches, in days.
+export function historyDaysBack() {
+  if (!HISTORY.length) return 0;
+  const oldest = HISTORY[0].date;
+  const ms = Date.now() - new Date(oldest).getTime();
+  return Math.max(0, Math.round(ms / (24 * 60 * 60 * 1000)));
+}
 
 // React hook so components re-render when a new snapshot arrives.
 export function useDataUpdates() {

@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
-import { getPair, tierTotals, headline } from '../data/source.js';
+import { getPair, tierTotals, headline, historyDelta, historyDeltaTotal, historyDaysBack } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
 export default function AgentsView() {
@@ -11,12 +11,16 @@ export default function AgentsView() {
   // Each row is one (rep × market) pair. Bar fill comes from the REP's
   // fixed color (Luke, May 4: "fixed color per rep across every chart")
   // while the row label keeps the market visible ("data per market").
+  // Per-pair "added" prefers the snapshot-history delta (true count of
+  // agents that became confirmed in the period) and falls back to the
+  // strict same-week-create-and-tag count when history isn't deep enough.
   const addedByRep = REPS.flatMap((rep) =>
     rep.markets.map((m) => {
       const p = getPair(rep.id, m);
+      const delta = historyDelta(rep.id, m, 'agentsTotal', 7);
       return {
         label: `${rep.name.split(' ')[0]} · ${m}`,
-        added: p?.agentsAddedWeek ?? 0,
+        added: delta != null ? delta : (p?.agentsAddedWeek ?? 0),
         repId: rep.id,
         repColor: rep.color,
         market: m,
@@ -25,14 +29,20 @@ export default function AgentsView() {
   );
 
   const totalTier1 = tiers.find((t) => t.tier === 1).value;
+  // Prefer the team-wide history delta. Fall back to summed per-pair fields
+  // when the daily history file hasn't accumulated enough days yet.
+  const addedThisWeekDelta = historyDeltaTotal('agentsTotal', 7);
+  const addedThisWeek = addedThisWeekDelta != null ? addedThisWeekDelta : head.agentsAddedWeek;
+  const daysBack = historyDaysBack();
+  const addedSubtitle = addedThisWeekDelta != null && daysBack < 7 ? `over last ${daysBack} day${daysBack === 1 ? '' : 's'}` : null;
 
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <BigStat label="Total Agents" value={head.agentsTotal} accent="zinc" />
         <BigStat label="Tier 1 VIPs" value={totalTier1} accent="amber" highlight />
-        <BigStat label="Added This Week" value={head.agentsAddedWeek} accent="emerald" />
-        <BigStat label="Added Today" value={Math.round(head.agentsAddedWeek / 7)} accent="blue" />
+        <BigStat label="Added This Week" value={addedThisWeek} accent="emerald" sub={addedSubtitle} />
+        <BigStat label="Added Today" value={Math.max(0, Math.round(addedThisWeek / 7))} accent="blue" />
       </div>
 
       <Panel className="col-span-12 lg:col-span-5 min-h-0" title="Agents by Tier" subtitle="all markets" accent="Distribution">
@@ -141,7 +151,7 @@ export default function AgentsView() {
   );
 }
 
-function BigStat({ label, value, accent, highlight }) {
+function BigStat({ label, value, accent, highlight, sub }) {
   const colors = {
     zinc: 'text-zinc-100 border-zinc-700 bg-zinc-900/40',
     amber: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
@@ -152,6 +162,7 @@ function BigStat({ label, value, accent, highlight }) {
     <div className={`rounded-xl border p-5 ${colors[accent]} ${highlight ? 'ring-1 ring-amber-500/20' : ''} min-w-0`}>
       <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-400 mb-2 truncate">{label}</div>
       <div className="text-3xl xl:text-4xl 2xl:text-5xl font-bold tabular-nums truncate">{formatNumber(value)}</div>
+      {sub && <div className="text-[10px] text-zinc-500 mt-1 truncate">{sub}</div>}
     </div>
   );
 }

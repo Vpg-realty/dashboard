@@ -26,6 +26,13 @@ export const totalRevenueByRep = () => src.totalRevenueByRep();
 export const headline = () => src.headline();
 export const sliceHistory = (...a) => src.sliceHistory(...a);
 
+// Snapshot-history helpers (live-only; mock returns null/0 so views fall
+// back to per-pair fields).
+export const historyDelta = (...a) => (src.historyDelta ? src.historyDelta(...a) : null);
+export const historyDeltaTotal = (...a) => (src.historyDeltaTotal ? src.historyDeltaTotal(...a) : null);
+export const historyDayCount = () => (src.historyDayCount ? src.historyDayCount() : 0);
+export const historyDaysBack = () => (src.historyDaysBack ? src.historyDaysBack() : 0);
+
 // React-only helpers — no-ops in mock mode.
 export const useDataUpdates = src.useDataUpdates || (() => {});
 export const useDataStatus =
