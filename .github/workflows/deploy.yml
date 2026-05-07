@@ -4,10 +4,11 @@ on:
   push:
     branches: [main]
   schedule:
-    # Refresh every 15 min so the TV stays current.
-    # Free-tier private-repo Actions budget is 2,000 min/mo;
-    # ~30s × 96 runs/day × 30 days ≈ 720 min/mo (well under).
-    - cron: '*/15 * * * *'
+    # Refresh every 2 min so the TV stays close to real-time.
+    # GitHub Actions cron is best-effort (it can drift up to ~5 min during
+    # platform-wide high load), but on a public repo this generally fires
+    # every 2 min. Each run is ~30s; minutes are unlimited for public repos.
+    - cron: '*/2 * * * *'
   workflow_dispatch: {}
 
 permissions:

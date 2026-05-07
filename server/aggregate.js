@@ -42,24 +42,31 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
   }
 
   // --- opportunities --------------------------------------------------------
+  // GHL exposes `lastStageChangeAt` and `lastStatusChangeAt` per opp — those are
+  // the canonical "this opp moved" timestamps. updatedAt churns on every edit,
+  // so it over-counts (e.g., notes added to old deals re-counted as recent).
   let offersWeek = 0, contractsMonth = 0, dealsClosedMonth = 0, abandoned = 0, lost = 0;
   let revenueMonth = 0;
   for (const o of opportunities) {
     const stageName = stageById[o.pipelineStageId] || o.stage || '';
     const key = stageKey(stageName);
-    const updated = ts(o.updatedAt || o.dateUpdated);
-    const created = ts(o.createdAt || o.dateAdded);
+    const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
+    const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
 
-    // "offers/week": opp moved into Offer Submitted this week.
-    // We approximate with updatedAt because GHL doesn't expose stage history natively.
-    if (key === 'offer_submitted' && updated >= wkStart) offersWeek++;
-    if (key === 'under_contract' && updated >= moStart) contractsMonth++;
-    if ((key === 'closed' || o.status === 'won') && updated >= moStart) {
+    // Currently-in-stage + entered the stage in the period.
+    if (key === 'offer_submitted' && stageChange >= wkStart) offersWeek++;
+    if (key === 'under_contract' && stageChange >= moStart) contractsMonth++;
+
+    // status='won' is the canonical "closed" marker; sticks once set.
+    if (o.status === 'won' && statusChange >= moStart) {
       dealsClosedMonth++;
       revenueMonth += Number(o.monetaryValue || 0);
     }
-    if (o.status === 'abandoned' || key === 'abandoned') abandoned++;
-    if (o.status === 'lost' || key === 'lost') lost++;
+
+    // Abandoned/Lost — filter to current month so the dashboard reflects
+    // dead deals THIS month, not lifetime totals.
+    if (o.status === 'abandoned' && statusChange >= moStart) abandoned++;
+    if (o.status === 'lost' && statusChange >= moStart) lost++;
   }
 
   // --- agents ---------------------------------------------------------------
