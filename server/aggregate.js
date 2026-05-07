@@ -31,7 +31,7 @@ const tagMatch = (tags, list) =>
 
 const stageKey = (name) => STAGE_ALIASES[name] || STAGE_ALIASES[String(name).trim()] || null;
 
-export function aggregatePair({ repId, marketId, opportunities, contacts, conversations, pipelines }) {
+export function aggregatePair({ repId, marketId, opportunities, contacts, conversations, pipelines, conversationsAllTime = 0 }) {
   const wkStart = startOfWeek().getTime();
   const moStart = startOfMonth().getTime();
 
@@ -103,16 +103,22 @@ export function aggregatePair({ repId, marketId, opportunities, contacts, conver
   }
   const convosToday = daily[daily.length - 1].count;
   const convosWeek = daily.reduce((a, d) => a + d.count, 0);
+  // True if we hit GHL's 100-result hard cap (which means convosWeek/Today
+  // are floors, not exact counts). UI can show a "+" suffix.
+  const convosCapped = conversations.length >= 100;
 
   return {
     repId,
     marketId,
     convosToday,
     convosWeek,
+    convosCapped,
+    convosAllTime: conversationsAllTime,
     daily,
     agentTiers,
     agentsAddedToday,
     agentsAddedWeek,
+    agentsTotal: agents.length,  // only contacts with the "Agent – confirmed" tag
     offersWeek,
     contractsMonth,
     dealsClosedMonth,

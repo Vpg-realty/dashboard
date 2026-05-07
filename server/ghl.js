@@ -83,17 +83,21 @@ export async function getContacts(locationId, token) {
   return out;
 }
 
+// GHL's /conversations/search has hard-coded behavior we worked out (May 7):
+//   - `limit` max is 100; any value above returns 0 results
+//   - `page` and `offset` are silently ignored — every call returns the same
+//     100 most-recent conversations (sorted by lastMessageDate desc)
+//   - No date-range filters work (`startAfterDate`/`endBeforeDate` ignored)
+//
+// So this returns the 100 most recent conversations + the all-time `total`
+// field GHL provides. The dashboard treats convosWeek as a floor when this
+// caps (100+ flag in the UI for high-volume sub-accounts).
 export async function getConversations(locationId, token) {
-  const out = [];
-  let page = 1;
-  while (page <= 20) {
-    const data = await ghlFetch('/conversations/search', token, {
-      params: { locationId, page, limit: 100 },
-    });
-    const items = data?.conversations || [];
-    out.push(...items);
-    if (items.length < 100) break;
-    page++;
-  }
-  return out;
+  const data = await ghlFetch('/conversations/search', token, {
+    params: { locationId, limit: 100 },
+  });
+  return {
+    conversations: data?.conversations || [],
+    total: data?.total ?? 0,
+  };
 }

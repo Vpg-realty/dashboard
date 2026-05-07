@@ -31,13 +31,21 @@ export async function buildSnapshot({ tokens }) {
         return emptyPair(repId, marketId);
       }
       try {
-        const [opportunities, pipelines, contacts, conversations] = await Promise.all([
+        const [opportunities, pipelines, contacts, convResult] = await Promise.all([
           getOpportunities(locationId, token),
           getPipelines(locationId, token),
           getContacts(locationId, token),
           getConversations(locationId, token),
         ]);
-        return aggregatePair({ repId, marketId, opportunities, pipelines, contacts, conversations });
+        return aggregatePair({
+          repId,
+          marketId,
+          opportunities,
+          pipelines,
+          contacts,
+          conversations: convResult.conversations,
+          conversationsAllTime: convResult.total,
+        });
       } catch (err) {
         errors.push({ repId, marketId, locationId, reason: String(err?.message || err).slice(0, 200) });
         return emptyPair(repId, marketId);
