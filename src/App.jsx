@@ -9,6 +9,7 @@ import RevenueView from './views/RevenueView.jsx';
 import MasterView from './views/MasterView.jsx';
 import AdvancedView from './views/AdvancedView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
+import { useDataUpdates, useDataStatus } from './data/source.js';
 
 const VIEWS = {
   conversations: { label: 'Conversations · live',           component: ConversationsView },
@@ -20,6 +21,10 @@ const VIEWS = {
 };
 
 export default function App() {
+  // Re-render the whole tree whenever a new live snapshot arrives. No-op in mock mode.
+  useDataUpdates();
+  const dataStatus = useDataStatus();
+
   const [view, setView] = useState('conversations');
   const [isCycling, setIsCycling] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -86,6 +91,7 @@ export default function App() {
         onFullscreen={handleFullscreen}
         isFullscreen={isFullscreen}
         onAddSubaccount={() => setShowModal(true)}
+        dataStatus={dataStatus}
       />
       <ViewNav active={view} onChange={handleViewChange} />
 

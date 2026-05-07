@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import Panel from '../components/Panel.jsx';
-import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/mockData.js';
+import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/source.js';
 import { formatCurrency, formatCompactCurrency } from '../utils/format.js';
 
 export default function RevenueView() {

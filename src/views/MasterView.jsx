@@ -1,116 +1,166 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Line, LineChart } from 'recharts';
-import { REPS, MARKETS, TIERS, KPI_TARGETS } from '../data/config.js';
-import { getPair, headline, tierTotals, totalRevenueByMarket, totalConversationsByMarket } from '../data/mockData.js';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { REPS, MARKETS, TEAM_TARGETS } from '../data/config.js';
+import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 
 // Compact 4-quadrant dashboard. Built specifically for the master view —
 // shows the most important info from each section without scaling tricks.
+//
+// Luke (May 4):
+//  - Conversations tile: single pie chart per rep with markets in different colors.
+//  - Revenue tile: $100k tracker + per-rep monthly totals.
+//  - Opportunities tile: progress bars (X of goal).
+//  - Agents tile: company-wide "agent confirmed" count broken out per rep.
 export default function MasterView() {
   const head = headline();
-  const tiers = tierTotals();
-  const revByMarket = totalRevenueByMarket();
-  const convByMarket = totalConversationsByMarket();
 
-  const offerTarget = KPI_TARGETS.offersPerWeek * MARKETS.length;
-  const offerStatus = kpiStatus(head.offersWeek, offerTarget);
-  const closedTarget = KPI_TARGETS.dealsClosedPerMonth * MARKETS.length;
-  const closedStatus = kpiStatus(head.dealsClosedMonth, closedTarget);
+  const offerStatus = kpiStatus(head.offersWeek, TEAM_TARGETS.offersPerWeek);
+  const contractStatus = kpiStatus(head.contractsMonth, TEAM_TARGETS.contractsPerMonth);
+  const closedStatus = kpiStatus(head.dealsClosedMonth, TEAM_TARGETS.dealsClosedPerMonth);
+  const revStatus = kpiStatus(head.revenueMonth, TEAM_TARGETS.revenuePerMonth);
+
+  // Per-rep aggregates re-used by multiple tiles.
+  const perRep = REPS.map((rep) => {
+    const pairs = getPairsForRep(rep.id);
+    const convosWeek = pairs.reduce((a, p) => a + (p.convosWeek || 0), 0);
+    const revenueMonth = pairs.reduce((a, p) => a + (p.revenueMonth || 0), 0);
+    const agentsConfirmed = pairs.reduce((a, p) => {
+      const t = p.agentTiers || {};
+      return a + (t[1] || 0) + (t[2] || 0) + (t[3] || 0) + (t[4] || 0);
+    }, 0);
+    const convosByMarket = rep.markets.map((m) => {
+      const p = getPair(rep.id, m);
+      const market = MARKETS.find((mk) => mk.id === m);
+      return { market: m, color: market.color, value: p?.convosWeek || 0 };
+    });
+    return { ...rep, convosWeek, revenueMonth, agentsConfirmed, convosByMarket };
+  });
 
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
-      {/* Conversations quadrant */}
+      {/* Conversations — one pie per rep, markets in different colors. */}
       <Quadrant
         title="Conversations"
-        subtitle="this week · all reps"
+        subtitle="this week · per rep, split by market"
         big={formatNumber(head.conversationsWeek)}
         bigColor="#a78bfa"
-        bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg`}
+        bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg/day`}
       >
-        <div className="flex flex-wrap gap-1.5">
-          {convByMarket.map((m) => (
-            <div key={m.market} className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-950/50 border border-zinc-800/60 min-w-0">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
-              <span className="text-[11px] text-zinc-400 truncate">{m.market}</span>
-              <span className="text-xs font-semibold text-zinc-100 tabular-nums">{m.week}</span>
-            </div>
+        <div className="flex-1 grid grid-cols-5 gap-1.5 min-h-0">
+          {perRep.map((rep) => (
+            <RepPie key={rep.id} rep={rep} />
           ))}
         </div>
       </Quadrant>
 
-      {/* Agents quadrant */}
+      {/* Agents — company-wide "agent confirmed" count broken out per rep. */}
       <Quadrant
-        title="Agents"
-        subtitle={`${head.agentsTotal} total · ${head.agentsAddedWeek} added this week`}
-        big={formatNumber(tiers[0].value)}
+        title="Agent Confirmed"
+        subtitle="active agents per rep across all subaccounts"
+        big={formatNumber(head.agentsTotal)}
         bigColor="#fbbf24"
-        bigSub="Tier 1 VIPs"
+        bigSub={`${head.agentsAddedWeek} added this week`}
       >
-        <div className="flex-1 flex items-center gap-3 min-h-0">
-          <ResponsiveContainer width="50%" height="100%">
-            <PieChart>
-              <Pie data={tiers} dataKey="value" innerRadius={20} outerRadius={45} paddingAngle={2} stroke="none">
-                {tiers.map((t) => <Cell key={t.tier} fill={t.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 grid grid-cols-2 gap-1 text-[11px]">
-            {tiers.map((t) => (
-              <div key={t.tier} className="flex items-center justify-between gap-1 px-1.5 py-0.5 rounded bg-zinc-950/50 min-w-0">
-                <span className="flex items-center gap-1 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: t.color }} />
-                  <span className="text-zinc-400">T{t.tier}</span>
-                </span>
-                <span className="text-zinc-100 font-semibold tabular-nums">{t.value}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex-1 flex flex-col justify-end gap-1 min-h-0">
+          {perRep
+            .slice()
+            .sort((a, b) => b.agentsConfirmed - a.agentsConfirmed)
+            .map((rep) => {
+              const max = Math.max(1, ...perRep.map((r) => r.agentsConfirmed));
+              const w = (rep.agentsConfirmed / max) * 100;
+              return (
+                <div key={rep.id} className="flex items-center gap-2 min-w-0">
+                  <span className="text-[11px] text-zinc-300 w-16 truncate shrink-0">{rep.name.split(' ')[0]}</span>
+                  <div className="flex-1 h-3 bg-zinc-950/70 rounded overflow-hidden min-w-0">
+                    <div className="h-full rounded" style={{ width: `${w}%`, background: rep.color }} />
+                  </div>
+                  <span className="text-xs font-bold tabular-nums w-8 text-right shrink-0" style={{ color: rep.color }}>
+                    {rep.agentsConfirmed}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       </Quadrant>
 
-      {/* Opportunities quadrant */}
+      {/* Opportunities — progress bars (X of goal) for the three KPIs. */}
       <Quadrant
         title="Opportunities"
         subtitle="weekly offers · monthly contracts/closed"
-        big={`${head.offersWeek} / ${offerTarget}`}
+        big={`${head.offersWeek}/${TEAM_TARGETS.offersPerWeek}`}
         bigColor={offerStatus.color}
         bigSub={`offers · ${offerStatus.label.toLowerCase()}`}
       >
-        <div className="grid grid-cols-3 gap-1.5">
-          <MiniMetric label="Offers" actual={head.offersWeek} target={offerTarget} />
-          <MiniMetric label="Contracts" actual={head.contractsMonth} target={KPI_TARGETS.contractsPerMonth * MARKETS.length} />
-          <MiniMetric label="Closed" actual={head.dealsClosedMonth} target={closedTarget} />
+        <div className="flex-1 flex flex-col justify-end gap-2 min-h-0">
+          <Progress label="Offers / wk"     actual={head.offersWeek}        target={TEAM_TARGETS.offersPerWeek}        status={offerStatus} />
+          <Progress label="Contracts / mo"  actual={head.contractsMonth}    target={TEAM_TARGETS.contractsPerMonth}    status={contractStatus} />
+          <Progress label="Closed / mo"     actual={head.dealsClosedMonth}  target={TEAM_TARGETS.dealsClosedPerMonth}  status={closedStatus} />
         </div>
       </Quadrant>
 
-      {/* Revenue quadrant */}
+      {/* Revenue — $100k/mo tracker + per-rep monthly totals. */}
       <Quadrant
         title="Revenue"
-        subtitle="this month"
+        subtitle={`this month · target ${formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)}`}
         big={formatCompactCurrency(head.revenueMonth)}
-        bigColor="#10b981"
-        bigSub={`${head.dealsClosedMonth} closed deals`}
+        bigColor={revStatus.color}
+        bigSub={`${head.dealsClosedMonth} closed deals · ${revStatus.label.toLowerCase()}`}
       >
-        <div className="flex-1 flex items-center gap-3 min-h-0">
-          <ResponsiveContainer width="50%" height="100%">
-            <PieChart>
-              <Pie data={revByMarket} dataKey="value" innerRadius={20} outerRadius={45} paddingAngle={2} stroke="none">
-                {revByMarket.map((m) => <Cell key={m.market} fill={m.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 space-y-0.5 text-[11px]">
-            {revByMarket.slice(0, 4).map((m) => (
-              <div key={m.market} className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: m.color }} />
-                  <span className="text-zinc-400 truncate">{m.market}</span>
-                </span>
-                <span className="text-zinc-100 font-semibold tabular-nums">{formatCompactCurrency(m.value)}</span>
+        <div className="flex-1 flex flex-col justify-end gap-2 min-h-0">
+          <Progress
+            label="Toward $100k goal"
+            actual={head.revenueMonth}
+            target={TEAM_TARGETS.revenuePerMonth}
+            status={revStatus}
+            formatValue={formatCompactCurrency}
+          />
+          <div className="grid grid-cols-5 gap-1 mt-1">
+            {perRep.map((rep) => (
+              <div key={rep.id} className="rounded bg-zinc-950/60 px-1 py-1 text-center min-w-0">
+                <div className="text-[9px] uppercase text-zinc-500 truncate">{rep.name.split(' ')[0]}</div>
+                <div className="text-xs font-bold tabular-nums truncate" style={{ color: rep.color }}>
+                  {formatCompactCurrency(rep.revenueMonth)}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </Quadrant>
+    </div>
+  );
+}
+
+function RepPie({ rep }) {
+  const data = rep.convosByMarket.length ? rep.convosByMarket : [{ market: '_', color: '#27272a', value: 1 }];
+  const empty = rep.convosWeek === 0;
+  return (
+    <div className="flex flex-col items-center justify-end min-w-0">
+      <div className="relative w-full aspect-square min-h-0 max-h-[110px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              innerRadius="55%"
+              outerRadius="95%"
+              paddingAngle={data.length > 1 ? 2 : 0}
+              stroke="none"
+            >
+              {data.map((d, i) => (
+                <Cell key={i} fill={d.color} opacity={empty ? 0.3 : 1} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-sm font-bold tabular-nums" style={{ color: rep.color }}>
+            {rep.convosWeek}
+          </span>
+        </div>
+      </div>
+      <div className="text-[10px] text-zinc-400 truncate w-full text-center mt-0.5" style={{ color: rep.color }}>
+        {rep.name.split(' ')[0]}
+      </div>
     </div>
   );
 }
@@ -135,19 +185,18 @@ function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
   );
 }
 
-function MiniMetric({ label, actual, target }) {
-  const s = kpiStatus(actual, target);
+function Progress({ label, actual, target, status, formatValue = (v) => v }) {
   const pct = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
   return (
     <div className="rounded-lg bg-zinc-950/50 border border-zinc-800/60 p-2 min-w-0">
       <div className="flex items-baseline justify-between gap-1 mb-1.5 min-w-0">
         <span className="text-[10px] uppercase text-zinc-500 truncate">{label}</span>
-        <span className={`text-[11px] font-semibold tabular-nums ${s.text}`}>
-          {actual}<span className="text-zinc-600">/{target}</span>
+        <span className={`text-[11px] font-semibold tabular-nums ${status.text} shrink-0`}>
+          {formatValue(actual)} <span className="text-zinc-600">/ {formatValue(target)}</span>
         </span>
       </div>
-      <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: s.color }} />
+      <div className="h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: status.color }} />
       </div>
     </div>
   );

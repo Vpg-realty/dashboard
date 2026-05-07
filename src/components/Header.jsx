@@ -7,6 +7,7 @@ export default function Header({
   onFullscreen,
   isFullscreen,
   onAddSubaccount,
+  dataStatus,
 }) {
   const [now, setNow] = useState(new Date());
 
@@ -29,9 +30,7 @@ export default function Header({
         <h1 className="text-base lg:text-xl font-semibold tracking-tight truncate">
           Valley Property Group <span className="text-zinc-500 font-normal hidden sm:inline">— KPI Dashboard</span>
         </h1>
-        <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
-          Demo · sample data
-        </span>
+        <DataBadge status={dataStatus} now={now} />
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
@@ -69,3 +68,42 @@ export default function Header({
     </header>
   );
 }
+
+function DataBadge({ status, now }) {
+  if (!status || !status.live) {
+    return (
+      <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
+        Demo · sample data
+      </span>
+    );
+  }
+  const ageMs = status.lastSync ? now - new Date(status.lastSync) : null;
+  let tone = 'emerald', label = 'Live';
+  if (status.placeholder || !status.lastSync) {
+    tone = 'zinc'; label = 'Connecting…';
+  } else if (status.error) {
+    tone = 'rose'; label = `Stale · ${formatAge(ageMs)}`;
+  } else {
+    label = `Live · synced ${formatAge(ageMs)} ago`;
+  }
+  const cls = {
+    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    rose:    'bg-rose-500/10    text-rose-400    border-rose-500/30',
+    zinc:    'bg-zinc-700/30    text-zinc-400    border-zinc-700/60',
+  }[tone];
+  return (
+    <span className={`hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest border shrink-0 ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function formatAge(ms) {
+  if (ms == null) return '—';
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.round(m / 60)}h`;
+}
+

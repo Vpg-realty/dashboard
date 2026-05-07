@@ -1,15 +1,21 @@
-name: Deploy to GitHub Pages
+name: Deploy dashboard
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  schedule:
+    # Refresh every 15 min so the TV stays current.
+    # Free-tier private-repo Actions budget is 2,000 min/mo;
+    # ~30s × 96 runs/day × 30 days ≈ 720 min/mo (well under).
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Only one deploy at a time. Newer cron firings supersede in-flight runs.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -19,12 +25,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - run: npm ci
-      - run: npm run build
+
+      - name: Pull live snapshot from GHL
+        env:
+          GHL_TOKENS: ${{ secrets.GHL_TOKENS }}
+        run: npm run snapshot
+
+      - name: Build static site
+        env:
+          VITE_BASE: /dashboard/
+          VITE_USE_LIVE: '1'
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
