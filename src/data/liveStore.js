@@ -17,8 +17,8 @@
 import { useEffect, useReducer } from 'react';
 import { REPS, MARKETS, TIERS } from './config.js';
 
-// File is rebuilt upstream every 15 min; 60s is plenty for the client poll.
-const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 60_000);
+// File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
+const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 30_000);
 const DATA_URL = `${import.meta.env.BASE_URL || '/'}data.json`;
 const LS_KEY = 'vpg.snapshot.v1';
 const STALE_RELOAD_MS = 30 * 60 * 1000;  // 30 min of failures → reload page
