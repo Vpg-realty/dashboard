@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Header({
   viewName,
@@ -8,6 +8,8 @@ export default function Header({
   isFullscreen,
   onAddSubaccount,
   dataStatus,
+  cycleIntervalMs = 10000,
+  onCycleIntervalChange,
 }) {
   const [now, setNow] = useState(new Date());
 
@@ -47,16 +49,13 @@ export default function Header({
             <span className="text-base leading-none">+</span>
             <span className="hidden sm:inline">Add Subaccount</span>
           </button>
-          <button
-            onClick={onToggleCycle}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium border transition ${
-              isCycling
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
-            }`}
-          >
-            {isCycling ? '⟳ CYCLING' : 'PAUSED'}
-          </button>
+          {/* Compound: cycling toggle + click-to-open speed popover */}
+          <CycleControl
+            isCycling={isCycling}
+            onToggleCycle={onToggleCycle}
+            cycleIntervalMs={cycleIntervalMs}
+            onCycleIntervalChange={onCycleIntervalChange}
+          />
           <button
             onClick={onFullscreen}
             className="px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700 transition"
@@ -66,6 +65,98 @@ export default function Header({
         </div>
       </div>
     </header>
+  );
+}
+
+// CYCLING button + a tiny chip showing the current rotation interval. Clicking
+// the chip opens a popover with a 5–60s drag slider. Closes on outside click.
+function CycleControl({ isCycling, onToggleCycle, cycleIntervalMs, onCycleIntervalChange }) {
+  const [popOpen, setPopOpen] = useState(false);
+  const popRef = useRef(null);
+  const seconds = Math.round(cycleIntervalMs / 1000);
+
+  useEffect(() => {
+    if (!popOpen) return;
+    const onDocClick = (e) => {
+      if (popRef.current && !popRef.current.contains(e.target)) setPopOpen(false);
+    };
+    const onEsc = (e) => { if (e.key === 'Escape') setPopOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, [popOpen]);
+
+  return (
+    <div ref={popRef} className="relative flex items-center">
+      <button
+        onClick={onToggleCycle}
+        className={`px-3 py-1.5 rounded-l-md text-xs font-medium border-y border-l transition ${
+          isCycling
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+        }`}
+      >
+        {isCycling ? '⟳ CYCLING' : 'PAUSED'}
+      </button>
+      <button
+        onClick={() => setPopOpen((o) => !o)}
+        title={`Rotation: ${seconds}s — click to change`}
+        aria-label="Change rotation speed"
+        className={`px-2 py-1.5 rounded-r-md text-[11px] font-mono border-y border-r transition tabular-nums ${
+          isCycling
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+            : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700'
+        }`}
+      >
+        {seconds}s
+      </button>
+
+      {popOpen && (
+        <div className="absolute right-0 top-full mt-2 z-30 w-72 rounded-xl border border-zinc-800 bg-zinc-950/95 backdrop-blur-sm shadow-2xl p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">Rotation Speed</div>
+              <div className="text-xs text-zinc-500 mt-0.5">how long each view stays up</div>
+            </div>
+            <div className="text-2xl font-bold tabular-nums text-emerald-400">{seconds}s</div>
+          </div>
+          <input
+            type="range"
+            min={5}
+            max={60}
+            step={1}
+            value={seconds}
+            onChange={(e) => onCycleIntervalChange?.(Number(e.target.value) * 1000)}
+            className="w-full accent-emerald-500"
+          />
+          <div className="flex justify-between text-[10px] text-zinc-500 mt-1.5 tabular-nums">
+            <span>5s</span>
+            <span>15s</span>
+            <span>30s</span>
+            <span>45s</span>
+            <span>60s</span>
+          </div>
+          <div className="flex gap-1.5 mt-3">
+            {[5, 10, 15, 30, 60].map((s) => (
+              <button
+                key={s}
+                onClick={() => onCycleIntervalChange?.(s * 1000)}
+                className={`flex-1 px-2 py-1 rounded text-[11px] font-medium transition tabular-nums ${
+                  seconds === s
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                {s}s
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -106,4 +197,3 @@ function formatAge(ms) {
   if (m < 60) return `${m}m`;
   return `${Math.round(m / 60)}h`;
 }
-

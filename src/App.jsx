@@ -29,7 +29,22 @@ export default function App() {
   const [isCycling, setIsCycling] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  // Per-user cycle speed, persisted in localStorage. Range: 5–60s.
+  const [cycleIntervalMs, setCycleIntervalMs] = useState(() => {
+    try {
+      const raw = localStorage.getItem('vpg.cycleIntervalMs');
+      const v = raw ? Number(raw) : NaN;
+      if (Number.isFinite(v) && v >= 5000 && v <= 60000) return v;
+    } catch {}
+    return CYCLE_INTERVAL_MS;
+  });
   const indexRef = useRef(0);
+
+  const handleCycleIntervalChange = useCallback((ms) => {
+    const clamped = Math.min(60000, Math.max(5000, Math.round(ms / 1000) * 1000));
+    setCycleIntervalMs(clamped);
+    try { localStorage.setItem('vpg.cycleIntervalMs', String(clamped)); } catch {}
+  }, []);
 
   // Cycle through views every N seconds (paused on advanced/master)
   useEffect(() => {
@@ -37,9 +52,9 @@ export default function App() {
     const timer = setInterval(() => {
       indexRef.current = (indexRef.current + 1) % CYCLE_VIEWS.length;
       setView(CYCLE_VIEWS[indexRef.current]);
-    }, CYCLE_INTERVAL_MS);
+    }, cycleIntervalMs);
     return () => clearInterval(timer);
-  }, [isCycling]);
+  }, [isCycling, cycleIntervalMs]);
 
   const handleViewChange = useCallback((v) => {
     setView(v);
@@ -92,6 +107,8 @@ export default function App() {
         isFullscreen={isFullscreen}
         onAddSubaccount={() => setShowModal(true)}
         dataStatus={dataStatus}
+        cycleIntervalMs={cycleIntervalMs}
+        onCycleIntervalChange={handleCycleIntervalChange}
       />
       <ViewNav active={view} onChange={handleViewChange} />
 
