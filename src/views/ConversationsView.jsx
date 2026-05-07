@@ -59,8 +59,17 @@ export default function ConversationsView() {
                 <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 {MARKETS.map((m, idx) => (
                   <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
+                    {/* Per-segment label inside each colored chunk so reps can read every market's number from across the office */}
+                    <LabelList
+                      dataKey={m.id}
+                      position="center"
+                      fill="#0a0a0a"
+                      fontSize={11}
+                      fontWeight={700}
+                      formatter={(v) => (v > 0 ? v : '')}
+                    />
                     {idx === MARKETS.length - 1 && (
-                      <LabelList dataKey="_total" position="top" fill="#e4e4e7" fontSize={12} fontWeight={600} />
+                      <LabelList dataKey="_total" position="top" fill="#e4e4e7" fontSize={13} fontWeight={700} />
                     )}
                   </Bar>
                 ))}
@@ -96,7 +105,7 @@ export default function ConversationsView() {
                     name={rep.name.split(' ')[0]}
                     stroke={rep.color}
                     strokeWidth={1.75}
-                    dot={false}
+                    dot={{ r: 2.5, fill: rep.color }}
                     activeDot={{ r: 4 }}
                   />
                 ))}
@@ -108,7 +117,9 @@ export default function ConversationsView() {
                   strokeWidth={3}
                   dot={{ r: 4, fill: '#e4e4e7' }}
                   activeDot={{ r: 6 }}
-                />
+                >
+                  <LabelList dataKey="_all" position="top" fill="#e4e4e7" fontSize={12} fontWeight={700} offset={10} />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </div>
