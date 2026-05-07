@@ -4,12 +4,20 @@ on:
   push:
     branches: [main]
   schedule:
-    # Refresh every 2 min so the TV stays close to real-time.
-    # GitHub Actions cron is best-effort (it can drift up to ~5 min during
-    # platform-wide high load), but on a public repo this generally fires
-    # every 2 min. Each run is ~30s; minutes are unlimited for public repos.
+    # GitHub Actions cron is documented as best-effort and routinely delays
+    # high-frequency schedules to 30–60 min on quiet public repos. We register
+    # two offset schedules — GitHub treats each as an independent trigger —
+    # to squeeze closer to actual every-2-min firing.
     - cron: '*/2 * * * *'
+    - cron: '1-59/2 * * * *'
+  # Manual button + external pinger via REST API:
+  #   curl -X POST -H "Authorization: Bearer <pat>" \
+  #        -H "Accept: application/vnd.github+json" \
+  #        https://api.github.com/repos/Vpg-realty/dashboard/dispatches \
+  #        -d '{"event_type":"refresh"}'
   workflow_dispatch: {}
+  repository_dispatch:
+    types: [refresh]
 
 permissions:
   contents: read
