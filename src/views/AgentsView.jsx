@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
 import { getPair, tierTotals, headline } from '../data/source.js';
@@ -40,7 +40,23 @@ export default function AgentsView() {
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={tiers} dataKey="value" nameKey="label" innerRadius="40%" outerRadius="80%" paddingAngle={3} stroke="none">
+                <Pie
+                  data={tiers}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius="40%"
+                  outerRadius="80%"
+                  paddingAngle={3}
+                  stroke="none"
+                  label={({ value, x, y }) =>
+                    value > 0 ? (
+                      <text x={x} y={y} fill="#0a0a0a" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>
+                        {value}
+                      </text>
+                    ) : null
+                  }
+                  labelLine={false}
+                >
                   {tiers.map((t) => <Cell key={t.tier} fill={t.color} />)}
                 </Pie>
                 <Tooltip />
@@ -73,6 +89,7 @@ export default function AgentsView() {
                 {addedByRep.map((row, i) => (
                   <Cell key={i} fill={row.repColor} />
                 ))}
+                <LabelList dataKey="added" position="right" fill="#e4e4e7" fontSize={12} fontWeight={700} formatter={(v) => (v > 0 ? v : '')} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

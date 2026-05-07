@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/source.js';
 import { formatCurrency, formatCompactCurrency } from '../utils/format.js';
@@ -38,7 +38,23 @@ export default function RevenueView() {
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={byMarket} dataKey="value" nameKey="name" innerRadius="40%" outerRadius="80%" paddingAngle={3} stroke="none">
+                <Pie
+                  data={byMarket}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius="40%"
+                  outerRadius="80%"
+                  paddingAngle={3}
+                  stroke="none"
+                  label={({ value, x, y }) =>
+                    value > 0 ? (
+                      <text x={x} y={y} fill="#0a0a0a" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+                        {formatCompactCurrency(value)}
+                      </text>
+                    ) : null
+                  }
+                  labelLine={false}
+                >
                   {byMarket.map((m) => <Cell key={m.market} fill={m.color} />)}
                 </Pie>
                 <Tooltip formatter={(v) => formatCurrency(v)} />
@@ -71,8 +87,36 @@ export default function RevenueView() {
               <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
               <YAxis stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
-              {byMarket.map((m) => (
-                <Bar key={m.market} dataKey={m.market} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} />
+              {byMarket.map((m, idx) => (
+                <Bar key={m.market} dataKey={m.market} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
+                  {/* Per-segment $ inside each market chunk */}
+                  <LabelList
+                    dataKey={m.market}
+                    position="center"
+                    fill="#0a0a0a"
+                    fontSize={11}
+                    fontWeight={700}
+                    formatter={(v) => (v > 0 ? formatCompactCurrency(v) : '')}
+                  />
+                  {/* Total stacked $ on top of the bar — only on the last segment so it doesn't repeat */}
+                  {idx === byMarket.length - 1 && (
+                    <LabelList
+                      position="top"
+                      fill="#e4e4e7"
+                      fontSize={12}
+                      fontWeight={700}
+                      content={({ x, y, width, index }) => {
+                        const row = byRep[index];
+                        if (!row || !row.value) return null;
+                        return (
+                          <text x={x + width / 2} y={y - 6} fill="#e4e4e7" textAnchor="middle" fontSize={12} fontWeight={700}>
+                            {formatCompactCurrency(row.value)}
+                          </text>
+                        );
+                      }}
+                    />
+                  )}
+                </Bar>
               ))}
             </BarChart>
           </ResponsiveContainer>
