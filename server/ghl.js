@@ -128,13 +128,23 @@ export async function countContactsByFilters(locationId, token, filters) {
   return data?.total ?? 0;
 }
 
-// Convenience: count contacts with a given tag (case-insensitive contains
-// match in GHL). Aliases lets us union counts when sub-accounts have
-// inconsistent tag names.
+// Convenience: count contacts with a given tag. GHL's `contains` operator
+// is case- AND dash-character-sensitive (verified May 7), so to be tolerant
+// we query a list of variants and sum. Slight risk of double-counting if a
+// single contact has multiple variant tags, but rare in practice.
 export async function countContactsByTag(locationId, token, tag, { sinceMs } = {}) {
   const filters = [{ field: 'tags', operator: 'contains', value: tag }];
   if (sinceMs != null) {
     filters.push({ field: 'dateAdded', operator: 'range', value: { gte: sinceMs } });
   }
   return countContactsByFilters(locationId, token, filters);
+}
+
+// Sum counts across multiple tag variants — handles inconsistent tag casing/
+// punctuation across sub-accounts (e.g. "agent - confirmed" vs "Agent - Confirmed").
+export async function countContactsByAnyTag(locationId, token, tagVariants, opts = {}) {
+  const counts = await Promise.all(
+    tagVariants.map((t) => countContactsByTag(locationId, token, t, opts))
+  );
+  return counts.reduce((a, b) => a + b, 0);
 }

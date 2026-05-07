@@ -58,7 +58,7 @@ export default function ConversationsView() {
                 <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                 {MARKETS.map((m, idx) => (
-                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
+                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} minPointSize={2}>
                     {/* Per-segment label inside each colored chunk so reps can read every market's number from across the office */}
                     <LabelList
                       dataKey={m.id}

@@ -47,6 +47,9 @@ jobs:
           GHL_TOKENS: ${{ secrets.GHL_TOKENS }}
         run: npm run snapshot
 
+      - name: Append today's totals to rolling history
+        run: npm run append-history
+
       - name: Build static site
         env:
           VITE_BASE: /dashboard/
