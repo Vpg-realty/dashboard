@@ -1,0 +1,64 @@
+name: Pinger (5-min refresh loop)
+
+# Self-sustaining loop that fires the Deploy workflow every 5 minutes.
+# Works around GitHub's flaky cron scheduler (which routinely delays
+# */2 schedules to 3–12 hour gaps on quiet public repos).
+#
+# How it works:
+#   1. This workflow runs as a long-lived job (~5h50m, just under the
+#      6-hour Actions limit).
+#   2. Every 5 minutes it triggers the Deploy workflow via workflow_dispatch.
+#      GITHUB_TOKEN can trigger workflow_dispatch / repository_dispatch events
+#      (one of the two documented exceptions to the no-recursive-workflow rule).
+#   3. At the end, it dispatches a fresh instance of itself — so the loop
+#      never dies as long as one of these workflows keeps running.
+#   4. Backup: cron schedule below acts as a self-heal if the chain ever breaks
+#      (e.g. GitHub kills the runner). Once cron fires, the loop restarts.
+#
+# Public repos get unlimited Actions minutes, so the long-running job is free.
+
+on:
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [restart-pinger]
+  schedule:
+    # Backup self-heal trigger. Real cadence comes from the in-job loop;
+    # this just exists to restart the loop if it ever dies.
+    - cron: '17 */3 * * *'
+
+permissions:
+  actions: write   # required to dispatch workflow_dispatch on Deploy + self
+
+# Only one pinger at a time. If a new one starts (e.g. via cron self-heal),
+# kill the old one so we don't have two loops running.
+concurrency:
+  group: pinger
+  cancel-in-progress: true
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # 5h50m — under the 6h job limit
+    steps:
+      - name: Loop — dispatch Deploy every 5 minutes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -u
+          ITERATIONS=68              # 68 * 5 min ≈ 5h40m, leaves buffer for self-dispatch
+          SLEEP_SECONDS=300          # 5 minutes
+          for i in $(seq 1 $ITERATIONS); do
+            echo "[$(date -u +%H:%M:%SZ)] iteration $i/$ITERATIONS — dispatching Deploy"
+            gh workflow run "Deploy dashboard" --repo "$REPO" || echo "dispatch failed, will retry next tick"
+            sleep $SLEEP_SECONDS
+          done
+
+      - name: Self-restart — dispatch a fresh pinger
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "[$(date -u +%H:%M:%SZ)] self-restarting pinger"
+          gh workflow run "Pinger (5-min refresh loop)" --repo "$REPO"
