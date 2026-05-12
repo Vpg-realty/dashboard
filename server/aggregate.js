@@ -30,7 +30,23 @@ const startOfDay = (offset = 0) => {
 };
 
 const ts = (v) => (v ? new Date(v).getTime() : 0);
-const stageKey = (name) => STAGE_ALIASES[name] || STAGE_ALIASES[String(name).trim()] || null;
+
+// Stage name lookup tolerant to casing/whitespace drift across sub-accounts.
+// One sub might store "DISPO Active", another "Dispo active" — without
+// normalization, the latter falls through to rank=0 and the opp becomes
+// invisible to every breadcrumb count.
+const STAGE_ALIASES_LC = Object.fromEntries(
+  Object.entries(STAGE_ALIASES).map(([k, v]) => [k.toLowerCase(), v])
+);
+const stageKey = (name) => {
+  if (name == null) return null;
+  const trimmed = String(name).trim();
+  return (
+    STAGE_ALIASES[trimmed] ||
+    STAGE_ALIASES_LC[trimmed.toLowerCase()] ||
+    null
+  );
+};
 
 // Funnel-order rank — lets us say "this opp has at least passed through
 // stage N" given its current stage.

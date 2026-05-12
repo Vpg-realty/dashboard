@@ -284,10 +284,15 @@ function historyEntryNDaysAgo(daysAgo) {
   const target = new Date();
   target.setDate(target.getDate() - daysAgo);
   const targetDate = target.toISOString().slice(0, 10);
-  // Exact-match preferred; otherwise return the oldest entry on or after the target date.
+  // Exact-match preferred. Otherwise pick the closest entry AT OR BEFORE the
+  // target date — i.e. an older baseline. Picking a newer baseline (the
+  // previous behaviour) silently understates the delta whenever a cron tick
+  // dropped the exact day. If nothing's older than the target, fall back to
+  // the oldest entry we have (widest delta available).
   const exact = HISTORY.find((e) => e.date === targetDate);
   if (exact) return exact;
-  return HISTORY.find((e) => e.date >= targetDate) || HISTORY[0];
+  const older = [...HISTORY].filter((e) => e.date <= targetDate).sort((a, b) => a.date.localeCompare(b.date));
+  return older.length ? older[older.length - 1] : HISTORY[0];
 }
 
 function historyPairValue(entry, repId, marketId, field) {
