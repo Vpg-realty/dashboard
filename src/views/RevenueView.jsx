@@ -1,5 +1,6 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, Customized } from 'recharts';
 import Panel from '../components/Panel.jsx';
+import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/source.js';
 import { formatCurrency, formatCompactCurrency } from '../utils/format.js';
 
@@ -83,16 +84,21 @@ export default function RevenueView() {
       <Panel className="col-span-12 lg:col-span-7 min-h-0" title="By Rep" subtitle="market breakdown stacked" accent="Performance">
         <div className="h-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">
+            {/* Luke (May 12): per-rep total wasn't rendering when the LAST
+                iterated market segment was 0 (Anthony/Patrick etc). Switched
+                to a Customized overlay that aggregates each bar's stack and
+                draws the total above EVERY bar regardless of which segment
+                is non-zero. */}
             <BarChart data={byRep.map((r) => {
-              const row = { rep: r.rep.split(' ')[0] };
+              const row = { rep: r.rep.split(' ')[0], _tk: r.rep };
               r.byMarket.forEach((m) => { row[m.market] = m.value; });
               return row;
-            })} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            })} margin={{ top: 22, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
               <YAxis stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
-              {byMarket.map((m, idx) => (
+              {byMarket.map((m) => (
                 <Bar key={m.market} dataKey={m.market} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
                   {/* Per-segment $ inside each market chunk */}
                   <LabelList
@@ -103,26 +109,9 @@ export default function RevenueView() {
                     fontWeight={700}
                     formatter={(v) => (v > 0 ? formatCompactCurrency(v) : '')}
                   />
-                  {/* Total stacked $ on top of the bar — only on the last segment so it doesn't repeat */}
-                  {idx === byMarket.length - 1 && (
-                    <LabelList
-                      position="top"
-                      fill="#e4e4e7"
-                      fontSize={12}
-                      fontWeight={700}
-                      content={({ x, y, width, index }) => {
-                        const row = byRep[index];
-                        if (!row || !row.value) return null;
-                        return (
-                          <text x={x + width / 2} y={y - 6} fill="#e4e4e7" textAnchor="middle" fontSize={12} fontWeight={700}>
-                            {formatCompactCurrency(row.value)}
-                          </text>
-                        );
-                      }}
-                    />
-                  )}
                 </Bar>
               ))}
+              <Customized component={<StackedTotalLabel format={formatCompactCurrency} />} />
             </BarChart>
           </ResponsiveContainer>
         </div>
