@@ -1,23 +1,23 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
-import { getPair, tierTotals, headline, historyDelta, historyDeltaTotal, historyDaysBack } from '../data/source.js';
+import { getPair, tierTotals, headline, historyDeltaTierSum, historyDeltaTierSumTotal, historyDaysBack } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
+
+// Luke (May 11): Total Agents = T1 + T2 + T3 only (Tier 4 = DNC, not counted).
+const ACTIVE_TIERS = [1, 2, 3];
 
 export default function AgentsView() {
   const head = headline();
   const tiers = tierTotals();
 
-  // Each row is one (rep × market) pair. Bar fill comes from the REP's
-  // fixed color (Luke, May 4: "fixed color per rep across every chart")
-  // while the row label keeps the market visible ("data per market").
-  // Per-pair "added" prefers the snapshot-history delta (true count of
-  // agents that became confirmed in the period) and falls back to the
-  // strict same-week-create-and-tag count when history isn't deep enough.
+  // Per-pair "added" — delta on T1+T2+T3 sum between today and 7 days ago.
+  // Falls back to the strict per-pair agentsAddedWeek when snapshot history
+  // isn't deep enough yet (we accumulate one entry per day).
   const addedByRep = REPS.flatMap((rep) =>
     rep.markets.map((m) => {
       const p = getPair(rep.id, m);
-      const delta = historyDelta(rep.id, m, 'agentsTotal', 7);
+      const delta = historyDeltaTierSum(rep.id, m, ACTIVE_TIERS, 7);
       return {
         label: `${rep.name.split(' ')[0]} · ${m}`,
         added: delta != null ? delta : (p?.agentsAddedWeek ?? 0),
@@ -28,21 +28,23 @@ export default function AgentsView() {
     })
   );
 
+  const totalActive = tiers.filter((t) => ACTIVE_TIERS.includes(t.tier)).reduce((a, t) => a + t.value, 0);
   const totalTier1 = tiers.find((t) => t.tier === 1).value;
-  // Prefer the team-wide history delta. Fall back to summed per-pair fields
-  // when the daily history file hasn't accumulated enough days yet.
-  const addedThisWeekDelta = historyDeltaTotal('agentsTotal', 7);
-  const addedThisWeek = addedThisWeekDelta != null ? addedThisWeekDelta : head.agentsAddedWeek;
+  // Team-wide tier-sum deltas. Fall back to per-pair sums when history is shallow.
+  const addedWeekDelta = historyDeltaTierSumTotal(ACTIVE_TIERS, 7);
+  const addedTodayDelta = historyDeltaTierSumTotal(ACTIVE_TIERS, 1);
+  const addedThisWeek = addedWeekDelta != null ? addedWeekDelta : head.agentsAddedWeek;
+  const addedToday = addedTodayDelta != null ? addedTodayDelta : Math.max(0, Math.round(addedThisWeek / 7));
   const daysBack = historyDaysBack();
-  const addedSubtitle = addedThisWeekDelta != null && daysBack < 7 ? `over last ${daysBack} day${daysBack === 1 ? '' : 's'}` : null;
+  const weekSub = addedWeekDelta != null && daysBack < 7 ? `over last ${daysBack} day${daysBack === 1 ? '' : 's'}` : null;
 
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <BigStat label="Total Agents" value={head.agentsTotal} accent="zinc" />
+        <BigStat label="Total Agents" value={totalActive} accent="zinc" sub="Tier 1 + 2 + 3" />
         <BigStat label="Tier 1 VIPs" value={totalTier1} accent="amber" highlight />
-        <BigStat label="Added This Week" value={addedThisWeek} accent="emerald" sub={addedSubtitle} />
-        <BigStat label="Added Today" value={Math.max(0, Math.round(addedThisWeek / 7))} accent="blue" />
+        <BigStat label="Added This Week" value={addedThisWeek} accent="emerald" sub={weekSub} />
+        <BigStat label="Added Today" value={addedToday} accent="blue" />
       </div>
 
       <Panel className="col-span-12 lg:col-span-5 min-h-0" title="Agents by Tier" subtitle="all markets" accent="Distribution">

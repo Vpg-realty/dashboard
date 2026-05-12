@@ -323,6 +323,35 @@ export function historyDeltaTotal(field, daysAgo) {
   return sumFor(todayEntry) - sumFor(pastEntry);
 }
 
+// Tier-sum variants: agentTiers is a nested {1,2,3,4} object in history
+// entries, so the generic field-based helpers above don't reach it.
+
+function tierSumFromPair(p, tiers) {
+  if (!p?.agentTiers) return 0;
+  return tiers.reduce((a, t) => a + Number(p.agentTiers[t] || 0), 0);
+}
+
+// Delta of (sum of selected tier counts) for one pair between today and N
+// days ago. Returns null when not enough history.
+export function historyDeltaTierSum(repId, marketId, tiers, daysAgo) {
+  const todayEntry = HISTORY.find((e) => e.date === today()) || HISTORY[HISTORY.length - 1];
+  const pastEntry = historyEntryNDaysAgo(daysAgo);
+  if (!todayEntry || !pastEntry || todayEntry === pastEntry) return null;
+  const cur = todayEntry.pairs?.find((p) => p.repId === repId && p.marketId === marketId);
+  const past = pastEntry.pairs?.find((p) => p.repId === repId && p.marketId === marketId);
+  if (!cur || !past) return null;
+  return tierSumFromPair(cur, tiers) - tierSumFromPair(past, tiers);
+}
+
+// Team-wide tier-sum delta.
+export function historyDeltaTierSumTotal(tiers, daysAgo) {
+  const todayEntry = HISTORY.find((e) => e.date === today()) || HISTORY[HISTORY.length - 1];
+  const pastEntry = historyEntryNDaysAgo(daysAgo);
+  if (!todayEntry || !pastEntry || todayEntry === pastEntry) return null;
+  const sumFor = (entry) => (entry.pairs || []).reduce((a, p) => a + tierSumFromPair(p, tiers), 0);
+  return sumFor(todayEntry) - sumFor(pastEntry);
+}
+
 // How far back the available history actually reaches, in days.
 export function historyDaysBack() {
   if (!HISTORY.length) return 0;

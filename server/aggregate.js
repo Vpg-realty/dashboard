@@ -69,9 +69,12 @@ export function aggregatePair({
   // breadcrumb principle: an opp currently at stage N (rank R) must have
   // been at every stage with rank ≤ R at some point. So if an opp moved
   // to stage rank ≥ Offer Submitted this week, we count it as an offer.
-  let offersWeek = 0, contractsMonth = 0, dealsClosedMonth = 0;
+  let offersWeek = 0, offersMonth = 0;
+  let contractsWeek = 0, contractsMonth = 0;
+  let dealsClosedWeek = 0, dealsClosedMonth = 0;
+  let oppsOpenedWeek = 0, oppsOpenedMonth = 0;
   let abandoned = 0, lost = 0;
-  let revenueMonth = 0;
+  let revenueWeek = 0, revenueMonth = 0;
 
   const OFFER_RANK = STAGE_RANK.offer_submitted;
   const UC_RANK = STAGE_RANK.under_contract;
@@ -82,21 +85,29 @@ export function aggregatePair({
     const rank = STAGE_RANK[key] || 0;
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
+    const created = ts(o.createdAt || o.dateAdded);
 
-    // Offers this week — current stage is at-or-past Offer Submitted AND
-    // entered current stage this week (so this is the move that put it
-    // at-or-past offer).
+    // Opportunities opened — new opps created in the period (regardless of stage).
+    if (created >= wkStart) oppsOpenedWeek++;
+    if (created >= moStart) oppsOpenedMonth++;
+
+    // Offers — current stage at-or-past Offer Submitted AND entered current
+    // stage in the period.
     if (rank >= OFFER_RANK && rank < 99 && stageChange >= wkStart) offersWeek++;
+    if (rank >= OFFER_RANK && rank < 99 && stageChange >= moStart) offersMonth++;
 
-    // Contracts this month — at-or-past Under Contract AND entered current
-    // stage this month, OR closed-won this month (deals that closed past UC).
+    // Contracts — at-or-past Under Contract AND entered current stage in the
+    // period, OR closed-won in the period (deals that closed past UC).
+    if (rank >= UC_RANK && rank < 99 && stageChange >= wkStart) contractsWeek++;
+    else if (o.status === 'won' && statusChange >= wkStart && rank !== STAGE_RANK.closed) contractsWeek++;
     if (rank >= UC_RANK && rank < 99 && stageChange >= moStart) contractsMonth++;
-    else if (o.status === 'won' && statusChange >= moStart && rank !== STAGE_RANK.closed) {
-      // Edge case: closed-won via status without typical stage progression.
-      contractsMonth++;
-    }
+    else if (o.status === 'won' && statusChange >= moStart && rank !== STAGE_RANK.closed) contractsMonth++;
 
-    // Closed this month — status went to 'won' this month.
+    // Closed — status went to 'won' in the period.
+    if (o.status === 'won' && statusChange >= wkStart) {
+      dealsClosedWeek++;
+      revenueWeek += Number(o.monetaryValue || 0);
+    }
     if (o.status === 'won' && statusChange >= moStart) {
       dealsClosedMonth++;
       revenueMonth += Number(o.monetaryValue || 0);
@@ -142,11 +153,17 @@ export function aggregatePair({
     agentsAddedWeek,
     agentTiers: agentTierTotals,
     // Opportunity metrics — stage breadcrumb logic.
+    oppsOpenedWeek,
+    oppsOpenedMonth,
     offersWeek,
+    offersMonth,
+    contractsWeek,
     contractsMonth,
+    dealsClosedWeek,
     dealsClosedMonth,
     abandoned,
     lost,
+    revenueWeek,
     revenueMonth,
   };
 }
@@ -164,11 +181,17 @@ export function emptyPair(repId, marketId) {
     agentsAddedToday: 0,
     agentsAddedWeek: 0,
     agentTiers: { 1: 0, 2: 0, 3: 0, 4: 0 },
+    oppsOpenedWeek: 0,
+    oppsOpenedMonth: 0,
     offersWeek: 0,
+    offersMonth: 0,
+    contractsWeek: 0,
     contractsMonth: 0,
+    dealsClosedWeek: 0,
     dealsClosedMonth: 0,
     abandoned: 0,
     lost: 0,
+    revenueWeek: 0,
     revenueMonth: 0,
     _unconfigured: true,
   };

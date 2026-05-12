@@ -40,7 +40,7 @@ export const TIERS = [
   { id: 1, label: 'Tier 1 — VIP',     color: '#fbbf24', desc: 'Routine deals, easy follow-up' },
   { id: 2, label: 'Tier 2 — Engaged', color: '#10b981', desc: '1–2 deals/year' },
   { id: 3, label: 'Tier 3 — Nurture', color: '#3b82f6', desc: 'Cold, occasional reach-back' },
-  { id: 4, label: 'Tier 4 — ENC',     color: '#71717a', desc: 'Not material' },
+  { id: 4, label: 'Tier 4 – DNC',     color: '#71717a', desc: 'Do Not Call' },
 ];
 
 export const PIPELINE_STAGES = [
