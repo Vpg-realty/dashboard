@@ -32,6 +32,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Luke + the VPG team are in Pacific. Running the build under PT means
+    # every `new Date()` in aggregate.js + snapshot.js (today, week start,
+    # month start) lines up with what Luke sees in GHL — no 7-hour drift
+    # at midnight that would mislabel yesterday's late activity as "today"
+    # or fire the Monday weekly reset on Sunday afternoon PT.
+    env:
+      TZ: America/Los_Angeles
     steps:
       - uses: actions/checkout@v4
 
