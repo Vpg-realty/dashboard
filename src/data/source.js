@@ -30,6 +30,8 @@ export const sliceHistory = (...a) => src.sliceHistory(...a);
 // back to per-pair fields).
 export const historyDelta = (...a) => (src.historyDelta ? src.historyDelta(...a) : null);
 export const historyDeltaTotal = (...a) => (src.historyDeltaTotal ? src.historyDeltaTotal(...a) : null);
+export const historyDeltaTierSum = (...a) => (src.historyDeltaTierSum ? src.historyDeltaTierSum(...a) : null);
+export const historyDeltaTierSumTotal = (...a) => (src.historyDeltaTierSumTotal ? src.historyDeltaTierSumTotal(...a) : null);
 export const historyDayCount = () => (src.historyDayCount ? src.historyDayCount() : 0);
 export const historyDaysBack = () => (src.historyDaysBack ? src.historyDaysBack() : 0);
 
