@@ -1,6 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized } from 'recharts';
 import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS, TIERS } from '../data/config.js';
-import { getPair, getPairsForRep, headline, historyDeltaTierSumTotal } from '../data/source.js';
+import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 
@@ -65,13 +65,13 @@ export default function MasterView() {
   });
   const agentsTotalActive = agentBarData.reduce((a, r) => a + r._total, 0);
 
-  // Luke (May 12): "Anthony not syncing" — switch the "confirmed this week"
-  // sub-metric to the tier-sum snapshot delta so it's uniform across reps
-  // (Anthony doesn't use the `agent - confirmed` tag the others do, but he
-  // does tag with Tier 1/2/3). Falls back to head.agentsAddedWeek until
-  // snapshot history is deep enough.
-  const addedWeekDelta = historyDeltaTierSumTotal(ACTIVE_TIERS, 7);
-  const addedConfirmedWeek = addedWeekDelta != null ? addedWeekDelta : head.agentsAddedWeek;
+  // Luke (May 12 follow-up): "can everyone be calculated for tier 1/2/3?
+  // simpler for all of us". The whole quadrant now reads as a single
+  // unified metric — total contacts tagged Tier 1 + 2 + 3 — without any
+  // "this week" framing. No per-rep delta, no agent-confirmed tag, no
+  // mixed time windows; just the same calc applied to every rep.
+  const repsCount = REPS.length;
+  const perRepAvg = repsCount > 0 ? Math.round(agentsTotalActive / repsCount) : 0;
 
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
@@ -103,16 +103,16 @@ export default function MasterView() {
       </Quadrant>
 
       {/* Agent Confirmed — vertical stacked bars by rep × market.
-          Luke (May 12): per-rep total labels were only rendering when the
-          LAST iterated market had data → switched to a Customized overlay
-          that draws a total above EVERY bar. bigSub uses the tier-sum
-          snapshot delta so Anthony pops correctly. */}
+          Luke (May 12 follow-up): single unified metric for everyone —
+          contacts tagged Tier 1 + 2 + 3 (T4 = DNC excluded). No "this
+          week" framing anywhere in this quadrant. Same calc applied to
+          every rep. */}
       <Quadrant
         title="Agent Confirmed"
-        subtitle={`Tier 1 + 2 + 3 across all subaccounts`}
+        subtitle={`Tier 1 + 2 + 3 · all reps, same calc`}
         big={formatNumber(agentsTotalActive)}
         bigColor="#fbbf24"
-        bigSub={`${addedConfirmedWeek} added this week`}
+        bigSub={`~${formatNumber(perRepAvg)} per rep · DNC excluded`}
       >
         <div className="flex-1 min-h-0 flex flex-col gap-1">
           <div className="flex-1 min-h-0">
