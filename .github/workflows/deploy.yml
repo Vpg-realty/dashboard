@@ -51,7 +51,13 @@ jobs:
 
       - name: Pull live snapshot from GHL
         env:
+          # Legacy single-blob secret holding the original 13 PITs as JSON.
           GHL_TOKENS: ${{ secrets.GHL_TOKENS }}
+          # All secrets passed as JSON so build-snapshot.mjs can pick up
+          # PIT_<base32(locationId)> secrets written by the in-app
+          # Sub-Accounts panel. New sub-accounts added by Luke through the
+          # dashboard land here automatically on the next deploy.
+          ALL_SECRETS: ${{ toJson(secrets) }}
         run: npm run snapshot
 
       - name: Append today's totals to rolling history

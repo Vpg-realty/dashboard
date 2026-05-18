@@ -46,8 +46,8 @@ export default function Header({
             onClick={onAddSubaccount}
             className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-zinc-950 hover:bg-blue-400 transition flex items-center gap-1.5"
           >
-            <span className="text-base leading-none">+</span>
-            <span className="hidden sm:inline">Add Subaccount</span>
+            <span className="hidden sm:inline">Sub-Accounts</span>
+            <span className="sm:hidden">Subs</span>
           </button>
           {/* Compound: cycling toggle + click-to-open speed popover */}
           <CycleControl

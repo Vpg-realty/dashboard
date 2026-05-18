@@ -57,6 +57,7 @@ const initial = loadFromStorage();
 export const PAIRS = (initial?.pairs || placeholderPairs).map((p) => ({ ...p }));
 let lastSync = initial?.generatedAt || null;
 let lastError = null;
+let lastErrors = initial?.errors || [];
 let lastFailureAt = null;
 let HISTORY = loadHistoryFromStorage() || [];   // array of daily snapshot entries
 const subscribers = new Set();
@@ -128,8 +129,9 @@ async function fetchSnapshot() {
     replacePairs(data.pairs.map(hydratePair));
     lastSync = data.generatedAt || new Date().toISOString();
     lastError = null;
+    lastErrors = Array.isArray(data.errors) ? data.errors : [];
     lastFailureAt = null;
-    saveToStorage({ generatedAt: lastSync, pairs: PAIRS });
+    saveToStorage({ generatedAt: lastSync, pairs: PAIRS, errors: lastErrors });
     notify();
   } catch (err) {
     lastError = String(err?.message || err);
@@ -381,6 +383,7 @@ export function useDataStatus() {
     live: true,
     lastSync,
     error: lastError,
+    errors: lastErrors,
     pairCount: PAIRS.length,
     placeholder: PAIRS.every?.((p) => p._placeholder),
   };
