@@ -1,13 +1,15 @@
 // Generates public/data.json by aggregating every (rep × market) sub-account
 // from GHL. Designed to run inside the GitHub Actions cron job — never on
-// the office TV. PIT tokens come from the GHL_TOKENS env var (set as a
-// GitHub Secret), never bundled into the static site.
+// the office TV. PIT tokens are loaded from env, never bundled into the
+// static site.
 //
-// Output: public/data.json — Vite picks this up and ships it to dist/ on
-// the next `vite build`. The dashboard fetches /data.json client-side.
-//
-// Usage:
-//   GHL_TOKENS='{"locId":"pit_xxx",...}' node scripts/build-snapshot.mjs
+// Token sources (merged in this order; later wins on conflict):
+//   1. GHL_TOKENS env — legacy single-secret JSON {locationId: PIT}. Set up
+//      by Ram during initial provisioning. Still the source for the
+//      original 13 sub-accounts.
+//   2. PIT_<base32(locationId)> env vars — written by the Sub-Accounts panel
+//      when Luke adds a new sub-account through the dashboard. Built up at
+//      runtime via `${{ toJson(secrets) }}` → ALL_SECRETS env.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,10 +20,46 @@ import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
 
-const tokens = parseTokens(process.env.GHL_TOKENS);
+// --- token merge ---------------------------------------------------------
+// Legacy: parse the single GHL_TOKENS JSON blob.
+const legacyTokens = parseTokens(process.env.GHL_TOKENS);
+
+// New: scan ALL_SECRETS for PIT_<base32> entries written by the panel.
+// We base32-decode the suffix back to the original locationId.
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function decodeBase32(s) {
+  let bits = 0, value = 0, out = '';
+  for (const ch of String(s).toUpperCase()) {
+    const idx = ALPHABET.indexOf(ch);
+    if (idx < 0) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      out += String.fromCharCode((value >>> bits) & 0xff);
+    }
+  }
+  return out;
+}
+
+const dynamicTokens = {};
+try {
+  const all = process.env.ALL_SECRETS ? JSON.parse(process.env.ALL_SECRETS) : {};
+  for (const [name, val] of Object.entries(all)) {
+    if (!name.startsWith('PIT_')) continue;
+    if (!val) continue;
+    const locId = decodeBase32(name.slice(4));
+    if (locId) dynamicTokens[locId] = val;
+  }
+} catch (err) {
+  console.warn(`[snapshot] ALL_SECRETS parse failed: ${err.message}`);
+}
+
+const tokens = { ...legacyTokens, ...dynamicTokens };
+const dynamicCount = Object.keys(dynamicTokens).length;
 const configured = countConfigured(tokens);
 
-console.log(`[snapshot] ${configured} sub-account(s) configured`);
+console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Object.keys(legacyTokens).length}, dynamic PIT_*: ${dynamicCount})`);
 
 const snapshot = await buildSnapshot({ tokens });
 

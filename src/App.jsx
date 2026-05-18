@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Header from './components/Header.jsx';
 import ViewNav from './components/ViewNav.jsx';
-import AddSubaccountModal from './components/AddSubaccountModal.jsx';
+import SubAccountsPanel from './components/SubAccountsPanel.jsx';
 import ConversationsView from './views/ConversationsView.jsx';
 import AgentsView from './views/AgentsView.jsx';
 import OpportunitiesView from './views/OpportunitiesView.jsx';
@@ -118,7 +118,12 @@ export default function App() {
         </div>
       </main>
 
-      <AddSubaccountModal open={showModal} onClose={() => setShowModal(false)} />
+      <SubAccountsPanel
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        dataStatus={dataStatus}
+        snapshotErrors={dataStatus?.errors}
+      />
 
       <style>{`
         @keyframes fadein {

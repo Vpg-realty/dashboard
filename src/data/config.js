@@ -14,26 +14,28 @@ export const TEAM_TARGETS = {
   revenuePerMonth: 100_000,  // $100k/mo minimum
 };
 
-// 7 markets VPG operates in. Color is the stable visual anchor for each market.
-export const MARKETS = [
-  { id: 'AZ', name: 'Arizona',         color: '#f59e0b' },
-  { id: 'NC', name: 'North Carolina',  color: '#3b82f6' },
-  { id: 'GA', name: 'Georgia',         color: '#10b981' },
-  { id: 'TX', name: 'Texas',           color: '#a855f7' },
-  { id: 'FL', name: 'Florida',         color: '#ec4899' },
-  { id: 'OH', name: 'Ohio',            color: '#ef4444' },
-  { id: 'MI', name: 'Michigan',        color: '#06b6d4' },
-];
+// Single source of truth — see subaccounts.json at the repo root. Both the
+// browser (this file) and the build-time snapshot (server/config.js) derive
+// from it so that adding a new sub-account through the Sub-Accounts panel
+// propagates everywhere: colors, dropdowns, stacked charts, AdvancedView
+// drill-down, and the snapshot fan-out.
+import config from '../../subaccounts.json';
 
-// 5 reps (Luke, May 4). Each (rep × market) is a GHL sub-account — 13 total.
-// Per-rep colors are fixed across every chart on every view.
-export const REPS = [
-  { id: 'jack',    name: 'Jack Jeffries',     color: '#3b82f6', markets: ['AZ', 'NC'] },
-  { id: 'anthony', name: 'Anthony Sheffield', color: '#10b981', markets: ['AZ', 'MI', 'OH', 'NC'] },
-  { id: 'patrick', name: 'Patrick Jeffries',  color: '#f59e0b', markets: ['AZ', 'GA', 'NC'] },
-  { id: 'daniel',  name: 'Daniel Diaz',       color: '#a855f7', markets: ['AZ', 'TX'] },
-  { id: 'axel',    name: 'Axel Contreras',    color: '#ec4899', markets: ['AZ', 'FL'] },
-];
+export const MARKETS = config.markets;
+
+// Rep `markets` list is derived from the sub-account table so we never go
+// out of sync — adding a sub-account row is enough to wire a new (rep ×
+// market) pair into every chart.
+export const REPS = config.reps.map((rep) => ({
+  ...rep,
+  markets: config.subaccounts
+    .filter((s) => s.repId === rep.id)
+    .map((s) => s.marketId),
+}));
+
+// Full sub-account roster exposed for the Sub-Accounts panel + health
+// reporting. Each entry is { repId, marketId, locationId }.
+export const SUBACCOUNTS = config.subaccounts;
 
 // Tier definitions — Luke uses literal "Tier 1/2/3/4" tags in GHL.
 export const TIERS = [
@@ -69,3 +71,7 @@ export const DATE_RANGES = [
   { id: 'year',     label: 'This Year',   days: 365 },
   { id: 'lifetime', label: 'Lifetime',    days: 730 },
 ];
+
+// Repo coordinates used by the Sub-Accounts panel for GitHub API writes.
+export const REPO_OWNER = 'Vpg-realty';
+export const REPO_NAME = 'dashboard';

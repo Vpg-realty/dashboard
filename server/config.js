@@ -1,30 +1,21 @@
-// Subaccount config — one entry per (rep × market) pair from Luke's GHL info doc (May 4, 2026).
-// 5 reps × their assigned markets = 13 sub-accounts.
-//
-// `locationId` is the GHL sub-account location ID (find it in the GHL URL: /location/{id}/...).
-// The matching PIT token must be present in env.GHL_TOKENS keyed by the same locationId.
-// Location IDs filled in May 5 from Ram's GHL admin access; PITs live in the GHL_TOKENS secret.
+// Build-time config — derived from subaccounts.json at the repo root, the
+// single source of truth shared with the browser bundle (src/data/config.js).
+// Adding a sub-account through the dashboard's Sub-Accounts panel writes to
+// that JSON file via the GitHub API and this module picks it up on the next
+// snapshot build.
 
-export const SUBACCOUNTS = [
-  // Jack Jeffries
-  { repId: 'jack',    marketId: 'AZ', locationId: 'IjTrTBLsiRDWZAvPPgFd' },
-  { repId: 'jack',    marketId: 'NC', locationId: 'ZNHJiLMXDDtxCvOX1oxT' },
-  // Anthony Sheffield
-  { repId: 'anthony', marketId: 'AZ', locationId: 'O1lZGP1vlqfU0GzbCPTO' },
-  { repId: 'anthony', marketId: 'MI', locationId: '4UtYECpuatg8Q1XMfGqk' },
-  { repId: 'anthony', marketId: 'OH', locationId: '9qFG0hfeVy6kaSL28RMd' },
-  { repId: 'anthony', marketId: 'NC', locationId: 'HcRtBNpPRDI4nHPpO9zb' },
-  // Patrick Jeffries
-  { repId: 'patrick', marketId: 'AZ', locationId: 'kUB590U9xsaXCtInnuvF' },
-  { repId: 'patrick', marketId: 'GA', locationId: 'y6AYkI53ArJpgyrqKqA1' },
-  { repId: 'patrick', marketId: 'NC', locationId: 'rrN44jJQPaDQ8rfhFMed' },
-  // Daniel Diaz
-  { repId: 'daniel',  marketId: 'AZ', locationId: 'fzh8Ebl8UytO3UEtR24p' },
-  { repId: 'daniel',  marketId: 'TX', locationId: '4O98H14LqmZr5Lk30E7A' },
-  // Axel Contreras
-  { repId: 'axel',    marketId: 'AZ', locationId: 'xtyFkqv9DKxqhb8Iolmg' },
-  { repId: 'axel',    marketId: 'FL', locationId: 'jgK6encOpnzh9SI4mt90' },
-];
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = path.resolve(here, '..', 'subaccounts.json');
+const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
+
+// One entry per (rep × market) pair. PIT tokens live in env (GHL_TOKENS or
+// per-location PIT_<base32> secrets — see scripts/build-snapshot.mjs for the
+// merge logic).
+export const SUBACCOUNTS = config.subaccounts;
 
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
