@@ -236,10 +236,13 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   const [locationId, setLocationId] = useState('');
   const [pitToken, setPitToken] = useState('');
 
-  // Auto-suggest a 2-letter code from the market name (Missouri → MO).
+  // Auto-suggest a 2-letter code from the market name. Passes the current
+  // MARKETS list so the suggestion never collides with an existing code —
+  // "Missouri" cleanly resolves to "MO" (USPS) instead of bumping to "MX"
+  // because its first two letters ("MI") collide with Michigan.
   useEffect(() => {
     if (marketMode === 'new' && newMarketName && !newMarketCode) {
-      setNewMarketCode(suggestMarketCode(newMarketName));
+      setNewMarketCode(suggestMarketCode(newMarketName, MARKETS.map((m) => m.id)));
     }
   }, [newMarketName, marketMode, newMarketCode]);
 
@@ -254,7 +257,7 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   }, [marketMode, marketId, newMarketCode, newMarketName]);
 
   const finalRepId = repMode === 'existing' ? repId : suggestRepId(newRepName);
-  const finalMarketId = marketMode === 'existing' ? marketId : (newMarketCode || suggestMarketCode(newMarketName));
+  const finalMarketId = marketMode === 'existing' ? marketId : (newMarketCode || suggestMarketCode(newMarketName, MARKETS.map((m) => m.id)));
 
   const canSubmit =
     locationId.trim().length >= 8 &&
