@@ -37,7 +37,7 @@
       "color": "#06b6d4"
     },
     {
-      "id": "MX",
+      "id": "MO",
       "name": "Missouri",
       "color": "#84cc16"
     }
@@ -137,7 +137,7 @@
     },
     {
       "repId": "daniel",
-      "marketId": "MX",
+      "marketId": "MO",
       "locationId": "tGVFu5aufwgiPES8HXWJ"
     }
   ]
