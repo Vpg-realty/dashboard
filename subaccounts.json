@@ -1,34 +1,144 @@
 {
   "_comment": "Single source of truth for reps × markets × sub-accounts. Both src/data/config.js (browser) and server/config.js (build-time) derive from this file. The 'Sub-Accounts' panel in the dashboard edits this file via the GitHub API when authorized.",
   "markets": [
-    { "id": "AZ", "name": "Arizona",        "color": "#f59e0b" },
-    { "id": "NC", "name": "North Carolina", "color": "#3b82f6" },
-    { "id": "GA", "name": "Georgia",        "color": "#10b981" },
-    { "id": "TX", "name": "Texas",          "color": "#a855f7" },
-    { "id": "FL", "name": "Florida",        "color": "#ec4899" },
-    { "id": "OH", "name": "Ohio",           "color": "#ef4444" },
-    { "id": "MI", "name": "Michigan",       "color": "#06b6d4" }
+    {
+      "id": "AZ",
+      "name": "Arizona",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "NC",
+      "name": "North Carolina",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "GA",
+      "name": "Georgia",
+      "color": "#10b981"
+    },
+    {
+      "id": "TX",
+      "name": "Texas",
+      "color": "#a855f7"
+    },
+    {
+      "id": "FL",
+      "name": "Florida",
+      "color": "#ec4899"
+    },
+    {
+      "id": "OH",
+      "name": "Ohio",
+      "color": "#ef4444"
+    },
+    {
+      "id": "MI",
+      "name": "Michigan",
+      "color": "#06b6d4"
+    },
+    {
+      "id": "MX",
+      "name": "Missouri",
+      "color": "#84cc16"
+    }
   ],
   "reps": [
-    { "id": "jack",    "name": "Jack Jeffries",     "color": "#3b82f6" },
-    { "id": "anthony", "name": "Anthony Sheffield", "color": "#10b981" },
-    { "id": "patrick", "name": "Patrick Jeffries",  "color": "#f59e0b" },
-    { "id": "daniel",  "name": "Daniel Diaz",       "color": "#a855f7" },
-    { "id": "axel",    "name": "Axel Contreras",    "color": "#ec4899" }
+    {
+      "id": "jack",
+      "name": "Jack Jeffries",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "anthony",
+      "name": "Anthony Sheffield",
+      "color": "#10b981"
+    },
+    {
+      "id": "patrick",
+      "name": "Patrick Jeffries",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "daniel",
+      "name": "Daniel Diaz",
+      "color": "#a855f7"
+    },
+    {
+      "id": "axel",
+      "name": "Axel Contreras",
+      "color": "#ec4899"
+    }
   ],
   "subaccounts": [
-    { "repId": "jack",    "marketId": "AZ", "locationId": "IjTrTBLsiRDWZAvPPgFd" },
-    { "repId": "jack",    "marketId": "NC", "locationId": "ZNHJiLMXDDtxCvOX1oxT" },
-    { "repId": "anthony", "marketId": "AZ", "locationId": "O1lZGP1vlqfU0GzbCPTO" },
-    { "repId": "anthony", "marketId": "MI", "locationId": "4UtYECpuatg8Q1XMfGqk" },
-    { "repId": "anthony", "marketId": "OH", "locationId": "9qFG0hfeVy6kaSL28RMd" },
-    { "repId": "anthony", "marketId": "NC", "locationId": "HcRtBNpPRDI4nHPpO9zb" },
-    { "repId": "patrick", "marketId": "AZ", "locationId": "kUB590U9xsaXCtInnuvF" },
-    { "repId": "patrick", "marketId": "GA", "locationId": "y6AYkI53ArJpgyrqKqA1" },
-    { "repId": "patrick", "marketId": "NC", "locationId": "rrN44jJQPaDQ8rfhFMed" },
-    { "repId": "daniel",  "marketId": "AZ", "locationId": "fzh8Ebl8UytO3UEtR24p" },
-    { "repId": "daniel",  "marketId": "TX", "locationId": "4O98H14LqmZr5Lk30E7A" },
-    { "repId": "axel",    "marketId": "AZ", "locationId": "xtyFkqv9DKxqhb8Iolmg" },
-    { "repId": "axel",    "marketId": "FL", "locationId": "jgK6encOpnzh9SI4mt90" }
+    {
+      "repId": "jack",
+      "marketId": "AZ",
+      "locationId": "IjTrTBLsiRDWZAvPPgFd"
+    },
+    {
+      "repId": "jack",
+      "marketId": "NC",
+      "locationId": "ZNHJiLMXDDtxCvOX1oxT"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "AZ",
+      "locationId": "O1lZGP1vlqfU0GzbCPTO"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "MI",
+      "locationId": "4UtYECpuatg8Q1XMfGqk"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "OH",
+      "locationId": "9qFG0hfeVy6kaSL28RMd"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "NC",
+      "locationId": "HcRtBNpPRDI4nHPpO9zb"
+    },
+    {
+      "repId": "patrick",
+      "marketId": "AZ",
+      "locationId": "kUB590U9xsaXCtInnuvF"
+    },
+    {
+      "repId": "patrick",
+      "marketId": "GA",
+      "locationId": "y6AYkI53ArJpgyrqKqA1"
+    },
+    {
+      "repId": "patrick",
+      "marketId": "NC",
+      "locationId": "rrN44jJQPaDQ8rfhFMed"
+    },
+    {
+      "repId": "daniel",
+      "marketId": "AZ",
+      "locationId": "fzh8Ebl8UytO3UEtR24p"
+    },
+    {
+      "repId": "daniel",
+      "marketId": "TX",
+      "locationId": "4O98H14LqmZr5Lk30E7A"
+    },
+    {
+      "repId": "axel",
+      "marketId": "AZ",
+      "locationId": "xtyFkqv9DKxqhb8Iolmg"
+    },
+    {
+      "repId": "axel",
+      "marketId": "FL",
+      "locationId": "jgK6encOpnzh9SI4mt90"
+    },
+    {
+      "repId": "daniel",
+      "marketId": "MX",
+      "locationId": "tGVFu5aufwgiPES8HXWJ"
+    }
   ]
 }
