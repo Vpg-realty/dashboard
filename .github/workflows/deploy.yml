@@ -67,6 +67,12 @@ jobs:
         env:
           VITE_BASE: /dashboard/
           VITE_USE_LIVE: '1'
+          # Optional — set these as repo Actions secrets after deploying
+          # the Cloudflare Worker in worker/. When present, the Sub-Accounts
+          # panel routes add operations through the Worker instead of asking
+          # each browser to store a PAT.
+          VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
+          VITE_WORKER_KEY: ${{ secrets.VITE_WORKER_KEY }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
