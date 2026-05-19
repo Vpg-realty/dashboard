@@ -108,7 +108,7 @@ export default function AgentsView() {
         </div>
       </Panel>
 
-      <div className="col-span-12 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         {MARKETS.map((market) => {
           const reps = REPS.filter((r) => r.markets.includes(market.id));
           const totals = { 1: 0, 2: 0, 3: 0, 4: 0 };
