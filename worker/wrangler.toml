@@ -1,0 +1,16 @@
+name = "vpg-dashboard-api"
+main = "index.js"
+compatibility_date = "2026-05-18"
+compatibility_flags = ["nodejs_compat"]
+
+# Secrets set via `wrangler secret put <NAME>`:
+#   GITHUB_PAT   — fine-grained PAT scoped to Vpg-realty/dashboard
+#                  with Contents R/W, Secrets R/W, Actions R/W,
+#                  Workflows R/W permissions.
+#   SHARED_KEY   — random UUID. Must match VITE_WORKER_KEY in the
+#                  dashboard's GitHub Actions secret of the same name.
+#
+# Deploy: `cd worker && wrangler deploy`
+# After deploy CF will print the worker URL (e.g.
+# https://vpg-dashboard-api.<your-cf-subdomain>.workers.dev). Paste that
+# URL into the dashboard's VITE_WORKER_URL GitHub Actions secret.
