@@ -4,27 +4,23 @@ import { PAIRS } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
 import { pickColor, suggestMarketCode, suggestRepId } from '../utils/autoColor.js';
 import {
-  hasPAT, getStoredPAT, setStoredPAT,
-  validatePAT, readConfig, addSubAccount,
-} from '../utils/githubApi.js';
+  isWorkerConfigured, workerHealth, workerUrl, addSubAccount,
+} from '../utils/workerApi.js';
 
-// Sub-Accounts panel. Two modes:
-//   • View — live list of every connected (rep × market) pair with its
-//     locationId, color, and health (pulled from data.json + errors[]).
-//   • Add  — form to wire up a new sub-account. When a PAT is configured
-//     this writes subaccounts.json + the PIT secret + triggers a deploy
-//     via the GitHub API, so the new pair shows up on the TV in ~3 min
-//     without anyone touching the repo. Without a PAT we still capture
-//     the entry locally and show Ram-friendly copy-paste instructions.
-export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotErrors }) {
-  const [mode, setMode] = useState('view');     // 'view' | 'add' | 'settings'
+// Sub-Accounts panel.
+// View mode:  live list of every connected (rep × market) pair with its
+//             locationId, color, and health (live/idle/pending/error)
+//             derived from data.json + snapshot errors[].
+// Add mode:   form to wire up a new sub-account. Posts to the Cloudflare
+//             Worker which holds the GitHub PAT server-side and does the
+//             config + secret + deploy writes. No per-browser auth needed.
+export default function SubAccountsPanel({ open, onClose, snapshotErrors }) {
+  const [mode, setMode] = useState('view');     // 'view' | 'add'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);   // { tone, text }
-  const [patPresent, setPatPresent] = useState(hasPAT());
 
   useEffect(() => {
     if (!open) { setMode('view'); setStatus(null); return; }
-    setPatPresent(hasPAT());
     const onEsc = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
@@ -38,7 +34,6 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
         className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-zinc-800 shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-zinc-100">Sub-Accounts</h2>
@@ -46,39 +41,24 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
               {SUBACCOUNTS.length} connected · {REPO_OWNER}/{REPO_NAME}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMode('settings')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition ${
-                mode === 'settings'
-                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
-                  : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
-              }`}
-              title="GitHub PAT settings"
-            >⚙</button>
-            <button
-              onClick={onClose}
-              className="text-zinc-500 hover:text-zinc-100 text-2xl leading-none -mt-1"
-              aria-label="Close"
-            >×</button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-zinc-500 hover:text-zinc-100 text-2xl leading-none -mt-1"
+            aria-label="Close"
+          >×</button>
         </div>
 
-        {/* Status banner */}
         {status && (
           <div className={`mx-6 mt-4 px-4 py-3 rounded-lg text-sm border ${TONES[status.tone] || TONES.zinc}`}>
             {status.text}
           </div>
         )}
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {mode === 'view' && (
             <ViewMode
               snapshotErrors={snapshotErrors}
-              dataStatus={dataStatus}
               onAddClick={() => setMode('add')}
-              patPresent={patPresent}
             />
           )}
           {mode === 'add' && (
@@ -87,15 +67,6 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
               setBusy={setBusy}
               setStatus={setStatus}
               setMode={setMode}
-              patPresent={patPresent}
-              onNeedsPAT={() => setMode('settings')}
-            />
-          )}
-          {mode === 'settings' && (
-            <SettingsMode
-              patPresent={patPresent}
-              setPatPresent={setPatPresent}
-              setStatus={setStatus}
             />
           )}
         </div>
@@ -114,7 +85,7 @@ const TONES = {
 
 // --- VIEW MODE -----------------------------------------------------------
 
-function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
+function ViewMode({ snapshotErrors, onAddClick }) {
   const errorsByLoc = useMemo(() => {
     const m = new Map();
     for (const e of snapshotErrors || []) m.set(e.locationId, e);
@@ -133,7 +104,6 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
 
   return (
     <div className="space-y-5">
-      {/* Summary + add button */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs">
           <Pill tone="emerald" label={`${tally.live || 0} live`} />
@@ -150,16 +120,8 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
         </button>
       </div>
 
-      {/* PAT not configured warning */}
-      {!patPresent && (
-        <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-300 border-amber-500/30">
-          ⚠ GitHub PAT not configured. Add one in <span className="font-semibold">⚙ Settings</span> to enable
-          one-click sub-account adds. Without it, the Add form will still capture the entry but you'll
-          need to commit the config + secret manually.
-        </div>
-      )}
+      <AuthStatus />
 
-      {/* Sub-account list */}
       <div className="rounded-lg border border-zinc-800 overflow-hidden">
         <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-2.5 bg-zinc-900/60 border-b border-zinc-800 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
           <div>Sub-account</div>
@@ -187,6 +149,40 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuthStatus() {
+  const [worker, setWorker] = useState({ checking: true });
+  useEffect(() => {
+    if (!isWorkerConfigured()) { setWorker({ ok: false, reason: 'not_built_with_worker' }); return; }
+    workerHealth().then(
+      (h) => setWorker({ ok: true, version: h.version }),
+      (err) => setWorker({ ok: false, reason: String(err.message || err) })
+    );
+  }, []);
+  if (!isWorkerConfigured()) {
+    return (
+      <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-300 border-amber-500/30">
+        ⚠ Add button disabled — the Cloudflare Worker isn't deployed yet. Setup: <span className="font-mono">worker/README.md</span>.
+        Once Ram deploys it and sets <span className="font-mono">VITE_WORKER_URL</span> + <span className="font-mono">VITE_WORKER_KEY</span> in GitHub Actions secrets, every browser can add sub-accounts.
+      </div>
+    );
+  }
+  if (worker.checking) {
+    return <div className="px-4 py-3 rounded-lg text-xs border bg-zinc-800/40 text-zinc-300 border-zinc-700">Checking Worker…</div>;
+  }
+  if (worker.ok) {
+    return (
+      <div className="px-4 py-3 rounded-lg text-xs border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+        ✓ Worker connected — auth runs server-side, no token in this browser. Anyone with the dashboard can add a sub-account.
+      </div>
+    );
+  }
+  return (
+    <div className="px-4 py-3 rounded-lg text-xs border bg-rose-500/10 text-rose-300 border-rose-500/30">
+      ✗ Worker unreachable: {worker.reason}. <span className="text-zinc-400">{workerUrl()}</span>
     </div>
   );
 }
@@ -220,7 +216,7 @@ function CopyableLocationId({ locationId }) {
 
 // --- ADD MODE ------------------------------------------------------------
 
-function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) {
+function AddMode({ busy, setBusy, setStatus, setMode }) {
   const existingRepIds = REPS.map((r) => r.id);
   const existingMarketIds = MARKETS.map((m) => m.id);
 
@@ -236,7 +232,6 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   const [locationId, setLocationId] = useState('');
   const [pitToken, setPitToken] = useState('');
 
-  // Auto-suggest a 2-letter code from the market name (Missouri → MO).
   useEffect(() => {
     if (marketMode === 'new' && newMarketName && !newMarketCode) {
       setNewMarketCode(suggestMarketCode(newMarketName));
@@ -257,6 +252,7 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   const finalMarketId = marketMode === 'existing' ? marketId : (newMarketCode || suggestMarketCode(newMarketName));
 
   const canSubmit =
+    isWorkerConfigured() &&
     locationId.trim().length >= 8 &&
     pitToken.trim().length >= 8 &&
     (repMode === 'existing' ? !!repId : newRepName.trim().length >= 2) &&
@@ -264,28 +260,16 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
 
   const submit = async () => {
     if (!canSubmit || busy) return;
-    if (!patPresent) {
-      setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
-      onNeedsPAT();
-      return;
-    }
     setBusy(true);
-    setStatus({ tone: 'blue', text: 'Reading subaccounts.json from GitHub…' });
+    setStatus({ tone: 'blue', text: 'Calling Worker…' });
     try {
-      const { config, sha } = await readConfig();
-      // Bail if locationId already exists.
-      if ((config.subaccounts || []).find((s) => s.locationId === locationId.trim())) {
-        throw new Error(`locationId ${locationId.trim()} is already configured`);
-      }
       const newMarket = marketMode === 'new'
         ? { id: finalMarketId, name: newMarketName.trim(), color: marketColor }
         : null;
       const newRep = repMode === 'new'
         ? { id: finalRepId, name: newRepName.trim(), color: repColor }
         : null;
-      setStatus({ tone: 'blue', text: 'Writing config + secret + triggering deploy…' });
       await addSubAccount({
-        config, sha,
         newMarket, newRep,
         subaccount: { repId: finalRepId, marketId: finalMarketId, locationId: locationId.trim() },
         pitToken: pitToken.trim(),
@@ -294,7 +278,6 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
         tone: 'emerald',
         text: `Wired up ${finalRepId} · ${finalMarketId}. Deploy triggered — refresh the TV in ~3 min and the new sub-account will be live.`,
       });
-      // Reset form, return to view mode.
       setLocationId('');
       setPitToken('');
       setNewRepName('');
@@ -315,12 +298,11 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
         <h3 className="text-base font-semibold text-zinc-100 mt-1">Add New Sub-Account</h3>
         <p className="text-xs text-zinc-500 mt-0.5">
           Wires it into <span className="text-zinc-300">subaccounts.json</span>, writes the PIT to a per-location
-          GitHub Secret, and triggers a deploy. All from this form.
+          GitHub Secret, and triggers a deploy. The Worker handles all of it server-side.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Rep */}
         <Section label="Rep">
           <ToggleRow value={repMode} onChange={setRepMode} options={[
             { id: 'existing', label: 'Existing' },
@@ -336,7 +318,6 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
           <ColorPreview color={repColor} label={repMode === 'existing' ? 'Rep color' : 'Auto-assigned color'} />
         </Section>
 
-        {/* Market */}
         <Section label="Market">
           <ToggleRow value={marketMode} onChange={setMarketMode} options={[
             { id: 'existing', label: 'Existing' },
@@ -370,9 +351,15 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
           type="password"
           value={pitToken}
           onChange={setPitToken}
-          placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (sent encrypted; stored as a per-location GitHub Secret)"
+          placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (encrypted before storage)"
         />
       </Section>
+
+      {!isWorkerConfigured() && (
+        <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-300 border-amber-500/30">
+          The Worker isn't deployed yet — see <span className="font-mono">worker/README.md</span>. Form is disabled until it's live.
+        </div>
+      )}
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
         <button onClick={() => setMode('view')} className="px-4 py-2 rounded-lg text-sm text-zinc-300 hover:bg-zinc-900 border border-zinc-800 transition">
@@ -440,94 +427,6 @@ function ColorPreview({ color, label }) {
     <div className="flex items-center gap-2 text-[11px] text-zinc-500">
       <span className="w-4 h-4 rounded-full border border-zinc-700" style={{ background: color }} />
       <span className="truncate">{label} · <span className="font-mono text-zinc-400">{color}</span></span>
-    </div>
-  );
-}
-
-// --- SETTINGS MODE -------------------------------------------------------
-
-function SettingsMode({ patPresent, setPatPresent, setStatus }) {
-  const [pat, setPat] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    if (!pat.trim()) return;
-    setBusy(true);
-    setStatus({ tone: 'blue', text: 'Validating PAT against GitHub…' });
-    try {
-      await validatePAT(pat.trim());
-      setStoredPAT(pat.trim());
-      setPatPresent(true);
-      setPat('');
-      setStatus({ tone: 'emerald', text: 'PAT saved + validated. You can add sub-accounts now.' });
-    } catch (err) {
-      setStatus({ tone: 'rose', text: `Validation failed: ${err.message}` });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const clear = () => {
-    setStoredPAT('');
-    setPatPresent(false);
-    setStatus({ tone: 'amber', text: 'PAT cleared from this browser.' });
-  };
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-base font-semibold text-zinc-100">GitHub PAT</h3>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          A fine-grained token scoped to <span className="font-mono">{REPO_OWNER}/{REPO_NAME}</span> is required
-          for one-click sub-account adds. Stored only in this browser's localStorage.
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-zinc-950 border border-blue-500/20 p-4 space-y-3 text-sm text-zinc-300">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-blue-300 mb-1.5">Required scopes</div>
-          <ul className="text-xs text-zinc-400 space-y-1 list-disc pl-5">
-            <li>Repository Contents: <span className="text-zinc-200">Read and Write</span> (updates subaccounts.json)</li>
-            <li>Repository Secrets: <span className="text-zinc-200">Read and Write</span> (stores PIT per location)</li>
-            <li>Repository Actions: <span className="text-zinc-200">Read and Write</span> (triggers deploy on add)</li>
-          </ul>
-        </div>
-        <a
-          href={`https://github.com/settings/personal-access-tokens/new?name=VPG+Dashboard+Self-Serve&description=Used+by+the+Sub-Accounts+panel+on+the+VPG+dashboard&target_name=${REPO_OWNER}`}
-          target="_blank" rel="noreferrer"
-          className="inline-block text-xs text-blue-300 hover:text-blue-200 underline"
-        >
-          Create a new fine-grained PAT →
-        </a>
-      </div>
-
-      <Section label="Paste PAT">
-        <Field type="password" mono value={pat} onChange={setPat} placeholder="github_pat_xxxxxxxx_xxxxxxxxxxxxxx" />
-      </Section>
-
-      <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800">
-        <span className="text-xs text-zinc-500">
-          {patPresent ? '✓ PAT currently stored (' + getStoredPAT().slice(0, 9) + '…)' : 'No PAT stored'}
-        </span>
-        <div className="flex gap-2">
-          {patPresent && (
-            <button onClick={clear} className="px-3 py-2 rounded-lg text-sm text-rose-300 hover:bg-rose-500/10 border border-zinc-800 transition">
-              Clear
-            </button>
-          )}
-          <button
-            onClick={save}
-            disabled={!pat.trim() || busy}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              pat.trim() && !busy
-                ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            }`}
-          >
-            {busy ? 'Validating…' : 'Save PAT'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
