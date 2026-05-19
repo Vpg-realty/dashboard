@@ -138,7 +138,7 @@ export default function ConversationsView() {
         </div>
       </Panel>
 
-      <div className="col-span-12 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         {byMarket.map((m) => (
           <div key={m.market} className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3 flex items-center gap-3 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.color }} />

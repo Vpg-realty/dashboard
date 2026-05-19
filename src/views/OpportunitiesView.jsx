@@ -20,7 +20,9 @@ const REP_TARGETS = {
 //   1. Team KPIs (3 cards)
 //   2. Per-rep breakdown (5 cards in one horizontal row, each card split
 //      into Weekly and Monthly layers — Luke May 11)
-//   3. Per-market breakdown (7 cards in one horizontal row)
+//   3. Per-market breakdown (one card per market in a single row).
+//      Cols scale with MARKETS.length so adding a state doesn't squash
+//      the row (Luke May 19 added Missouri → 8 markets, may add more).
 export default function OpportunitiesView() {
   const head = headline();
   const totalAbandoned = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
@@ -95,7 +97,7 @@ export default function OpportunitiesView() {
 
       {/* Row 3 — Per market, 7 cards in one row */}
       <Panel className="col-span-12 min-h-0" title="By Market" subtitle="weekly offers · monthly contracts/closed" accent="Opportunities">
-        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 h-full">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-2 h-full">
           {MARKETS.map((market) => {
             const pairs = getPairsForMarket(market.id);
             const offers = pairs.reduce((a, p) => a + (p.offersWeek || 0), 0);
