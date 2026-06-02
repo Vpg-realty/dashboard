@@ -59,33 +59,33 @@ export default function OpportunitiesView() {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
             return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-3 flex flex-col min-w-0 min-h-0">
-                <div className="flex items-center justify-between mb-2 pb-2 border-b border-zinc-200 gap-2">
+              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-2 flex flex-col min-w-0 min-h-0">
+                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: rep.color }} />
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: rep.color }} />
                     <h4 className="text-sm font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
                   </div>
-                  <span className="text-[11px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
                 </div>
 
                 {/* WEEKLY */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1.5">Weekly</div>
-                <div className="flex-1 min-h-0">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
+                <div>
                   <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
                   <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
                   <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
                 </div>
 
                 {/* MONTHLY */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-3 mb-1.5">Monthly</div>
-                <div className="flex-1 min-h-0">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
+                <div>
                   <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
                   <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
                   <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
                 </div>
 
-                {/* Aban + Lost — bigger, color-coded per Luke (May 11) */}
-                <div className="mt-3 pt-2 border-t border-zinc-200 grid grid-cols-2 gap-1 shrink-0">
+                {/* Aban + Lost — color-coded per Luke (May 11) */}
+                <div className="mt-2 pt-1.5 border-t border-zinc-200 grid grid-cols-2 gap-1 shrink-0">
                   <DeadStat label="Aban" value={sum('abandoned')} className="text-orange-600" />
                   <DeadStat label="Lost" value={sum('lost')} className="text-red-500" />
                 </div>
@@ -131,7 +131,7 @@ function MetricRow({ label, actual, target }) {
   // no locked threshold yet). Otherwise status-colored progress.
   if (target == null) {
     return (
-      <div className="flex items-baseline justify-between gap-1 min-w-0 py-1">
+      <div className="flex items-baseline justify-between gap-1 min-w-0 py-0.5">
         <span className="text-xs text-zinc-700 truncate">{label}</span>
         <span className="text-sm font-semibold tabular-nums text-zinc-900 shrink-0">{actual}</span>
       </div>
@@ -139,20 +139,19 @@ function MetricRow({ label, actual, target }) {
   }
   const s = kpiStatus(actual, target);
   const percent = pct(actual, target);
-  // Bottom padding pushes the progress bar away from the next row's text so
-  // it stops visually rendering as a strikethrough on the row below
-  // (Luke May 12 screenshot — Monthly header was getting crossed out by the
-  // last Weekly metric's bar). Bar is also bumped to 4px on bg-zinc-200 so
-  // the empty rail is actually visible on the white card.
+  // pb-1 keeps the progress bar 4px clear of the next row's text so it
+  // can't read as a strikethrough on the label below (Luke May 12).
+  // Bar bumped to h-1 on bg-zinc-200 so the empty rail is visible on
+  // the white card.
   return (
-    <div className="min-w-0 pb-2">
+    <div className="min-w-0 pb-1">
       <div className="flex items-baseline justify-between gap-1">
         <span className="text-xs text-zinc-700 truncate">{label}</span>
         <span className={`text-sm font-semibold ${s.text} tabular-nums shrink-0`}>
           {actual}<span className="text-zinc-400"> / {target}</span>
         </span>
       </div>
-      <div className="h-1 bg-zinc-200 rounded-full overflow-hidden mt-1">
+      <div className="h-1 bg-zinc-200 rounded-full overflow-hidden mt-0.5">
         <div
           className="h-full transition-all duration-700 ease-out rounded-full"
           style={{ width: `${percent}%`, background: s.color }}
@@ -165,17 +164,17 @@ function MetricRow({ label, actual, target }) {
 function DeadStat({ label, value, className }) {
   return (
     <div className="flex items-baseline justify-between gap-1 min-w-0">
-      <span className="text-xs uppercase tracking-widest text-zinc-600 truncate">{label}</span>
-      <span className={`text-xl font-bold tabular-nums ${className}`}>{value}</span>
+      <span className="text-[11px] uppercase tracking-widest text-zinc-600 truncate">{label}</span>
+      <span className={`text-lg font-bold tabular-nums ${className}`}>{value}</span>
     </div>
   );
 }
 
 function Compact({ label, value }) {
   return (
-    <div className="rounded bg-zinc-100/60 px-1.5 py-1.5 flex flex-col justify-center min-w-0">
-      <div className="text-[11px] uppercase text-zinc-600 font-semibold">{label}</div>
-      <div className="text-lg font-bold tabular-nums text-zinc-900 leading-tight">{value}</div>
+    <div className="rounded bg-zinc-100/60 px-1 py-1 flex flex-col justify-center min-w-0">
+      <div className="text-[10px] uppercase text-zinc-600 font-semibold">{label}</div>
+      <div className="text-base font-bold tabular-nums text-zinc-900 leading-tight">{value}</div>
     </div>
   );
 }
