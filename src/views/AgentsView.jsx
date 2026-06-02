@@ -94,14 +94,14 @@ export default function AgentsView() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={addedByRep} layout="vertical" margin={{ top: 5, right: 30, left: 30, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
-              <XAxis type="number" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="label" type="category" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+              <XAxis type="number" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="label" type="category" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} width={100} />
               <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
               <Bar dataKey="added" radius={[0, 4, 4, 0]}>
                 {addedByRep.map((row, i) => (
                   <Cell key={i} fill={row.repColor} />
                 ))}
-                <LabelList dataKey="added" position="right" fill="#27272a" fontSize={12} fontWeight={700} formatter={(v) => (v > 0 ? v : '')} />
+                <LabelList dataKey="added" position="right" fill="#27272a" fontSize={14} fontWeight={700} formatter={(v) => (v > 0 ? v : '')} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -141,7 +141,7 @@ export default function AgentsView() {
                 {TIERS.map((t) => (
                   <div key={t.id} className="min-w-0">
                     <div className="text-sm font-bold tabular-nums" style={{ color: t.color }}>{totals[t.id]}</div>
-                    <div className="text-[9px] uppercase text-zinc-500">T{t.id}</div>
+                    <div className="text-[11px] uppercase text-zinc-500">T{t.id}</div>
                   </div>
                 ))}
               </div>

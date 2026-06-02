@@ -54,8 +54,8 @@ export default function ConversationsView() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byRep} margin={{ top: 22, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
                 {MARKETS.map((m, idx) => (
                   <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} minPointSize={2}>
@@ -64,7 +64,7 @@ export default function ConversationsView() {
                       dataKey={m.id}
                       position="center"
                       fill="#0a0a0a"
-                      fontSize={11}
+                      fontSize={13}
                       fontWeight={700}
                       formatter={(v) => (v > 0 ? v : '')}
                     />
@@ -93,8 +93,8 @@ export default function ConversationsView() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
                 {/* Per-rep lines first so the company line draws on top */}
                 {REPS.map((rep) => (
@@ -118,7 +118,7 @@ export default function ConversationsView() {
                   dot={{ r: 4, fill: '#18181b' }}
                   activeDot={{ r: 6 }}
                 >
-                  <LabelList dataKey="_all" position="top" fill="#27272a" fontSize={12} fontWeight={700} offset={10} />
+                  <LabelList dataKey="_all" position="top" fill="#27272a" fontSize={14} fontWeight={700} offset={10} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>
@@ -148,7 +148,7 @@ export default function ConversationsView() {
             </div>
             <div className="text-right shrink-0">
               <div className="text-xl font-bold tabular-nums leading-none" style={{ color: m.color }}>{formatNumber(m.week)}</div>
-              <div className="text-[9px] uppercase tracking-widest text-zinc-500 mt-1">/ wk</div>
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mt-1">/ wk</div>
             </div>
           </div>
         ))}
