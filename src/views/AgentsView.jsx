@@ -77,12 +77,12 @@ export default function AgentsView() {
           </div>
           <div className="grid grid-cols-2 gap-2 shrink-0">
             {tiers.map((t) => (
-              <div key={t.tier} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded bg-zinc-950/40 min-w-0">
+              <div key={t.tier} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded bg-zinc-50 min-w-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: t.color }} />
-                  <span className="text-zinc-300 truncate">{t.label}</span>
+                  <span className="text-zinc-800 truncate">{t.label}</span>
                 </div>
-                <span className="text-zinc-100 font-semibold tabular-nums shrink-0">{t.value}</span>
+                <span className="text-zinc-900 font-semibold tabular-nums shrink-0">{t.value}</span>
               </div>
             ))}
           </div>
@@ -93,15 +93,15 @@ export default function AgentsView() {
         <div className="h-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={addedByRep} layout="vertical" margin={{ top: 5, right: 30, left: 30, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
               <XAxis type="number" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis dataKey="label" type="category" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
-              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
               <Bar dataKey="added" radius={[0, 4, 4, 0]}>
                 {addedByRep.map((row, i) => (
                   <Cell key={i} fill={row.repColor} />
                 ))}
-                <LabelList dataKey="added" position="right" fill="#e4e4e7" fontSize={12} fontWeight={700} formatter={(v) => (v > 0 ? v : '')} />
+                <LabelList dataKey="added" position="right" fill="#27272a" fontSize={12} fontWeight={700} formatter={(v) => (v > 0 ? v : '')} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -123,15 +123,15 @@ export default function AgentsView() {
           });
           const total = totals[1] + totals[2] + totals[3] + totals[4];
           return (
-            <div key={market.id} className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3 min-w-0">
+            <div key={market.id} className="rounded-xl border border-zinc-300/80 bg-white p-3 min-w-0">
               <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: market.color }} />
-                  <span className="text-xs font-semibold text-zinc-200 truncate">{market.name}</span>
+                  <span className="text-xs font-semibold text-zinc-900 truncate">{market.name}</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 shrink-0 tabular-nums">{total}</span>
               </div>
-              <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-950 mb-2">
+              <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-200 mb-2">
                 {TIERS.map((t) => {
                   const w = total > 0 ? (totals[t.id] / total) * 100 : 0;
                   return <div key={t.id} style={{ width: `${w}%`, background: t.color }} />;
@@ -155,14 +155,14 @@ export default function AgentsView() {
 
 function BigStat({ label, value, accent, highlight, sub }) {
   const colors = {
-    zinc: 'text-zinc-100 border-zinc-700 bg-zinc-900/40',
-    amber: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
-    emerald: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',
-    blue: 'text-blue-400 border-blue-500/30 bg-blue-500/5',
+    zinc: 'text-zinc-900 border-zinc-400 bg-white',
+    amber: 'text-amber-700 border-amber-500/40 bg-amber-500/10',
+    emerald: 'text-emerald-600 border-emerald-500/30 bg-emerald-500/5',
+    blue: 'text-blue-600 border-blue-500/30 bg-blue-500/5',
   };
   return (
     <div className={`rounded-xl border p-5 ${colors[accent]} ${highlight ? 'ring-1 ring-amber-500/20' : ''} min-w-0`}>
-      <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-400 mb-2 truncate">{label}</div>
+      <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600 mb-2 truncate">{label}</div>
       <div className="text-3xl xl:text-4xl 2xl:text-5xl font-bold tabular-nums truncate">{formatNumber(value)}</div>
       {sub && <div className="text-[10px] text-zinc-500 mt-1 truncate">{sub}</div>}
     </div>
