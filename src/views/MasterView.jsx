@@ -91,11 +91,11 @@ export default function MasterView() {
             ))}
           </div>
           {/* Market color legend — single row at the bottom */}
-          <div className="flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-[10px] shrink-0 pt-2 border-t border-zinc-800/40">
+          <div className="flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-[10px] shrink-0 pt-2 border-t border-zinc-300/40">
             {MARKETS.map((m) => (
               <div key={m.id} className="flex items-center gap-1 min-w-0">
                 <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: m.color }} />
-                <span className="text-zinc-400 truncate">{m.name}</span>
+                <span className="text-zinc-600 truncate">{m.name}</span>
               </div>
             ))}
           </div>
@@ -118,10 +118,10 @@ export default function MasterView() {
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agentBarData.map((r) => ({ ...r, _tk: r.rep }))} margin={{ top: 18, right: 6, left: -22, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={0} />
                 <YAxis stroke="#71717a" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#0d0e15', border: '1px solid #2a2b35', borderRadius: 8 }} />
+                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
                 {MARKETS.map((m) => (
                   <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} />
                 ))}
@@ -154,7 +154,7 @@ export default function MasterView() {
           </div>
           {/* Monthly row */}
           <div className="flex-1 flex flex-col gap-1 min-h-0">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-blue-400/80 font-bold">Monthly</div>
+            <div className="text-[9px] uppercase tracking-[0.18em] text-blue-600/80 font-bold">Monthly</div>
             <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
               <MiniMetric label="Offers" actual={offersMonth} target={TEAM_TARGETS.offersPerWeek * 4} />
               <MiniMetric label="Contracts" actual={head.contractsMonth} target={TEAM_TARGETS.contractsPerMonth} />
@@ -177,13 +177,13 @@ export default function MasterView() {
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           {/* Full-width $100k progress bar, centered vertically in its space */}
           <div className="flex-1 flex flex-col justify-center min-h-0">
-            <div className="relative w-full bg-zinc-950/80 border border-zinc-800/60 rounded overflow-hidden h-12 lg:h-14">
+            <div className="relative w-full bg-zinc-100/80 border border-zinc-200 rounded overflow-hidden h-12 lg:h-14">
               <div
                 className="absolute inset-y-0 left-0 transition-all duration-700"
                 style={{ width: `${revPct}%`, background: revColor, opacity: 0.85 }}
               />
               <div className="relative h-full flex items-center justify-end px-3">
-                <span className="text-xs uppercase tracking-widest font-bold text-zinc-100/90 tabular-nums">
+                <span className="text-xs uppercase tracking-widest font-bold text-zinc-900/90 tabular-nums">
                   {formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)} goal
                 </span>
               </div>
@@ -193,13 +193,13 @@ export default function MasterView() {
             </div>
           </div>
           {/* Per-rep $ row at the bottom */}
-          <div className="grid grid-cols-5 gap-2 shrink-0 pt-2 border-t border-zinc-800/40">
+          <div className="grid grid-cols-5 gap-2 shrink-0 pt-2 border-t border-zinc-300/40">
             {perRep.map((rep) => (
               <div key={rep.id} className="flex flex-col items-center text-center min-w-0">
                 <span className="text-[10px] uppercase tracking-wider truncate w-full" style={{ color: rep.color }}>
                   {rep.name.split(' ')[0]}
                 </span>
-                <span className="text-base lg:text-lg font-bold tabular-nums text-zinc-100">
+                <span className="text-base lg:text-lg font-bold tabular-nums text-zinc-900">
                   {formatCompactCurrency(rep.revenueMonth)}
                 </span>
               </div>
@@ -251,7 +251,7 @@ function RepPie({ rep }) {
 // Quadrant container — title + subtitle top-left, big number top-right (Luke May 11).
 function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
   return (
-    <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-4 flex flex-col min-w-0 min-h-0">
+    <div className="rounded-xl border border-zinc-300/80 bg-white p-4 flex flex-col min-w-0 min-h-0">
       <div className="flex items-start justify-between mb-3 gap-2">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{title}</div>
@@ -272,10 +272,10 @@ function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
 function MiniMetric({ label, actual, target }) {
   if (target == null) {
     return (
-      <div className="rounded bg-zinc-950/50 border border-zinc-800/60 px-2 py-1.5 min-w-0">
+      <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
         <div className="flex items-baseline justify-between gap-1">
           <span className="text-[9px] uppercase text-zinc-500 truncate">{label}</span>
-          <span className="text-sm font-bold tabular-nums text-zinc-100">{actual}</span>
+          <span className="text-sm font-bold tabular-nums text-zinc-900">{actual}</span>
         </div>
       </div>
     );
@@ -283,14 +283,14 @@ function MiniMetric({ label, actual, target }) {
   const s = kpiStatus(actual, target);
   const percent = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
   return (
-    <div className="rounded bg-zinc-950/50 border border-zinc-800/60 px-2 py-1.5 min-w-0">
+    <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
       <div className="flex items-baseline justify-between gap-1 mb-0.5 min-w-0">
         <span className="text-[9px] uppercase text-zinc-500 truncate">{label}</span>
         <span className={`text-[11px] font-semibold tabular-nums ${s.text}`}>
-          {actual}<span className="text-zinc-600">/{target}</span>
+          {actual}<span className="text-zinc-400">/{target}</span>
         </span>
       </div>
-      <div className="h-[3px] bg-zinc-900 rounded-full overflow-hidden">
+      <div className="h-[3px] bg-zinc-100 rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${percent}%`, background: s.color }} />
       </div>
     </div>

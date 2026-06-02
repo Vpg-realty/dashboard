@@ -22,13 +22,13 @@ export default function Header({
   const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-950/50 gap-4">
+    <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-300/80 bg-white/80 gap-4">
       <div className="flex items-center gap-4 min-w-0">
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-rose-500 live-dot text-2xl leading-none">●</span>
-          <span className="text-xs uppercase tracking-[0.2em] text-zinc-400">Live</span>
+          <span className="text-xs uppercase tracking-[0.2em] text-zinc-600">Live</span>
         </div>
-        <div className="h-6 w-px bg-zinc-800 shrink-0" />
+        <div className="h-6 w-px bg-zinc-200 shrink-0" />
         <h1 className="text-base lg:text-xl font-semibold tracking-tight truncate">
           Valley Property Group <span className="text-zinc-500 font-normal hidden sm:inline">— KPI Dashboard</span>
         </h1>
@@ -37,7 +37,7 @@ export default function Header({
 
       <div className="flex items-center gap-3 shrink-0">
         <div className="text-right hidden lg:block">
-          <div className="text-sm text-zinc-300 truncate max-w-[200px]">{viewName}</div>
+          <div className="text-sm text-zinc-800 truncate max-w-[200px]">{viewName}</div>
           <div className="text-xs text-zinc-500">{date} · {time}</div>
         </div>
 
@@ -58,7 +58,7 @@ export default function Header({
           />
           <button
             onClick={onFullscreen}
-            className="px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700 transition"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-100 text-zinc-600 border border-zinc-300 hover:border-zinc-400 transition"
           >
             {isFullscreen ? 'EXIT FS' : 'FULLSCREEN'}
           </button>
@@ -95,8 +95,8 @@ function CycleControl({ isCycling, onToggleCycle, cycleIntervalMs, onCycleInterv
         onClick={onToggleCycle}
         className={`px-3 py-1.5 rounded-l-md text-xs font-medium border-y border-l transition ${
           isCycling
-            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20'
+            : 'bg-zinc-100 text-zinc-600 border-zinc-300 hover:border-zinc-400'
         }`}
       >
         {isCycling ? '⟳ CYCLING' : 'PAUSED'}
@@ -107,21 +107,21 @@ function CycleControl({ isCycling, onToggleCycle, cycleIntervalMs, onCycleInterv
         aria-label="Change rotation speed"
         className={`px-2 py-1.5 rounded-r-md text-[11px] font-mono border-y border-r transition tabular-nums ${
           isCycling
-            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-            : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:border-zinc-700'
+            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20'
+            : 'bg-zinc-100 text-zinc-500 border-zinc-300 hover:border-zinc-400'
         }`}
       >
         {seconds}s
       </button>
 
       {popOpen && (
-        <div className="absolute right-0 top-full mt-2 z-30 w-72 rounded-xl border border-zinc-800 bg-zinc-950/95 backdrop-blur-sm shadow-2xl p-4">
+        <div className="absolute right-0 top-full mt-2 z-30 w-72 rounded-xl border border-zinc-300 bg-white/95 backdrop-blur-sm shadow-2xl p-4">
           <div className="flex items-baseline justify-between mb-3">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">Rotation Speed</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">Rotation Speed</div>
               <div className="text-xs text-zinc-500 mt-0.5">how long each view stays up</div>
             </div>
-            <div className="text-2xl font-bold tabular-nums text-emerald-400">{seconds}s</div>
+            <div className="text-2xl font-bold tabular-nums text-emerald-600">{seconds}s</div>
           </div>
           <input
             type="range"
@@ -146,8 +146,8 @@ function CycleControl({ isCycling, onToggleCycle, cycleIntervalMs, onCycleInterv
                 onClick={() => onCycleIntervalChange?.(s * 1000)}
                 className={`flex-1 px-2 py-1 rounded text-[11px] font-medium transition tabular-nums ${
                   seconds === s
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700'
+                    ? 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/40'
+                    : 'bg-zinc-100 text-zinc-600 border border-zinc-300 hover:border-zinc-400'
                 }`}
               >
                 {s}s
@@ -163,7 +163,7 @@ function CycleControl({ isCycling, onToggleCycle, cycleIntervalMs, onCycleInterv
 function DataBadge({ status, now }) {
   if (!status || !status.live) {
     return (
-      <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/30 shrink-0">
+      <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest bg-amber-500/10 text-amber-600 border border-amber-500/30 shrink-0">
         Demo · sample data
       </span>
     );
@@ -178,9 +178,9 @@ function DataBadge({ status, now }) {
     label = `Live · synced ${formatAge(ageMs)} ago`;
   }
   const cls = {
-    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-    rose:    'bg-rose-500/10    text-rose-400    border-rose-500/30',
-    zinc:    'bg-zinc-700/30    text-zinc-400    border-zinc-700/60',
+    emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+    rose:    'bg-rose-500/10    text-rose-600    border-rose-500/30',
+    zinc:    'bg-zinc-700/30    text-zinc-600    border-zinc-300/60',
   }[tone];
   return (
     <span className={`hidden md:inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase tracking-widest border shrink-0 ${cls}`}>

@@ -35,13 +35,13 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl flex flex-col"
+        className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-zinc-800 shrink-0">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-zinc-300 shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-100">Sub-Accounts</h2>
+            <h2 className="text-lg font-semibold text-zinc-900">Sub-Accounts</h2>
             <p className="text-xs text-zinc-500 mt-1">
               {SUBACCOUNTS.length} connected · {REPO_OWNER}/{REPO_NAME}
             </p>
@@ -51,14 +51,14 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
               onClick={() => setMode('settings')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium border transition ${
                 mode === 'settings'
-                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
-                  : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-zinc-200 border-zinc-400 text-zinc-900'
+                  : 'border-zinc-300 text-zinc-500 hover:text-zinc-800'
               }`}
               title="GitHub PAT settings"
             >⚙</button>
             <button
               onClick={onClose}
-              className="text-zinc-500 hover:text-zinc-100 text-2xl leading-none -mt-1"
+              className="text-zinc-500 hover:text-zinc-900 text-2xl leading-none -mt-1"
               aria-label="Close"
             >×</button>
           </div>
@@ -105,11 +105,11 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
 }
 
 const TONES = {
-  emerald: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-  rose:    'bg-rose-500/10 text-rose-300 border-rose-500/30',
-  amber:   'bg-amber-500/10 text-amber-300 border-amber-500/30',
-  blue:    'bg-blue-500/10 text-blue-300 border-blue-500/30',
-  zinc:    'bg-zinc-800/40 text-zinc-300 border-zinc-700',
+  emerald: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30',
+  rose:    'bg-rose-500/10 text-rose-700 border-rose-500/30',
+  amber:   'bg-amber-500/10 text-amber-700 border-amber-500/30',
+  blue:    'bg-blue-500/10 text-blue-700 border-blue-500/30',
+  zinc:    'bg-zinc-100 text-zinc-800 border-zinc-400',
 };
 
 // --- VIEW MODE -----------------------------------------------------------
@@ -152,7 +152,7 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
 
       {/* PAT not configured warning */}
       {!patPresent && (
-        <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-300 border-amber-500/30">
+        <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-700 border-amber-500/30">
           ⚠ GitHub PAT not configured. Add one in <span className="font-semibold">⚙ Settings</span> to enable
           one-click sub-account adds. Without it, the Add form will still capture the entry but you'll
           need to commit the config + secret manually.
@@ -160,21 +160,21 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
       )}
 
       {/* Sub-account list */}
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-2.5 bg-zinc-900/60 border-b border-zinc-800 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+      <div className="rounded-lg border border-zinc-300 overflow-hidden">
+        <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-2.5 bg-zinc-100 border-b border-zinc-300 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
           <div>Sub-account</div>
           <div className="text-right">Health</div>
         </div>
-        <div className="divide-y divide-zinc-800/60">
+        <div className="divide-y divide-zinc-200">
           {rows.map(({ sa, rep, market, health }) => (
-            <div key={sa.locationId} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 hover:bg-zinc-900/30 transition min-w-0">
+            <div key={sa.locationId} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 hover:bg-zinc-50 transition min-w-0">
               <div className="min-w-0 flex items-center gap-3">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: rep?.color || '#52525b' }} />
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color || '#52525b' }} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm text-zinc-100 truncate">
+                  <div className="text-sm text-zinc-900 truncate">
                     {rep?.name || sa.repId} <span className="text-zinc-500">·</span> {market?.name || sa.marketId}
                   </div>
                   <CopyableLocationId locationId={sa.locationId} />
@@ -210,7 +210,7 @@ function CopyableLocationId({ locationId }) {
   return (
     <button
       onClick={copy}
-      className="text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition truncate text-left"
+      className="text-[11px] font-mono text-zinc-500 hover:text-zinc-800 transition truncate text-left"
       title="Copy location ID"
     >
       {locationId} {copied ? '✓ copied' : '⧉'}
@@ -314,10 +314,10 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   return (
     <div className="space-y-5">
       <div>
-        <button onClick={() => setMode('view')} className="text-xs text-zinc-500 hover:text-zinc-300 transition">← Back to list</button>
-        <h3 className="text-base font-semibold text-zinc-100 mt-1">Add New Sub-Account</h3>
+        <button onClick={() => setMode('view')} className="text-xs text-zinc-500 hover:text-zinc-800 transition">← Back to list</button>
+        <h3 className="text-base font-semibold text-zinc-900 mt-1">Add New Sub-Account</h3>
         <p className="text-xs text-zinc-500 mt-0.5">
-          Wires it into <span className="text-zinc-300">subaccounts.json</span>, writes the PIT to a per-location
+          Wires it into <span className="text-zinc-800">subaccounts.json</span>, writes the PIT to a per-location
           GitHub Secret, and triggers a deploy. All from this form.
         </p>
       </div>
@@ -377,8 +377,8 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
         />
       </Section>
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-        <button onClick={() => setMode('view')} className="px-4 py-2 rounded-lg text-sm text-zinc-300 hover:bg-zinc-900 border border-zinc-800 transition">
+      <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-300">
+        <button onClick={() => setMode('view')} className="px-4 py-2 rounded-lg text-sm text-zinc-800 hover:bg-zinc-100 border border-zinc-300 transition">
           Cancel
         </button>
         <button
@@ -387,7 +387,7 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
             canSubmit && !busy
               ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'
-              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+              : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
           }`}
         >
           {busy ? 'Adding…' : 'Add Sub-Account'}
@@ -397,12 +397,12 @@ function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) 
   );
 }
 
-const INPUT = 'w-full px-3 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition';
+const INPUT = 'w-full px-3 py-2.5 rounded-lg bg-zinc-100 border border-zinc-300 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition';
 
 function Section({ label, children }) {
   return (
     <div className="space-y-2">
-      <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-400">{label}</label>
+      <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-600">{label}</label>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -422,15 +422,15 @@ function Field({ value, onChange, placeholder, mono, type = 'text' }) {
 
 function ToggleRow({ value, onChange, options }) {
   return (
-    <div className="inline-flex rounded-md border border-zinc-800 overflow-hidden text-xs">
+    <div className="inline-flex rounded-md border border-zinc-300 overflow-hidden text-xs">
       {options.map((o) => (
         <button
           key={o.id}
           onClick={() => onChange(o.id)}
           className={`px-3 py-1.5 transition ${
             value === o.id
-              ? 'bg-zinc-800 text-zinc-100'
-              : 'bg-zinc-950 text-zinc-500 hover:text-zinc-300'
+              ? 'bg-zinc-200 text-zinc-900'
+              : 'bg-white text-zinc-500 hover:text-zinc-800'
           }`}
         >{o.label}</button>
       ))}
@@ -441,8 +441,8 @@ function ToggleRow({ value, onChange, options }) {
 function ColorPreview({ color, label }) {
   return (
     <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-      <span className="w-4 h-4 rounded-full border border-zinc-700" style={{ background: color }} />
-      <span className="truncate">{label} · <span className="font-mono text-zinc-400">{color}</span></span>
+      <span className="w-4 h-4 rounded-full border border-zinc-400" style={{ background: color }} />
+      <span className="truncate">{label} · <span className="font-mono text-zinc-600">{color}</span></span>
     </div>
   );
 }
@@ -479,26 +479,26 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-base font-semibold text-zinc-100">GitHub PAT</h3>
+        <h3 className="text-base font-semibold text-zinc-900">GitHub PAT</h3>
         <p className="text-xs text-zinc-500 mt-0.5">
           A fine-grained token scoped to <span className="font-mono">{REPO_OWNER}/{REPO_NAME}</span> is required
           for one-click sub-account adds. Stored only in this browser's localStorage.
         </p>
       </div>
 
-      <div className="rounded-lg bg-zinc-950 border border-blue-500/20 p-4 space-y-3 text-sm text-zinc-300">
+      <div className="rounded-lg bg-white border border-blue-500/20 p-4 space-y-3 text-sm text-zinc-800">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-blue-300 mb-1.5">Required scopes</div>
-          <ul className="text-xs text-zinc-400 space-y-1 list-disc pl-5">
-            <li>Repository Contents: <span className="text-zinc-200">Read and Write</span> (updates subaccounts.json)</li>
-            <li>Repository Secrets: <span className="text-zinc-200">Read and Write</span> (stores PIT per location)</li>
-            <li>Repository Actions: <span className="text-zinc-200">Read and Write</span> (triggers deploy on add)</li>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-blue-700 mb-1.5">Required scopes</div>
+          <ul className="text-xs text-zinc-600 space-y-1 list-disc pl-5">
+            <li>Repository Contents: <span className="text-zinc-900">Read and Write</span> (updates subaccounts.json)</li>
+            <li>Repository Secrets: <span className="text-zinc-900">Read and Write</span> (stores PIT per location)</li>
+            <li>Repository Actions: <span className="text-zinc-900">Read and Write</span> (triggers deploy on add)</li>
           </ul>
         </div>
         <a
           href={`https://github.com/settings/personal-access-tokens/new?name=VPG+Dashboard+Self-Serve&description=Used+by+the+Sub-Accounts+panel+on+the+VPG+dashboard&target_name=${REPO_OWNER}`}
           target="_blank" rel="noreferrer"
-          className="inline-block text-xs text-blue-300 hover:text-blue-200 underline"
+          className="inline-block text-xs text-blue-700 hover:text-blue-200 underline"
         >
           Create a new fine-grained PAT →
         </a>
@@ -508,13 +508,13 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
         <Field type="password" mono value={pat} onChange={setPat} placeholder="github_pat_xxxxxxxx_xxxxxxxxxxxxxx" />
       </Section>
 
-      <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800">
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-300">
         <span className="text-xs text-zinc-500">
           {patPresent ? '✓ PAT currently stored (' + getStoredPAT().slice(0, 9) + '…)' : 'No PAT stored'}
         </span>
         <div className="flex gap-2">
           {patPresent && (
-            <button onClick={clear} className="px-3 py-2 rounded-lg text-sm text-rose-300 hover:bg-rose-500/10 border border-zinc-800 transition">
+            <button onClick={clear} className="px-3 py-2 rounded-lg text-sm text-rose-700 hover:bg-rose-500/10 border border-zinc-300 transition">
               Clear
             </button>
           )}
@@ -524,7 +524,7 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               pat.trim() && !busy
                 ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'
-                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
             }`}
           >
             {busy ? 'Validating…' : 'Save PAT'}

@@ -59,11 +59,11 @@ export default function OpportunitiesView() {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
             return (
-              <div key={rep.id} className="rounded-xl border border-zinc-800/80 bg-zinc-950/30 p-2.5 flex flex-col min-w-0 min-h-0">
-                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-800/60 gap-2">
+              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-2.5 flex flex-col min-w-0 min-h-0">
+                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: rep.color }} />
-                    <h4 className="text-xs font-semibold text-zinc-100 truncate">{rep.name.split(' ')[0]}</h4>
+                    <h4 className="text-xs font-semibold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
                   </div>
                   <span className="text-[9px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
                 </div>
@@ -77,7 +77,7 @@ export default function OpportunitiesView() {
                 </div>
 
                 {/* MONTHLY */}
-                <div className="text-[8.5px] uppercase tracking-[0.18em] text-blue-400/70 font-bold mt-2 mb-1">Monthly</div>
+                <div className="text-[8.5px] uppercase tracking-[0.18em] text-blue-600/70 font-bold mt-2 mb-1">Monthly</div>
                 <div className="flex-1 space-y-1 min-h-0">
                   <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
                   <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
@@ -85,8 +85,8 @@ export default function OpportunitiesView() {
                 </div>
 
                 {/* Aban + Lost — bigger, color-coded per Luke (May 11) */}
-                <div className="mt-2 pt-1.5 border-t border-zinc-800/60 grid grid-cols-2 gap-1 shrink-0">
-                  <DeadStat label="Aban" value={sum('abandoned')} className="text-orange-400" />
+                <div className="mt-2 pt-1.5 border-t border-zinc-200 grid grid-cols-2 gap-1 shrink-0">
+                  <DeadStat label="Aban" value={sum('abandoned')} className="text-orange-600" />
                   <DeadStat label="Lost" value={sum('lost')} className="text-red-500" />
                 </div>
               </div>
@@ -104,11 +104,11 @@ export default function OpportunitiesView() {
             const contracts = pairs.reduce((a, p) => a + (p.contractsMonth || 0), 0);
             const closed = pairs.reduce((a, p) => a + (p.dealsClosedMonth || 0), 0);
             return (
-              <div key={market.id} className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-2.5 flex flex-col min-w-0 min-h-0">
+              <div key={market.id} className="rounded-xl border border-zinc-300/80 bg-white p-2.5 flex flex-col min-w-0 min-h-0">
                 <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: market.color }} />
-                    <span className="text-[11px] font-semibold text-zinc-200 truncate">{market.name}</span>
+                    <span className="text-[11px] font-semibold text-zinc-900 truncate">{market.name}</span>
                   </div>
                   <span className="text-[9px] text-zinc-500 shrink-0">{market.id}</span>
                 </div>
@@ -132,8 +132,8 @@ function MetricRow({ label, actual, target }) {
   if (target == null) {
     return (
       <div className="flex items-baseline justify-between gap-1 min-w-0">
-        <span className="text-[10px] text-zinc-400 truncate">{label}</span>
-        <span className="text-[12px] font-semibold tabular-nums text-zinc-100 shrink-0">{actual}</span>
+        <span className="text-[10px] text-zinc-600 truncate">{label}</span>
+        <span className="text-[12px] font-semibold tabular-nums text-zinc-900 shrink-0">{actual}</span>
       </div>
     );
   }
@@ -142,12 +142,12 @@ function MetricRow({ label, actual, target }) {
   return (
     <div className="min-w-0">
       <div className="flex items-baseline justify-between gap-1">
-        <span className="text-[10px] text-zinc-400 truncate">{label}</span>
+        <span className="text-[10px] text-zinc-600 truncate">{label}</span>
         <span className={`text-[11px] font-semibold ${s.text} tabular-nums shrink-0`}>
-          {actual}<span className="text-zinc-600"> / {target}</span>
+          {actual}<span className="text-zinc-400"> / {target}</span>
         </span>
       </div>
-      <div className="h-[3px] bg-zinc-900 rounded-full overflow-hidden mt-0.5">
+      <div className="h-[3px] bg-zinc-100 rounded-full overflow-hidden mt-0.5">
         <div
           className="h-full transition-all duration-700 ease-out rounded-full"
           style={{ width: `${percent}%`, background: s.color }}
@@ -168,9 +168,9 @@ function DeadStat({ label, value, className }) {
 
 function Compact({ label, value }) {
   return (
-    <div className="rounded bg-zinc-950/60 px-1 py-1 flex flex-col justify-center min-w-0">
+    <div className="rounded bg-zinc-100/60 px-1 py-1 flex flex-col justify-center min-w-0">
       <div className="text-[9px] uppercase text-zinc-500">{label}</div>
-      <div className="text-base font-bold tabular-nums text-zinc-100 leading-tight">{value}</div>
+      <div className="text-base font-bold tabular-nums text-zinc-900 leading-tight">{value}</div>
     </div>
   );
 }

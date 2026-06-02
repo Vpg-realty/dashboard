@@ -32,7 +32,7 @@ export default function StackedTotalLabel({ formattedGraphicalItems, format }) {
             key={i}
             x={row.x + row.width / 2}
             y={row.top - 6}
-            fill="#e4e4e7"
+            fill="#27272a"
             textAnchor="middle"
             fontSize={12}
             fontWeight={700}
