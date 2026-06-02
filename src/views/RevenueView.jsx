@@ -54,7 +54,7 @@ export default function RevenueView() {
                   stroke="none"
                   label={({ value, x, y }) =>
                     value > 0 ? (
-                      <text x={x} y={y} fill="#0a0a0a" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+                      <text x={x} y={y} fill="#0a0a0a" textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700}>
                         {formatCompactCurrency(value)}
                       </text>
                     ) : null
@@ -95,8 +95,8 @@ export default function RevenueView() {
               return row;
             })} margin={{ top: 22, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-              <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} interval={0} />
-              <YAxis stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
+              <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
+              <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               {byMarket.map((m) => (
                 <Bar key={m.market} dataKey={m.market} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
@@ -105,7 +105,7 @@ export default function RevenueView() {
                     dataKey={m.market}
                     position="center"
                     fill="#0a0a0a"
-                    fontSize={11}
+                    fontSize={13}
                     fontWeight={700}
                     formatter={(v) => (v > 0 ? formatCompactCurrency(v) : '')}
                   />

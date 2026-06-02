@@ -119,8 +119,8 @@ export default function MasterView() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agentBarData.map((r) => ({ ...r, _tk: r.rep }))} margin={{ top: 18, right: 6, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={0} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
                 {MARKETS.map((m) => (
                   <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} />
@@ -145,7 +145,7 @@ export default function MasterView() {
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           {/* Weekly row */}
           <div className="flex-1 flex flex-col gap-1 min-h-0">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-emerald-500/80 font-bold">Weekly</div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-500/80 font-bold">Weekly</div>
             <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
               <MiniMetric label="Opps Opened" actual={oppsOpenedWeek} target={null} />
               <MiniMetric label="Offers" actual={head.offersWeek} target={TEAM_TARGETS.offersPerWeek} />
@@ -154,7 +154,7 @@ export default function MasterView() {
           </div>
           {/* Monthly row */}
           <div className="flex-1 flex flex-col gap-1 min-h-0">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-blue-600/80 font-bold">Monthly</div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600/80 font-bold">Monthly</div>
             <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
               <MiniMetric label="Offers" actual={offersMonth} target={TEAM_TARGETS.offersPerWeek * 4} />
               <MiniMetric label="Contracts" actual={head.contractsMonth} target={TEAM_TARGETS.contractsPerMonth} />
@@ -274,7 +274,7 @@ function MiniMetric({ label, actual, target }) {
     return (
       <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
         <div className="flex items-baseline justify-between gap-1">
-          <span className="text-[9px] uppercase text-zinc-500 truncate">{label}</span>
+          <span className="text-[11px] uppercase text-zinc-500 truncate">{label}</span>
           <span className="text-sm font-bold tabular-nums text-zinc-900">{actual}</span>
         </div>
       </div>
@@ -285,7 +285,7 @@ function MiniMetric({ label, actual, target }) {
   return (
     <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
       <div className="flex items-baseline justify-between gap-1 mb-0.5 min-w-0">
-        <span className="text-[9px] uppercase text-zinc-500 truncate">{label}</span>
+        <span className="text-[11px] uppercase text-zinc-500 truncate">{label}</span>
         <span className={`text-[11px] font-semibold tabular-nums ${s.text}`}>
           {actual}<span className="text-zinc-400">/{target}</span>
         </span>

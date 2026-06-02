@@ -120,8 +120,8 @@ export default function AdvancedView() {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={pair.daily || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-              <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis stroke="#71717a" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
+              <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
               <Line
                 type="monotone"
@@ -190,7 +190,7 @@ function Stat({ label, value, accent, note }) {
     <div className={`rounded-xl border p-4 ${colors[accent]} min-w-0`}>
       <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-600 mb-1.5 truncate">{label}</div>
       <div className="text-3xl font-bold tabular-nums truncate">{value}</div>
-      {note && <div className="text-[9px] uppercase tracking-widest text-zinc-500 mt-1 truncate">{note}</div>}
+      {note && <div className="text-[11px] uppercase tracking-widest text-zinc-500 mt-1 truncate">{note}</div>}
     </div>
   );
 }
