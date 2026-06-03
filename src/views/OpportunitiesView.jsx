@@ -59,8 +59,8 @@ export default function OpportunitiesView() {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
             return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-2 flex flex-col min-w-0 min-h-0">
-                <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
+              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-2 flex flex-col min-w-0 min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between mb-1 pb-1 border-b border-zinc-200 gap-2 shrink-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: rep.color }} />
                     <h4 className="text-sm font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
@@ -68,26 +68,34 @@ export default function OpportunitiesView() {
                   <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
                 </div>
 
-                {/* WEEKLY */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
-                <div>
+                {/* WEEKLY — flex-1 min-h-0 so the section compresses if the
+                    card runs short on vertical room, rather than overflowing
+                    into the panel below (Luke June 3 screenshot). */}
+                <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-0.5 shrink-0">Weekly</div>
+                <div className="flex-1 min-h-0">
                   <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
                   <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
                   <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
                 </div>
 
                 {/* MONTHLY */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
-                <div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-1.5 mb-0.5 shrink-0">Monthly</div>
+                <div className="flex-1 min-h-0">
                   <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
                   <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
                   <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
                 </div>
 
-                {/* Aban + Lost — color-coded per Luke (May 11) */}
-                <div className="mt-2 pt-1.5 border-t border-zinc-200 grid grid-cols-2 gap-1 shrink-0">
-                  <DeadStat label="Aban" value={sum('abandoned')} className="text-orange-600" />
-                  <DeadStat label="Lost" value={sum('lost')} className="text-red-500" />
+                {/* Aban + Lost — single compact row so it stops getting clipped */}
+                <div className="mt-1.5 pt-1.5 border-t border-zinc-200 flex items-baseline justify-between gap-2 shrink-0 text-sm">
+                  <span className="flex items-baseline gap-1 min-w-0 truncate">
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Aban</span>
+                    <span className="font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
+                  </span>
+                  <span className="flex items-baseline gap-1 min-w-0 truncate">
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Lost</span>
+                    <span className="font-bold tabular-nums text-red-500">{sum('lost')}</span>
+                  </span>
                 </div>
               </div>
             );
@@ -127,11 +135,9 @@ export default function OpportunitiesView() {
 }
 
 function MetricRow({ label, actual, target }) {
-  // No-target rows just show the count (used for Opps Opened where there's
-  // no locked threshold yet). Otherwise status-colored progress.
   if (target == null) {
     return (
-      <div className="flex items-baseline justify-between gap-1 min-w-0 py-0.5">
+      <div className="flex items-baseline justify-between gap-1 min-w-0 py-px">
         <span className="text-xs text-zinc-700 truncate">{label}</span>
         <span className="text-sm font-semibold tabular-nums text-zinc-900 shrink-0">{actual}</span>
       </div>
@@ -139,12 +145,10 @@ function MetricRow({ label, actual, target }) {
   }
   const s = kpiStatus(actual, target);
   const percent = pct(actual, target);
-  // pb-1 keeps the progress bar 4px clear of the next row's text so it
-  // can't read as a strikethrough on the label below (Luke May 12).
-  // Bar bumped to h-1 on bg-zinc-200 so the empty rail is visible on
-  // the white card.
+  // pb-0.5 keeps the bar 2px clear of the next row's text — enough to
+  // disambiguate from a strikethrough without bloating row height.
   return (
-    <div className="min-w-0 pb-1">
+    <div className="min-w-0 pb-0.5">
       <div className="flex items-baseline justify-between gap-1">
         <span className="text-xs text-zinc-700 truncate">{label}</span>
         <span className={`text-sm font-semibold ${s.text} tabular-nums shrink-0`}>
