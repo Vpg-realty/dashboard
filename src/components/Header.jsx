@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { refreshNow } from '../data/source.js';
+import { hasPAT } from '../utils/githubApi.js';
 
 export default function Header({
   viewName,
@@ -42,6 +44,7 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-2">
+          <RefreshButton />
           <button
             onClick={onAddSubaccount}
             className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-zinc-950 hover:bg-blue-400 transition flex items-center gap-1.5"
@@ -65,6 +68,54 @@ export default function Header({
         </div>
       </div>
     </header>
+  );
+}
+
+// Manual refresh. Re-pulls the freshest published snapshot immediately. If a
+// GitHub PAT is configured in this browser (Sub-Accounts panel), it also kicks
+// the Deploy workflow for a live GHL re-pull, then waits for the new numbers to
+// publish — so the TV updates on demand instead of waiting for the 15-min cron.
+function RefreshButton() {
+  const [state, setState] = useState('idle'); // idle | working | done | error
+
+  const handleClick = useCallback(async () => {
+    if (state === 'working') return;
+    setState('working');
+    try {
+      await refreshNow({ rebuild: hasPAT() });
+      setState('done');
+      setTimeout(() => setState('idle'), 2500);
+    } catch {
+      setState('error');
+      setTimeout(() => setState('idle'), 4000);
+    }
+  }, [state]);
+
+  const label =
+    state === 'working' ? 'Refreshing…'
+    : state === 'done' ? 'Updated ✓'
+    : state === 'error' ? 'Retry'
+    : 'Refresh';
+
+  const tone =
+    state === 'error'
+      ? 'bg-rose-500/10 text-rose-600 border-rose-500/40 hover:bg-rose-500/20'
+      : state === 'done'
+      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/40'
+      : 'bg-zinc-100 text-zinc-700 border-zinc-300 hover:border-zinc-400';
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={state === 'working'}
+      title={hasPAT()
+        ? 'Pull the latest data from GHL now and republish the board'
+        : 'Re-pull the latest published snapshot now'}
+      className={`px-3 py-1.5 rounded-md text-xs font-medium border transition flex items-center gap-1.5 disabled:opacity-70 ${tone}`}
+    >
+      <span className={`text-sm leading-none ${state === 'working' ? 'animate-spin' : ''}`}>⟳</span>
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

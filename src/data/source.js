@@ -35,6 +35,10 @@ export const historyDeltaTierSumTotal = (...a) => (src.historyDeltaTierSumTotal 
 export const historyDayCount = () => (src.historyDayCount ? src.historyDayCount() : 0);
 export const historyDaysBack = () => (src.historyDaysBack ? src.historyDaysBack() : 0);
 
+// Manual refresh (live-only). In mock mode it's a harmless no-op so the
+// header's Refresh button still renders during local demos.
+export const refreshNow = src.refreshNow || (async () => ({ rebuilt: false }));
+
 // React-only helpers — no-ops in mock mode.
 export const useDataUpdates = src.useDataUpdates || (() => {});
 export const useDataStatus =

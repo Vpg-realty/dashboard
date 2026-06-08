@@ -40,14 +40,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350   # 5h50m — under the 6h job limit
     steps:
-      - name: Loop — dispatch Deploy every 5 minutes
+      - name: Loop — dispatch Deploy every 15 minutes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -u
-          ITERATIONS=68              # 68 * 5 min ≈ 5h40m, leaves buffer for self-dispatch
-          SLEEP_SECONDS=300          # 5 minutes
+          ITERATIONS=23              # 23 * 15 min ≈ 5h45m, leaves buffer for self-dispatch
+          SLEEP_SECONDS=900          # 15 minutes — stays well under GitHub Pages' ~10 builds/hr soft limit
           for i in $(seq 1 $ITERATIONS); do
             echo "[$(date -u +%H:%M:%SZ)] iteration $i/$ITERATIONS — dispatching Deploy"
             gh workflow run "Deploy dashboard" --repo "$REPO" || echo "dispatch failed, will retry next tick"
