@@ -194,6 +194,37 @@ export function start() {
   startPolling();
 }
 
+// Manual refresh, wired to the header's "Refresh" button.
+//
+// Always re-pulls the latest published snapshot immediately (cache-busted),
+// so the TV reflects whatever GitHub Pages currently serves. If `rebuild` is
+// true AND a GitHub PAT is configured in this browser (via the Sub-Accounts
+// panel), it also fires the Deploy workflow — a fresh GHL pull + republish —
+// then polls for the new snapshot to land so the numbers actually move, not
+// just re-render the same data.
+//
+// Returns { rebuilt, lastSync, timedOut? } for the UI to react to.
+export async function refreshNow({ rebuild = false } = {}) {
+  if (rebuild) {
+    const gh = await import('../utils/githubApi.js');
+    if (gh.hasPAT()) {
+      const before = lastSync;
+      await gh.triggerDeploy();
+      // Poll up to ~120s for a newer snapshot to publish (build+deploy ≈ 60–90s).
+      const deadline = Date.now() + 120_000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 6000));
+        await fetchSnapshot();
+        if (lastSync && lastSync !== before) return { rebuilt: true, lastSync };
+      }
+      return { rebuilt: true, timedOut: true, lastSync };
+    }
+  }
+  // Tokenless (or rebuild not requested): just re-pull the static snapshot.
+  await Promise.all([fetchSnapshot(), fetchHistory()]);
+  return { rebuilt: false, lastSync };
+}
+
 // --- public API (mirrors mockData.js) ------------------------------------
 
 export const getPair = (repId, marketId) =>

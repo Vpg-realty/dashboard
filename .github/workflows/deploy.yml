@@ -4,12 +4,14 @@ on:
   push:
     branches: [main]
   schedule:
-    # GitHub Actions cron is documented as best-effort and routinely delays
-    # high-frequency schedules to 30–60 min on quiet public repos. We register
-    # two offset schedules — GitHub treats each as an independent trigger —
-    # to squeeze closer to actual every-2-min firing.
-    - cron: '*/2 * * * *'
-    - cron: '1-59/2 * * * *'
+    # Low-frequency self-heal backup ONLY. The real refresh cadence comes from
+    # pinger.yml (a single in-job loop firing every 15 min). We deliberately
+    # keep this sparse: GitHub Pages soft-limits publishes to ~10/hr, and the
+    # old every-2-min pair of crons + the 5-min pinger stacked up to 30–60
+    # deploys/hr, which tripped the limit and froze the live site (builds went
+    # green but Pages stopped publishing). One backup tick every 30 min is
+    # plenty to recover if the pinger loop ever dies.
+    - cron: '*/30 * * * *'
   # Manual button + external pinger via REST API:
   #   curl -X POST -H "Authorization: Bearer <pat>" \
   #        -H "Accept: application/vnd.github+json" \
@@ -24,10 +26,13 @@ permissions:
   pages: write
   id-token: write
 
-# Only one deploy at a time. Newer cron firings supersede in-flight runs.
+# Only one deploy at a time, but NEVER cancel an in-flight one. Cancelling a
+# run mid-publish was leaving the github-pages environment wedged (the symptom
+# that froze the live site). Deploys take ~40s, so at our cadence overlaps are
+# rare; when they happen we let the running publish finish and queue the next.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
