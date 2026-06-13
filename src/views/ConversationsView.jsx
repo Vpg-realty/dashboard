@@ -147,8 +147,8 @@ export default function ConversationsView() {
               <div className="text-xs text-zinc-800 truncate">{m.name}</div>
             </div>
             <div className="text-right shrink-0">
-              <div className="text-xl font-bold tabular-nums leading-none" style={{ color: m.color }}>{formatNumber(m.week)}</div>
-              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mt-1">/ wk</div>
+              <div className="text-xl font-bold tabular-nums leading-none" style={{ color: m.color }}>{formatNumber(m.today)}</div>
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mt-1">today</div>
             </div>
           </div>
         ))}
