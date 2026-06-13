@@ -95,10 +95,17 @@ export function aggregatePair({
   const OFFER_RANK = STAGE_RANK.offer_submitted;
   const UC_RANK = STAGE_RANK.under_contract;
 
+  // Per-opp current stage rank — consumed by stickyCounts.js to detect when an
+  // opp CROSSES into the Offer / Under-Contract band across runs, so weekly /
+  // monthly throughput counts don't shrink when a deal is later moved to the
+  // Lost or Abandoned stage.
+  const oppRanks = [];
+
   for (const o of opportunities) {
     const stageName = stageById[o.pipelineStageId] || o.stage || '';
     const key = stageKey(stageName);
     const rank = STAGE_RANK[key] || 0;
+    if (o.id) oppRanks.push({ id: o.id, r: rank });
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const created = ts(o.createdAt || o.dateAdded);
@@ -181,6 +188,9 @@ export function aggregatePair({
     lost,
     revenueWeek,
     revenueMonth,
+    // Stripped from data.json by stickyCounts.js before deploy — never reaches
+    // the browser.
+    _oppRanks: oppRanks,
   };
 }
 

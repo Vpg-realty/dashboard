@@ -269,30 +269,24 @@ function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
   );
 }
 
+// Luke (June): the big count + bar are the point of this quadrant — make them
+// large and centered in each tile so the guys can read them from across the
+// office, not tiny corner numbers.
 function MiniMetric({ label, actual, target }) {
-  if (target == null) {
-    return (
-      <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
-        <div className="flex items-baseline justify-between gap-1">
-          <span className="text-[11px] uppercase text-zinc-500 truncate">{label}</span>
-          <span className="text-sm font-bold tabular-nums text-zinc-900">{actual}</span>
-        </div>
-      </div>
-    );
-  }
-  const s = kpiStatus(actual, target);
-  const percent = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
+  const s = target == null ? null : kpiStatus(actual, target);
+  const percent = target && target > 0 ? Math.min(100, (actual / target) * 100) : 0;
   return (
-    <div className="rounded bg-white/80 border border-zinc-200 px-2 py-1.5 min-w-0">
-      <div className="flex items-baseline justify-between gap-1 mb-0.5 min-w-0">
-        <span className="text-[11px] uppercase text-zinc-500 truncate">{label}</span>
-        <span className={`text-[11px] font-semibold tabular-nums ${s.text}`}>
-          {actual}<span className="text-zinc-400">/{target}</span>
-        </span>
+    <div className="rounded bg-white/80 border border-zinc-200 px-2 py-2 flex flex-col items-center justify-center text-center min-w-0">
+      <div className="text-[11px] uppercase tracking-wide text-zinc-500 truncate w-full">{label}</div>
+      <div className={`font-bold tabular-nums leading-none my-1 text-3xl xl:text-4xl ${s ? s.text : 'text-zinc-900'}`}>
+        {actual}
+        {target != null && <span className="text-zinc-400 text-lg xl:text-xl"> / {target}</span>}
       </div>
-      <div className="h-[3px] bg-zinc-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, background: s.color }} />
-      </div>
+      {target != null && (
+        <div className="h-2.5 xl:h-3 w-full bg-zinc-100 rounded-full overflow-hidden mt-1">
+          <div className="h-full rounded-full" style={{ width: `${percent}%`, background: s.color }} />
+        </div>
+      )}
     </div>
   );
 }

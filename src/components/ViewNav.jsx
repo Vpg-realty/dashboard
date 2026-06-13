@@ -10,7 +10,9 @@ const LABELS = {
 };
 
 export default function ViewNav({ active, onChange }) {
-  const views = [...CYCLE_VIEWS, 'master', 'advanced'];
+  // master may or may not be in CYCLE_VIEWS (it's in the rotation now); dedupe
+  // so the tab never shows twice. advanced is always last, never in the cycle.
+  const views = [...new Set([...CYCLE_VIEWS, 'master', 'advanced'])];
   return (
     <nav className="flex items-center gap-1 px-6 py-2.5 border-b border-zinc-300/80 bg-zinc-50 overflow-x-auto">
       {views.map((v) => (

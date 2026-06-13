@@ -16,9 +16,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
+import { applyStickyCounts } from '../server/stickyCounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
+const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
+const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
+
+// Cross-run state for sticky weekly/monthly opportunity throughput counts.
+// Loaded from the previous deploy (same self-bootstrapping pattern as
+// history.json). Returns null on first-ever run or if Pages is down.
+async function loadPrevOppState() {
+  try {
+    const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.pairs ? d : null;
+  } catch {
+    return null;
+  }
+}
 
 // --- token merge ---------------------------------------------------------
 // Legacy: parse the single GHL_TOKENS JSON blob.
@@ -62,6 +79,17 @@ const configured = countConfigured(tokens);
 console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Object.keys(legacyTokens).length}, dynamic PIT_*: ${dynamicCount})`);
 
 const snapshot = await buildSnapshot({ tokens });
+
+// Layer sticky weekly/monthly offer + contract counts on top of the raw
+// breadcrumb counts, then persist the per-opp stage state for the next run.
+// This is what turns those numbers into throughput ("how many entered the
+// stage this period") instead of current occupancy. _oppRanks is stripped here.
+const prevOppState = await loadPrevOppState();
+const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date() });
+snapshot.pairs = sticky.pairs;
+fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
+fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));
+console.log(`[snapshot] sticky counts ${prevOppState ? 'accrued from prior state' : 'seeded (first run)'} — wrote ${STATE_OUT}`);
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));

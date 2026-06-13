@@ -129,9 +129,9 @@ export default function OpportunitiesView() {
                   <span className="text-[11px] text-zinc-500 shrink-0">{market.id}</span>
                 </div>
                 <div className="flex-1 grid grid-cols-3 gap-1 text-center min-h-0">
-                  <Compact label="Off" value={offers} />
-                  <Compact label="Ctr" value={contracts} />
-                  <Compact label="Cls" value={closed} />
+                  <Compact label="Off" value={offers} tone="amber" />
+                  <Compact label="Ctr" value={contracts} tone="blue" />
+                  <Compact label="Cls" value={closed} tone="emerald" />
                 </div>
               </div>
             );
@@ -166,11 +166,19 @@ function MetricRow({ label, actual, target }) {
   );
 }
 
-function Compact({ label, value }) {
+// Color-coded so the three sub-metrics stop blending together on the TV
+// (Luke June): OFF = yellow, CTR = blue, CLS = green.
+function Compact({ label, value, tone = 'zinc' }) {
+  const tones = {
+    amber:   { num: 'text-amber-500',   lab: 'text-amber-600' },
+    blue:    { num: 'text-blue-600',    lab: 'text-blue-600' },
+    emerald: { num: 'text-emerald-600', lab: 'text-emerald-600' },
+    zinc:    { num: 'text-zinc-900',    lab: 'text-zinc-600' },
+  }[tone];
   return (
     <div className="rounded bg-zinc-100/60 px-1 py-1 flex flex-col justify-center min-w-0">
-      <div className="text-[10px] uppercase text-zinc-600 font-semibold">{label}</div>
-      <div className="text-base font-bold tabular-nums text-zinc-900 leading-tight">{value}</div>
+      <div className={`text-[10px] uppercase font-semibold ${tones.lab}`}>{label}</div>
+      <div className={`text-base font-bold tabular-nums leading-tight ${tones.num}`}>{value}</div>
     </div>
   );
 }

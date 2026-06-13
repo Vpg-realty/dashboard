@@ -59,7 +59,7 @@ export const PIPELINE_STAGES = [
 ];
 
 // View cycle order + per-view duration (ms).
-export const CYCLE_VIEWS = ['conversations', 'agents', 'opportunities', 'revenue'];
+export const CYCLE_VIEWS = ['conversations', 'agents', 'opportunities', 'revenue', 'master'];
 export const CYCLE_INTERVAL_MS = 10000;
 
 // Date-range presets for the Advanced view.
