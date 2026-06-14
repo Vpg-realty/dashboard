@@ -25,16 +25,33 @@ const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
 
 // Cross-run state for sticky weekly/monthly opportunity throughput counts.
 // Loaded from the previous deploy (same self-bootstrapping pattern as
-// history.json). Returns null on first-ever run or if Pages is down.
+// history.json).
+//
+// Robustness matters here: a transient fetch blip that returns null would be
+// treated as "first run" and RESEED the counters from the (shrunken) live
+// breadcrumb — wiping the week's accumulation and making the numbers visibly
+// drop. So we retry on network/5xx errors and only treat a genuine 404 (the
+// file truly doesn't exist yet) as a real first run. A sustained Pages outage
+// is the one residual case that can still reset — logged loudly if it happens.
 async function loadPrevOppState() {
-  try {
-    const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d && d.pairs ? d : null;
-  } catch {
-    return null;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.status === 404) return null;                 // genuine first run
+      if (!r.ok) throw new Error(`status ${r.status}`);  // 5xx/etc → retry
+      const d = await r.json();
+      return d && d.pairs ? d : null;
+    } catch (err) {
+      if (attempt === 2) {
+        console.warn(`[snapshot] WARNING: could not load opp-state.json after 3 tries (${err.message}). ` +
+          `Sticky counts will reseed from the live breadcrumb this run — weekly/monthly throughput may dip until they re-accrue.`);
+        return null;
+      }
+      await sleep(400 * (attempt + 1));
+    }
   }
+  return null;
 }
 
 // --- token merge ---------------------------------------------------------
