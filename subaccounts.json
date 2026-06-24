@@ -40,6 +40,11 @@
       "id": "MO",
       "name": "Missouri",
       "color": "#84cc16"
+    },
+    {
+      "id": "OK",
+      "name": "Oklahoma",
+      "color": "#14b8a6"
     }
   ],
   "reps": [
@@ -139,6 +144,11 @@
       "repId": "daniel",
       "marketId": "MO",
       "locationId": "tGVFu5aufwgiPES8HXWJ"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "OK",
+      "locationId": "XgFQlD2DBRbnWauS1vKU"
     }
   ]
 }
