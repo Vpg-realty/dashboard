@@ -30,20 +30,30 @@ export default function AgentsView() {
 
   const totalActive = tiers.filter((t) => ACTIVE_TIERS.includes(t.tier)).reduce((a, t) => a + t.value, 0);
   const totalTier1 = tiers.find((t) => t.tier === 1).value;
-  // Team-wide tier-sum deltas. Fall back to per-pair sums when history is shallow.
+  // Team-wide tier-sum deltas. When history is shallow (< 7 days) the
+  // "7-day delta" silently degrades into a 1-day delta because the oldest
+  // available entry is yesterday — that's what made the stat look like it
+  // "jumped up out of nowhere" after history got wiped in late June. We
+  // now LABEL it honestly instead of pretending it's still a weekly
+  // number; the value still tells the truth for the window we have.
   const addedWeekDelta = historyDeltaTierSumTotal(ACTIVE_TIERS, 7);
   const addedTodayDelta = historyDeltaTierSumTotal(ACTIVE_TIERS, 1);
   const addedThisWeek = addedWeekDelta != null ? addedWeekDelta : head.agentsAddedWeek;
   const addedToday = addedTodayDelta != null ? addedTodayDelta : Math.max(0, Math.round(addedThisWeek / 7));
   const daysBack = historyDaysBack();
-  const weekSub = addedWeekDelta != null && daysBack < 7 ? `over last ${daysBack} day${daysBack === 1 ? '' : 's'}` : null;
+  const weekStatLabel = daysBack >= 7
+    ? 'Added This Week'
+    : `Added · last ${daysBack} day${daysBack === 1 ? '' : 's'}`;
+  const weekSub = daysBack < 7
+    ? `history rebuilding — ${daysBack}/7 days`
+    : null;
 
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <BigStat label="Total Agents" value={totalActive} accent="zinc" sub="Tier 1 + 2 + 3" />
         <BigStat label="Tier 1 VIPs" value={totalTier1} accent="amber" highlight />
-        <BigStat label="Added This Week" value={addedThisWeek} accent="emerald" sub={weekSub} />
+        <BigStat label={weekStatLabel} value={addedThisWeek} accent="emerald" sub={weekSub} />
         <BigStat label="Added Today" value={addedToday} accent="blue" />
       </div>
 

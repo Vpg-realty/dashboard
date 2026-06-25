@@ -21,14 +21,32 @@ const KEEP_DAYS = 90;
 
 const today = new Date().toISOString().slice(0, 10);
 
+// Loads the live deployed history. Earlier this would silently return [] on
+// any fetch failure (5xx, network blip, parse error), and that empty list
+// would then get written back as the new history.json — wiping every day of
+// accumulated snapshots. Hardened the same way loadPrevOppState in
+// build-snapshot.mjs is: only treat a real 404 as "first run", retry every
+// other error, and on sustained failure throw so the deploy aborts and the
+// good history file stays on Pages.
 async function loadDeployedHistory() {
-  try {
-    const r = await fetch(`${PAGES_HISTORY_URL}?t=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) return [];
-    const d = await r.json();
-    if (Array.isArray(d?.entries)) return d.entries;
-  } catch {
-    // First-ever run, or Pages temporarily down. Either way, start fresh.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${PAGES_HISTORY_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.status === 404) return [];                   // genuine first run
+      if (!r.ok) throw new Error(`status ${r.status}`);  // 5xx/etc → retry
+      const d = await r.json();
+      if (!Array.isArray(d?.entries)) throw new Error('malformed history.json');
+      return d.entries;
+    } catch (err) {
+      if (attempt === 2) {
+        throw new Error(
+          `Could not load deployed history.json after 3 tries (${err.message}). ` +
+          `Aborting so the existing deployed file is preserved — re-run will retry.`
+        );
+      }
+      await sleep(400 * (attempt + 1));
+    }
   }
   return [];
 }
