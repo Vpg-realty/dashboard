@@ -48,21 +48,6 @@ const stageKey = (name) => {
   );
 };
 
-// Funnel-order rank — lets us say "this opp has at least passed through
-// stage N" given its current stage.
-const STAGE_RANK = {
-  new_lead: 1,
-  review: 2,
-  offer_submitted: 3,
-  negotiation: 4,
-  under_contract: 5,
-  dispo: 6,
-  assigned: 7,
-  closed: 8,
-  abandoned: 99,
-  lost: 99,
-};
-
 export function aggregatePair({
   repId, marketId,
   opportunities, pipelines,
@@ -79,12 +64,15 @@ export function aggregatePair({
     for (const s of p.stages || []) stageById[s.id] = s.name;
   }
 
-  // --- opportunities — stage breadcrumb logic ----------------------------
-  // GHL exposes only current stage + lastStageChangeAt / lastStatusChangeAt.
-  // To count opps that *passed through* a stage in the period, we use the
-  // breadcrumb principle: an opp currently at stage N (rank R) must have
-  // been at every stage with rank ≤ R at some point. So if an opp moved
-  // to stage rank ≥ Offer Submitted this week, we count it as an offer.
+  // --- opportunities — exact GHL relay -----------------------------------
+  // Ram (June 25): "it's a tracker dashboard, no guessing — should just
+  // relay the exact information in his GHL." So we count opps by their
+  // CURRENT stage (no breadcrumb fall-through, no inferred "passed
+  // through" counts). If an opp is at Under Contract, it counts toward
+  // contracts — not toward offers — regardless of whether it once sat at
+  // Offer Submitted. When a deal moves forward (or to Lost/Abandoned),
+  // the stage it left immediately decrements. Matches what Luke would see
+  // filtering the GHL pipeline view.
   let offersWeek = 0, offersMonth = 0;
   let contractsWeek = 0, contractsMonth = 0;
   let dealsClosedWeek = 0, dealsClosedMonth = 0;
@@ -92,41 +80,28 @@ export function aggregatePair({
   let abandoned = 0, lost = 0;
   let revenueWeek = 0, revenueMonth = 0;
 
-  const OFFER_RANK = STAGE_RANK.offer_submitted;
-  const UC_RANK = STAGE_RANK.under_contract;
-
-  // Per-opp current stage rank — consumed by stickyCounts.js to detect when an
-  // opp CROSSES into the Offer / Under-Contract band across runs, so weekly /
-  // monthly throughput counts don't shrink when a deal is later moved to the
-  // Lost or Abandoned stage.
-  const oppRanks = [];
-
   for (const o of opportunities) {
     const stageName = stageById[o.pipelineStageId] || o.stage || '';
     const key = stageKey(stageName);
-    const rank = STAGE_RANK[key] || 0;
-    if (o.id) oppRanks.push({ id: o.id, r: rank });
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const created = ts(o.createdAt || o.dateAdded);
 
-    // Opportunities opened — new opps created in the period (regardless of stage).
+    // Opportunities opened — new opps created in the period (any stage).
     if (created >= wkStart) oppsOpenedWeek++;
     if (created >= moStart) oppsOpenedMonth++;
 
-    // Offers — current stage at-or-past Offer Submitted AND entered current
-    // stage in the period.
-    if (rank >= OFFER_RANK && rank < 99 && stageChange >= wkStart) offersWeek++;
-    if (rank >= OFFER_RANK && rank < 99 && stageChange >= moStart) offersMonth++;
+    // Offers — opps CURRENTLY at "Offer Submitted" that entered this period.
+    if (key === 'offer_submitted' && stageChange >= wkStart) offersWeek++;
+    if (key === 'offer_submitted' && stageChange >= moStart) offersMonth++;
 
-    // Contracts — at-or-past Under Contract AND entered current stage in the
-    // period, OR closed-won in the period (deals that closed past UC).
-    if (rank >= UC_RANK && rank < 99 && stageChange >= wkStart) contractsWeek++;
-    else if (o.status === 'won' && statusChange >= wkStart && rank !== STAGE_RANK.closed) contractsWeek++;
-    if (rank >= UC_RANK && rank < 99 && stageChange >= moStart) contractsMonth++;
-    else if (o.status === 'won' && statusChange >= moStart && rank !== STAGE_RANK.closed) contractsMonth++;
+    // Contracts — opps CURRENTLY at "Under Contract" that entered this period.
+    if (key === 'under_contract' && stageChange >= wkStart) contractsWeek++;
+    if (key === 'under_contract' && stageChange >= moStart) contractsMonth++;
 
-    // Closed — status went to 'won' in the period.
+    // Closed — status went to 'won' in the period. status=won is the
+    // canonical "closed" signal in GHL across every workflow variant
+    // (some teams move won deals to DISPO / Assigned after closing).
     if (o.status === 'won' && statusChange >= wkStart) {
       dealsClosedWeek++;
       revenueWeek += Number(o.monetaryValue || 0);
@@ -188,9 +163,6 @@ export function aggregatePair({
     lost,
     revenueWeek,
     revenueMonth,
-    // Stripped from data.json by stickyCounts.js before deploy — never reaches
-    // the browser.
-    _oppRanks: oppRanks,
   };
 }
 
