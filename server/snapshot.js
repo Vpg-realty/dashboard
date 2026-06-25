@@ -16,13 +16,6 @@ import {
 // Tag variants to tolerate human-typed inconsistencies across sub-accounts.
 // GHL's `contains` operator is case + dash-character sensitive, so we query
 // every plausible variant and sum the totals.
-const AGENT_CONFIRMED_VARIANTS = [
-  'agent - confirmed',
-  'Agent - Confirmed',
-  'AGENT - CONFIRMED',
-  'agent-confirmed',
-  'Agent-Confirmed',
-];
 const TIER_VARIANTS = (n) => [`tier ${n}`, `Tier ${n}`, `TIER ${n}`, `tier-${n}`, `Tier-${n}`, `tier${n}`];
 import { aggregatePair, emptyPair } from './aggregate.js';
 
@@ -74,6 +67,11 @@ export async function buildSnapshot({ tokens }) {
       try {
         // Fan out the per-sub queries in parallel — most are just count
         // calls (they return a `total` and 1 item, ~50ms each).
+        // Tier T1+T2+T3 contacts (with each sinceMs window) define the agent
+        // counts uniformly across reps — including Anthony, who never used
+        // the legacy `agent - confirmed` tag the old query relied on. This
+        // matches GHL exactly: "contacts created in [window] AND tagged
+        // Tier 1, 2, or 3".
         const [
           opportunities,
           pipelines,
@@ -81,10 +79,9 @@ export async function buildSnapshot({ tokens }) {
           convosNewWeek,
           convosAllTime,
           dailyConvData,
-          agentsTotal,
-          agentsAddedToday,
-          agentsAddedWeek,
           tier1, tier2, tier3, tier4,
+          tier1Today, tier2Today, tier3Today,
+          tier1Week, tier2Week, tier3Week,
         ] = await Promise.all([
           getOpportunities(locationId, token),
           getPipelines(locationId, token),
@@ -92,15 +89,16 @@ export async function buildSnapshot({ tokens }) {
           countConversationsCreated(locationId, token, wkStart),
           countConversationsCreated(locationId, token, null),
           listConversationsCreated(locationId, token, { startMs: sevenDaysAgo, maxItems: 2000 }),
-          // Tag matching is case + dash-character sensitive in GHL. Query every
-          // plausible variant per tag and sum so typos don't drop counts.
-          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS),
-          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS, { sinceMs: todayStart }),
-          countContactsByAnyTag(locationId, token, AGENT_CONFIRMED_VARIANTS, { sinceMs: wkStart }),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(1)),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(2)),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(3)),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(4)),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(1), { sinceMs: todayStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(2), { sinceMs: todayStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(3), { sinceMs: todayStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(1), { sinceMs: wkStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(2), { sinceMs: wkStart }),
+          countContactsByAnyTag(locationId, token, TIER_VARIANTS(3), { sinceMs: wkStart }),
         ]);
 
         return aggregatePair({
@@ -112,10 +110,10 @@ export async function buildSnapshot({ tokens }) {
           convosNewWeek,
           convosAllTime,
           dailyConversations: dailyConvData.conversations,
-          agentsTotal,
-          agentsAddedToday,
-          agentsAddedWeek,
-          agentTierTotals: { 1: tier1, 2: tier2, 3: tier3, 4: tier4 },
+          agentsTotal:       tier1 + tier2 + tier3,
+          agentsAddedToday:  tier1Today + tier2Today + tier3Today,
+          agentsAddedWeek:   tier1Week + tier2Week + tier3Week,
+          agentTierTotals:   { 1: tier1, 2: tier2, 3: tier3, 4: tier4 },
         });
       } catch (err) {
         errors.push({ repId, marketId, locationId, reason: String(err?.message || err).slice(0, 200) });

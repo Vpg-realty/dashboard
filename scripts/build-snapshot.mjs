@@ -16,43 +16,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
-import { applyStickyCounts } from '../server/stickyCounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
-const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
-const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
-
-// Cross-run state for sticky weekly/monthly opportunity throughput counts.
-// Loaded from the previous deploy (same self-bootstrapping pattern as
-// history.json).
-//
-// Robustness matters here: a transient fetch blip that returns null would be
-// treated as "first run" and RESEED the counters from the (shrunken) live
-// breadcrumb — wiping the week's accumulation and making the numbers visibly
-// drop. So we retry on network/5xx errors and only treat a genuine 404 (the
-// file truly doesn't exist yet) as a real first run. A sustained Pages outage
-// is the one residual case that can still reset — logged loudly if it happens.
-async function loadPrevOppState() {
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
-      if (r.status === 404) return null;                 // genuine first run
-      if (!r.ok) throw new Error(`status ${r.status}`);  // 5xx/etc → retry
-      const d = await r.json();
-      return d && d.pairs ? d : null;
-    } catch (err) {
-      if (attempt === 2) {
-        console.warn(`[snapshot] WARNING: could not load opp-state.json after 3 tries (${err.message}). ` +
-          `Sticky counts will reseed from the live breadcrumb this run — weekly/monthly throughput may dip until they re-accrue.`);
-        return null;
-      }
-      await sleep(400 * (attempt + 1));
-    }
-  }
-  return null;
-}
 
 // --- token merge ---------------------------------------------------------
 // Legacy: parse the single GHL_TOKENS JSON blob.
@@ -97,17 +63,11 @@ console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Objec
 
 const snapshot = await buildSnapshot({ tokens });
 
-// Layer sticky weekly/monthly offer + contract counts on top of the raw
-// breadcrumb counts, then persist the per-opp stage state for the next run.
-// This is what turns those numbers into throughput ("how many entered the
-// stage this period") instead of current occupancy. _oppRanks is stripped here.
-const prevOppState = await loadPrevOppState();
-const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date() });
-snapshot.pairs = sticky.pairs;
-fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
-fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));
-console.log(`[snapshot] sticky counts ${prevOppState ? 'accrued from prior state' : 'seeded (first run)'} — wrote ${STATE_OUT}`);
-
+// Show counts EXACTLY as GHL currently has them — no sticky-throughput layer,
+// no derived monotonically-climbing numbers, no breadcrumb fall-through. When
+// a deal moves to Lost / Abandoned / Closed / DISPO, the stage it left
+// immediately decrements (Ram, June 25: "tracker dashboard, no guessing,
+// should just relay the exact information in his GHL").
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));
 
