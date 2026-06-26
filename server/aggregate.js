@@ -48,6 +48,16 @@ const stageKey = (name) => {
   );
 };
 
+// "Contract accepted" = a deal that reached Under Contract. In VPG's pipeline
+// that stage is a pass-through — deals move straight on to DISPO Active →
+// Assigned → Closed — so almost no opp is ever sitting *exactly* in "Under
+// Contract" at snapshot time. Counting only the current "under_contract" stage
+// therefore read ~0 even with 11 deals closed this month (you can't close
+// without a contract). So a contract = current stage is Under Contract OR any
+// stage past it. This is still a pure read of current GHL state (the deal
+// factually has an accepted contract right now) — not transition inference.
+const CONTRACT_OR_BEYOND = new Set(['under_contract', 'dispo', 'assigned', 'closed']);
+
 export function aggregatePair({
   repId, marketId,
   opportunities, pipelines,
@@ -95,9 +105,15 @@ export function aggregatePair({
     if (key === 'offer_submitted' && stageChange >= wkStart) offersWeek++;
     if (key === 'offer_submitted' && stageChange >= moStart) offersMonth++;
 
-    // Contracts — opps CURRENTLY at "Under Contract" that entered this period.
-    if (key === 'under_contract' && stageChange >= wkStart) contractsWeek++;
-    if (key === 'under_contract' && stageChange >= moStart) contractsMonth++;
+    // Contracts Accepted — deal reached Under Contract or beyond (incl. ones
+    // that moved on to DISPO / Assigned / Closed), OR is won (a won deal had a
+    // contract by definition). `recent` = the latest of the deal's stage/status
+    // change, so a deal counts in the period it last advanced or closed. This
+    // guarantees contracts >= closed (no more "11 closed, 0 contracts").
+    const reachedContract = CONTRACT_OR_BEYOND.has(key) || o.status === 'won';
+    const recent = Math.max(stageChange, statusChange);
+    if (reachedContract && recent >= wkStart) contractsWeek++;
+    if (reachedContract && recent >= moStart) contractsMonth++;
 
     // Closed — status went to 'won' in the period. status=won is the
     // canonical "closed" signal in GHL across every workflow variant
