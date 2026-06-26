@@ -284,7 +284,8 @@ export const totalRevenueByRep = () =>
 export const headline = () => ({
   conversationsToday: PAIRS.reduce((a, p) => a + p.convosToday, 0),
   conversationsWeek: PAIRS.reduce((a, p) => a + p.convosWeek, 0),
-  agentsAddedWeek: PAIRS.reduce((a, p) => a + p.agentsAddedWeek, 0),
+  agentsAddedToday: PAIRS.reduce((a, p) => a + (p.agentsAddedToday || 0), 0),
+  agentsAddedWeek: PAIRS.reduce((a, p) => a + (p.agentsAddedWeek || 0), 0),
   agentsTotal: PAIRS.reduce(
     (a, p) =>
       a +
