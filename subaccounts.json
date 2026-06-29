@@ -45,6 +45,11 @@
       "id": "OK",
       "name": "Oklahoma",
       "color": "#14b8a6"
+    },
+    {
+      "id": "IN",
+      "name": "Indiana",
+      "color": "#22c55e"
     }
   ],
   "reps": [
@@ -72,6 +77,11 @@
       "id": "axel",
       "name": "Axel Contreras",
       "color": "#ec4899"
+    },
+    {
+      "id": "prince_pharrams",
+      "name": "Prince Pharrams",
+      "color": "#84cc16"
     }
   ],
   "subaccounts": [
@@ -149,6 +159,11 @@
       "repId": "anthony",
       "marketId": "OK",
       "locationId": "XgFQlD2DBRbnWauS1vKU"
+    },
+    {
+      "repId": "prince_pharrams",
+      "marketId": "IN",
+      "locationId": "kGZiF8SAySmt2m2ivS9l"
     }
   ]
 }
