@@ -50,6 +50,11 @@
       "id": "IN",
       "name": "Indiana",
       "color": "#22c55e"
+    },
+    {
+      "id": "WA",
+      "name": "Washington",
+      "color": "#facc15"
     }
   ],
   "reps": [
@@ -82,6 +87,11 @@
       "id": "prince_pharrams",
       "name": "Prince Pharrams",
       "color": "#84cc16"
+    },
+    {
+      "id": "sam_mackenzie",
+      "name": "Sam MacKenzie",
+      "color": "#ef4444"
     }
   ],
   "subaccounts": [
@@ -164,6 +174,11 @@
       "repId": "prince_pharrams",
       "marketId": "IN",
       "locationId": "kGZiF8SAySmt2m2ivS9l"
+    },
+    {
+      "repId": "sam_mackenzie",
+      "marketId": "WA",
+      "locationId": "IsyF2EIor923Wseyl1HR"
     }
   ]
 }
