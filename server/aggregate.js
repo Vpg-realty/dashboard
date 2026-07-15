@@ -58,6 +58,13 @@ const stageKey = (name) => {
 // factually has an accepted contract right now) — not transition inference.
 const CONTRACT_OR_BEYOND = new Set(['under_contract', 'dispo', 'assigned', 'closed']);
 
+// "Offer submitted" is the same story one stage earlier: it's a pass-through
+// (a submitted offer moves on to Negotiation / Under Contract while it's being
+// worked), so counting only opps *currently* parked at "Offer Submitted" made
+// the number stall and drop as deals advanced (Luke, July 15 — "not going up").
+// An offer counts if the deal reached the Offer stage or anything past it.
+const OFFER_OR_BEYOND = new Set(['offer_submitted', 'negotiation', 'under_contract', 'dispo', 'assigned', 'closed']);
+
 export function aggregatePair({
   repId, marketId,
   opportunities, pipelines,
@@ -74,15 +81,21 @@ export function aggregatePair({
     for (const s of p.stages || []) stageById[s.id] = s.name;
   }
 
-  // --- opportunities — exact GHL relay -----------------------------------
-  // Ram (June 25): "it's a tracker dashboard, no guessing — should just
-  // relay the exact information in his GHL." So we count opps by their
-  // CURRENT stage (no breadcrumb fall-through, no inferred "passed
-  // through" counts). If an opp is at Under Contract, it counts toward
-  // contracts — not toward offers — regardless of whether it once sat at
-  // Offer Submitted. When a deal moves forward (or to Lost/Abandoned),
-  // the stage it left immediately decrements. Matches what Luke would see
-  // filtering the GHL pipeline view.
+  // --- opportunities — funnel-milestone counts ---------------------------
+  // Each metric counts how many deals REACHED that funnel stage this period and
+  // keeps counting them as they advance — so the numbers climb through the
+  // period and never drop when a deal moves forward. This is what a tracker
+  // should show ("offers submitted this week") and it ends the recurring
+  // "counts aren't going up" reports: the earlier current-stage-only relay
+  // dropped a deal the instant it left a pass-through stage (Offer →
+  // Negotiation, Under Contract → DISPO, etc.). Still a pure read of current
+  // GHL state — no cross-run tracking, no state file. Ordering always holds:
+  // Opps Opened >= Offers >= Contracts >= Closed.
+  //
+  // Honest limit: a deal that's offered and then marked Lost/Abandoned before
+  // the next snapshot leaves the funnel band and won't be counted — GHL doesn't
+  // retain that it passed through Offer. Fully closing that needs a GHL "Offer
+  // Date" stamp field (see the automation proposal).
   let offersWeek = 0, offersMonth = 0;
   let contractsWeek = 0, contractsMonth = 0;
   let dealsClosedWeek = 0, dealsClosedMonth = 0;
@@ -101,17 +114,20 @@ export function aggregatePair({
     if (created >= wkStart) oppsOpenedWeek++;
     if (created >= moStart) oppsOpenedMonth++;
 
-    // Offers — opps CURRENTLY at "Offer Submitted" that entered this period.
-    if (key === 'offer_submitted' && stageChange >= wkStart) offersWeek++;
-    if (key === 'offer_submitted' && stageChange >= moStart) offersMonth++;
-
-    // Contracts Accepted — deal reached Under Contract or beyond (incl. ones
-    // that moved on to DISPO / Assigned / Closed), OR is won (a won deal had a
-    // contract by definition). `recent` = the latest of the deal's stage/status
-    // change, so a deal counts in the period it last advanced or closed. This
-    // guarantees contracts >= closed (no more "11 closed, 0 contracts").
-    const reachedContract = CONTRACT_OR_BEYOND.has(key) || o.status === 'won';
+    // `recent` = the latest of the deal's stage/status change, so a deal counts
+    // in the period it last advanced or closed.
     const recent = Math.max(stageChange, statusChange);
+
+    // Offers Submitted — reached the Offer stage or beyond (Offer → Negotiation
+    // → Under Contract → DISPO → Assigned → Closed), OR is won. Stable: an offer
+    // stays counted as the deal advances instead of dropping off.
+    const reachedOffer = OFFER_OR_BEYOND.has(key) || o.status === 'won';
+    if (reachedOffer && recent >= wkStart) offersWeek++;
+    if (reachedOffer && recent >= moStart) offersMonth++;
+
+    // Contracts Accepted — reached Under Contract or beyond, OR is won. Same
+    // funnel-milestone logic; guarantees offers >= contracts >= closed.
+    const reachedContract = CONTRACT_OR_BEYOND.has(key) || o.status === 'won';
     if (reachedContract && recent >= wkStart) contractsWeek++;
     if (reachedContract && recent >= moStart) contractsMonth++;
 

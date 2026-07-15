@@ -58,7 +58,15 @@ export default function OpportunitiesView() {
 
       {/* Row 2 — Per rep, 5 cards in one row, each with Weekly + Monthly layers */}
       <Panel className="col-span-12 min-h-0" title="By Rep" subtitle="weekly + monthly · per-rep targets" accent="Opportunities">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 items-start">
+        {/* One row that scales with the roster: columns = rep count, so adding
+            people shrinks the cards to fit instead of wrapping to a second row
+            and overflowing the panel (Luke, July 15). Cards floor at 150px and
+            the row scrolls horizontally only if the roster ever outgrows the
+            width — no vertical overflow, ever. */}
+        <div
+          className="grid gap-2 items-start overflow-x-auto pb-1"
+          style={{ gridTemplateColumns: `repeat(${REPS.length}, minmax(150px, 1fr))` }}
+        >
           {REPS.map((rep) => {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
