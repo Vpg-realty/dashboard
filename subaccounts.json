@@ -55,6 +55,11 @@
       "id": "WA",
       "name": "Washington",
       "color": "#facc15"
+    },
+    {
+      "id": "NV",
+      "name": "Nevada",
+      "color": "#f43f5e"
     }
   ],
   "reps": [
@@ -184,6 +189,11 @@
       "repId": "sam_mackenzie",
       "marketId": "FL",
       "locationId": "WKLKPVLGQWgcOMyomr4D"
+    },
+    {
+      "repId": "prince_pharrams",
+      "marketId": "NV",
+      "locationId": "D66W4ghjCS4bkJ6aus6f"
     }
   ]
 }
