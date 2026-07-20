@@ -84,8 +84,13 @@ export default function MasterView() {
         bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg/day`}
       >
         <div className="flex-1 flex flex-col gap-2 min-h-0">
-          {/* Bigger pies, centered horizontally + vertically, fills available space */}
-          <div className="flex-1 grid grid-cols-5 gap-2 min-h-0 items-center justify-items-center">
+          {/* Bigger pies, centered horizontally + vertically, fills available space.
+              Columns = rep count so the pies stay in one row as the team grows
+              (was hardcoded to 5 → the 6th/7th rep overflowed into the legend). */}
+          <div
+            className="flex-1 grid gap-2 min-h-0 items-center justify-items-center"
+            style={{ gridTemplateColumns: `repeat(${perRep.length}, minmax(0, 1fr))` }}
+          >
             {perRep.map((rep) => (
               <RepPie key={rep.id} rep={rep} />
             ))}
@@ -192,8 +197,11 @@ export default function MasterView() {
               {Math.round(revPct)}% of ${TEAM_TARGETS.revenuePerMonth.toLocaleString()}
             </div>
           </div>
-          {/* Per-rep $ row at the bottom */}
-          <div className="grid grid-cols-5 gap-2 shrink-0 pt-2 border-t border-zinc-300/40">
+          {/* Per-rep $ row at the bottom — columns = rep count so it stays one row. */}
+          <div
+            className="grid gap-2 shrink-0 pt-2 border-t border-zinc-300/40"
+            style={{ gridTemplateColumns: `repeat(${perRep.length}, minmax(0, 1fr))` }}
+          >
             {perRep.map((rep) => (
               <div key={rep.id} className="flex flex-col items-center text-center min-w-0">
                 <span className="text-[10px] uppercase tracking-wider truncate w-full" style={{ color: rep.color }}>

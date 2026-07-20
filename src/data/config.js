@@ -1,17 +1,11 @@
-// KPI targets — locked from May 4 feedback round with Luke (VPG).
+// Per-rep KPI targets — locked from May 4 feedback round with Luke (VPG).
 // Weekly metrics reset Mon–Sun; monthly metrics reset on the 1st.
-// 4 reps actively offering. Per-rep × team = team total at top of dashboard.
+// Team targets (TEAM_TARGETS, defined below) scale these by the rep count.
 export const KPI_TARGETS = {
-  offersPerWeek: 10,        // per rep
-  contractsPerMonth: 8,     // per rep
-  dealsClosedPerMonth: 2,   // per rep
-};
-
-export const TEAM_TARGETS = {
-  offersPerWeek: 40,
-  contractsPerMonth: 32,
-  dealsClosedPerMonth: 8,
-  revenuePerMonth: 100_000,  // $100k/mo minimum
+  offersPerWeek: 10,          // per rep · per week
+  contractsPerMonth: 8,       // per rep · per month
+  dealsClosedPerMonth: 2,     // per rep · per month
+  revenuePerRepMonth: 25_000, // per rep · per month (Master revenue tile)
 };
 
 // Single source of truth — see subaccounts.json at the repo root. Both the
@@ -32,6 +26,18 @@ export const REPS = config.reps.map((rep) => ({
     .filter((s) => s.repId === rep.id)
     .map((s) => s.marketId),
 }));
+
+// Team targets scale with the roster: per-rep KPI × number of reps (people, not
+// sub-accounts). Every team target — offers, contracts, deals closed, and the
+// Master revenue goal — updates automatically each time someone is added to or
+// removed from the team (Luke, July 16). With N reps: offers N×10/wk,
+// contracts N×8/mo, closed N×2/mo, revenue N×$25k/mo.
+export const TEAM_TARGETS = {
+  offersPerWeek: KPI_TARGETS.offersPerWeek * REPS.length,
+  contractsPerMonth: KPI_TARGETS.contractsPerMonth * REPS.length,
+  dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth * REPS.length,
+  revenuePerMonth: KPI_TARGETS.revenuePerRepMonth * REPS.length,
+};
 
 // Full sub-account roster exposed for the Sub-Accounts panel + health
 // reporting. Each entry is { repId, marketId, locationId }.
