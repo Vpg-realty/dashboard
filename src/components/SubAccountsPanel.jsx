@@ -2,22 +2,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { MARKETS, REPS, SUBACCOUNTS, REPO_OWNER, REPO_NAME } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
-import { pickColor, suggestMarketCode, suggestRepId } from '../utils/autoColor.js';
+import { pickColor, suggestRepId, suggestMarketCode } from '../utils/autoColor.js';
 import {
   hasPAT, getStoredPAT, setStoredPAT,
   validatePAT, readConfig, addSubAccount,
+  reassignSubAccount, renameRep, addRep, deleteRep, deleteSubAccount,
 } from '../utils/githubApi.js';
 
-// Sub-Accounts panel. Two modes:
+// Sub-Accounts panel. Modes:
 //   • View — live list of every connected (rep × market) pair with its
-//     locationId, color, and health (pulled from data.json + errors[]).
+//     locationId, color, and health. Each row has an inline Edit button
+//     that reassigns the sub-account to a different rep OR deletes it.
 //   • Add  — form to wire up a new sub-account. When a PAT is configured
 //     this writes subaccounts.json + the PIT secret + triggers a deploy
 //     via the GitHub API, so the new pair shows up on the TV in ~3 min
-//     without anyone touching the repo. Without a PAT we still capture
-//     the entry locally and show Ram-friendly copy-paste instructions.
+//     without anyone touching the repo.
+//   • Reps — manage the rep roster: rename, add new reps, delete reps
+//     with zero sub-accounts assigned. Every mutation is a real GitHub
+//     commit against subaccounts.json + a deploy dispatch (Luke, June:
+//     "make it completely REAL" — no localStorage-only stubs).
+//   • Settings — GitHub PAT management.
 export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotErrors }) {
-  const [mode, setMode] = useState('view');     // 'view' | 'add' | 'settings'
+  const [mode, setMode] = useState('view');     // 'view' | 'add' | 'reps' | 'settings'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);   // { tone, text }
   const [patPresent, setPatPresent] = useState(hasPAT());
@@ -78,11 +84,26 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
               snapshotErrors={snapshotErrors}
               dataStatus={dataStatus}
               onAddClick={() => setMode('add')}
+              onManageRepsClick={() => setMode('reps')}
               patPresent={patPresent}
+              busy={busy}
+              setBusy={setBusy}
+              setStatus={setStatus}
+              onNeedsPAT={() => setMode('settings')}
             />
           )}
           {mode === 'add' && (
             <AddMode
+              busy={busy}
+              setBusy={setBusy}
+              setStatus={setStatus}
+              setMode={setMode}
+              patPresent={patPresent}
+              onNeedsPAT={() => setMode('settings')}
+            />
+          )}
+          {mode === 'reps' && (
+            <RepsMode
               busy={busy}
               setBusy={setBusy}
               setStatus={setStatus}
@@ -114,7 +135,9 @@ const TONES = {
 
 // --- VIEW MODE -----------------------------------------------------------
 
-function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
+function ViewMode({ snapshotErrors, onAddClick, onManageRepsClick, patPresent, busy, setBusy, setStatus, onNeedsPAT }) {
+  const [editingLoc, setEditingLoc] = useState(null);
+
   const errorsByLoc = useMemo(() => {
     const m = new Map();
     for (const e of snapshotErrors || []) m.set(e.locationId, e);
@@ -133,7 +156,7 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
 
   return (
     <div className="space-y-5">
-      {/* Summary + add button */}
+      {/* Summary + action buttons */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs">
           <Pill tone="emerald" label={`${tally.live || 0} live`} />
@@ -141,51 +164,193 @@ function ViewMode({ snapshotErrors, onAddClick, patPresent }) {
           <Pill tone="zinc"    label={`${tally.placeholder || 0} pending`} />
           <Pill tone="rose"    label={`${tally.error || 0} errors`} />
         </div>
-        <button
-          onClick={onAddClick}
-          className="px-3.5 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition flex items-center gap-1.5"
-        >
-          <span className="text-base leading-none">+</span>
-          Add Sub-Account
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onManageRepsClick}
+            className="px-3 py-2 rounded-lg text-sm font-medium bg-zinc-100 text-zinc-800 border border-zinc-300 hover:bg-zinc-200 transition"
+            title="Add / rename / delete reps"
+          >
+            Manage Reps
+          </button>
+          <button
+            onClick={onAddClick}
+            className="px-3.5 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition flex items-center gap-1.5"
+          >
+            <span className="text-base leading-none">+</span>
+            Add Sub-Account
+          </button>
+        </div>
       </div>
 
       {/* PAT not configured warning */}
       {!patPresent && (
         <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-700 border-amber-500/30">
           ⚠ GitHub PAT not configured. Add one in <span className="font-semibold">⚙ Settings</span> to enable
-          one-click sub-account adds. Without it, the Add form will still capture the entry but you'll
-          need to commit the config + secret manually.
+          real one-click sub-account edits, adds, and rep management.
         </div>
       )}
 
-      {/* Sub-account list */}
+      {/* Sub-account list — each row has an Edit action that expands inline to
+          reassign the sub to a different rep or delete it entirely. */}
       <div className="rounded-lg border border-zinc-300 overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-2.5 bg-zinc-100 border-b border-zinc-300 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2.5 bg-zinc-100 border-b border-zinc-300 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
           <div>Sub-account</div>
           <div className="text-right">Health</div>
+          <div className="text-right">Actions</div>
         </div>
         <div className="divide-y divide-zinc-200">
           {rows.map(({ sa, rep, market, health }) => (
-            <div key={sa.locationId} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 hover:bg-zinc-50 transition min-w-0">
-              <div className="min-w-0 flex items-center gap-3">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: rep?.color || '#52525b' }} />
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color || '#52525b' }} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm text-zinc-900 truncate">
-                    {rep?.name || sa.repId} <span className="text-zinc-500">·</span> {market?.name || sa.marketId}
+            <div key={sa.locationId} className="min-w-0">
+              <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 hover:bg-zinc-50 transition min-w-0 items-center">
+                <div className="min-w-0 flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: rep?.color || '#52525b' }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color || '#52525b' }} />
                   </div>
-                  <CopyableLocationId locationId={sa.locationId} />
+                  <div className="min-w-0">
+                    <div className="text-sm text-zinc-900 truncate">
+                      {rep?.name || sa.repId} <span className="text-zinc-500">·</span> {market?.name || sa.marketId}
+                    </div>
+                    <CopyableLocationId locationId={sa.locationId} />
+                  </div>
+                </div>
+                <div className="flex items-center shrink-0">
+                  <Pill tone={health.tone} label={health.label} />
+                </div>
+                <div className="flex items-center shrink-0">
+                  <button
+                    onClick={() => setEditingLoc(editingLoc === sa.locationId ? null : sa.locationId)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-medium border transition ${
+                      editingLoc === sa.locationId
+                        ? 'bg-zinc-800 text-white border-zinc-800'
+                        : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100'
+                    }`}
+                  >
+                    {editingLoc === sa.locationId ? 'Close' : 'Edit'}
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center shrink-0">
-                <Pill tone={health.tone} label={health.label} />
-              </div>
+              {editingLoc === sa.locationId && (
+                <EditSubRow
+                  sub={sa}
+                  currentRep={rep}
+                  busy={busy}
+                  setBusy={setBusy}
+                  setStatus={setStatus}
+                  patPresent={patPresent}
+                  onNeedsPAT={onNeedsPAT}
+                  onDone={() => setEditingLoc(null)}
+                />
+              )}
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline row that expands under a sub-account when you click Edit. Real
+// operations only — reassign hits the reassignSubAccount GitHub-write path,
+// delete removes both the subaccounts.json row AND the PIT secret.
+function EditSubRow({ sub, currentRep, busy, setBusy, setStatus, patPresent, onNeedsPAT, onDone }) {
+  const [selectedRepId, setSelectedRepId] = useState(sub.repId);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const dirty = selectedRepId !== sub.repId;
+
+  const requirePAT = () => {
+    if (patPresent) return true;
+    setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
+    onNeedsPAT();
+    return false;
+  };
+
+  const reassign = async () => {
+    if (!dirty || busy) return;
+    if (!requirePAT()) return;
+    setBusy(true);
+    setStatus({ tone: 'blue', text: `Reassigning ${sub.locationId} → ${selectedRepId}…` });
+    try {
+      await reassignSubAccount(sub.locationId, selectedRepId);
+      setStatus({ tone: 'emerald', text: `Reassigned to ${selectedRepId}. Deploy triggered — TV updates in ~3 min.` });
+      setTimeout(onDone, 900);
+    } catch (err) {
+      setStatus({ tone: 'rose', text: `Reassign failed: ${err.message}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async () => {
+    if (busy) return;
+    if (!requirePAT()) return;
+    setBusy(true);
+    setStatus({ tone: 'blue', text: `Deleting ${sub.locationId} + its PIT secret…` });
+    try {
+      await deleteSubAccount(sub.locationId);
+      setStatus({ tone: 'emerald', text: `Deleted ${sub.locationId}. Deploy triggered.` });
+      setTimeout(onDone, 900);
+    } catch (err) {
+      setStatus({ tone: 'rose', text: `Delete failed: ${err.message}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50 space-y-3">
+      <div className="flex items-end gap-3 flex-wrap">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">Reassign to rep</label>
+          <select
+            value={selectedRepId}
+            onChange={(e) => setSelectedRepId(e.target.value)}
+            className={INPUT}
+            disabled={busy}
+          >
+            {REPS.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}{r.id === sub.repId ? ' (current)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={reassign}
+          disabled={!dirty || busy}
+          className={`px-3 py-2 rounded-md text-xs font-medium border transition ${
+            dirty && !busy
+              ? 'bg-emerald-500 text-zinc-950 border-emerald-500 hover:bg-emerald-400'
+              : 'bg-zinc-100 text-zinc-400 border-zinc-300 cursor-not-allowed'
+          }`}
+        >
+          {busy ? 'Saving…' : 'Save reassignment'}
+        </button>
+      </div>
+      <div className="flex items-center justify-between border-t border-zinc-200 pt-3">
+        <span className="text-[11px] text-zinc-500">
+          Deleting removes both the config row AND the PIT GitHub secret. The GHL sub-account itself is untouched.
+        </span>
+        {confirmDelete ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="px-2.5 py-1 rounded text-[11px] text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
+              disabled={busy}
+            >Cancel</button>
+            <button
+              onClick={doDelete}
+              disabled={busy}
+              className="px-2.5 py-1 rounded text-[11px] font-medium bg-rose-600 text-white border border-rose-600 hover:bg-rose-500 disabled:opacity-60"
+            >{busy ? 'Deleting…' : 'Yes, delete'}</button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={busy}
+            className="px-2.5 py-1 rounded text-[11px] font-medium text-rose-700 border border-rose-300 hover:bg-rose-50 disabled:opacity-60"
+          >Delete sub-account</button>
+        )}
       </div>
     </div>
   );
@@ -530,6 +695,264 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
             {busy ? 'Validating…' : 'Save PAT'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// --- REPS MODE -----------------------------------------------------------
+// Manage the rep roster: rename an existing rep, add a new one, delete a
+// rep that has zero sub-accounts assigned. Every action is a real GitHub
+// commit against subaccounts.json + a deploy dispatch.
+
+function RepsMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) {
+  // Editing state per rep so multiple aren't renamed at once.
+  const [editingRepId, setEditingRepId] = useState(null);
+  const [draftName, setDraftName] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showAddRep, setShowAddRep] = useState(false);
+
+  const subCountByRep = useMemo(() => {
+    const m = {};
+    for (const s of SUBACCOUNTS) m[s.repId] = (m[s.repId] || 0) + 1;
+    return m;
+  }, []);
+
+  const requirePAT = () => {
+    if (patPresent) return true;
+    setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
+    onNeedsPAT();
+    return false;
+  };
+
+  const startRename = (rep) => {
+    setEditingRepId(rep.id);
+    setDraftName(rep.name);
+  };
+
+  const saveRename = async (rep) => {
+    if (busy) return;
+    if (!draftName.trim() || draftName.trim() === rep.name) { setEditingRepId(null); return; }
+    if (!requirePAT()) return;
+    setBusy(true);
+    setStatus({ tone: 'blue', text: `Renaming ${rep.id} → "${draftName.trim()}"…` });
+    try {
+      await renameRep(rep.id, draftName.trim());
+      setStatus({ tone: 'emerald', text: `Renamed. Deploy triggered — TV updates in ~3 min.` });
+      setEditingRepId(null);
+    } catch (err) {
+      setStatus({ tone: 'rose', text: `Rename failed: ${err.message}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async (rep) => {
+    if (busy) return;
+    if (!requirePAT()) return;
+    setBusy(true);
+    setStatus({ tone: 'blue', text: `Deleting rep ${rep.id}…` });
+    try {
+      await deleteRep(rep.id);
+      setStatus({ tone: 'emerald', text: `Deleted ${rep.name}. Deploy triggered.` });
+      setConfirmDeleteId(null);
+    } catch (err) {
+      setStatus({ tone: 'rose', text: `Delete failed: ${err.message}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <button onClick={() => setMode('view')} className="text-xs text-zinc-500 hover:text-zinc-800 transition">← Back to sub-accounts</button>
+          <h3 className="text-base font-semibold text-zinc-900 mt-1">Manage Reps</h3>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Rename, add, or delete team members. Deletes require the rep to have <span className="text-zinc-800">zero</span> sub-accounts
+            first — reassign their subs in the sub-accounts list, then come back here.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddRep((v) => !v)}
+          className={`px-3 py-2 rounded-md text-sm font-medium border transition shrink-0 ${
+            showAddRep
+              ? 'bg-zinc-800 text-white border-zinc-800'
+              : 'bg-emerald-500 text-zinc-950 border-emerald-500 hover:bg-emerald-400'
+          }`}
+        >
+          {showAddRep ? 'Cancel add' : '+ Add Rep'}
+        </button>
+      </div>
+
+      {showAddRep && (
+        <AddRepInline
+          busy={busy}
+          setBusy={setBusy}
+          setStatus={setStatus}
+          requirePAT={requirePAT}
+          onDone={() => setShowAddRep(false)}
+        />
+      )}
+
+      <div className="rounded-lg border border-zinc-300 overflow-hidden">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2.5 bg-zinc-100 border-b border-zinc-300 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+          <div>Rep</div>
+          <div className="text-right">Sub-accounts</div>
+          <div className="text-right">Actions</div>
+        </div>
+        <div className="divide-y divide-zinc-200">
+          {REPS.map((rep) => {
+            const count = subCountByRep[rep.id] || 0;
+            const isEditing = editingRepId === rep.id;
+            const isConfirming = confirmDeleteId === rep.id;
+            return (
+              <div key={rep.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 items-center min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
+                  {isEditing ? (
+                    <input
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveRename(rep);
+                        if (e.key === 'Escape') setEditingRepId(null);
+                      }}
+                      autoFocus
+                      className={INPUT + ' py-1 text-sm'}
+                    />
+                  ) : (
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-zinc-900 truncate">{rep.name}</div>
+                      <div className="text-[11px] font-mono text-zinc-500 truncate">{rep.id}</div>
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-xs text-zinc-700 tabular-nums shrink-0">
+                  {count} {count === 1 ? 'sub' : 'subs'}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={() => setEditingRepId(null)}
+                        className="px-2.5 py-1 rounded text-[11px] text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
+                        disabled={busy}
+                      >Cancel</button>
+                      <button
+                        onClick={() => saveRename(rep)}
+                        disabled={busy || !draftName.trim() || draftName.trim() === rep.name}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium bg-emerald-500 text-zinc-950 hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >{busy ? 'Saving…' : 'Save name'}</button>
+                    </>
+                  ) : isConfirming ? (
+                    <>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2.5 py-1 rounded text-[11px] text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
+                        disabled={busy}
+                      >Cancel</button>
+                      <button
+                        onClick={() => doDelete(rep)}
+                        disabled={busy}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium bg-rose-600 text-white border border-rose-600 hover:bg-rose-500 disabled:opacity-60"
+                      >{busy ? 'Deleting…' : 'Yes, delete'}</button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startRename(rep)}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
+                        disabled={busy}
+                      >Rename</button>
+                      <button
+                        onClick={() => setConfirmDeleteId(rep.id)}
+                        disabled={busy || count > 0}
+                        title={count > 0 ? `Cannot delete — reassign this rep's ${count} sub-account(s) first` : 'Delete rep'}
+                        className="px-2.5 py-1 rounded text-[11px] font-medium text-rose-700 border border-rose-300 hover:bg-rose-50 disabled:text-zinc-400 disabled:border-zinc-200 disabled:cursor-not-allowed"
+                      >Delete</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddRepInline({ busy, setBusy, setStatus, requirePAT, onDone }) {
+  const [name, setName] = useState('');
+  const [id, setId] = useState('');
+  const suggestedId = suggestRepId(name);
+  const finalId = id.trim() || suggestedId;
+  const color = useMemo(() => pickColor(finalId || 'new_rep', REPS.map((r) => r.color)), [finalId]);
+  const canSubmit = name.trim().length >= 2 && finalId.length >= 2 && !REPS.find((r) => r.id === finalId);
+
+  const submit = async () => {
+    if (!canSubmit || busy) return;
+    if (!requirePAT()) return;
+    setBusy(true);
+    setStatus({ tone: 'blue', text: `Adding rep ${finalId}…` });
+    try {
+      await addRep({ id: finalId, name: name.trim(), color });
+      setStatus({ tone: 'emerald', text: `Added ${name.trim()}. Deploy triggered — TV updates in ~3 min.` });
+      setName(''); setId('');
+      onDone();
+    } catch (err) {
+      setStatus({ tone: 'rose', text: `Add failed: ${err.message}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-emerald-300 bg-emerald-50/60 p-4 space-y-3">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-700 font-semibold">Add new rep</div>
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-3">
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">Full name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Casey Smith"
+            className={INPUT}
+            disabled={busy}
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">ID (auto)</label>
+          <input
+            value={id}
+            onChange={(e) => setId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            placeholder={suggestedId || 'auto'}
+            className={INPUT + ' font-mono'}
+            disabled={busy}
+          />
+        </div>
+        <div className="flex items-end">
+          <button
+            onClick={submit}
+            disabled={!canSubmit || busy}
+            className={`w-full px-3 py-2 rounded-md text-sm font-medium border transition ${
+              canSubmit && !busy
+                ? 'bg-emerald-500 text-zinc-950 border-emerald-500 hover:bg-emerald-400'
+                : 'bg-zinc-100 text-zinc-400 border-zinc-300 cursor-not-allowed'
+            }`}
+          >
+            {busy ? 'Adding…' : 'Add rep'}
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+        <span className="w-4 h-4 rounded-full border border-zinc-400" style={{ background: color }} />
+        <span>Auto-assigned color · <span className="font-mono text-zinc-600">{color}</span></span>
+        {REPS.find((r) => r.id === finalId) && (
+          <span className="text-rose-700 ml-2">✗ id already in use</span>
+        )}
       </div>
     </div>
   );

@@ -142,3 +142,105 @@ export async function addSubAccount({
 
   return { config: next };
 }
+
+// --- Assignments API ----------------------------------------------------
+//
+// All the operations the Sub-Accounts panel's "Manage Reps" + per-row edit
+// UI needs. Every one is a real GitHub write against subaccounts.json + a
+// deploy dispatch — no localStorage-only stubs, no fake success messages.
+// Ram's letting Prince Pharrams go and shifting his two subs to other
+// reps; this is the wiring that makes that a two-click operation on the
+// dashboard instead of hand-editing JSON + committing.
+
+// Deletes a GitHub Actions secret by name. Used when a sub-account is
+// removed so we don't leave orphan PIT secrets around.
+export async function deleteSecret(name) {
+  await gh('DELETE', `/repos/${REPO_OWNER}/${REPO_NAME}/actions/secrets/${name}`);
+}
+
+// Fetch fresh config, apply mutator, write it back, trigger deploy.
+// Each call reads fresh so concurrent edits from another browser can't
+// silently clobber each other — GitHub's PUT-with-sha will 409 and the
+// caller can retry.
+async function updateConfig(mutator, commitMessage) {
+  const { config, sha } = await readConfig();
+  const next = mutator(JSON.parse(JSON.stringify(config)));
+  await writeConfig(next, sha, commitMessage);
+  await triggerDeploy();
+  return next;
+}
+
+// Reassign one sub-account to a different rep. The PIT secret stays put
+// (it's keyed by locationId, not repId).
+export async function reassignSubAccount(locationId, newRepId) {
+  return updateConfig((cfg) => {
+    const sa = (cfg.subaccounts || []).find((s) => s.locationId === locationId);
+    if (!sa) throw new Error(`Sub-account not found: ${locationId}`);
+    if (!(cfg.reps || []).find((r) => r.id === newRepId)) throw new Error(`Rep not found: ${newRepId}`);
+    const oldRepId = sa.repId;
+    sa.repId = newRepId;
+    return cfg;
+  }, `Reassign ${locationId} → ${newRepId}`);
+}
+
+// Rename a rep's display name. `id` stays fixed so downstream sub-accounts
+// keep resolving to the same rep record.
+export async function renameRep(repId, newName) {
+  const name = String(newName || '').trim();
+  if (!name) throw new Error('Rep name cannot be empty');
+  return updateConfig((cfg) => {
+    const rep = (cfg.reps || []).find((r) => r.id === repId);
+    if (!rep) throw new Error(`Rep not found: ${repId}`);
+    rep.name = name;
+    return cfg;
+  }, `Rename rep ${repId} → "${name}"`);
+}
+
+// Add an empty rep entry (no sub-accounts yet). Used by the Manage Reps
+// UI so a new hire can be created up front, then the leaving rep's
+// sub-accounts get reassigned onto them.
+export async function addRep({ id, name, color }) {
+  const rid = String(id || '').trim();
+  const rname = String(name || '').trim();
+  if (!rid || !rname) throw new Error('Rep id + name required');
+  return updateConfig((cfg) => {
+    if ((cfg.reps || []).find((r) => r.id === rid)) throw new Error(`Rep already exists: ${rid}`);
+    cfg.reps = [...(cfg.reps || []), { id: rid, name: rname, color: color || '#888888' }];
+    return cfg;
+  }, `Add rep ${rid}`);
+}
+
+// Delete a rep. Guard: only if zero sub-accounts are assigned to them —
+// forces the caller to reassign first, so we never leave orphan
+// sub-account rows pointing at a nonexistent rep.
+export async function deleteRep(repId) {
+  return updateConfig((cfg) => {
+    const stillAssigned = (cfg.subaccounts || []).filter((s) => s.repId === repId);
+    if (stillAssigned.length) {
+      throw new Error(`Cannot delete ${repId}: still has ${stillAssigned.length} sub-account(s) assigned`);
+    }
+    cfg.reps = (cfg.reps || []).filter((r) => r.id !== repId);
+    return cfg;
+  }, `Delete rep ${repId}`);
+}
+
+// Delete a sub-account. Also removes the per-location PIT secret by
+// default so we don't leave stale credentials in the repo settings.
+// alsoDeleteSecret=false lets the caller keep the secret if they plan
+// to re-add the same locationId later.
+export async function deleteSubAccount(locationId, { alsoDeleteSecret = true } = {}) {
+  const next = await updateConfig((cfg) => {
+    const sa = (cfg.subaccounts || []).find((s) => s.locationId === locationId);
+    if (!sa) throw new Error(`Sub-account not found: ${locationId}`);
+    cfg.subaccounts = (cfg.subaccounts || []).filter((s) => s.locationId !== locationId);
+    return cfg;
+  }, `Delete sub-account ${locationId}`);
+  if (alsoDeleteSecret) {
+    // Secret delete is best-effort — the config write already succeeded,
+    // and a leftover secret is only a housekeeping issue, not a data one.
+    // If it 404s (already gone) we just move on.
+    try { await deleteSecret(pitSecretName(locationId)); }
+    catch (err) { console.warn(`PIT secret delete for ${locationId} failed: ${err.message}`); }
+  }
+  return next;
+}
