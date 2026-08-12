@@ -31,7 +31,7 @@ permissions:
 # that froze the live site). Deploys take ~40s, so at our cadence overlaps are
 # rare; when they happen we let the running publish finish and queue the next.
 concurrency:
-  group: pages
+  group: dashboard-refresh
   cancel-in-progress: false
 
 jobs:
