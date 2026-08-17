@@ -60,6 +60,11 @@
       "id": "NV",
       "name": "Nevada",
       "color": "#f43f5e"
+    },
+    {
+      "id": "TN",
+      "name": "Tennessee",
+      "color": "#d946ef"
     }
   ],
   "reps": [
@@ -204,6 +209,11 @@
       "repId": "prince_pharrams",
       "marketId": "OH",
       "locationId": "ptDByNv214O44ruVdf7j"
+    },
+    {
+      "repId": "spencer_brown",
+      "marketId": "TN",
+      "locationId": "4UtYECpuatg8Q1XMfGqk"
     }
   ]
 }
