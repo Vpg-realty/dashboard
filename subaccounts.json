@@ -97,6 +97,11 @@
       "id": "sam_mackenzie",
       "name": "Sam MacKenzie",
       "color": "#ef4444"
+    },
+    {
+      "id": "spencer_brown",
+      "name": "Spencer Brown",
+      "color": "#d946ef"
     }
   ],
   "subaccounts": [
@@ -199,6 +204,11 @@
       "repId": "prince_pharrams",
       "marketId": "OH",
       "locationId": "ptDByNv214O44ruVdf7j"
+    },
+    {
+      "repId": "spencer_brown",
+      "marketId": "OK",
+      "locationId": "4UtYECpuatg8Q1XMfGqk"
     }
   ]
 }
