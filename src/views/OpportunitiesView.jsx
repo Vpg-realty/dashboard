@@ -1,7 +1,7 @@
 import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
-import { REPS, MARKETS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
-import { getPair, getPairsForRep, getPairsForMarket, headline } from '../data/source.js';
+import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
+import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { kpiStatus } from '../utils/format.js';
 
 // Per-rep weekly/monthly targets used by the compact rep cards.
@@ -16,13 +16,12 @@ const REP_TARGETS = {
   dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth,
 };
 
-// Layout: three full-width rows, fits one TV viewport.
+// Layout: two full-width rows, fits one TV viewport.
 //   1. Team KPIs (3 cards)
-//   2. Per-rep breakdown (5 cards in one horizontal row, each card split
-//      into Weekly and Monthly layers — Luke May 11)
-//   3. Per-market breakdown (one card per market in a single row).
-//      Cols scale with MARKETS.length so adding a state doesn't squash
-//      the row (Luke May 19 added Missouri → 8 markets, may add more).
+//   2. Per-rep breakdown (one card per rep in a single horizontal row, each
+//      card split into Weekly + Monthly layers — Luke May 11)
+//   By Market row removed Sept 14 (Luke: "give more room to the individual
+//   score cards for each person, easier to see and read").
 export default function OpportunitiesView() {
   const head = headline();
   const totalAbandoned = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
@@ -119,33 +118,6 @@ export default function OpportunitiesView() {
         </div>
       </Panel>
 
-      {/* Row 3 — Per market, 7 cards in one row */}
-      <Panel className="col-span-12 min-h-0" title="By Market" subtitle="weekly offers · monthly contracts/closed" accent="Opportunities">
-        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-2 h-full">
-          {MARKETS.map((market) => {
-            const pairs = getPairsForMarket(market.id);
-            const offers = pairs.reduce((a, p) => a + (p.offersWeek || 0), 0);
-            const contracts = pairs.reduce((a, p) => a + (p.contractsMonth || 0), 0);
-            const closed = pairs.reduce((a, p) => a + (p.dealsClosedMonth || 0), 0);
-            return (
-              <div key={market.id} className="rounded-xl border border-zinc-300/80 bg-white p-2.5 flex flex-col min-w-0 min-h-0">
-                <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: market.color }} />
-                    <span className="text-[11px] font-semibold text-zinc-900 truncate">{market.name}</span>
-                  </div>
-                  <span className="text-[11px] text-zinc-500 shrink-0">{market.id}</span>
-                </div>
-                <div className="flex-1 grid grid-cols-3 gap-1 text-center min-h-0">
-                  <Compact label="Off" value={offers} tone="amber" />
-                  <Compact label="Ctr" value={contracts} tone="blue" />
-                  <Compact label="Cls" value={closed} tone="emerald" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
     </div>
   );
 }
@@ -174,19 +146,3 @@ function MetricRow({ label, actual, target }) {
   );
 }
 
-// Color-coded so the three sub-metrics stop blending together on the TV
-// (Luke June): OFF = yellow, CTR = blue, CLS = green.
-function Compact({ label, value, tone = 'zinc' }) {
-  const tones = {
-    amber:   { num: 'text-amber-500',   lab: 'text-amber-600' },
-    blue:    { num: 'text-blue-600',    lab: 'text-blue-600' },
-    emerald: { num: 'text-emerald-600', lab: 'text-emerald-600' },
-    zinc:    { num: 'text-zinc-900',    lab: 'text-zinc-600' },
-  }[tone];
-  return (
-    <div className="rounded bg-zinc-100/60 px-1 py-1 flex flex-col justify-center min-w-0">
-      <div className={`text-[10px] uppercase font-semibold ${tones.lab}`}>{label}</div>
-      <div className={`text-base font-bold tabular-nums leading-tight ${tones.num}`}>{value}</div>
-    </div>
-  );
-}
