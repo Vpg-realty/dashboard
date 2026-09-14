@@ -28,13 +28,12 @@ export default function OpportunitiesView() {
   const totalLost = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.lost ?? 0)).reduce((a, b) => a + b, 0);
 
   return (
-    // Each section sizes to its own content (no fixed-height row that can crush
-    // the By Rep cards and clip/overlap their rows — that was the glitch). The
-    // view fills the TV comfortably; on a shorter screen it scrolls a little
-    // rather than mangling any card. justify-start keeps everything top-packed.
-    <div className="grid grid-cols-12 gap-4 h-full min-h-0 overflow-y-auto content-start">
+    // Flex column: the KPI row is content-sized, the By Rep panel takes ALL
+    // remaining vertical space so the cards are as tall and readable as
+    // possible now that By Market is gone (Luke, Sept 14).
+    <div className="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
       {/* Row 1 — team KPIs against locked targets */}
-      <div className="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
         <KpiCard
           label="Offers Submitted (week)"
           actual={head.offersWeek}
@@ -55,60 +54,58 @@ export default function OpportunitiesView() {
         />
       </div>
 
-      {/* Row 2 — Per rep, 5 cards in one row, each with Weekly + Monthly layers */}
-      <Panel className="col-span-12 min-h-0" title="By Rep" subtitle="weekly + monthly · per-rep targets" accent="Opportunities">
-        {/* One row that scales with the roster: columns = rep count, so adding
-            people shrinks the cards to fit instead of wrapping to a second row
-            and overflowing the panel (Luke, July 15). Cards floor at 150px and
-            the row scrolls horizontally only if the roster ever outgrows the
-            width — no vertical overflow, ever. */}
+      {/* Row 2 — Per rep, one card per rep, stretched to fill the rest of the page */}
+      <Panel className="flex-1 min-h-0" title="By Rep" subtitle="weekly + monthly · per-rep targets" accent="Opportunities">
+        {/* Full-height row that scales with the roster. Columns = rep count so
+            adding people shrinks cards to fit instead of wrapping to a second
+            row. Cards floor at 150px wide; each card stretches vertically so
+            we fill the bottom of the page (Luke, Sept 14: "any way we could
+            have the blocks fill the entire bottom of the page so they are
+            larger and easier to read?"). Aban/Lost row is pinned to the bottom
+            of each card with justify-between. */}
         <div
-          className="grid gap-2 items-start overflow-x-auto pb-1"
+          className="grid gap-2 items-stretch overflow-x-auto pb-1 h-full"
           style={{ gridTemplateColumns: `repeat(${REPS.length}, minmax(150px, 1fr))` }}
         >
           {REPS.map((rep) => {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
             return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-2 flex flex-col min-w-0">
-                <div className="flex items-center justify-between mb-1 pb-1 border-b border-zinc-200 gap-2 shrink-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: rep.color }} />
-                    <h4 className="text-sm font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
+              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-3 flex flex-col justify-between min-w-0 h-full">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: rep.color }} />
+                      <h4 className="text-base font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
                   </div>
-                  <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
+
+                  {/* WEEKLY */}
+                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
+                  <div>
+                    <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
+                    <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
+                    <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
+                  </div>
+
+                  {/* MONTHLY */}
+                  <div className="text-xs uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
+                  <div>
+                    <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
+                    <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
+                    <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
+                  </div>
                 </div>
 
-                {/* WEEKLY — sections are content-sized (shrink-0), NOT flex-1.
-                    A flex-1 section can be squeezed shorter than its own text
-                    rows on a cramped viewport, and the rows then spill out and
-                    draw on top of the next label — that was the overlap glitch
-                    (Luke June 3/8 screenshots). Content-sized rows + the card's
-                    justify-between can never overlap; worst case on a tiny
-                    screen is a clean clip of the bottom row, not a collision. */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-0.5 shrink-0">Weekly</div>
-                <div className="shrink-0">
-                  <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
-                  <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
-                  <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
-                </div>
-
-                {/* MONTHLY */}
-                <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600 font-bold mb-0.5 shrink-0">Monthly</div>
-                <div className="shrink-0">
-                  <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
-                  <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
-                  <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
-                </div>
-
-                {/* Aban + Lost — single compact row so it stops getting clipped */}
-                <div className="mt-1.5 pt-1.5 border-t border-zinc-200 flex items-baseline justify-between gap-2 shrink-0 text-sm">
+                {/* Aban + Lost — pinned to the bottom of the taller card */}
+                <div className="mt-2 pt-2 border-t border-zinc-200 flex items-baseline justify-between gap-2 text-base">
                   <span className="flex items-baseline gap-1 min-w-0 truncate">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Aban</span>
+                    <span className="text-[11px] uppercase tracking-widest text-zinc-500">Aban</span>
                     <span className="font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
                   </span>
                   <span className="flex items-baseline gap-1 min-w-0 truncate">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Lost</span>
+                    <span className="text-[11px] uppercase tracking-widest text-zinc-500">Lost</span>
                     <span className="font-bold tabular-nums text-red-500">{sum('lost')}</span>
                   </span>
                 </div>
