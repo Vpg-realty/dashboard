@@ -12,17 +12,65 @@ import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '
 // we don't fake it — the view shows current period stats accurately rather
 // than empty charts for past periods).
 //
+// Selector supports two modes (Luke, Sept 14 — asked for "full rep"):
+//   • Full rep (`ALL`) — aggregates every market for that rep. Numeric metrics
+//     summed; convosCapped surfaces if any market hit the cap; tier counts +
+//     daily-convos series summed across markets.
+//   • Individual sub-account — same as before.
+//
 // Top: KPI row (convos this week / agents added this week / offers this week / contracts this month)
 // Mid: Closed deals + Revenue tiles
-// Bottom: 7-day convo trend + agent tier pie for this pair
+// Bottom: 7-day convo trend + agent tier pie for the selection.
+
+// Sum every metric-carrying field on the pair shape across a rep's markets so
+// the "Full rep" mode reads like a single virtual sub-account. Non-metric
+// fields (daily, agentTiers) get their own aggregation below.
+function aggregateRep(repId) {
+  const pairs = PAIRS.filter((p) => p.repId === repId);
+  const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
+  const anyDaily = pairs.find((p) => (p.daily || []).length)?.daily || [];
+  // Sum per-day counts across every market on that rep's dailies. All pairs
+  // share the same 7-day window, so labels align 1:1.
+  const daily = anyDaily.map((slot, i) => ({
+    ...slot,
+    count: pairs.reduce((a, p) => a + ((p.daily || [])[i]?.count || 0), 0),
+  }));
+  const agentTiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  for (const p of pairs) for (const t of [1, 2, 3, 4]) agentTiers[t] += (p.agentTiers?.[t] || 0);
+  return {
+    convosToday: sum('convosToday'),
+    convosWeek: sum('convosWeek'),
+    convosAllTime: sum('convosAllTime'),
+    convosCapped: pairs.some((p) => p.convosCapped),
+    daily,
+    agentsTotal: sum('agentsTotal'),
+    agentsAddedToday: sum('agentsAddedToday'),
+    agentsAddedWeek: sum('agentsAddedWeek'),
+    agentTiers,
+    oppsOpenedWeek: sum('oppsOpenedWeek'),
+    oppsOpenedMonth: sum('oppsOpenedMonth'),
+    offersWeek: sum('offersWeek'),
+    offersMonth: sum('offersMonth'),
+    contractsWeek: sum('contractsWeek'),
+    contractsMonth: sum('contractsMonth'),
+    dealsClosedWeek: sum('dealsClosedWeek'),
+    dealsClosedMonth: sum('dealsClosedMonth'),
+    abandoned: sum('abandoned'),
+    lost: sum('lost'),
+    revenueWeek: sum('revenueWeek'),
+    revenueMonth: sum('revenueMonth'),
+  };
+}
+
 export default function AdvancedView() {
   const firstPair = PAIRS[0] || { repId: REPS[0]?.id, marketId: REPS[0]?.markets[0] };
   const [selectedPair, setSelectedPair] = useState(`${firstPair.repId}__${firstPair.marketId}`);
 
   const [repId, marketId] = selectedPair.split('__');
-  const pair = getPair(repId, marketId) || {};
+  const isFullRep = marketId === 'ALL';
+  const pair = isFullRep ? aggregateRep(repId) : (getPair(repId, marketId) || {});
   const rep = REPS.find((r) => r.id === repId);
-  const market = MARKETS.find((m) => m.id === marketId);
+  const market = isFullRep ? null : MARKETS.find((m) => m.id === marketId);
 
   const tierData = TIERS.map((t) => ({
     tier: t.id,
@@ -33,7 +81,8 @@ export default function AdvancedView() {
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full overflow-y-auto">
-      {/* Subaccount selector */}
+      {/* Subaccount selector. Each rep gets a "Full rep" entry at the top of
+          their group that sums every market they work — Luke, Sept 14. */}
       <div className="col-span-12 rounded-xl border border-zinc-300 bg-white p-4">
         <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Subaccount</label>
         <select
@@ -41,16 +90,19 @@ export default function AdvancedView() {
           onChange={(e) => setSelectedPair(e.target.value)}
           className="w-full px-3 py-2.5 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50"
         >
-          {REPS.flatMap((r) =>
-            r.markets.map((m) => {
+          {REPS.flatMap((r) => [
+            <option key={`${r.id}__ALL`} value={`${r.id}__ALL`}>
+              {r.name} — Full rep (all {r.markets.length} markets)
+            </option>,
+            ...r.markets.map((m) => {
               const mk = MARKETS.find((mkt) => mkt.id === m);
               return (
                 <option key={`${r.id}__${m}`} value={`${r.id}__${m}`}>
-                  {r.name} — {mk.name}
+                  &nbsp;&nbsp;· {r.name} — {mk?.name || m}
                 </option>
               );
-            })
-          )}
+            }),
+          ])}
         </select>
       </div>
 
@@ -61,8 +113,14 @@ export default function AdvancedView() {
           <div className="min-w-0">
             <div className="text-xl font-semibold text-zinc-900 truncate">{rep?.name}</div>
             <div className="text-sm text-zinc-500 truncate flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color }} />
-              {market?.name} · {market?.id}
+              {isFullRep ? (
+                <span>Full rep · {rep?.markets.length || 0} markets aggregated</span>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color }} />
+                  {market?.name} · {market?.id}
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -52,17 +52,41 @@ async function loadDeployedHistory() {
 }
 
 const snapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
+// Storing every pair-level metric we display, not just the 5 originally used
+// for the tier-added-this-week delta. This lets the dashboard show historical
+// periods later ("last week's offers submitted" = the snapshot from the last
+// Sunday of that week; "last month's contracts" = the last snapshot of that
+// month). Luke, Sept 14: "a dropdown for last week / last month" — this is
+// the storage half of that; the UI half comes in a follow-up now that data
+// is accruing.
 const todayEntry = {
   date: today,
   generatedAt: snapshot.generatedAt,
   pairs: snapshot.pairs.map((p) => ({
     repId: p.repId,
     marketId: p.marketId,
-    agentsTotal: p.agentsTotal || 0,
+    // conversations
+    convosToday: p.convosToday || 0,
+    convosWeek: p.convosWeek || 0,
     convosAllTime: p.convosAllTime || 0,
-    dealsClosedMonth: p.dealsClosedMonth || 0,
-    revenueMonth: p.revenueMonth || 0,
+    // agents
+    agentsTotal: p.agentsTotal || 0,
+    agentsAddedToday: p.agentsAddedToday || 0,
+    agentsAddedWeek: p.agentsAddedWeek || 0,
     agentTiers: p.agentTiers || { 1: 0, 2: 0, 3: 0, 4: 0 },
+    // opportunities (funnel-milestone counts)
+    oppsOpenedWeek: p.oppsOpenedWeek || 0,
+    oppsOpenedMonth: p.oppsOpenedMonth || 0,
+    offersWeek: p.offersWeek || 0,
+    offersMonth: p.offersMonth || 0,
+    contractsWeek: p.contractsWeek || 0,
+    contractsMonth: p.contractsMonth || 0,
+    dealsClosedWeek: p.dealsClosedWeek || 0,
+    dealsClosedMonth: p.dealsClosedMonth || 0,
+    abandoned: p.abandoned || 0,
+    lost: p.lost || 0,
+    revenueWeek: p.revenueWeek || 0,
+    revenueMonth: p.revenueMonth || 0,
   })),
 };
 

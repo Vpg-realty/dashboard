@@ -118,16 +118,30 @@ export function aggregatePair({
     // in the period it last advanced or closed.
     const recent = Math.max(stageChange, statusChange);
 
+    // Luke, Sept 14: reps saying "we made more offers than the dashboard shows."
+    // The prior funnel-milestone logic missed the case where a rep submitted an
+    // offer this week and the deal then died (Abandoned/Lost) — Abandoned/Lost
+    // aren't in OFFER_OR_BEYOND, so the deal dropped out of the offer count. We
+    // catch that case by treating an Abandoned/Lost deal as having reached the
+    // funnel band it last transited through, but only when the stage change is
+    // materially after creation (excludes deals that were opened and killed the
+    // same click without ever being worked). Same fix for contracts.
+    const workedThenDied =
+      (o.status === 'abandoned' || o.status === 'lost')
+      && stageChange > created + 60_000;
+
     // Offers Submitted — reached the Offer stage or beyond (Offer → Negotiation
-    // → Under Contract → DISPO → Assigned → Closed), OR is won. Stable: an offer
-    // stays counted as the deal advances instead of dropping off.
-    const reachedOffer = OFFER_OR_BEYOND.has(key) || o.status === 'won';
+    // → Under Contract → DISPO → Assigned → Closed), OR is won, OR was worked
+    // through the funnel this period and ended in Abandoned/Lost.
+    const reachedOffer = OFFER_OR_BEYOND.has(key) || o.status === 'won' || workedThenDied;
     if (reachedOffer && recent >= wkStart) offersWeek++;
     if (reachedOffer && recent >= moStart) offersMonth++;
 
-    // Contracts Accepted — reached Under Contract or beyond, OR is won. Same
-    // funnel-milestone logic; guarantees offers >= contracts >= closed.
-    const reachedContract = CONTRACT_OR_BEYOND.has(key) || o.status === 'won';
+    // Contracts Accepted — reached Under Contract or beyond, OR is won, OR was
+    // worked through the funnel and Abandoned/Lost (harder to distinguish here
+    // from "died at Offer", but the same charity as offers keeps the metric
+    // consistent). Ordering still holds: offers >= contracts >= closed.
+    const reachedContract = CONTRACT_OR_BEYOND.has(key) || o.status === 'won' || workedThenDied;
     if (reachedContract && recent >= wkStart) contractsWeek++;
     if (reachedContract && recent >= moStart) contractsMonth++;
 
