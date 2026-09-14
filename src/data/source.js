@@ -34,6 +34,10 @@ export const historyDeltaTierSum = (...a) => (src.historyDeltaTierSum ? src.hist
 export const historyDeltaTierSumTotal = (...a) => (src.historyDeltaTierSumTotal ? src.historyDeltaTierSumTotal(...a) : null);
 export const historyDayCount = () => (src.historyDayCount ? src.historyDayCount() : 0);
 export const historyDaysBack = () => (src.historyDaysBack ? src.historyDaysBack() : 0);
+// Lookup a specific day's snapshot entry — used by AdvancedView's period
+// dropdown ("last week's numbers" = the snapshot from last Sunday, "last
+// month's numbers" = the snapshot from the last day of the prior month).
+export const historyEntryOnOrBefore = (...a) => (src.historyEntryOnOrBefore ? src.historyEntryOnOrBefore(...a) : null);
 
 // Manual refresh (live-only). In mock mode it's a harmless no-op so the
 // header's Refresh button still renders during local demos.

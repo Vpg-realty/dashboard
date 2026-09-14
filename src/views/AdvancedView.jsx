@@ -4,8 +4,66 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { REPS, MARKETS, KPI_TARGETS, TIERS } from '../data/config.js';
-import { PAIRS, getPair } from '../data/source.js';
+import { PAIRS, getPair, historyEntryOnOrBefore, historyDayCount } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
+
+// Snapshot the date (America/Los_Angeles) for "last Monday of the previous
+// week" and "last day of the previous month". history.json is keyed by
+// YYYY-MM-DD in the same tz, so these strings map straight to lookups.
+function laDateStr(d) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(d);
+}
+function lastWeekEndDateStr(now = new Date()) {
+  // Last Sunday (end of prior week). This week's Monday minus 1 day.
+  const d = new Date(now);
+  const dow = d.getDay() || 7;
+  d.setDate(d.getDate() - dow);
+  return laDateStr(d);
+}
+function lastMonthEndDateStr(now = new Date()) {
+  // Day 0 of the current month = last day of prior month.
+  const d = new Date(now.getFullYear(), now.getMonth(), 0);
+  return laDateStr(d);
+}
+
+// Extract the aggregated pair (for one rep+market or full-rep) from a history
+// entry. history.json stores pairs as an ARRAY of {repId, marketId, ...}
+// records per day (see scripts/append-history.mjs), so this filters that list
+// down to the requested rep (all markets, or one).
+function historyPair(entry, repId, marketId) {
+  if (!entry || !Array.isArray(entry.pairs)) return null;
+  if (marketId === 'ALL') {
+    const relevant = entry.pairs.filter((p) => p.repId === repId);
+    if (!relevant.length) return null;
+    const sum = (k) => relevant.reduce((a, p) => a + (p[k] || 0), 0);
+    const agentTiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const p of relevant) for (const t of [1, 2, 3, 4]) agentTiers[t] += (p.agentTiers?.[t] || 0);
+    return {
+      convosToday: sum('convosToday'),
+      convosWeek: sum('convosWeek'),
+      convosAllTime: sum('convosAllTime'),
+      convosCapped: relevant.some((p) => p.convosCapped),
+      daily: [],
+      agentsTotal: sum('agentsTotal'),
+      agentsAddedToday: sum('agentsAddedToday'),
+      agentsAddedWeek: sum('agentsAddedWeek'),
+      agentTiers,
+      oppsOpenedWeek: sum('oppsOpenedWeek'),
+      oppsOpenedMonth: sum('oppsOpenedMonth'),
+      offersWeek: sum('offersWeek'),
+      offersMonth: sum('offersMonth'),
+      contractsWeek: sum('contractsWeek'),
+      contractsMonth: sum('contractsMonth'),
+      dealsClosedWeek: sum('dealsClosedWeek'),
+      dealsClosedMonth: sum('dealsClosedMonth'),
+      abandoned: sum('abandoned'),
+      lost: sum('lost'),
+      revenueWeek: sum('revenueWeek'),
+      revenueMonth: sum('revenueMonth'),
+    };
+  }
+  return entry.pairs.find((p) => p.repId === repId && p.marketId === marketId) || null;
+}
 
 // Per-subaccount drill-down. Uses ONLY the pre-aggregated fields available
 // on a live pair (live GHL doesn't give us 90-day history retroactively, so
@@ -65,12 +123,37 @@ function aggregateRep(repId) {
 export default function AdvancedView() {
   const firstPair = PAIRS[0] || { repId: REPS[0]?.id, marketId: REPS[0]?.markets[0] };
   const [selectedPair, setSelectedPair] = useState(`${firstPair.repId}__${firstPair.marketId}`);
+  // Period selector — Luke, Sept 14: "is there a way to see previous weeks
+  // numbers? so we can select a time period?". Historical periods read from
+  // history.json (appended nightly), keyed by end-of-period date.
+  const [period, setPeriod] = useState('now');
+  const historyReady = historyDayCount() > 0;
 
   const [repId, marketId] = selectedPair.split('__');
   const isFullRep = marketId === 'ALL';
-  const pair = isFullRep ? aggregateRep(repId) : (getPair(repId, marketId) || {});
+  const currentPair = isFullRep ? aggregateRep(repId) : (getPair(repId, marketId) || {});
   const rep = REPS.find((r) => r.id === repId);
   const market = isFullRep ? null : MARKETS.find((m) => m.id === marketId);
+
+  // Resolve `pair` and a human-readable period label. Historical lookups
+  // fall through to the most recent snapshot at-or-before that date, so an
+  // office-TV that missed a nightly cron still resolves to something sane.
+  let pair = currentPair;
+  let periodLabel = null;
+  let periodMissing = false;
+  if (period === 'lastWeek') {
+    const dateStr = lastWeekEndDateStr();
+    const entry = historyEntryOnOrBefore(dateStr);
+    const p = historyPair(entry, repId, marketId);
+    if (p) { pair = { ...p, daily: currentPair.daily }; periodLabel = `Snapshot · ${entry.date}`; }
+    else { periodMissing = true; periodLabel = `No snapshot on or before ${dateStr}`; }
+  } else if (period === 'lastMonth') {
+    const dateStr = lastMonthEndDateStr();
+    const entry = historyEntryOnOrBefore(dateStr);
+    const p = historyPair(entry, repId, marketId);
+    if (p) { pair = { ...p, daily: currentPair.daily }; periodLabel = `Snapshot · ${entry.date}`; }
+    else { periodMissing = true; periodLabel = `No snapshot on or before ${dateStr}`; }
+  }
 
   const tierData = TIERS.map((t) => ({
     tier: t.id,
@@ -81,29 +164,52 @@ export default function AdvancedView() {
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full overflow-y-auto">
-      {/* Subaccount selector. Each rep gets a "Full rep" entry at the top of
-          their group that sums every market they work — Luke, Sept 14. */}
-      <div className="col-span-12 rounded-xl border border-zinc-300 bg-white p-4">
-        <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Subaccount</label>
-        <select
-          value={selectedPair}
-          onChange={(e) => setSelectedPair(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50"
-        >
-          {REPS.flatMap((r) => [
-            <option key={`${r.id}__ALL`} value={`${r.id}__ALL`}>
-              {r.name} — Full rep (all {r.markets.length} markets)
-            </option>,
-            ...r.markets.map((m) => {
-              const mk = MARKETS.find((mkt) => mkt.id === m);
-              return (
-                <option key={`${r.id}__${m}`} value={`${r.id}__${m}`}>
-                  &nbsp;&nbsp;· {r.name} — {mk?.name || m}
-                </option>
-              );
-            }),
-          ])}
-        </select>
+      {/* Subaccount + period selectors. Each rep gets a "Full rep" entry at the
+          top of their group that sums every market they work — Luke, Sept 14.
+          Period lets Luke pull last week / last month snapshots from
+          history.json. */}
+      <div className="col-span-12 rounded-xl border border-zinc-300 bg-white p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2">
+          <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Subaccount</label>
+          <select
+            value={selectedPair}
+            onChange={(e) => setSelectedPair(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50"
+          >
+            {REPS.flatMap((r) => [
+              <option key={`${r.id}__ALL`} value={`${r.id}__ALL`}>
+                {r.name} — Full rep (all {r.markets.length} markets)
+              </option>,
+              ...r.markets.map((m) => {
+                const mk = MARKETS.find((mkt) => mkt.id === m);
+                return (
+                  <option key={`${r.id}__${m}`} value={`${r.id}__${m}`}>
+                    &nbsp;&nbsp;· {r.name} — {mk?.name || m}
+                  </option>
+                );
+              }),
+            ])}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Period</label>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            disabled={!historyReady}
+            className="w-full px-3 py-2.5 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50 disabled:opacity-60"
+          >
+            <option value="now">Current</option>
+            <option value="lastWeek">Last Week (snapshot)</option>
+            <option value="lastMonth">Last Month (snapshot)</option>
+          </select>
+          {!historyReady && (
+            <div className="text-[10px] text-zinc-500 mt-1.5">History empty — snapshots start appearing after the first nightly build.</div>
+          )}
+          {historyReady && periodLabel && (
+            <div className={`text-[10px] mt-1.5 ${periodMissing ? 'text-orange-600' : 'text-zinc-500'}`}>{periodLabel}</div>
+          )}
+        </div>
       </div>
 
       {/* Selected pair header */}

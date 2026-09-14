@@ -340,6 +340,17 @@ function historyPairValue(entry, repId, marketId, field) {
 // to show "added this week" delta or fall back to "lifetime total").
 export const historyDayCount = () => HISTORY.length;
 
+// Look up the snapshot entry for a specific date (YYYY-MM-DD). If none exists
+// for that date, fall back to the closest one BEFORE it (older days). Returns
+// null if no history yet. Used by the AdvancedView period dropdown.
+export function historyEntryOnOrBefore(dateStr) {
+  if (!HISTORY.length) return null;
+  const exact = HISTORY.find((e) => e.date === dateStr);
+  if (exact) return exact;
+  const before = [...HISTORY].filter((e) => e.date <= dateStr).sort((a, b) => a.date.localeCompare(b.date));
+  return before.length ? before[before.length - 1] : null;
+}
+
 // Returns the delta of `field` between today's snapshot and `daysAgo` days
 // ago (or the oldest entry if we have less than `daysAgo` days). Returns
 // null when we don't have enough history yet.

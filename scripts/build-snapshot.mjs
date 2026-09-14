@@ -16,9 +16,39 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
+import { applyStickyCounts } from '../server/stickyCounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
+const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
+const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
+
+// Loads the previous run's opp-state so stickyCounts.js can diff. Hardened
+// the same way loadDeployedHistory in append-history.mjs is: retry on
+// network / 5xx / parse errors, only 404 is a real "first run", and on
+// sustained failure we return null and let sticky reseed from the current
+// snapshot instead of aborting the whole deploy (the seed matches whatever
+// the live GHL state currently shows, so the visual regression is small).
+async function loadPrevOppState() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`status ${r.status}`);
+      const d = await r.json();
+      if (!d || !d.pairs) throw new Error('malformed opp-state');
+      return d;
+    } catch (err) {
+      if (attempt === 2) {
+        console.warn(`[snapshot] opp-state load failed after 3 tries (${err.message}). Sticky counts will reseed from the current snapshot.`);
+        return null;
+      }
+      await sleep(400 * (attempt + 1));
+    }
+  }
+  return null;
+}
 
 // --- token merge ---------------------------------------------------------
 // Legacy: parse the single GHL_TOKENS JSON blob.
@@ -63,11 +93,21 @@ console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Objec
 
 const snapshot = await buildSnapshot({ tokens });
 
-// Show counts EXACTLY as GHL currently has them — no sticky-throughput layer,
-// no derived monotonically-climbing numbers, no breadcrumb fall-through. When
-// a deal moves to Lost / Abandoned / Closed / DISPO, the stage it left
-// immediately decrements (Ram, June 25: "tracker dashboard, no guessing,
-// should just relay the exact information in his GHL").
+// Sticky offer / contract counters (Luke, Sept 14). aggregate.js emits a
+// strict current-stage-only baseline for each metric, plus per-opp stage
+// ranks in _oppRanks. Sticky diffs this run's ranks against the previous
+// run's, counts NEW upward crossings into the Offer / Under-Contract band,
+// and adds them to the persisted total. Once an opp is counted for the
+// period it stays counted even if the deal moves to a later stage OR to
+// Lost / Abandoned — the number never decrements during the week / month.
+// _oppRanks is stripped from every pair before publish (browser never sees).
+const prevOppState = await loadPrevOppState();
+const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date() });
+snapshot.pairs = sticky.pairs;
+fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
+fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));
+console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'seeded (first run this week/month)'} — wrote ${STATE_OUT}`);
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));
 
