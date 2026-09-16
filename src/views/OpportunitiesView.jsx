@@ -65,54 +65,59 @@ export default function OpportunitiesView() {
         <div
           className="grid gap-3 h-full"
           style={{
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gridAutoRows: 'minmax(320px, 1fr)',
+            // auto-fit lets us go from 8 reps today to 11 later without a code
+            // change; at 1920px width we get 4-5 cards per row, wrapping to a
+            // second row instead of squeezing skinny (Luke, Sept 16 concern).
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            // Rows flex to fill the panel; the auto min is chosen to hold all
+            // of a card's content (header + weekly + monthly + aban/lost row).
+            // If we ever go too tight, the outer flex-col scrolls.
+            gridAutoRows: 'minmax(360px, 1fr)',
           }}
         >
           {REPS.map((rep) => {
             const pairs = getPairsForRep(rep.id);
             const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
             return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-4 flex flex-col justify-between min-w-0 h-full">
+              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-3 flex flex-col justify-between min-w-0 h-full">
                 <div>
                   {/* Header — rep name is the loudest thing on the card so it
-                      reads across the office (Luke, Sept 16: "slightly larger
-                      font to be easier to see"). */}
-                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-zinc-200 gap-2">
+                      reads across the office (Luke, Sept 16 mockup). */}
+                  <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
-                      <h4 className="text-2xl font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
+                      <h4 className="text-xl font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
                     </div>
-                    <span className="text-[11px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
                   </div>
 
                   {/* WEEKLY */}
-                  <div className="text-xs uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1.5">Weekly</div>
-                  <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
+                  <div className="space-y-1">
                     <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
                     <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
                     <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
                   </div>
 
                   {/* MONTHLY */}
-                  <div className="text-xs uppercase tracking-[0.18em] text-blue-600 font-bold mt-3 mb-1.5">Monthly</div>
-                  <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
+                  <div className="space-y-1">
                     <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
                     <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
                     <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
                   </div>
                 </div>
 
-                {/* Aban + Lost — pinned to the bottom, matching Luke's mockup
-                    with big numbers on either side. */}
-                <div className="mt-3 pt-3 border-t border-zinc-200 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] uppercase tracking-widest text-zinc-500">Aban</span>
-                    <span className="text-2xl font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
+                {/* Aban + Lost — pinned to the bottom of the card, matching
+                    Luke's mockup with big numbers on either side. */}
+                <div className="mt-2 pt-2 border-t border-zinc-200 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Aban</span>
+                    <span className="text-xl font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
                   </span>
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] uppercase tracking-widest text-zinc-500">Lost</span>
-                    <span className="text-2xl font-bold tabular-nums text-red-500">{sum('lost')}</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Lost</span>
+                    <span className="text-xl font-bold tabular-nums text-red-500">{sum('lost')}</span>
                   </span>
                 </div>
               </div>
@@ -127,29 +132,29 @@ export default function OpportunitiesView() {
 
 function MetricRow({ label, actual, target }) {
   if (target == null) {
-    // No target, no bar — just label + value big and bold.
+    // No target, no bar — just label + value.
     return (
       <div className="flex items-baseline justify-between gap-2 min-w-0">
-        <span className="text-sm text-zinc-700 truncate">{label}</span>
-        <span className="text-2xl font-bold tabular-nums text-zinc-900 shrink-0">{actual}</span>
+        <span className="text-xs text-zinc-700 truncate">{label}</span>
+        <span className="text-lg font-bold tabular-nums text-zinc-900 shrink-0 leading-tight">{actual}</span>
       </div>
     );
   }
   const s = kpiStatus(actual, target);
   const pctVal = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
-  // Progress bar returned (Luke, Sept 16 mockup): thin coloured bar under the
-  // number, filled proportional to actual/target, colour tracks kpiStatus.
-  // Cards are now much taller (grid auto-rows floors at 320px) so bars no
-  // longer risk collapsing the row.
+  // Bar under each targeted metric (Luke, Sept 16 mockup). Filled proportional
+  // to actual/target, coloured by kpiStatus. Tight vertical spacing so all six
+  // metric rows + header + aban/lost fit inside the ~360px card without
+  // overflowing.
   return (
     <div className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-sm text-zinc-700 truncate">{label}</span>
-        <span className={`text-2xl font-bold ${s.text} tabular-nums shrink-0`}>
-          {actual}<span className="text-zinc-400 text-base font-semibold">/{target}</span>
+        <span className="text-xs text-zinc-700 truncate">{label}</span>
+        <span className={`text-lg font-bold ${s.text} tabular-nums shrink-0 leading-tight`}>
+          {actual}<span className="text-zinc-400 text-sm font-semibold">/{target}</span>
         </span>
       </div>
-      <div className="h-1 mt-1 rounded-full overflow-hidden bg-zinc-200">
+      <div className="h-1 mt-0.5 rounded-full overflow-hidden bg-zinc-200">
         <div className="h-full rounded-full" style={{ width: `${pctVal}%`, background: s.color }} />
       </div>
     </div>
