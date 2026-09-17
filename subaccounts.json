@@ -65,6 +65,11 @@
       "id": "TN",
       "name": "Tennessee",
       "color": "#d946ef"
+    },
+    {
+      "id": "AL",
+      "name": "Alabama",
+      "color": "#eab308"
     }
   ],
   "reps": [
@@ -234,6 +239,11 @@
       "repId": "spencer_brown",
       "marketId": "IN",
       "locationId": "8jwEShfAHZ8hibiC4n4W"
+    },
+    {
+      "repId": "axel",
+      "marketId": "AL",
+      "locationId": "DJsGOJ1suKUquAPItAZI"
     }
   ]
 }
