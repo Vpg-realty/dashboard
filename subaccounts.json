@@ -69,11 +69,6 @@
   ],
   "reps": [
     {
-      "id": "jack",
-      "name": "Jack Jeffries",
-      "color": "#3b82f6"
-    },
-    {
       "id": "anthony",
       "name": "Anthony Sheffield",
       "color": "#10b981"
