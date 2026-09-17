@@ -70,6 +70,11 @@
       "id": "AL",
       "name": "Alabama",
       "color": "#eab308"
+    },
+    {
+      "id": "SC",
+      "name": "South Carolina",
+      "color": "#eab308"
     }
   ],
   "reps": [
@@ -244,6 +249,11 @@
       "repId": "axel",
       "marketId": "AL",
       "locationId": "DJsGOJ1suKUquAPItAZI"
+    },
+    {
+      "repId": "axel",
+      "marketId": "SC",
+      "locationId": "gcOJSqctUP0iwdah2PAG"
     }
   ]
 }
