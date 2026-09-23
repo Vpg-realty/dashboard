@@ -3,7 +3,8 @@
 // Team targets (TEAM_TARGETS, defined below) scale these by the rep count.
 export const KPI_TARGETS = {
   offersPerWeek: 10,          // per rep · per week
-  contractsPerMonth: 8,       // per rep · per month
+  contractsPerWeek: 1,        // per rep · per week (Luke, Sept 23)
+  contractsPerMonth: 4,       // per rep · per month (Luke, Sept 23 — was 8)
   dealsClosedPerMonth: 2,     // per rep · per month
   revenuePerRepMonth: 25_000, // per rep · per month (Master revenue tile)
 };
@@ -31,7 +32,7 @@ export const REPS = config.reps.map((rep) => ({
 // sub-accounts). Every team target — offers, contracts, deals closed, and the
 // Master revenue goal — updates automatically each time someone is added to or
 // removed from the team (Luke, July 16). With N reps: offers N×10/wk,
-// contracts N×8/mo, closed N×2/mo, revenue N×$25k/mo.
+// contracts N×1/wk · N×4/mo, closed N×2/mo, revenue N×$25k/mo.
 export const TEAM_TARGETS = {
   offersPerWeek: KPI_TARGETS.offersPerWeek * REPS.length,
   contractsPerMonth: KPI_TARGETS.contractsPerMonth * REPS.length,
