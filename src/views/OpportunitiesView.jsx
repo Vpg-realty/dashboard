@@ -10,7 +10,7 @@ import { kpiStatus } from '../utils/format.js';
 // visible per rep card.
 const REP_TARGETS = {
   offersPerWeek: KPI_TARGETS.offersPerWeek,
-  contractsPerWeek: Math.max(1, Math.round(KPI_TARGETS.contractsPerMonth / 4)),
+  contractsPerWeek: KPI_TARGETS.contractsPerWeek,
   offersPerMonth: KPI_TARGETS.offersPerWeek * 4,
   contractsPerMonth: KPI_TARGETS.contractsPerMonth,
   dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth,
