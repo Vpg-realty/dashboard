@@ -17,9 +17,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.resolve(__dirname, '..', 'public', 'data.json');
 const HISTORY_PATH = path.resolve(__dirname, '..', 'public', 'history.json');
 const PAGES_HISTORY_URL = 'https://vpg-realty.github.io/dashboard/history.json';
-const KEEP_DAYS = 90;
+// ~13 months, so the Advanced date selector can compare against the same
+// month last year (Luke, Sept 29). Zero fields are omitted below to keep the
+// file small.
+const KEEP_DAYS = 400;
 
-const today = new Date().toISOString().slice(0, 10);
+// Keyed by Pacific-time date — the same day boundary the week/month counters
+// reset on (server/aggregate.js) — so each day's entry is its true end-of-day
+// total. (It used to be the UTC date, which closed each day at 5pm PT.)
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 
 // Loads the live deployed history. Earlier this would silently return [] on
 // any fetch failure (5xx, network blip, parse error), and that empty list
@@ -87,8 +93,24 @@ const todayEntry = {
     lost: p.lost || 0,
     revenueWeek: p.revenueWeek || 0,
     revenueMonth: p.revenueMonth || 0,
-  })),
+  })).map(dropZeros),
 };
+
+// Readers treat a missing field as 0, so zeros don't need storing. Roughly
+// halves the file with a year of days × every sub-account.
+function dropZeros(pair) {
+  const out = {};
+  for (const [k, v] of Object.entries(pair)) {
+    if (v === 0) continue;
+    if (k === 'agentTiers') {
+      const tiers = Object.fromEntries(Object.entries(v).filter(([, n]) => n));
+      if (Object.keys(tiers).length) out[k] = tiers;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
 
 const existing = await loadDeployedHistory();
 const idx = existing.findIndex((e) => e.date === today);

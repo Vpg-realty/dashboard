@@ -4,71 +4,11 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { REPS, MARKETS, KPI_TARGETS, TIERS } from '../data/config.js';
-import { PAIRS, getPair, historyEntryOnOrBefore, historyDayCount } from '../data/source.js';
+import { PAIRS, getPair, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
+import { computeRange, periodOptions, periodTargets, rangeLabel, shortDate, laToday, addDays } from '../utils/historyRange.js';
 
-// Snapshot the date (America/Los_Angeles) for "last Monday of the previous
-// week" and "last day of the previous month". history.json is keyed by
-// YYYY-MM-DD in the same tz, so these strings map straight to lookups.
-function laDateStr(d) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(d);
-}
-function lastWeekEndDateStr(now = new Date()) {
-  // Last Sunday (end of prior week). This week's Monday minus 1 day.
-  const d = new Date(now);
-  const dow = d.getDay() || 7;
-  d.setDate(d.getDate() - dow);
-  return laDateStr(d);
-}
-function lastMonthEndDateStr(now = new Date()) {
-  // Day 0 of the current month = last day of prior month.
-  const d = new Date(now.getFullYear(), now.getMonth(), 0);
-  return laDateStr(d);
-}
-
-// Extract the aggregated pair (for one rep+market or full-rep) from a history
-// entry. history.json stores pairs as an ARRAY of {repId, marketId, ...}
-// records per day (see scripts/append-history.mjs), so this filters that list
-// down to the requested rep (all markets, or one).
-function historyPair(entry, repId, marketId) {
-  if (!entry || !Array.isArray(entry.pairs)) return null;
-  if (marketId === 'ALL') {
-    const relevant = entry.pairs.filter((p) => p.repId === repId);
-    if (!relevant.length) return null;
-    const sum = (k) => relevant.reduce((a, p) => a + (p[k] || 0), 0);
-    const agentTiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
-    for (const p of relevant) for (const t of [1, 2, 3, 4]) agentTiers[t] += (p.agentTiers?.[t] || 0);
-    return {
-      convosToday: sum('convosToday'),
-      convosWeek: sum('convosWeek'),
-      convosAllTime: sum('convosAllTime'),
-      convosCapped: relevant.some((p) => p.convosCapped),
-      daily: [],
-      agentsTotal: sum('agentsTotal'),
-      agentsAddedToday: sum('agentsAddedToday'),
-      agentsAddedWeek: sum('agentsAddedWeek'),
-      agentTiers,
-      oppsOpenedWeek: sum('oppsOpenedWeek'),
-      oppsOpenedMonth: sum('oppsOpenedMonth'),
-      offersWeek: sum('offersWeek'),
-      offersMonth: sum('offersMonth'),
-      contractsWeek: sum('contractsWeek'),
-      contractsMonth: sum('contractsMonth'),
-      dealsClosedWeek: sum('dealsClosedWeek'),
-      dealsClosedMonth: sum('dealsClosedMonth'),
-      abandoned: sum('abandoned'),
-      lost: sum('lost'),
-      revenueWeek: sum('revenueWeek'),
-      revenueMonth: sum('revenueMonth'),
-    };
-  }
-  return entry.pairs.find((p) => p.repId === repId && p.marketId === marketId) || null;
-}
-
-// Per-subaccount drill-down. Uses ONLY the pre-aggregated fields available
-// on a live pair (live GHL doesn't give us 90-day history retroactively, so
-// we don't fake it — the view shows current period stats accurately rather
-// than empty charts for past periods).
+// Per-subaccount drill-down.
 //
 // Selector supports two modes (Luke, Sept 14 — asked for "full rep"):
 //   • Full rep (`ALL`) — aggregates every market for that rep. Numeric metrics
@@ -76,9 +16,12 @@ function historyPair(entry, repId, marketId) {
 //     daily-convos series summed across markets.
 //   • Individual sub-account — same as before.
 //
-// Top: KPI row (convos this week / agents added this week / offers this week / contracts this month)
-// Mid: Closed deals + Revenue tiles
-// Bottom: 7-day convo trend + agent tier pie for the selection.
+// Period: "Current" reads the live pair. Any past week, month, or custom
+// range is totalled from history.json snapshots (utils/historyRange.js); the
+// tier pie and all-time count then show the last snapshot in the range.
+//
+// Row 1: convos + agents added · Row 2: opps opened, offers, contracts
+// Row 3: closed deals + revenue · then daily convo trend + agent tier pie.
 
 // Sum every metric-carrying field on the pair shape across a rep's markets so
 // the "Full rep" mode reads like a single virtual sub-account. Non-metric
@@ -123,11 +66,17 @@ function aggregateRep(repId) {
 export default function AdvancedView() {
   const firstPair = PAIRS[0] || { repId: REPS[0]?.id, marketId: REPS[0]?.markets[0] };
   const [selectedPair, setSelectedPair] = useState(`${firstPair.repId}__${firstPair.marketId}`);
-  // Period selector — Luke, Sept 14: "is there a way to see previous weeks
-  // numbers? so we can select a time period?". Historical periods read from
-  // history.json (appended nightly), keyed by end-of-period date.
+  // Period selector — Luke, Sept 14 asked for last week / last month; Sept 29
+  // for any week, any month, or a custom date range. Everything but "Current"
+  // is computed from history.json snapshots (see utils/historyRange.js).
   const [period, setPeriod] = useState('now');
-  const historyReady = historyDayCount() > 0;
+  const history = historyEntries();
+  const historyReady = history.length > 0;
+  const today = laToday();
+  const firstOnFile = history[0]?.date;
+  const { weeks, months } = periodOptions(history, today);
+  const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
+  const [customTo, setCustomTo] = useState(today);
 
   const [repId, marketId] = selectedPair.split('__');
   const isFullRep = marketId === 'ALL';
@@ -135,24 +84,53 @@ export default function AdvancedView() {
   const rep = REPS.find((r) => r.id === repId);
   const market = isFullRep ? null : MARKETS.find((m) => m.id === marketId);
 
-  // Resolve `pair` and a human-readable period label. Historical lookups
-  // fall through to the most recent snapshot at-or-before that date, so an
-  // office-TV that missed a nightly cron still resolves to something sane.
+  // `m` is what the tiles render, `t` the targets they're measured against.
+  // Current = live snapshot (weekly tiles this week, monthly tiles this
+  // month); any other period = totals for that date range.
+  let m = {
+    convos: currentPair.convosWeek || 0,
+    agentsAdded: currentPair.agentsAddedWeek || 0,
+    oppsOpened: currentPair.oppsOpenedWeek || 0,
+    offers: currentPair.offersWeek || 0,
+    contracts: currentPair.contractsMonth || 0,
+    dealsClosed: currentPair.dealsClosedMonth || 0,
+    revenue: currentPair.revenueMonth || 0,
+    abandoned: currentPair.abandoned || 0,
+    lost: currentPair.lost || 0,
+  };
+  let t = { oppsOpened: KPI_TARGETS.oppsOpenedPerWeek, offers: KPI_TARGETS.offersPerWeek, contracts: KPI_TARGETS.contractsPerMonth };
   let pair = currentPair;
-  let periodLabel = null;
-  let periodMissing = false;
-  if (period === 'lastWeek') {
-    const dateStr = lastWeekEndDateStr();
-    const entry = historyEntryOnOrBefore(dateStr);
-    const p = historyPair(entry, repId, marketId);
-    if (p) { pair = { ...p, daily: currentPair.daily }; periodLabel = `Snapshot · ${entry.date}`; }
-    else { periodMissing = true; periodLabel = `No snapshot on or before ${dateStr}`; }
-  } else if (period === 'lastMonth') {
-    const dateStr = lastMonthEndDateStr();
-    const entry = historyEntryOnOrBefore(dateStr);
-    const p = historyPair(entry, repId, marketId);
-    if (p) { pair = { ...p, daily: currentPair.daily }; periodLabel = `Snapshot · ${entry.date}`; }
-    else { periodMissing = true; periodLabel = `No snapshot on or before ${dateStr}`; }
+  let range = null;       // { from, to, kind } for anything but Current
+  let result = null;
+  if (period !== 'now') {
+    const preset = [...weeks, ...months].find((o) => o.value === period);
+    if (preset) range = { from: preset.from, to: preset.to, kind: preset.prefer };
+    else if (period === 'custom' && customFrom && customTo) {
+      const [from, to] = customFrom <= customTo ? [customFrom, customTo] : [customTo, customFrom];
+      range = { from, to, kind: 'custom' };
+    }
+    if (range) {
+      result = computeRange(history, repId, marketId, range.from, range.to, range.kind === 'month' ? 'month' : 'week');
+      m = result?.totals || Object.fromEntries(Object.keys(m).map((k) => [k, 0]));
+      t = periodTargets(range.kind, result?.daysInRange || 7, KPI_TARGETS);
+      pair = result ? { ...result.end, daily: result.daily } : { daily: [] };
+    }
+  }
+  const suffix = (live) => (range ? '' : ` · ${live}`);
+
+  // Coverage note under the Period dropdown — says which days the numbers
+  // come from and flags gaps so a partial range isn't mistaken for a full one.
+  let periodNote = null;
+  let periodWarn = false;
+  if (range && !result) {
+    periodNote = `No snapshots on file for ${rangeLabel(range.from, range.to)}.`;
+    periodWarn = true;
+  } else if (range) {
+    const gap = result.daysOnFile < result.daysInRange;
+    periodWarn = gap || range.from < firstOnFile;
+    periodNote = `${rangeLabel(range.from, range.to)} · ${result.daysOnFile} of ${result.daysInRange} days on file`;
+    if (range.from < firstOnFile) periodNote += ` · history starts ${shortDate(firstOnFile)}`;
+    else if (gap) periodNote += ' · missing days roll into the next day on file';
   }
 
   const tierData = TIERS.map((t) => ({
@@ -200,14 +178,28 @@ export default function AdvancedView() {
             className="w-full px-3 py-2.5 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50 disabled:opacity-60"
           >
             <option value="now">Current</option>
-            <option value="lastWeek">Last Week (snapshot)</option>
-            <option value="lastMonth">Last Month (snapshot)</option>
+            <option value="custom">Custom range…</option>
+            <optgroup label="Weeks">
+              {weeks.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </optgroup>
+            <optgroup label="Months">
+              {months.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </optgroup>
           </select>
+          {period === 'custom' && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <DateInput label="From" value={customFrom} min={firstOnFile} max={today} onChange={setCustomFrom} />
+              <DateInput label="To" value={customTo} min={firstOnFile} max={today} onChange={setCustomTo} />
+            </div>
+          )}
           {!historyReady && (
             <div className="text-[10px] text-zinc-500 mt-1.5">History empty — snapshots start appearing after the first nightly build.</div>
           )}
-          {historyReady && periodLabel && (
-            <div className={`text-[10px] mt-1.5 ${periodMissing ? 'text-orange-600' : 'text-zinc-500'}`}>{periodLabel}</div>
+          {historyReady && period === 'now' && (
+            <div className="text-[10px] text-zinc-500 mt-1.5">History on file from {shortDate(firstOnFile)}</div>
+          )}
+          {periodNote && (
+            <div className={`text-[10px] mt-1.5 ${periodWarn ? 'text-orange-600' : 'text-zinc-500'}`}>{periodNote}</div>
           )}
         </div>
       </div>
@@ -239,37 +231,37 @@ export default function AdvancedView() {
       {/* Row 1 — top of funnel: convos + agents added */}
       <div className="col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Stat
-          label="New Convos · Week"
-          value={`${formatNumber(pair.convosWeek || 0)}${pair.convosCapped ? '+' : ''}`}
+          label={`New Convos${suffix('Week')}`}
+          value={`${formatNumber(m.convos)}${!range && pair.convosCapped ? '+' : ''}`}
           accent="violet"
-          note={pair.convosCapped ? 'GHL caps at 100' : null}
+          note={!range && pair.convosCapped ? 'GHL caps at 100' : null}
         />
         <Stat
-          label="Agents Added · Week"
-          value={formatNumber(pair.agentsAddedWeek || 0)}
+          label={`Agents Added${suffix('Week')}`}
+          value={formatNumber(m.agentsAdded)}
           accent="amber"
         />
       </div>
 
       {/* Row 2 — pipeline: opps opened → offers → contracts (Luke, Sept 29) */}
       <div className="col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <KpiStat label="Opps Opened · Week" actual={pair.oppsOpenedWeek || 0} target={KPI_TARGETS.oppsOpenedPerWeek} />
-        <KpiStat label="Offers · Week" actual={pair.offersWeek || 0} target={KPI_TARGETS.offersPerWeek} />
-        <KpiStat label="Contracts · Month" actual={pair.contractsMonth || 0} target={KPI_TARGETS.contractsPerMonth} />
+        <KpiStat label={`Opps Opened${suffix('Week')}`} actual={m.oppsOpened} target={t.oppsOpened} />
+        <KpiStat label={`Offers${suffix('Week')}`} actual={m.offers} target={t.offers} />
+        <KpiStat label={`Contracts${suffix('Month')}`} actual={m.contracts} target={t.contracts} />
       </div>
 
       {/* Row 3 — Closed Deals + Revenue Generated */}
       <div className="col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-3">
         <BigTile
-          label="Closed Deals · Month"
-          value={formatNumber(pair.dealsClosedMonth || 0)}
+          label={`Closed Deals${suffix('Month')}`}
+          value={formatNumber(m.dealsClosed)}
           sublabel={`status: WON · target ${KPI_TARGETS.dealsClosedPerMonth}/mo`}
           accent="rose"
         />
         <BigTile
-          label="Revenue Generated · Month"
-          value={formatCompactCurrency(pair.revenueMonth || 0)}
-          sublabel={formatCurrency(pair.revenueMonth || 0)}
+          label={`Revenue Generated${suffix('Month')}`}
+          value={formatCompactCurrency(m.revenue)}
+          sublabel={formatCurrency(m.revenue)}
           accent="emerald"
         />
       </div>
@@ -279,10 +271,12 @@ export default function AdvancedView() {
         <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Activity</div>
-            <h3 className="text-base font-semibold text-zinc-900 truncate">7-Day Conversation Trend</h3>
+            <h3 className="text-base font-semibold text-zinc-900 truncate">{range ? 'New Conversations by Day' : '7-Day Conversation Trend'}</h3>
           </div>
           <span className="text-xs text-zinc-500 shrink-0">
-            {pair.convosToday || 0} today · {pair.convosWeek || 0}{pair.convosCapped ? '+' : ''} this week
+            {range
+              ? `${formatNumber(m.convos)} in ${rangeLabel(range.from, range.to)}`
+              : `${pair.convosToday || 0} today · ${pair.convosWeek || 0}${pair.convosCapped ? '+' : ''} this week`}
           </span>
         </div>
         <div className="h-56">
@@ -311,7 +305,9 @@ export default function AdvancedView() {
             <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Agents</div>
             <h3 className="text-base font-semibold text-zinc-900 truncate">Tier Breakdown</h3>
           </div>
-          <span className="text-xs text-zinc-500 shrink-0">{formatNumber(pair.agentsTotal || 0)} confirmed</span>
+          <span className="text-xs text-zinc-500 shrink-0">
+            {formatNumber(pair.agentsTotal || 0)} confirmed{result ? ` as of ${shortDate(result.lastOnFile)}` : ''}
+          </span>
         </div>
         <div className="flex items-center gap-3 h-56">
           <div className="flex-1 h-full">
@@ -340,10 +336,26 @@ export default function AdvancedView() {
 
       {/* Dead deals strip */}
       <div className="col-span-12 grid grid-cols-2 gap-3">
-        <DeadCard label="Abandoned · Month" value={pair.abandoned || 0} color="text-zinc-800" />
-        <DeadCard label="Lost · Month" value={pair.lost || 0} color="text-rose-600/80" />
+        <DeadCard label={`Abandoned${suffix('Month')}`} value={m.abandoned} color="text-zinc-800" />
+        <DeadCard label={`Lost${suffix('Month')}`} value={m.lost} color="text-rose-600/80" />
       </div>
     </div>
+  );
+}
+
+function DateInput({ label, value, min, max, onChange }) {
+  return (
+    <label className="block min-w-0">
+      <span className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">{label}</span>
+      <input
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-2 py-2 rounded-lg bg-white border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:border-blue-500/50"
+      />
+    </label>
   );
 }
 
