@@ -9,6 +9,7 @@ import { kpiStatus } from '../utils/format.js';
 // explicit monthly figure exists. Luke (May 11) wants both layers
 // visible per rep card.
 const REP_TARGETS = {
+  oppsOpenedPerWeek: KPI_TARGETS.oppsOpenedPerWeek,
   offersPerWeek: KPI_TARGETS.offersPerWeek,
   contractsPerWeek: KPI_TARGETS.contractsPerWeek,
   offersPerMonth: KPI_TARGETS.offersPerWeek * 4,
@@ -94,7 +95,7 @@ export default function OpportunitiesView() {
                   {/* WEEKLY */}
                   <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
                   <div className="space-y-1">
-                    <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={null} />
+                    <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={REP_TARGETS.oppsOpenedPerWeek} />
                     <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
                     <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
                   </div>

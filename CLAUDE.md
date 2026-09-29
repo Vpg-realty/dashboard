@@ -109,8 +109,9 @@ All in `src/data/config.js`. Per-rep targets in `KPI_TARGETS`;
 team totals in `TEAM_TARGETS` = per-rep × `REPS.length`, so adding a
 rep automatically raises the team goal.
 
-Current targets (Luke, Sept 23):
-- Offers: 10 / rep / week
+Current targets (Luke, Sept 23; opps + offers Sept 29):
+- Opps opened: 10 / rep / week
+- Offers: 5 / rep / week (monthly = 20 / rep, i.e. weekly × 4)
 - Contracts: 1 / rep / week, 4 / rep / month
 - Deals closed: 2 / rep / month
 - Revenue: $25k / rep / month
