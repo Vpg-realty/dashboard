@@ -136,7 +136,7 @@ export default function AdvancedView() {
   // with no recorded days shows "—"; a range straddling the cutoff counts
   // those metrics from Sept 14 only.
   const untracked = result ? Object.keys(result.untracked) : [];
-  const na = (k) => result?.untracked[k] === result?.daysOnFile;
+  const na = (k) => result != null && (result.untracked[k] || 0) === result.daysOnFile;
   const legacyNote = untracked.length
     ? `Opps, offers, contracts, abandoned & lost weren't recorded before ${shortDate(LEGACY_CUTOFF)}${untracked.every(na) ? '' : ` — counted from ${shortDate(LEGACY_CUTOFF)} on`}.`
     : null;
