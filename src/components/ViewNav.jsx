@@ -6,6 +6,7 @@ const LABELS = {
   opportunities: 'Opportunities',
   revenue: 'Revenue',
   master: 'Master',
+  pipeline: 'Pipeline',
   advanced: 'Advanced',
 };
 

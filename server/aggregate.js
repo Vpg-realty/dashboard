@@ -8,6 +8,7 @@
 //   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
 import { STAGE_ALIASES } from './config.js';
+import { extractDeals, resolveDealFieldIds, DEAL_FIELD_KEYS } from './deals.js';
 
 const startOfWeek = () => {
   const d = new Date();
@@ -70,7 +71,7 @@ const STAGE_RANK = {
 
 export function aggregatePair({
   repId, marketId,
-  opportunities, pipelines,
+  opportunities, pipelines, oppCustomFields = null,
   convosNewToday = 0, convosNewWeek = 0, convosAllTime = 0,
   dailyConversations = [],
   agentsTotal = 0, agentsAddedToday = 0, agentsAddedWeek = 0,
@@ -147,6 +148,20 @@ export function aggregatePair({
     if (o.status === 'lost' && statusChange >= moStart) lost++;
   }
 
+  // --- Pipeline tab: deals in Under Contract / DISPO / Assigned / Closed ---
+  const fieldIds = Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields) : {};
+  const deals = extractDeals({
+    opportunities,
+    stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
+    fieldIds,
+    moStart,
+  });
+  // Which custom fields couldn't be resolved for this sub-account, and why —
+  // surfaced on the Pipeline tab so a missing field reads as "not set up"
+  // rather than silently blank.
+  const dealFieldsMissing = Object.keys(DEAL_FIELD_KEYS).filter((k) => !fieldIds[k]);
+  const dealFieldsError = oppCustomFields?.error || null;
+
   // --- conversations: 7-day daily breakdown of NEW conversations ---------
   // Luke (May 4): "convos (only new convos / first outreach)".
   // dailyConversations was filtered server-side by dateAdded >= 7 days ago.
@@ -194,6 +209,10 @@ export function aggregatePair({
     lost,
     revenueWeek,
     revenueMonth,
+    // Pipeline tab (server/deals.js).
+    deals,
+    dealFieldsMissing,
+    dealFieldsError,
     // Stripped from data.json by stickyCounts.js before it reaches the browser.
     _oppRanks: oppRanks,
   };
@@ -224,6 +243,7 @@ export function emptyPair(repId, marketId) {
     lost: 0,
     revenueWeek: 0,
     revenueMonth: 0,
+    deals: [],
     _unconfigured: true,
   };
 }

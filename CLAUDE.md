@@ -128,6 +128,20 @@ Under `src/views/`:
   squeezes skinnier.
 - **Revenue** — revenue tiles + market split.
 - **Master** — high-level overview.
+- **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
+  Under Contract, DISPO Active, Assigned, Closed (only deals that
+  reached Closed this month; empties on the 1st). Abandoned/lost deals
+  are excluded. Cards: property address, market, rep, value, IP end and
+  COE dates. Date colours: day-of dark red, 1 day light red, 2 days
+  light yellow, 3 days light blue. Built by `server/deals.js` into
+  `pair.deals` on every deploy. Address / COE / IP end are opportunity
+  custom fields `{{opportunity.property_address}}`, `{{opportunity.coe}}`,
+  `{{opportunity.ip_end_date}}`, resolved per location via
+  `GET /locations/{id}/customFields?model=opportunity` — the PIT needs
+  the custom-fields read scope. If that call fails the deals still
+  show (address falls back to the opp name) and the tab footer names
+  the affected sub-accounts; `pair.dealFieldsError` has the reason.
+  Value is the standard `monetaryValue`.
 - **Advanced** — subaccount drill-down, 3 KPI rows (convos + agents ·
   opps opened, offers, contracts · closed + revenue). Period dropdown
   (Luke, Sept 29): Current, Custom range (From/To), every Mon–Sun week

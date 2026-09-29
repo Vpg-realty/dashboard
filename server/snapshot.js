@@ -8,6 +8,7 @@ import { SUBACCOUNTS } from './config.js';
 import {
   getOpportunities,
   getPipelines,
+  getOpportunityCustomFields,
   countConversationsCreated,
   listConversationsCreated,
   countContactsByAnyTag,
@@ -75,6 +76,7 @@ export async function buildSnapshot({ tokens }) {
         const [
           opportunities,
           pipelines,
+          oppCustomFields,
           convosNewToday,
           convosNewWeek,
           convosAllTime,
@@ -85,6 +87,10 @@ export async function buildSnapshot({ tokens }) {
         ] = await Promise.all([
           getOpportunities(locationId, token),
           getPipelines(locationId, token),
+          // Pipeline-tab fields (address / COE / IP end). A failure here
+          // (e.g. PIT missing the custom-fields scope) must not blank the
+          // whole sub-account — the deals just show without those fields.
+          getOpportunityCustomFields(locationId, token).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })),
           countConversationsCreated(locationId, token, todayStart),
           countConversationsCreated(locationId, token, wkStart),
           countConversationsCreated(locationId, token, null),
@@ -106,6 +112,7 @@ export async function buildSnapshot({ tokens }) {
           marketId,
           opportunities,
           pipelines,
+          oppCustomFields,
           convosNewToday,
           convosNewWeek,
           convosAllTime,

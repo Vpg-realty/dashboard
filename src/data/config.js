@@ -69,7 +69,8 @@ export const PIPELINE_STAGES = [
 ];
 
 // View cycle order + per-view duration (ms).
-export const CYCLE_VIEWS = ['conversations', 'agents', 'opportunities', 'revenue', 'master'];
+// Pipeline added Sept 29 (Luke) at the end so the existing order is unchanged.
+export const CYCLE_VIEWS = ['conversations', 'agents', 'opportunities', 'revenue', 'master', 'pipeline'];
 export const CYCLE_INTERVAL_MS = 10000;
 
 // Date-range presets for the Advanced view.
