@@ -60,6 +60,20 @@ const METRICS = {
   lost:        { month: 'lost' },
 };
 
+// Snapshots written before Sept 14, 2026 (PR #39) only stored agentsTotal,
+// convosAllTime, dealsClosedMonth, revenueMonth and agentTiers. For those days
+// closed deals and revenue come from the month-to-date fields, new convos and
+// agents added from day-over-day growth of the all-time totals (`total`
+// scope: no reset), and the rest are reported as untracked rather than 0.
+export const LEGACY_CUTOFF = '2026-09-14';
+const LEGACY_METRICS = {
+  convos:      { total: 'convosAllTime' },
+  agentsAdded: { total: 'agentsTotal' },
+  dealsClosed: { month: 'dealsClosedMonth' },
+  revenue:     { month: 'revenueMonth' },
+};
+const isLegacy = (entry) => !entry.v && !entry.pairs.some((p) => 'convosWeek' in p);
+
 // Extract the (rep × market) values from a history entry, or sum every market
 // for the rep when marketId is 'ALL'. history.json stores pairs as an ARRAY of
 // {repId, marketId, ...} per day (see scripts/append-history.mjs), with zero
@@ -85,13 +99,15 @@ export function historyPair(entry, repId, marketId) {
 // (so it matches the month-to-date total exactly), 'week' otherwise.
 //
 // Returns null when no snapshot in the range has this rep/market. Otherwise
-// { totals, daily, end, daysOnFile, daysInRange, firstOnFile, lastOnFile }:
+// { totals, untracked, daily, end, daysOnFile, daysInRange, firstOnFile, lastOnFile }:
 //   totals — one number per METRICS key
+//   untracked — metric → number of days in range that didn't record it
 //   daily  — [{ label, count }] new conversations per snapshot day (chart)
 //   end    — raw values from the last snapshot in range (tier mix, all-time)
 export function computeRange(entries, repId, marketId, from, to, prefer = 'week') {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   const totals = Object.fromEntries(Object.keys(METRICS).map((k) => [k, 0]));
+  const untracked = {};
   const daily = [];
   let prev = null;
   let end = null;
@@ -106,12 +122,24 @@ export function computeRange(entries, repId, marketId, from, to, prefer = 'week'
       daysOnFile++;
       firstOnFile ??= entry.date;
       end = { date: entry.date, vals };
-      for (const [metric, fields] of Object.entries(METRICS)) {
+      const legacy = isLegacy(entry);
+      for (const metric of Object.keys(METRICS)) {
+        const fields = legacy ? LEGACY_METRICS[metric] : METRICS[metric];
+        if (!fields) {
+          untracked[metric] = (untracked[metric] || 0) + 1;
+          continue;
+        }
         const scope = fields[prefer] ? prefer : Object.keys(fields)[0];
         const field = fields[scope];
-        const boundary = scope === 'week' ? weekStart : monthStart;
-        const sameScope = prev && boundary(prev.date) === boundary(entry.date);
-        const inc = (vals[field] || 0) - (sameScope ? prev.vals[field] || 0 : 0);
+        let inc;
+        if (scope === 'total') {
+          // Growth since the previous snapshot; the very first one has no baseline.
+          inc = prev ? (vals[field] || 0) - (prev.vals[field] || 0) : 0;
+        } else {
+          const boundary = scope === 'week' ? weekStart : monthStart;
+          const sameScope = prev && boundary(prev.date) === boundary(entry.date);
+          inc = (vals[field] || 0) - (sameScope ? prev.vals[field] || 0 : 0);
+        }
         totals[metric] += inc;
         if (metric === 'convos') daily.push({ label: shortDate(entry.date), count: inc });
       }
@@ -122,6 +150,7 @@ export function computeRange(entries, repId, marketId, from, to, prefer = 'week'
   if (!end) return null;
   return {
     totals,
+    untracked,
     daily,
     end: end.vals,
     daysOnFile,
@@ -135,7 +164,9 @@ export function computeRange(entries, repId, marketId, from, to, prefer = 'week'
 // calendar month that has at least one snapshot, newest first. The in-progress
 // week/month are included ("so far") and end at today.
 export function periodOptions(entries, today = laToday()) {
-  const dates = [...new Set(entries.map((e) => e.date))].sort().reverse();
+  // Ignore anything dated after today (e.g. a snapshot keyed by UTC date
+  // before the switch to Pacific dates).
+  const dates = [...new Set(entries.map((e) => e.date))].filter((d) => d <= today).sort().reverse();
   const weeks = [];
   const months = [];
   for (const d of dates) {

@@ -138,6 +138,11 @@ Under `src/views/`:
   equal to the end-of-period total; a missing day's activity lands on
   the next day on file (the UI shows "N of M days on file").
   Custom-range targets scale the weekly targets by range length.
+  History goes back to late June 2026, but snapshots before Sept 14
+  (no `v`, no `convosWeek`) only stored closed deals, revenue,
+  agentsTotal and convosAllTime: those days show opps / offers /
+  contracts / aban / lost as "—", and derive new convos + agents added
+  from day-over-day growth of the all-time totals.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 

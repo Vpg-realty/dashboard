@@ -66,6 +66,10 @@ const snapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
 // the storage half of that; the UI half comes in a follow-up now that data
 // is accruing.
 const todayEntry = {
+  // Format version. v2 = every metric below, zero fields omitted. Entries
+  // with no `v` and no convosWeek predate Sept 14 and hold only a handful of
+  // fields (see LEGACY_METRICS in src/utils/historyRange.js).
+  v: 2,
   date: today,
   generatedAt: snapshot.generatedAt,
   pairs: snapshot.pairs.map((p) => ({

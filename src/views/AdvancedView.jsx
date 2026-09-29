@@ -6,7 +6,7 @@ import {
 import { REPS, MARKETS, KPI_TARGETS, TIERS } from '../data/config.js';
 import { PAIRS, getPair, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
-import { computeRange, periodOptions, periodTargets, rangeLabel, shortDate, laToday, addDays } from '../utils/historyRange.js';
+import { computeRange, periodOptions, periodTargets, rangeLabel, shortDate, laToday, addDays, LEGACY_CUTOFF } from '../utils/historyRange.js';
 
 // Per-subaccount drill-down.
 //
@@ -132,6 +132,14 @@ export default function AdvancedView() {
     if (range.from < firstOnFile) periodNote += ` · history starts ${shortDate(firstOnFile)}`;
     else if (gap) periodNote += ' · missing days roll into the next day on file';
   }
+  // Days before Sept 14 didn't record opps/offers/contracts/aban/lost. A tile
+  // with no recorded days shows "—"; a range straddling the cutoff counts
+  // those metrics from Sept 14 only.
+  const untracked = result ? Object.keys(result.untracked) : [];
+  const na = (k) => result?.untracked[k] === result?.daysOnFile;
+  const legacyNote = untracked.length
+    ? `Opps, offers, contracts, abandoned & lost weren't recorded before ${shortDate(LEGACY_CUTOFF)}${untracked.every(na) ? '' : ` — counted from ${shortDate(LEGACY_CUTOFF)} on`}.`
+    : null;
 
   const tierData = TIERS.map((t) => ({
     tier: t.id,
@@ -201,6 +209,7 @@ export default function AdvancedView() {
           {periodNote && (
             <div className={`text-[10px] mt-1.5 ${periodWarn ? 'text-orange-600' : 'text-zinc-500'}`}>{periodNote}</div>
           )}
+          {legacyNote && <div className="text-[10px] mt-1 text-orange-600">{legacyNote}</div>}
         </div>
       </div>
 
@@ -245,9 +254,9 @@ export default function AdvancedView() {
 
       {/* Row 2 — pipeline: opps opened → offers → contracts (Luke, Sept 29) */}
       <div className="col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <KpiStat label={`Opps Opened${suffix('Week')}`} actual={m.oppsOpened} target={t.oppsOpened} />
-        <KpiStat label={`Offers${suffix('Week')}`} actual={m.offers} target={t.offers} />
-        <KpiStat label={`Contracts${suffix('Month')}`} actual={m.contracts} target={t.contracts} />
+        <KpiStat label={`Opps Opened${suffix('Week')}`} actual={m.oppsOpened} target={t.oppsOpened} missing={na('oppsOpened')} />
+        <KpiStat label={`Offers${suffix('Week')}`} actual={m.offers} target={t.offers} missing={na('offers')} />
+        <KpiStat label={`Contracts${suffix('Month')}`} actual={m.contracts} target={t.contracts} missing={na('contracts')} />
       </div>
 
       {/* Row 3 — Closed Deals + Revenue Generated */}
@@ -336,8 +345,8 @@ export default function AdvancedView() {
 
       {/* Dead deals strip */}
       <div className="col-span-12 grid grid-cols-2 gap-3">
-        <DeadCard label={`Abandoned${suffix('Month')}`} value={m.abandoned} color="text-zinc-800" />
-        <DeadCard label={`Lost${suffix('Month')}`} value={m.lost} color="text-rose-600/80" />
+        <DeadCard label={`Abandoned${suffix('Month')}`} value={na('abandoned') ? '—' : m.abandoned} color="text-zinc-800" />
+        <DeadCard label={`Lost${suffix('Month')}`} value={na('lost') ? '—' : m.lost} color="text-rose-600/80" />
       </div>
     </div>
   );
@@ -376,7 +385,17 @@ function Stat({ label, value, accent, note }) {
   );
 }
 
-function KpiStat({ label, actual, target }) {
+function KpiStat({ label, actual, target, missing }) {
+  if (missing) {
+    // Not recorded for this period (pre-Sept-14 history) — no status, no bar.
+    return (
+      <div className="rounded-xl border border-zinc-300 bg-zinc-50 p-4 min-w-0">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-600 mb-1.5 truncate">{label}</div>
+        <div className="text-3xl font-bold tabular-nums text-zinc-400 mb-2">—</div>
+        <div className="text-[10px] text-zinc-500 truncate">not recorded for this period</div>
+      </div>
+    );
+  }
   const s = kpiStatus(actual, target);
   const pctVal = target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
   return (
