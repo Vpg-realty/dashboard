@@ -66,6 +66,15 @@ export async function getPipelines(locationId, token) {
   return data?.pipelines || [];
 }
 
+// Opportunity custom field definitions (id ↔ fieldKey such as
+// "opportunity.coe"). Needs the PIT's locations/customFields.readonly scope.
+export async function getOpportunityCustomFields(locationId, token) {
+  const data = await ghlFetch(`/locations/${locationId}/customFields`, token, {
+    params: { model: 'opportunity' },
+  });
+  return data?.customFields || [];
+}
+
 // --- conversations -------------------------------------------------------
 //
 // /conversations/search supports (verified May 7 against the official spec):

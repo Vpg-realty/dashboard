@@ -8,6 +8,7 @@ import OpportunitiesView from './views/OpportunitiesView.jsx';
 import RevenueView from './views/RevenueView.jsx';
 import MasterView from './views/MasterView.jsx';
 import AdvancedView from './views/AdvancedView.jsx';
+import PipelineView from './views/PipelineView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
 import { useDataUpdates, useDataStatus } from './data/source.js';
 
@@ -17,6 +18,7 @@ const VIEWS = {
   opportunities: { label: 'Opportunities · KPI tracking',   component: OpportunitiesView },
   revenue:       { label: 'Revenue · this month',           component: RevenueView },
   master:        { label: 'Master · all metrics',           component: MasterView },
+  pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
   advanced:      { label: 'Advanced · per-subaccount drill-down', component: AdvancedView },
 };
 
