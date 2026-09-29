@@ -236,8 +236,8 @@ export default function AdvancedView() {
         </div>
       </div>
 
-      {/* Row 1 — current-period KPIs (Luke May 4: convos / agents added / offers / contracts) */}
-      <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Row 1 — top of funnel: convos + agents added */}
+      <div className="col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Stat
           label="New Convos · Week"
           value={`${formatNumber(pair.convosWeek || 0)}${pair.convosCapped ? '+' : ''}`}
@@ -249,11 +249,16 @@ export default function AdvancedView() {
           value={formatNumber(pair.agentsAddedWeek || 0)}
           accent="amber"
         />
+      </div>
+
+      {/* Row 2 — pipeline: opps opened → offers → contracts (Luke, Sept 29) */}
+      <div className="col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <KpiStat label="Opps Opened · Week" actual={pair.oppsOpenedWeek || 0} target={KPI_TARGETS.oppsOpenedPerWeek} />
         <KpiStat label="Offers · Week" actual={pair.offersWeek || 0} target={KPI_TARGETS.offersPerWeek} />
         <KpiStat label="Contracts · Month" actual={pair.contractsMonth || 0} target={KPI_TARGETS.contractsPerMonth} />
       </div>
 
-      {/* Row 2 — Closed Deals + Revenue Generated */}
+      {/* Row 3 — Closed Deals + Revenue Generated */}
       <div className="col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-3">
         <BigTile
           label="Closed Deals · Month"
