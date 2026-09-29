@@ -152,7 +152,7 @@ export default function MasterView() {
           <div className="flex-1 flex flex-col gap-1 min-h-0">
             <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-500/80 font-bold">Weekly</div>
             <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
-              <MiniMetric label="Opps Opened" actual={oppsOpenedWeek} target={null} />
+              <MiniMetric label="Opps Opened" actual={oppsOpenedWeek} target={TEAM_TARGETS.oppsOpenedPerWeek} />
               <MiniMetric label="Offers" actual={head.offersWeek} target={TEAM_TARGETS.offersPerWeek} />
               <MiniMetric label="Contracts" actual={contractsWeek} target={Math.max(1, Math.round(TEAM_TARGETS.contractsPerMonth / 4))} />
             </div>
