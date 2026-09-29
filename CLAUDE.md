@@ -33,7 +33,8 @@ GHL API ──> server/snapshot.js + server/aggregate.js
            ▼
         scripts/append-history.mjs
            (reads deployed history.json, appends today's
-            pair totals, writes public/history.json)
+            pair totals keyed by Pacific date, keeps
+            400 days, writes public/history.json)
            │
            ▼
         Vite build ──> dist/  ──> GitHub Pages
@@ -42,7 +43,7 @@ GHL API ──> server/snapshot.js + server/aggregate.js
 The site has NO backend. Every state file it needs
 (`data.json`, `history.json`, `opp-state.json`) is fetched from the
 previous Pages deploy, mutated, and re-published. That's how the
-sticky counts and 90-day history survive without a database.
+sticky counts and ~13-month (400-day) history survive without a database.
 
 ## Refresh cadence
 
@@ -127,9 +128,16 @@ Under `src/views/`:
   squeezes skinnier.
 - **Revenue** — revenue tiles + market split.
 - **Master** — high-level overview.
-- **Advanced** — subaccount drill-down. Has a Period dropdown
-  (Current / Last Week / Last Month) that reads from `history.json`
-  snapshots.
+- **Advanced** — subaccount drill-down, 3 KPI rows (convos + agents ·
+  opps opened, offers, contracts · closed + revenue). Period dropdown
+  (Luke, Sept 29): Current, Custom range (From/To), every Mon–Sun week
+  and every calendar month on file. Past periods are totalled by
+  `src/utils/historyRange.js` from `history.json`: each day's activity =
+  its week/month-to-date value minus the previous snapshot in the same
+  week/month, summed over the range. Full weeks/months come out exactly
+  equal to the end-of-period total; a missing day's activity lands on
+  the next day on file (the UI shows "N of M days on file").
+  Custom-range targets scale the weekly targets by range length.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 
@@ -172,8 +180,8 @@ loader falls through to null on a real run (not just first-of-week),
 sticky counts reseed and can jump up. `build-snapshot.mjs`
 `loadPrevOppState()` logs a warning line when this happens.
 
-**History dropdown says "No snapshot on or before X"**
-`history.json` is missing that day. First cause: append-history
+**Advanced period shows "No snapshots on file" / few days on file**
+`history.json` is missing those days. First cause: append-history
 aborted (deployed history load failed 3 times). Second cause: it's
 too early in the deploy chain — history only reaches back to the day
 `append-history.mjs` was first wired in.

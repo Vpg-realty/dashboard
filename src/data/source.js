@@ -33,6 +33,7 @@ export const historyDeltaTotal = (...a) => (src.historyDeltaTotal ? src.historyD
 export const historyDeltaTierSum = (...a) => (src.historyDeltaTierSum ? src.historyDeltaTierSum(...a) : null);
 export const historyDeltaTierSumTotal = (...a) => (src.historyDeltaTierSumTotal ? src.historyDeltaTierSumTotal(...a) : null);
 export const historyDayCount = () => (src.historyDayCount ? src.historyDayCount() : 0);
+export const historyEntries = () => (src.historyEntries ? src.historyEntries() : []);
 export const historyDaysBack = () => (src.historyDaysBack ? src.historyDaysBack() : 0);
 // Lookup a specific day's snapshot entry — used by AdvancedView's period
 // dropdown ("last week's numbers" = the snapshot from last Sunday, "last

@@ -101,7 +101,9 @@ async function fetchHistory() {
     const d = await r.json();
     if (Array.isArray(d?.entries)) {
       HISTORY = d.entries;
-      try { localStorage.setItem(HISTORY_LS_KEY, JSON.stringify(HISTORY)); } catch {}
+      // Offline fallback only — cache the most recent 120 days so a year of
+      // history can't blow the ~5 MB localStorage quota.
+      try { localStorage.setItem(HISTORY_LS_KEY, JSON.stringify(HISTORY.slice(-120))); } catch { /* quota / private mode — ignore */ }
     }
   } catch { /* fall back to whatever's in localStorage */ }
 }
@@ -311,7 +313,8 @@ export const sliceHistory = (pair, days) => {
 // indexed by day. Used to compute true period deltas (e.g. how many agents
 // became confirmed in the past 7 days).
 
-const today = () => new Date().toISOString().slice(0, 10);
+// history.json is keyed by Pacific-time date (scripts/append-history.mjs).
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
 
 function historyEntryNDaysAgo(daysAgo) {
   if (!HISTORY.length) return null;
@@ -339,6 +342,10 @@ function historyPairValue(entry, repId, marketId, field) {
 // Number of distinct days we have on file (used by views to decide whether
 // to show "added this week" delta or fall back to "lifetime total").
 export const historyDayCount = () => HISTORY.length;
+
+// Every daily snapshot on file (oldest first). The AdvancedView date selector
+// derives its week/month list and custom-range totals from these.
+export const historyEntries = () => HISTORY;
 
 // Look up the snapshot entry for a specific date (YYYY-MM-DD). If none exists
 // for that date, fall back to the closest one BEFORE it (older days). Returns
