@@ -18,7 +18,7 @@ const REP_TARGETS = {
 };
 
 // Layout: two full-width rows, fits one TV viewport.
-//   1. Team KPIs (3 cards)
+//   1. Team KPIs (4 cards: opps opened, offers, contracts, closed)
 //   2. Per-rep breakdown (one card per rep in a single horizontal row, each
 //      card split into Weekly + Monthly layers — Luke May 11)
 //   By Market row removed Sept 14 (Luke: "give more room to the individual
@@ -27,14 +27,22 @@ export default function OpportunitiesView() {
   const head = headline();
   const totalAbandoned = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
   const totalLost = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.lost ?? 0)).reduce((a, b) => a + b, 0);
+  const totalOppsOpened = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.oppsOpenedWeek ?? 0)).reduce((a, b) => a + b, 0);
 
   return (
     // Flex column: the KPI row is content-sized, the By Rep panel takes ALL
     // remaining vertical space so the cards are as tall and readable as
     // possible now that By Market is gone (Luke, Sept 14).
     <div className="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
-      {/* Row 1 — team KPIs against locked targets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+      {/* Row 1 — team KPIs against locked targets, in funnel order. Opps
+          Opened added Oct 6 (Luke). */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+        <KpiCard
+          label="Opps Opened (week)"
+          actual={totalOppsOpened}
+          target={TEAM_TARGETS.oppsOpenedPerWeek}
+          sublabel={`${KPI_TARGETS.oppsOpenedPerWeek}/wk per rep × ${REPS.length} reps`}
+        />
         <KpiCard
           label="Offers Submitted (week)"
           actual={head.offersWeek}
