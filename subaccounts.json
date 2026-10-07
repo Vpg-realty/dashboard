@@ -75,6 +75,11 @@
       "id": "SC",
       "name": "South Carolina",
       "color": "#eab308"
+    },
+    {
+      "id": "CO",
+      "name": "Colorado",
+      "color": "#8b5cf6"
     }
   ],
   "reps": [
@@ -264,6 +269,11 @@
       "repId": "danni_brown",
       "marketId": "AL",
       "locationId": "K6Ll2Kcs2sWCSLfC1ZFk"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "CO",
+      "locationId": "8jwEShfAHZ8hibiC4n4W"
     }
   ]
 }
