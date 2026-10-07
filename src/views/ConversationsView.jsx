@@ -138,7 +138,12 @@ export default function ConversationsView() {
         </div>
       </Panel>
 
-      <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+      {/* Never more than two rows of state cards on the TV: columns = half
+          the state count, so cards narrow as states are added (Luke, Oct 7). */}
+      <div
+        className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-(--state-cols) gap-2"
+        style={{ '--state-cols': `repeat(${Math.ceil(byMarket.length / 2)}, minmax(0, 1fr))` }}
+      >
         {byMarket.map((m) => (
           <div key={m.market} className="rounded-xl border border-zinc-300/80 bg-white p-3 flex items-center gap-3 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATE_DOT }} />

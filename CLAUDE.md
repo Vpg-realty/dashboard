@@ -138,10 +138,13 @@ Current targets (Luke, Sept 23; opps + offers Sept 29):
 Under `src/views/`:
 - **Conversations** — new-outreach counts + 7-day trend. State cards
   at the bottom are sorted by today's outreach, busiest first, so the
-  order shifts through the day (Luke, Oct 7).
-- **Agents** — total confirmed + tier breakdown. State cards are sorted
-  by the total on each card (T1–T4), largest first, filling rows left
-  to right (Luke, Oct 7).
+  order shifts through the day (Luke, Oct 7). Never more than two rows
+  of state cards: columns = ceil(states / 2) at TV width.
+- **Agents** — Active Agent Count + tier breakdown. Agents by Tier is
+  ordered bars (T1→T4, count + share), Added This Week is the shared
+  `RepStackBars` (one bar per rep, state segments). State cards are
+  sorted by the total on each card (T1–T4), largest first, and capped
+  at two rows like Conversations (Luke, Oct 7).
 - **Opportunities** — team KPI row + per-rep cards (weekly + monthly
   targets, progress bars, Aban/Lost pinned to card bottom). By Rep
   grid auto-fits: wraps to more rows as reps are added, never
