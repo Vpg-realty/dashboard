@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import Panel from '../components/Panel.jsx';
 import RepStackBars from '../components/RepStackBars.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
@@ -45,19 +46,22 @@ export default function AgentsView() {
       {/* Ordered bars instead of a pie (Luke, Oct 7): tiers read top to
           bottom T1 → T4, with count and share beside each bar. */}
       <Panel className="col-span-12 lg:col-span-5 min-h-0" title="Agents by Tier" subtitle="all markets" accent="Distribution">
-        <div className="h-full flex flex-col justify-around gap-2 min-h-0">
+        {/* One grid for all four rows so the count and % columns size to the
+            widest value (auto) and line up across tiers — a fixed-width
+            count column let "1,072" spill into the percentage (Oct 7). */}
+        <div className="h-full grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_auto_auto] content-around items-center gap-x-3 gap-y-2 min-h-0">
           {tiers.map((t) => (
-            <div key={t.tier} className="grid grid-cols-[9.5rem_1fr_4rem_2.5rem] items-center gap-3 min-w-0">
+            <Fragment key={t.tier}>
               <span className="flex items-center gap-2 text-sm text-zinc-800 min-w-0">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: t.color }} />
                 <span className="truncate">{t.label}</span>
               </span>
-              <div className="h-8 rounded-md bg-zinc-100 overflow-hidden">
+              <div className="h-8 rounded-md bg-zinc-100 overflow-hidden min-w-0">
                 <div className="h-full rounded-md" style={{ width: `${(t.value / tierMax) * 100}%`, background: t.color }} />
               </div>
-              <span className="text-2xl font-bold tabular-nums text-zinc-900 text-right">{formatNumber(t.value)}</span>
-              <span className="text-xs text-zinc-500 tabular-nums">{tierTotal > 0 ? Math.round((t.value / tierTotal) * 100) : 0}%</span>
-            </div>
+              <span className="text-2xl font-bold tabular-nums text-zinc-900 text-right whitespace-nowrap">{formatNumber(t.value)}</span>
+              <span className="text-xs text-zinc-500 tabular-nums text-right whitespace-nowrap">{tierTotal > 0 ? Math.round((t.value / tierTotal) * 100) : 0}%</span>
+            </Fragment>
           ))}
         </div>
       </Panel>
