@@ -1,11 +1,12 @@
 import { Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized, LabelList } from 'recharts';
-import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS, TIERS } from '../data/config.js';
+import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
 import { segmentFill } from '../utils/marketShade.js';
 import RepStackBars from '../components/RepStackBars.jsx';
+import { laToday } from '../utils/historyRange.js';
 
 // Active tiers — Luke (May 11): the active agent count excludes Tier 4 (DNC).
 const ACTIVE_TIERS = [1, 2, 3];
@@ -14,14 +15,12 @@ const ACTIVE_TIERS = [1, 2, 3];
 //  - All quadrants: big number lives in the top-right corner.
 //  - Conversations: ranked horizontal bars, one per rep, state segments.
 //  - Active Agent Count: vertical stacked bars (by rep × market).
-//  - Opportunities: matches Opps page — weekly + monthly layers.
-//  - Revenue: $100k progress chart (yellow until goal, then green) +
-//    per-rep $ list on the left.
+//  - Opportunities: monthly team funnel with weekly chips (Luke, Oct 7).
+//  - Revenue: goal bar made of each rep's contribution, pace-for-today
+//    marker, to-go / days-left / needed-per-day, ranked rep list (Oct 7).
 export default function MasterView() {
   const head = headline();
 
-  const offerStatus = kpiStatus(head.offersWeek, TEAM_TARGETS.offersPerWeek);
-  const contractStatus = kpiStatus(head.contractsMonth, TEAM_TARGETS.contractsPerMonth);
   const closedStatus = kpiStatus(head.dealsClosedMonth, TEAM_TARGETS.dealsClosedPerMonth);
 
   // Revenue goes yellow the whole time, then green when we hit the $100k goal.
@@ -127,83 +126,39 @@ export default function MasterView() {
         </div>
       </Quadrant>
 
-      {/* Opportunities — Luke (May 12): stack weekly on top, monthly on bottom
-          so the tiles fill the quadrant left-to-right instead of cramming
-          into two narrow columns. */}
+      {/* Opportunities — monthly funnel (Luke, Oct 7: "add some flare").
+          Opps Opened → Offers → Contracts → Closed, each band filled toward
+          its team target for the month, with the week's number on a chip
+          where a weekly target exists and the stage-to-stage conversion
+          between bands. Replaced a 2×3 grid of number tiles. */}
       <Quadrant
         title="Opportunities"
-        subtitle="weekly + monthly · team-wide"
+        subtitle="this month · team funnel · chips = this week"
         big={`${head.dealsClosedMonth}/${TEAM_TARGETS.dealsClosedPerMonth}`}
         bigColor={closedStatus.color}
         bigSub={`closed / month · ${closedStatus.label.toLowerCase()}`}
       >
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
-          {/* Weekly row */}
-          <div className="flex-1 flex flex-col gap-1 min-h-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-500/80 font-bold">Weekly</div>
-            <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
-              <MiniMetric label="Opps Opened" actual={oppsOpenedWeek} target={TEAM_TARGETS.oppsOpenedPerWeek} />
-              <MiniMetric label="Offers" actual={head.offersWeek} target={TEAM_TARGETS.offersPerWeek} />
-              <MiniMetric label="Contracts" actual={contractsWeek} target={Math.max(1, Math.round(TEAM_TARGETS.contractsPerMonth / 4))} />
-            </div>
-          </div>
-          {/* Monthly row */}
-          <div className="flex-1 flex flex-col gap-1 min-h-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-blue-600/80 font-bold">Monthly</div>
-            <div className="flex-1 grid grid-cols-3 gap-2 min-h-0">
-              <MiniMetric label="Offers" actual={offersMonth} target={TEAM_TARGETS.offersPerWeek * 4} />
-              <MiniMetric label="Contracts" actual={head.contractsMonth} target={TEAM_TARGETS.contractsPerMonth} />
-              <MiniMetric label="Closed" actual={head.dealsClosedMonth} target={TEAM_TARGETS.dealsClosedPerMonth} />
-            </div>
-          </div>
-        </div>
+        <Funnel
+          stages={[
+            { label: 'Opps Opened', month: teamSum('oppsOpenedMonth'), monthTarget: TEAM_TARGETS.oppsOpenedPerWeek * 4, week: oppsOpenedWeek, weekTarget: TEAM_TARGETS.oppsOpenedPerWeek },
+            { label: 'Offers', month: offersMonth, monthTarget: TEAM_TARGETS.offersPerWeek * 4, week: head.offersWeek, weekTarget: TEAM_TARGETS.offersPerWeek },
+            { label: 'Contracts', month: head.contractsMonth, monthTarget: TEAM_TARGETS.contractsPerMonth, week: contractsWeek, weekTarget: KPI_TARGETS.contractsPerWeek * REPS.length },
+            { label: 'Closed', month: head.dealsClosedMonth, monthTarget: TEAM_TARGETS.dealsClosedPerMonth, noConversion: true },
+          ]}
+        />
       </Quadrant>
 
-      {/* Revenue — Luke (May 12): per-rep totals moved into a horizontal row
-          at the bottom so the $100k progress bar can take the full width on
-          top and breathe. */}
+      {/* Revenue — goal bar built from each rep's contribution in their
+          colour, a marker where the team should be by today to hit the goal,
+          and what's left to do (Luke, Oct 7: "make it more exciting"). */}
       <Quadrant
         title="Revenue"
-        subtitle={`this month · target ${formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)}`}
+        subtitle={`this month · goal ${formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)}`}
         big={formatCompactCurrency(head.revenueMonth)}
         bigColor={revColor}
-        bigSub={`${head.dealsClosedMonth} closed · ${revHit ? 'goal hit' : 'in progress'}`}
+        bigSub={`${head.dealsClosedMonth} closed · ${revHit ? 'goal hit' : `${Math.round(revPct)}% of goal`}`}
       >
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
-          {/* Full-width $100k progress bar, centered vertically in its space */}
-          <div className="flex-1 flex flex-col justify-center min-h-0">
-            <div className="relative w-full bg-zinc-100/80 border border-zinc-200 rounded overflow-hidden h-12 lg:h-14">
-              <div
-                className="absolute inset-y-0 left-0 transition-all duration-700"
-                style={{ width: `${revPct}%`, background: revColor, opacity: 0.85 }}
-              />
-              <div className="relative h-full flex items-center justify-end px-3">
-                <span className="text-xs uppercase tracking-widest font-bold text-zinc-900/90 tabular-nums">
-                  {formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)} goal
-                </span>
-              </div>
-            </div>
-            <div className="text-center text-[10px] text-zinc-500 mt-1 tabular-nums">
-              {Math.round(revPct)}% of ${TEAM_TARGETS.revenuePerMonth.toLocaleString()}
-            </div>
-          </div>
-          {/* Per-rep $ row at the bottom — columns = rep count so it stays one row. */}
-          <div
-            className="grid gap-2 shrink-0 pt-2 border-t border-zinc-300/40"
-            style={{ gridTemplateColumns: `repeat(${perRep.length}, minmax(0, 1fr))` }}
-          >
-            {perRep.map((rep) => (
-              <div key={rep.id} className="flex flex-col items-center text-center min-w-0">
-                <span className="text-[10px] uppercase tracking-wider truncate w-full" style={{ color: rep.color }}>
-                  {rep.name.split(' ')[0]}
-                </span>
-                <span className="text-base lg:text-lg font-bold tabular-nums text-zinc-900">
-                  {formatCompactCurrency(rep.revenueMonth)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RevenueGoal perRep={perRep} total={head.revenueMonth} goal={TEAM_TARGETS.revenuePerMonth} />
       </Quadrant>
     </div>
   );
@@ -230,24 +185,149 @@ function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
   );
 }
 
-// Luke (June): the big count + bar are the point of this quadrant — make them
-// large and centered in each tile so the guys can read them from across the
-// office, not tiny corner numbers.
-function MiniMetric({ label, actual, target }) {
-  const s = target == null ? null : kpiStatus(actual, target);
-  const percent = target && target > 0 ? Math.min(100, (actual / target) * 100) : 0;
+// Monthly team funnel: four bands narrowing top to bottom. Each band's
+// darker fill is progress toward the month's team target (full + green at
+// target); a chip on the right shows the week against its weekly target.
+// Between bands: what share of the stage above made it to this one.
+const FUNNEL_SHADES = ['#2a78d6', '#2466b8', '#1d559a', '#1baf7a'];
+
+function Funnel({ stages }) {
   return (
-    <div className="rounded bg-white/80 border border-zinc-200 px-2 py-2 flex flex-col items-center justify-center text-center min-w-0">
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500 truncate w-full">{label}</div>
-      <div className={`font-bold tabular-nums leading-none my-1 text-3xl xl:text-4xl ${s ? s.text : 'text-zinc-900'}`}>
-        {actual}
-        {target != null && <span className="text-zinc-400 text-lg xl:text-xl"> / {target}</span>}
+    <div className="flex-1 min-h-0 flex flex-col justify-around items-center gap-1">
+      {stages.map((st, i) => {
+        const pct = st.monthTarget > 0 ? Math.min(100, (st.month / st.monthTarget) * 100) : 0;
+        const hit = st.month >= st.monthTarget;
+        const color = FUNNEL_SHADES[i];
+        const prev = stages[i - 1];
+        // Closed deals mostly come from earlier months' contracts, so no
+        // conversion % into Closed — just the arrow.
+        const conv = prev && prev.month > 0 && !st.noConversion ? Math.round((st.month / prev.month) * 100) : null;
+        const weekHit = st.weekTarget != null && st.week >= st.weekTarget;
+        return (
+          <div key={st.label} className="w-full flex flex-col items-center min-h-0">
+            {i > 0 && (
+              <div className="text-[11px] text-zinc-500 tabular-nums leading-none mb-1">
+                ↓ {conv != null && <>{conv}% <span className="text-zinc-400">of {prev.label.toLowerCase()}</span></>}
+              </div>
+            )}
+            <div
+              className="relative h-12 xl:h-14 rounded-lg overflow-hidden"
+              style={{ width: `${100 - i * 12}%`, background: `${color}1f`, border: `1px solid ${color}40` }}
+            >
+              <div
+                className="absolute inset-y-0 left-0 transition-all duration-700"
+                style={{ width: `${pct}%`, background: hit ? '#10b981' : color, opacity: 0.9 }}
+              />
+              <div className="relative h-full flex items-center justify-between gap-2 px-3">
+                <span className={`text-sm xl:text-base font-bold truncate ${pct >= 22 ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]' : 'text-zinc-800'}`}>{st.label}</span>
+                <span className="text-2xl xl:text-3xl font-extrabold tabular-nums text-zinc-900 bg-white/85 rounded-md px-2 leading-tight shrink-0">
+                  {formatNumber(st.month)}<span className="text-zinc-400 text-base xl:text-lg font-semibold"> / {formatNumber(st.monthTarget)}</span>
+                </span>
+                {st.weekTarget != null ? (
+                  <span className={`text-xs font-bold tabular-nums rounded-full px-2 py-0.5 shrink-0 ${weekHit ? 'bg-emerald-500 text-white' : 'bg-white/90 text-zinc-700'}`}>
+                    wk {st.week}/{st.weekTarget}
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold rounded-full px-2 py-0.5 shrink-0 bg-white/90 text-zinc-700">month</span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Revenue goal bar: the fill is each rep's revenue this month as a segment
+// in their colour (largest first), on a scale that ends at the goal (or the
+// total, once past it). A dark marker shows where the team should be by
+// today to hit the goal on a straight-line pace. Below: to go, days left,
+// needed per day, and the ranked per-rep list.
+function RevenueGoal({ perRep, total, goal }) {
+  const today = laToday();
+  const [y, m, d] = today.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const daysLeft = daysInMonth - d + 1; // today counts as a selling day
+  const pace = goal * (d / daysInMonth);
+  const scale = Math.max(goal, total, 1);
+  const ahead = total - pace;
+  const toGo = Math.max(0, goal - total);
+  const ranked = [...perRep].sort((a, b) => b.revenueMonth - a.revenueMonth);
+  const segs = ranked.filter((r) => r.revenueMonth > 0);
+  return (
+    <div className="flex-1 min-h-0 flex flex-col gap-3 justify-between">
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={`text-sm font-bold rounded-full px-3 py-1 ${ahead >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}
+        >
+          {ahead >= 0 ? '▲' : '▼'} {formatCompactCurrency(Math.abs(Math.round(ahead)))} {ahead >= 0 ? 'ahead of' : 'behind'} pace
+        </span>
+        <span className="text-xs text-zinc-500 tabular-nums">pace for today: {formatCompactCurrency(Math.round(pace))}</span>
       </div>
-      {target != null && (
-        <div className="h-2.5 xl:h-3 w-full bg-zinc-100 rounded-full overflow-hidden mt-1">
-          <div className="h-full rounded-full" style={{ width: `${percent}%`, background: s.color }} />
+
+      <div>
+        <div className="relative">
+        <div className="relative h-14 xl:h-16 w-full rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex gap-[2px]">
+          {segs.map((r) => {
+            const w = (r.revenueMonth / scale) * 100;
+            return (
+              <div
+                key={r.id}
+                title={`${r.name}: ${formatCompactCurrency(r.revenueMonth)}`}
+                className="h-full flex items-center justify-center text-white text-xs xl:text-sm font-bold whitespace-nowrap overflow-hidden"
+                style={{ width: `${w}%`, background: r.color }}
+              >
+                {w >= 17 ? `${r.name.split(' ')[0]} ${formatCompactCurrency(r.revenueMonth)}` : w >= 7 ? r.name.split(' ')[0] : w >= 2.5 ? r.name[0] : ''}
+              </div>
+            );
+          })}
+          <span className="absolute right-3 inset-y-0 flex items-center text-xs uppercase tracking-widest font-bold text-zinc-500">
+            {formatCompactCurrency(goal)} goal
+          </span>
         </div>
-      )}
+        {/* Pace marker */}
+        <div
+          className="absolute -top-1.5 -bottom-1.5 w-[3px] bg-zinc-900 rounded"
+          title="Pace for today"
+          style={{ left: `calc(${Math.min(100, (pace / scale) * 100)}% - 1.5px)` }}
+        />
+        </div>
+        <div className="flex justify-between text-[10px] text-zinc-400 tabular-nums mt-1">
+          {[0, 25, 50, 75, 100].map((q) => <span key={q}>{q === 0 ? '$0' : formatCompactCurrency((goal * q) / 100)}</span>)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <RevStat label="To go" value={toGo > 0 ? formatCompactCurrency(toGo) : 'Goal hit 🎉'} />
+        <RevStat label="Days left" value={daysLeft} />
+        <RevStat label="Needed / day" value={toGo > 0 ? formatCompactCurrency(Math.round(toGo / daysLeft)) : '—'} />
+      </div>
+
+      <div
+        className="grid gap-2 shrink-0 pt-2 border-t border-zinc-300/40"
+        style={{ gridTemplateColumns: `repeat(${ranked.length}, minmax(0, 1fr))` }}
+      >
+        {ranked.map((rep, i) => (
+          <div key={rep.id} className="flex flex-col items-center text-center min-w-0">
+            <span className="text-[10px] uppercase tracking-wider truncate w-full font-semibold" style={{ color: rep.color }}>
+              {i === 0 && rep.revenueMonth > 0 ? '★ ' : ''}{rep.name.split(' ')[0]}
+            </span>
+            <span className={`text-base xl:text-lg font-bold tabular-nums ${rep.revenueMonth > 0 ? 'text-zinc-900' : 'text-zinc-300'}`}>
+              {formatCompactCurrency(rep.revenueMonth)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RevStat({ label, value }) {
+  return (
+    <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-center min-w-0">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</div>
+      <div className="text-2xl xl:text-3xl font-extrabold tabular-nums text-zinc-900 truncate">{value}</div>
     </div>
   );
 }

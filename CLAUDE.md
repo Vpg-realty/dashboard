@@ -163,6 +163,15 @@ Under `src/views/`:
   state segments (replaced per-rep pies, Luke Oct 7). Top-right
   quadrant is "Active Agent Count" (T1+T2+T3), same name as the
   Agents tab's first box.
+  Opportunities quadrant (Luke, Oct 7) is a monthly team funnel: Opps
+  Opened → Offers → Contracts → Closed bands, each filled toward the
+  month's team target (green at target), a "wk N/target" chip where a
+  weekly target exists, and stage-to-stage % between bands (none into
+  Closed: those deals mostly come from earlier months). Revenue quadrant
+  is a goal bar made of each rep's revenue in their colour, a black
+  marker at straight-line pace for today (goal × day / days in month,
+  LA date), an ahead/behind-pace badge, To go / Days left (today
+  counts) / Needed per day, and the ranked per-rep list.
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals
