@@ -1,8 +1,10 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, LabelList } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS } from '../data/config.js';
 import { getPair, totalConversationsByMarket, headline } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
+import { STATE_DOT, segmentFill } from '../utils/marketShade.js';
+import { segmentLabel } from '../components/SegmentLabel.jsx';
 
 export default function ConversationsView() {
   const head = headline();
@@ -61,32 +63,26 @@ export default function ConversationsView() {
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
                 <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-                {MARKETS.map((m, idx) => (
-                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} radius={[0, 0, 0, 0]} minPointSize={2}>
-                    {/* Per-segment label inside each colored chunk so reps can read every market's number from across the office */}
-                    <LabelList
-                      dataKey={m.id}
-                      position="center"
-                      fill="#0a0a0a"
-                      fontSize={13}
-                      fontWeight={700}
-                      formatter={(v) => (v > 0 ? v : '')}
-                    />
+                {/* Each market segment is a shade of its rep's colour, labelled
+                    with the state code (Oct 7 palette change), so the chart
+                    needs no 17-colour state legend. */}
+                {MARKETS.map((m, idx) => {
+                  const fills = REPS.map((rep) => segmentFill(rep, m.id));
+                  return (
+                  <Bar key={m.id} dataKey={m.id} stackId="a" radius={[0, 0, 0, 0]} stroke="#ffffff" strokeWidth={1.5}>
+                    {fills.map((f, i) => <Cell key={i} fill={f} />)}
+                    <LabelList dataKey={m.id} content={segmentLabel(m.id)} />
                     {idx === MARKETS.length - 1 && (
                       <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} />
                     )}
                   </Bar>
-                ))}
+                  );
+                })}
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 shrink-0">
-            {MARKETS.map((m) => (
-              <div key={m.id} className="flex items-center gap-1.5 text-[11px] text-zinc-600 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: m.color }} />
-                <span className="truncate">{m.name}</span>
-              </div>
-            ))}
+          <div className="text-center text-[11px] text-zinc-500 shrink-0">
+            Segments are each rep&apos;s markets, labelled by state, in shades of the rep&apos;s colour
           </div>
         </div>
       </Panel>
@@ -145,13 +141,13 @@ export default function ConversationsView() {
       <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         {byMarket.map((m) => (
           <div key={m.market} className="rounded-xl border border-zinc-300/80 bg-white p-3 flex items-center gap-3 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.color }} />
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATE_DOT }} />
             <div className="min-w-0 flex-1">
               <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{m.market}</div>
               <div className="text-xs text-zinc-800 truncate">{m.name}</div>
             </div>
             <div className="text-right shrink-0">
-              <div className="text-xl font-bold tabular-nums leading-none" style={{ color: m.color }}>{formatNumber(m.today)}</div>
+              <div className="text-xl font-bold tabular-nums leading-none text-zinc-900">{formatNumber(m.today)}</div>
               <div className="text-[11px] uppercase tracking-widest text-zinc-500 mt-1">today</div>
             </div>
           </div>

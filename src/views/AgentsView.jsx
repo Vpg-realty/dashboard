@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
+import { STATE_DOT } from '../utils/marketShade.js';
 import { getPair, tierTotals, headline, historyDeltaTierSum, historyDeltaTierSumTotal, historyDaysBack } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
@@ -130,7 +131,7 @@ export default function AgentsView() {
             <div key={market.id} className="rounded-xl border border-zinc-300/80 bg-white p-3 min-w-0">
               <div className="flex items-center justify-between mb-2 min-w-0 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: market.color }} />
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATE_DOT }} />
                   <span className="text-xs font-semibold text-zinc-900 truncate">{market.name}</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 shrink-0 tabular-nums">{total}</span>

@@ -1,8 +1,10 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized, LabelList } from 'recharts';
 import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS, TIERS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
+import { segmentLabel } from '../components/SegmentLabel.jsx';
+import { segmentFill } from '../utils/marketShade.js';
 
 // Active tiers — Luke (May 11): "Total Agents" excludes Tier 4 (DNC).
 const ACTIVE_TIERS = [1, 2, 3];
@@ -43,10 +45,10 @@ export default function MasterView() {
       const t = p.agentTiers || {};
       return a + ACTIVE_TIERS.reduce((s, n) => s + (t[n] || 0), 0);
     }, 0);
+    // Pie slices: one per market, in shades of the rep's colour.
     const convosByMarket = rep.markets.map((m) => {
       const p = getPair(rep.id, m);
-      const market = MARKETS.find((mk) => mk.id === m);
-      return { market: m, color: market.color, value: p?.convosWeek || 0 };
+      return { market: m, color: segmentFill(rep, m), value: p?.convosWeek || 0 };
     });
     return { ...rep, convosWeek, revenueMonth, agentsActive, convosByMarket };
   });
@@ -95,14 +97,8 @@ export default function MasterView() {
               <RepPie key={rep.id} rep={rep} />
             ))}
           </div>
-          {/* Market color legend — single row at the bottom */}
-          <div className="flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-[10px] shrink-0 pt-2 border-t border-zinc-300/40">
-            {MARKETS.map((m) => (
-              <div key={m.id} className="flex items-center gap-1 min-w-0">
-                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: m.color }} />
-                <span className="text-zinc-600 truncate">{m.name}</span>
-              </div>
-            ))}
+          <div className="text-center text-[10px] text-zinc-500 shrink-0 pt-2 border-t border-zinc-300/40">
+            Slices are each rep&apos;s markets, in shades of the rep&apos;s colour
           </div>
         </div>
       </Quadrant>
@@ -127,9 +123,15 @@ export default function MasterView() {
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
                 <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
-                {MARKETS.map((m) => (
-                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} />
-                ))}
+                {MARKETS.map((m) => {
+                  const fills = REPS.map((rep) => segmentFill(rep, m.id));
+                  return (
+                    <Bar key={m.id} dataKey={m.id} stackId="a" stroke="#ffffff" strokeWidth={1.5}>
+                      {fills.map((f, i) => <Cell key={i} fill={f} />)}
+                      <LabelList dataKey={m.id} content={segmentLabel(m.id)} />
+                    </Bar>
+                  );
+                })}
                 <Customized component={<StackedTotalLabel />} />
               </BarChart>
             </ResponsiveContainer>

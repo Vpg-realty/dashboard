@@ -1,12 +1,21 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, Customized } from 'recharts';
+import { Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, Customized } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/source.js';
 import { formatCurrency, formatCompactCurrency } from '../utils/format.js';
+import { REPS } from '../data/config.js';
+import { segmentFill } from '../utils/marketShade.js';
+import { segmentLabel } from '../components/SegmentLabel.jsx';
 
 export default function RevenueView() {
   const head = headline();
-  const byMarket = totalRevenueByMarket();
+  // Ranked, largest first: with states uncoloured (Oct 7 palette change) a
+  // sorted bar list replaces the 17-slice market donut.
+  const byMarket = [...totalRevenueByMarket()].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+  const marketMax = Math.max(1, ...byMarket.map((m) => m.value));
+  // Stacked bars keep the configured market order, the order segment shades
+  // are assigned in, so each bar runs darkest (bottom) to lightest (top).
+  const stackOrder = totalRevenueByMarket();
   const byRep = totalRevenueByRep().sort((a, b) => b.value - a.value);
   const top = byRep[0];
 
@@ -41,40 +50,14 @@ export default function RevenueView() {
             <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600">Total Closed</div>
             <div className="text-3xl font-bold tabular-nums text-zinc-900 leading-none">{head.dealsClosedMonth}</div>
           </div>
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={byMarket}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius="40%"
-                  outerRadius="80%"
-                  paddingAngle={3}
-                  stroke="none"
-                  label={({ value, x, y }) =>
-                    value > 0 ? (
-                      <text x={x} y={y} fill="#0a0a0a" textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight={700}>
-                        {formatCompactCurrency(value)}
-                      </text>
-                    ) : null
-                  }
-                  labelLine={false}
-                >
-                  {byMarket.map((m) => <Cell key={m.market} fill={m.color} />)}
-                </Pie>
-                <Tooltip formatter={(v) => formatCurrency(v)} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5 shrink-0">
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5">
             {byMarket.map((m) => (
-              <div key={m.market} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded bg-zinc-50 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: m.color }} />
-                  <span className="text-zinc-800 truncate">{m.name}</span>
+              <div key={m.market} className="grid grid-cols-[8.5rem_1fr_4.5rem] items-center gap-2 text-sm min-w-0">
+                <span className="text-zinc-800 truncate">{m.name}</span>
+                <div className="h-3 rounded-full bg-zinc-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-600" style={{ width: `${(m.value / marketMax) * 100}%` }} />
                 </div>
-                <span className="text-zinc-900 font-semibold tabular-nums shrink-0">{formatCompactCurrency(m.value)}</span>
+                <span className="text-zinc-900 font-semibold tabular-nums text-right">{formatCompactCurrency(m.value)}</span>
               </div>
             ))}
           </div>
@@ -98,19 +81,17 @@ export default function RevenueView() {
               <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
               <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
-              {byMarket.map((m) => (
-                <Bar key={m.market} dataKey={m.market} stackId="a" fill={m.color} radius={[0, 0, 0, 0]}>
-                  {/* Per-segment $ inside each market chunk */}
-                  <LabelList
-                    dataKey={m.market}
-                    position="center"
-                    fill="#0a0a0a"
-                    fontSize={13}
-                    fontWeight={700}
-                    formatter={(v) => (v > 0 ? formatCompactCurrency(v) : '')}
-                  />
-                </Bar>
-              ))}
+              {/* Market segments in shades of each rep's colour, labelled
+                  with the state code (Oct 7 palette change). */}
+              {stackOrder.map((m) => {
+                const fills = byRep.map((r) => segmentFill(REPS.find((rep) => rep.id === r.repId), m.market));
+                return (
+                  <Bar key={m.market} dataKey={m.market} stackId="a" radius={[0, 0, 0, 0]} stroke="#ffffff" strokeWidth={1.5}>
+                    {fills.map((f, i) => <Cell key={i} fill={f} />)}
+                    <LabelList dataKey={m.market} content={segmentLabel(m.market, formatCompactCurrency)} />
+                  </Bar>
+                );
+              })}
               <Customized component={<StackedTotalLabel format={formatCompactCurrency} />} />
             </BarChart>
           </ResponsiveContainer>

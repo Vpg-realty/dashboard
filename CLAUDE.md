@@ -79,6 +79,15 @@ every chart, legend and dropdown (Luke, Oct 7 — Nevada, Michigan). The
 Sub-Accounts panel uses the full `ALL_MARKETS` list so a removed state
 can be re-added with its original code and colour.
 
+Colours (Luke, Oct 7 — "less clown-like"): reps use a validated
+9-colour set (`subaccounts.json` reps, also first in
+`src/utils/autoColor.js` PALETTE for new reps). States have NO colour on
+charts: wherever a chart splits a rep by market, segments are tints of
+the rep's colour, darkest at the bottom, labelled with the state code
+(`src/utils/marketShade.js`, `src/components/SegmentLabel.jsx`). State
+cards/lists use the neutral `STATE_DOT`. The `color` field on markets
+in `subaccounts.json` is now unused by the charts.
+
 Two PIT sources merged at build time (later wins):
 1. `GHL_TOKENS` env — legacy single-blob JSON `{locationId: PIT}`.
 2. `PIT_<base32(locationId)>` env vars — written by the in-app

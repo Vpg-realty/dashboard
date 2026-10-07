@@ -4,36 +4,26 @@
 // baked into subaccounts.json for the original 7 markets and 5 reps.
 
 const PALETTE = [
-  '#f59e0b', // amber
-  '#3b82f6', // blue
-  '#10b981', // emerald
-  '#a855f7', // purple
-  '#ec4899', // pink
-  '#ef4444', // red
-  '#06b6d4', // cyan
-  '#84cc16', // lime
-  '#eab308', // yellow
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#6366f1', // indigo
-  '#22c55e', // green
-  '#d946ef', // fuchsia
-  '#0ea5e9', // sky
-  '#facc15', // amber-bright
-  '#8b5cf6', // violet
-  '#f43f5e', // rose
-  // Added Oct 7 once 19 markets had exhausted the first 18 (Arkansas had
-  // been handed New Mexico's orange).
+  // Validated rep palette (Oct 7): balanced mid-tone hues, colour-blind
+  // checked as an ordered set. Reps 1-9 use these in order; a new rep gets
+  // the first one not already taken.
+  '#2a78d6', // blue
+  '#eb6834', // orange
+  '#1baf7a', // aqua
+  '#eda100', // yellow
+  '#e87ba4', // magenta
+  '#008300', // green
+  '#4a3aa7', // violet
+  '#e34948', // red
+  '#0f8fa8', // deep teal
+  // Overflow once those are taken. States no longer use colour on charts
+  // (they're shades of the rep colour), so these only matter past 9 reps.
   '#a16207', // bronze
   '#0284c7', // ocean
   '#65a30d', // olive
   '#be123c', // crimson
   '#7c3aed', // grape
   '#0f766e', // pine
-  '#c2410c', // rust
-  '#4f46e5', // royal
-  '#15803d', // forest
-  '#db2777', // magenta
 ];
 
 function hash(s) {
