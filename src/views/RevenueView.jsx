@@ -1,8 +1,7 @@
-import { Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, Customized } from 'recharts';
+import { Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import Panel from '../components/Panel.jsx';
-import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 import { totalRevenueByMarket, totalRevenueByRep, headline } from '../data/source.js';
-import { formatCurrency, formatCompactCurrency } from '../utils/format.js';
+import { formatCurrency, formatCompactCurrency, niceMax } from '../utils/format.js';
 import { REPS } from '../data/config.js';
 import { segmentFill } from '../utils/marketShade.js';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
@@ -67,19 +66,14 @@ export default function RevenueView() {
       <Panel className="col-span-12 lg:col-span-7 min-h-0" title="By Rep" subtitle="market breakdown stacked" accent="Performance">
         <div className="h-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            {/* Luke (May 12): per-rep total wasn't rendering when the LAST
-                iterated market segment was 0 (Anthony/Patrick etc). Switched
-                to a Customized overlay that aggregates each bar's stack and
-                draws the total above EVERY bar regardless of which segment
-                is non-zero. */}
             <BarChart data={byRep.map((r) => {
-              const row = { rep: r.rep.split(' ')[0], _tk: r.rep };
-              r.byMarket.forEach((m) => { row[m.market] = m.value; });
+              const row = { rep: r.rep.split(' ')[0], _tk: r.rep, _total: 0, _cap: 1e-6 };
+              r.byMarket.forEach((m) => { row[m.market] = m.value; row._total += m.value || 0; });
               return row;
             })} margin={{ top: 22, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
               <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
-              <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} />
+              <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatCompactCurrency(v)} domain={[0, niceMax(Math.max(...byRep.map((r) => r.byMarket.reduce((a, m) => a + (m.value || 0), 0))))]} allowDataOverflow />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               {/* Market segments in shades of each rep's colour, labelled
                   with the state code (Oct 7 palette change). */}
@@ -92,7 +86,14 @@ export default function RevenueView() {
                   </Bar>
                 );
               })}
-              <Customized component={<StackedTotalLabel format={formatCompactCurrency} />} />
+              {/* Total above every rep's stack: an invisible near-zero "cap" segment
+                  sits on top of every stack (so no rep is skipped) and
+                  carries the total as its label. Recharts 3 no longer feeds
+                  the old Customized overlay, and a label on the last
+                  market only covered reps in that market (Luke, Oct 7). */}
+              <Bar dataKey="_cap" stackId="a" fill="transparent" isAnimationActive={false} tooltipType="none" legendType="none">
+                <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} formatter={formatCompactCurrency} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

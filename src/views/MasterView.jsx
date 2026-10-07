@@ -1,8 +1,7 @@
-import { Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized, LabelList } from 'recharts';
+import { Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
 import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
-import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
-import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
+import { formatCompactCurrency, formatNumber, kpiStatus, niceMax } from '../utils/format.js';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
 import { segmentFill } from '../utils/marketShade.js';
 import RepStackBars from '../components/RepStackBars.jsx';
@@ -51,7 +50,7 @@ export default function MasterView() {
   // Stacked bar data for the Active Agent Count quadrant — each row is a rep,
   // each market they work is a stacked segment colored by market.
   const agentBarData = REPS.map((rep) => {
-    const row = { rep: rep.name.split(' ')[0], _total: 0 };
+    const row = { rep: rep.name.split(' ')[0], _total: 0, _cap: 1e-6 };
     rep.markets.forEach((m) => {
       const p = getPair(rep.id, m);
       const v = ACTIVE_TIERS.reduce((s, n) => s + (p?.agentTiers?.[n] || 0), 0);
@@ -108,7 +107,7 @@ export default function MasterView() {
               <BarChart data={agentBarData.map((r) => ({ ...r, _tk: r.rep }))} margin={{ top: 18, right: 6, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} domain={[0, niceMax(Math.max(...agentBarData.map((r) => r._total)))]} allowDataOverflow />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
                 {MARKETS.map((m) => {
                   const fills = REPS.map((rep) => segmentFill(rep, m.id));
@@ -119,7 +118,14 @@ export default function MasterView() {
                     </Bar>
                   );
                 })}
-                <Customized component={<StackedTotalLabel />} />
+                {/* Total above every rep's stack: an invisible near-zero "cap" segment
+                    sits on top of every stack (so no rep is skipped) and
+                    carries the total as its label. Recharts 3 no longer feeds
+                    the old Customized overlay, and a label on the last
+                    market only covered reps in that market (Luke, Oct 7). */}
+                <Bar dataKey="_cap" stackId="a" fill="transparent" isAnimationActive={false} tooltipType="none" legendType="none">
+                  <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
