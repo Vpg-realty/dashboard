@@ -112,12 +112,11 @@ export default function AgentsView() {
                   return <div key={t.id} style={{ width: `${w}%`, background: t.color }} />;
                 })}
               </div>
+              {/* Tier counts T1 → T4, coloured like the bar above; no T1–T4
+                  captions (Luke, Oct 7: "it's clear what these are"). */}
               <div className="grid grid-cols-4 gap-1 text-center">
                 {TIERS.map((t) => (
-                  <div key={t.id} className="min-w-0">
-                    <div className="text-sm font-bold tabular-nums" style={{ color: t.color }}>{totals[t.id]}</div>
-                    <div className="text-[11px] uppercase text-zinc-500">T{t.id}</div>
-                  </div>
+                  <div key={t.id} className="text-sm font-bold tabular-nums min-w-0" style={{ color: t.color }}>{totals[t.id]}</div>
                 ))}
               </div>
             </div>
