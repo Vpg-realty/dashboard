@@ -80,6 +80,11 @@
       "id": "CO",
       "name": "Colorado",
       "color": "#8b5cf6"
+    },
+    {
+      "id": "NM",
+      "name": "New Mexico",
+      "color": "#f97316"
     }
   ],
   "reps": [
@@ -274,6 +279,11 @@
       "repId": "anthony",
       "marketId": "CO",
       "locationId": "8jwEShfAHZ8hibiC4n4W"
+    },
+    {
+      "repId": "cayden_sicz",
+      "marketId": "NM",
+      "locationId": "abO0HHCW5CCpvXwIphoN"
     }
   ]
 }
