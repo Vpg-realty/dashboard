@@ -2,7 +2,7 @@
 // stacked bar in a BarChart — regardless of which segment is non-zero.
 // Plain LabelList on a single Bar skips rows where that Bar's segment value
 // is 0, so reps with no value in the last-iterated market never got a total
-// (Luke flagged this on Revenue + Agent Confirmed, May 12).
+// (Luke flagged this on Revenue + Active Agent Count, May 12).
 export default function StackedTotalLabel({ formattedGraphicalItems, format }) {
   if (!Array.isArray(formattedGraphicalItems) || !formattedGraphicalItems.length) return null;
 

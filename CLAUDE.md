@@ -147,7 +147,11 @@ Under `src/views/`:
   grid auto-fits: wraps to more rows as reps are added, never
   squeezes skinnier.
 - **Revenue** — revenue tiles + market split.
-- **Master** — high-level overview.
+- **Master** — high-level overview. Conversations quadrant: one
+  horizontal bar per rep, ranked busiest first, split into labelled
+  state segments (replaced per-rep pies, Luke Oct 7). Top-right
+  quadrant is "Active Agent Count" (T1+T2+T3), same name as the
+  Agents tab's first box.
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals

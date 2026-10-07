@@ -5,7 +5,8 @@ import { STATE_DOT } from '../utils/marketShade.js';
 import { getPair, tierTotals, headline, historyDeltaTierSum, historyDeltaTierSumTotal, historyDaysBack } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
-// Luke (May 11): Total Agents = T1 + T2 + T3 only (Tier 4 = DNC, not counted).
+// Luke (May 11): Active Agent Count (renamed from Total Agents, Oct 7) =
+// T1 + T2 + T3 only (Tier 4 = DNC, not counted).
 const ACTIVE_TIERS = [1, 2, 3];
 
 export default function AgentsView() {
@@ -42,7 +43,7 @@ export default function AgentsView() {
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <BigStat label="Total Agents" value={totalActive} accent="zinc" sub="Tier 1 + 2 + 3" />
+        <BigStat label="Active Agent Count" value={totalActive} accent="zinc" sub="Tier 1 + 2 + 3" />
         <BigStat label="Tier 1 VIPs" value={totalTier1} accent="amber" highlight />
         <BigStat label="Added This Week" value={addedThisWeek} accent="emerald" sub="created this week · T1+T2+T3" />
         <BigStat label="Added Today" value={addedToday} accent="blue" />
