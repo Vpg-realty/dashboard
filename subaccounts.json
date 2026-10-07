@@ -101,47 +101,47 @@
     {
       "id": "anthony",
       "name": "Anthony Sheffield",
-      "color": "#10b981"
+      "color": "#2a78d6"
     },
     {
       "id": "patrick",
       "name": "Patrick Jeffries",
-      "color": "#f59e0b"
+      "color": "#eb6834"
     },
     {
       "id": "daniel",
       "name": "Daniel Diaz",
-      "color": "#a855f7"
+      "color": "#1baf7a"
     },
     {
       "id": "axel",
       "name": "Axel Contreras",
-      "color": "#ec4899"
+      "color": "#eda100"
     },
     {
       "id": "prince_pharrams",
       "name": "Rory Wick",
-      "color": "#84cc16"
+      "color": "#e87ba4"
     },
     {
       "id": "sam_mackenzie",
       "name": "Sam MacKenzie",
-      "color": "#ef4444"
+      "color": "#008300"
     },
     {
       "id": "spencer_brown",
       "name": "Spencer Brown",
-      "color": "#d946ef"
+      "color": "#4a3aa7"
     },
     {
       "id": "cayden_sicz",
       "name": "Cayden Sicz",
-      "color": "#22c55e"
+      "color": "#e34948"
     },
     {
       "id": "danni_brown",
       "name": "Danni Brown",
-      "color": "#f97316"
+      "color": "#0f8fa8"
     }
   ],
   "subaccounts": [

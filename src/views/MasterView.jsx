@@ -1,16 +1,19 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized } from 'recharts';
+import { Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Customized, LabelList } from 'recharts';
 import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS, TIERS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
+import { segmentLabel } from '../components/SegmentLabel.jsx';
+import { inkOn, segmentFill } from '../utils/marketShade.js';
+import { useEffect, useRef, useState } from 'react';
 
-// Active tiers — Luke (May 11): "Total Agents" excludes Tier 4 (DNC).
+// Active tiers — Luke (May 11): the active agent count excludes Tier 4 (DNC).
 const ACTIVE_TIERS = [1, 2, 3];
 
 // 4-quadrant compact dashboard. Luke (May 11):
 //  - All quadrants: big number lives in the top-right corner.
-//  - Conversations: 5 mini pies + market color legend on the bottom.
-//  - Agent Confirmed: vertical stacked bars (by rep × market).
+//  - Conversations: ranked horizontal bars, one per rep, state segments.
+//  - Active Agent Count: vertical stacked bars (by rep × market).
 //  - Opportunities: matches Opps page — weekly + monthly layers.
 //  - Revenue: $100k progress chart (yellow until goal, then green) +
 //    per-rep $ list on the left.
@@ -43,15 +46,15 @@ export default function MasterView() {
       const t = p.agentTiers || {};
       return a + ACTIVE_TIERS.reduce((s, n) => s + (t[n] || 0), 0);
     }, 0);
-    const convosByMarket = rep.markets.map((m) => {
+    // Pie slices: one per market, in shades of the rep's colour.
+    const convosByMarket = MARKETS.filter((mk) => rep.markets.includes(mk.id)).map(({ id: m }) => {
       const p = getPair(rep.id, m);
-      const market = MARKETS.find((mk) => mk.id === m);
-      return { market: m, color: market.color, value: p?.convosWeek || 0 };
+      return { market: m, color: segmentFill(rep, m), value: p?.convosWeek || 0 };
     });
     return { ...rep, convosWeek, revenueMonth, agentsActive, convosByMarket };
   });
 
-  // Stacked bar data for Agent Confirmed quadrant — each row is a rep,
+  // Stacked bar data for the Active Agent Count quadrant — each row is a rep,
   // each market they work is a stacked segment colored by market.
   const agentBarData = REPS.map((rep) => {
     const row = { rep: rep.name.split(' ')[0], _total: 0 };
@@ -75,7 +78,9 @@ export default function MasterView() {
 
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
-      {/* Conversations — 5 mini pies (centered, larger) + legend row at bottom (Luke May 12) */}
+      {/* Conversations — one horizontal bar per rep, ranked busiest first,
+          split into labelled state segments (Luke, Oct 7: pies lost the
+          markets). Replaced the per-rep mini pies. */}
       <Quadrant
         title="Conversations"
         subtitle="this week · per rep, split by market"
@@ -83,37 +88,17 @@ export default function MasterView() {
         bigColor="#a78bfa"
         bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg/day`}
       >
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
-          {/* Bigger pies, centered horizontally + vertically, fills available space.
-              Columns = rep count so the pies stay in one row as the team grows
-              (was hardcoded to 5 → the 6th/7th rep overflowed into the legend). */}
-          <div
-            className="flex-1 grid gap-2 min-h-0 items-center justify-items-center"
-            style={{ gridTemplateColumns: `repeat(${perRep.length}, minmax(0, 1fr))` }}
-          >
-            {perRep.map((rep) => (
-              <RepPie key={rep.id} rep={rep} />
-            ))}
-          </div>
-          {/* Market color legend — single row at the bottom */}
-          <div className="flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-[10px] shrink-0 pt-2 border-t border-zinc-300/40">
-            {MARKETS.map((m) => (
-              <div key={m.id} className="flex items-center gap-1 min-w-0">
-                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: m.color }} />
-                <span className="text-zinc-600 truncate">{m.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RepConvoBars reps={perRep} />
       </Quadrant>
 
-      {/* Agent Confirmed — vertical stacked bars by rep × market.
+      {/* Active Agent Count (renamed from "Agent Confirmed", Luke Oct 7) —
+          vertical stacked bars by rep × market.
           Luke (May 12 follow-up): single unified metric for everyone —
           contacts tagged Tier 1 + 2 + 3 (T4 = DNC excluded). No "this
           week" framing anywhere in this quadrant. Same calc applied to
           every rep. */}
       <Quadrant
-        title="Agent Confirmed"
+        title="Active Agent Count"
         subtitle={`Tier 1 + 2 + 3 · all reps, same calc`}
         big={formatNumber(agentsTotalActive)}
         bigColor="#fbbf24"
@@ -127,9 +112,15 @@ export default function MasterView() {
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
                 <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
-                {MARKETS.map((m) => (
-                  <Bar key={m.id} dataKey={m.id} stackId="a" fill={m.color} />
-                ))}
+                {MARKETS.map((m) => {
+                  const fills = REPS.map((rep) => segmentFill(rep, m.id));
+                  return (
+                    <Bar key={m.id} dataKey={m.id} stackId="a" stroke="#ffffff" strokeWidth={1.5}>
+                      {fills.map((f, i) => <Cell key={i} fill={f} />)}
+                      <LabelList dataKey={m.id} content={segmentLabel(m.id)} />
+                    </Bar>
+                  );
+                })}
                 <Customized component={<StackedTotalLabel />} />
               </BarChart>
             </ResponsiveContainer>
@@ -219,38 +210,52 @@ export default function MasterView() {
   );
 }
 
-function RepPie({ rep }) {
-  const data = rep.convosByMarket.length ? rep.convosByMarket : [{ market: '_', color: '#27272a', value: 1 }];
-  const empty = rep.convosWeek === 0;
-  // Luke (May 12): bigger pies + centered. Removed the 90px ceiling so pies
-  // fill whatever cell height the parent gives, capped by container width.
+// Ranked horizontal bars: one per rep (busiest on top), each split into its
+// states in configured market order, shaded from the rep's colour. Bar
+// length is the rep's weekly total relative to the busiest rep. A segment
+// shows "AZ 65" when wide enough, just the number when narrower, nothing
+// when tiny; hovering always gives the full state name and count.
+function RepConvoBars({ reps }) {
+  const trackRef = useRef(null);
+  const [trackPx, setTrackPx] = useState(600);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => setTrackPx(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const ranked = [...reps].sort((a, b) => b.convosWeek - a.convosWeek || a.name.localeCompare(b.name));
+  const max = Math.max(1, ranked[0]?.convosWeek || 0);
+  const nameOf = Object.fromEntries(MARKETS.map((m) => [m.id, m.name]));
   return (
-    <div className="flex flex-col items-center justify-center min-w-0 w-full h-full">
-      <div className="relative aspect-square w-full max-w-[160px] min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey="value"
-              innerRadius="55%"
-              outerRadius="95%"
-              paddingAngle={data.length > 1 ? 2 : 0}
-              stroke="none"
-            >
-              {data.map((d, i) => (
-                <Cell key={i} fill={d.color} opacity={empty ? 0.3 : 1} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-lg lg:text-xl font-bold tabular-nums" style={{ color: rep.color }}>
-            {rep.convosWeek}
-          </span>
+    <div className="flex-1 flex flex-col justify-around min-h-0 gap-1 pt-1">
+      {ranked.map((rep, i) => (
+        <div key={rep.id} className="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-2 min-h-0">
+          <span className="text-sm font-bold text-right truncate" style={{ color: rep.color }}>{rep.name.split(' ')[0]}</span>
+          <div ref={i === 0 ? trackRef : undefined} className="h-7 min-w-0">
+            <div className="flex h-full gap-[2px]" style={{ width: `${(rep.convosWeek / max) * 100}%` }}>
+              {rep.convosByMarket.filter((s) => s.value > 0).map((s) => {
+                const px = (s.value / max) * trackPx;
+                const text = px >= 50 ? `${s.market} ${s.value}` : px >= 22 ? String(s.value) : '';
+                return (
+                  <div
+                    key={s.market}
+                    title={`${nameOf[s.market] || s.market}: ${s.value}`}
+                    className="flex items-center justify-center rounded-[3px] text-xs font-bold whitespace-nowrap overflow-hidden min-w-0"
+                    style={{ flex: s.value, background: s.color, color: inkOn(s.color) }}
+                  >
+                    {text}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <span className="text-base font-extrabold tabular-nums text-zinc-900">{formatNumber(rep.convosWeek)}</span>
         </div>
-      </div>
-      <div className="text-[11px] truncate w-full text-center mt-1" style={{ color: rep.color }}>
-        {rep.name.split(' ')[0]}
+      ))}
+      <div className="text-center text-[10px] text-zinc-500 shrink-0 pt-1 border-t border-zinc-300/40">
+        Ranked by total · each segment is one of the rep&apos;s states · hover a segment for details
       </div>
     </div>
   );

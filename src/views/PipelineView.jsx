@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
+import { STATE_DOT } from '../utils/marketShade.js';
 import { laToday, daysInclusive, shortDate } from '../utils/historyRange.js';
 
 // Pipeline tab (Luke, Sept 29): every deal currently in Under Contract, DISPO
@@ -124,7 +125,7 @@ function DealCard({ deal, closed }) {
       <div className="text-[17px] font-bold text-zinc-900 leading-snug line-clamp-2">{deal.address || 'No address'}</div>
       <div className="flex items-end justify-between gap-2 mt-1.5">
         <div className="text-[13px] text-zinc-700 space-y-0.5 min-w-0">
-          <Who label="Market" color={deal.market?.color} name={deal.market?.name || '—'} />
+          <Who label="Market" color={STATE_DOT} name={deal.market?.name || '—'} />
           <Who label="Rep" color={deal.rep?.color} name={deal.rep?.name || '—'} />
         </div>
         <div className="text-[22px] font-extrabold text-emerald-700 tabular-nums shrink-0 leading-none">

@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { REPS, MARKETS, KPI_TARGETS, TIERS } from '../data/config.js';
+import { STATE_DOT } from '../utils/marketShade.js';
 import { PAIRS, getPair, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { computeRange, periodOptions, periodTargets, rangeLabel, shortDate, laToday, addDays, LEGACY_CUTOFF } from '../utils/historyRange.js';
@@ -224,7 +225,7 @@ export default function AdvancedView() {
                 <span>Full rep · {rep?.markets.length || 0} markets aggregated</span>
               ) : (
                 <>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color }} />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATE_DOT }} />
                   {market?.name} · {market?.id}
                 </>
               )}

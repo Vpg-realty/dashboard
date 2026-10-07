@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ALL_MARKETS as MARKETS, REPS, SUBACCOUNTS, REPO_OWNER, REPO_NAME } from '../data/config.js';
+import { STATE_DOT } from '../utils/marketShade.js';
 import { PAIRS } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
 import { pickColor, suggestRepId, suggestMarketCode } from '../utils/autoColor.js';
@@ -205,7 +206,7 @@ function ViewMode({ snapshotErrors, onAddClick, onManageRepsClick, patPresent, b
                 <div className="min-w-0 flex items-center gap-3">
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: rep?.color || '#52525b' }} />
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: market?.color || '#52525b' }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATE_DOT }} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm text-zinc-900 truncate">
