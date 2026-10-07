@@ -149,8 +149,11 @@ Under `src/views/`:
   (Opps Opened wk, Offers wk, Contracts mo, Closed mo), and under each a
   ranked leaderboard of reps for that same metric: per rep a top bar
   (this week) and a lower, lighter bar on a grey track (this month) in
-  the rep colour, plus the week number and an "N mo" figure (enlarged
-  Oct 7 so the month reads from across the office). Both bars are scaled
+  the rep colour; each number sits beside its own bar (week number by
+  the top bar, "N mo" by the lower one). Rows share the panel height
+  and bar/text sizes are capped at their 1080p size but scale with vh,
+  so a shorter browser window (e.g. 1440×810) squeezes rows instead of
+  overlapping them (Luke, Oct 7). Both bars are scaled
   to their own target so one dashed line serves both: opps 10/wk 40/mo,
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
@@ -158,7 +161,7 @@ Under `src/views/`:
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
-- **Revenue** — revenue tiles + market split.
+- **Revenue** — revenue tiles + market split. Not in the TV rotation.
 - **Master** — high-level overview. Conversations quadrant: one
   horizontal bar per rep, ranked busiest first, split into labelled
   state segments (replaced per-rep pies, Luke Oct 7). Top-right
@@ -204,6 +207,27 @@ Under `src/views/`:
   from day-over-day growth of the all-time totals.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
+Cycled (Luke, Oct 7 — simplified): Conversations, Agents, Opportunities,
+Master, Pipeline (`CYCLE_VIEWS`). Revenue and Advanced are click-only tabs
+at the end of the nav (`NAV_VIEWS`); Master carries the revenue goal bar.
+
+TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
+- **Needs attention strip** (`components/AlertStrip.jsx`) under the tabs:
+  IP ends today / tomorrow, DISPO deals whose IP ends within 2 days,
+  closings (COE) today / tomorrow, reps with no conversations yet (only
+  after 10am Arizona). Hidden when there's nothing to flag.
+- **Celebration banners** (`components/CelebrationBanner.jsx`): a deal
+  moving into DISPO Active ("got one to DISPO", no value — value only
+  exists once assigned; shows IP end / COE) or Closed ("closed one!",
+  with value). A move counts when the deal's `stageSince` (GHL
+  `lastStageChangeAt`) is within 45 min and this screen hasn't shown it
+  (keys in localStorage `vpg.celebrated`), so each move celebrates once
+  per TV and a freshly opened screen doesn't replay old ones. Checked
+  every 30s; several queue, 40s each.
+- **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
+  Opportunities team boxes are graded against target × share of the
+  period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
+  badge ON PACE / NEAR PACE / BEHIND PACE, black tick on the bar.
 
 ## Weekly scorecard export (Luke, Oct 7)
 
