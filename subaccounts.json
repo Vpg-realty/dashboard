@@ -85,6 +85,11 @@
       "id": "NM",
       "name": "New Mexico",
       "color": "#f97316"
+    },
+    {
+      "id": "AR",
+      "name": "Arkansas",
+      "color": "#f97316"
     }
   ],
   "reps": [
@@ -284,6 +289,11 @@
       "repId": "cayden_sicz",
       "marketId": "NM",
       "locationId": "abO0HHCW5CCpvXwIphoN"
+    },
+    {
+      "repId": "danni_brown",
+      "marketId": "AR",
+      "locationId": "JMQ7ZJ5ssCXyPejM4Jza"
     }
   ]
 }
