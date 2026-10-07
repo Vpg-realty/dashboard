@@ -95,7 +95,7 @@ function Leaderboard({ title, period, valueKey, target, month }) {
   const at = (v, t) => `${Math.min(100, (v / t / span) * 100)}%`;
   const hit = rows.filter((r) => r.value >= target).length;
   return (
-    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit}/${rows.length} at target`} accent="By Rep">
+    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${hit}/${rows.length} at target`} accent={`By Rep · ${period}`}>
       <div className="h-full flex flex-col justify-around min-h-0 gap-[2px]">
         {rows.map(({ rep, value, monthValue }) => (month ? (
           // Week + month: two lines per rep, each number beside its own bar

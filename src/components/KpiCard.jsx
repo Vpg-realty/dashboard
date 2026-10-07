@@ -16,7 +16,7 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
     <div className={`rounded-xl border ${s.border} ${s.bg} p-5 backdrop-blur-sm`}>
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs uppercase tracking-[0.18em] text-zinc-600">{label}</div>
-        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${s.text} ${s.bg} border ${s.border}`}>
+        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded whitespace-nowrap shrink-0 ${s.text} ${s.bg} border ${s.border}`}>
           {badge}
         </span>
       </div>
@@ -29,9 +29,6 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
           {sublabel && <div className="text-xs text-zinc-500 mt-1">{sublabel}</div>}
         </div>
         <div className="text-right pb-1">
-          {pace && (
-            <div className="text-xs text-zinc-500">pace now <b className="text-zinc-800 tabular-nums">{formatNumber(Math.round(paceTarget))}</b></div>
-          )}
           <div className="text-xs text-zinc-500">target</div>
           <div className="text-lg font-semibold text-zinc-800 tabular-nums">{formatNumber(target)}{unit}</div>
         </div>
@@ -47,7 +44,8 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
         )}
       </div>
       <div className="mt-1.5 text-[10px] text-zinc-500 tabular-nums">
-        {percent}% of target{pace ? ` · ${Math.round(frac * 100)}% of the ${pace} gone` : ''}
+        {percent}% of target
+        {pace && <> · pace now <b className="text-zinc-800">{formatNumber(Math.round(paceTarget))}</b> ({Math.round(frac * 100)}% of the {pace} gone)</>}
       </div>
     </div>
   );
