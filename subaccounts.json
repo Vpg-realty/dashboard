@@ -75,6 +75,26 @@
       "id": "SC",
       "name": "South Carolina",
       "color": "#eab308"
+    },
+    {
+      "id": "CO",
+      "name": "Colorado",
+      "color": "#8b5cf6"
+    },
+    {
+      "id": "NM",
+      "name": "New Mexico",
+      "color": "#f97316"
+    },
+    {
+      "id": "AR",
+      "name": "Arkansas",
+      "color": "#f97316"
+    },
+    {
+      "id": "CA",
+      "name": "California",
+      "color": "#6366f1"
     }
   ],
   "reps": [
@@ -264,6 +284,31 @@
       "repId": "danni_brown",
       "marketId": "AL",
       "locationId": "K6Ll2Kcs2sWCSLfC1ZFk"
+    },
+    {
+      "repId": "anthony",
+      "marketId": "CO",
+      "locationId": "8jwEShfAHZ8hibiC4n4W"
+    },
+    {
+      "repId": "cayden_sicz",
+      "marketId": "NM",
+      "locationId": "abO0HHCW5CCpvXwIphoN"
+    },
+    {
+      "repId": "danni_brown",
+      "marketId": "AR",
+      "locationId": "JMQ7ZJ5ssCXyPejM4Jza"
+    },
+    {
+      "repId": "spencer_brown",
+      "marketId": "CA",
+      "locationId": "eEX8JLPz2SRzGXWuRWm7"
+    },
+    {
+      "repId": "prince_pharrams",
+      "marketId": "CO",
+      "locationId": "D66W4ghjCS4bkJ6aus6f"
     }
   ]
 }
