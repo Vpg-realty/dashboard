@@ -90,6 +90,11 @@
       "id": "AR",
       "name": "Arkansas",
       "color": "#f97316"
+    },
+    {
+      "id": "CA",
+      "name": "California",
+      "color": "#6366f1"
     }
   ],
   "reps": [
@@ -294,6 +299,11 @@
       "repId": "danni_brown",
       "marketId": "AR",
       "locationId": "JMQ7ZJ5ssCXyPejM4Jza"
+    },
+    {
+      "repId": "spencer_brown",
+      "marketId": "CA",
+      "locationId": "eEX8JLPz2SRzGXWuRWm7"
     }
   ]
 }
