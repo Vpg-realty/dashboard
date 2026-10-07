@@ -63,110 +63,92 @@ export default function OpportunitiesView() {
         />
       </div>
 
-      {/* Row 2 — Per rep, one card per rep. Grid wraps: cards keep a readable
-          minimum width and add new rows as more reps join, instead of
-          shrinking skinnier and skinnier along a single row (Luke, Sept 16:
-          "adding 3 new reps soon — will that make them super skinny?"). Each
-          row also has a minimum height so the metrics + bars stay legible on
-          the office TV — if content exceeds the panel, the outer flex-col
-          scrolls vertically (rare with ≤ 12 reps). */}
-      <Panel className="flex-1 min-h-0" title="By Rep" subtitle="weekly + monthly · per-rep targets" accent="Opportunities">
-        <div
-          className="grid gap-3 h-full"
-          style={{
-            // auto-fit lets us go from 8 reps today to 11 later without a code
-            // change; at 1920px width we get 4-5 cards per row, wrapping to a
-            // second row instead of squeezing skinny (Luke, Sept 16 concern).
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            // Rows flex to fill the panel; the auto min is chosen to hold all
-            // of a card's content (header + weekly + monthly + aban/lost row).
-            // If we ever go too tight, the outer flex-col scrolls.
-            gridAutoRows: 'minmax(360px, 1fr)',
-          }}
-        >
-          {REPS.map((rep) => {
-            const pairs = getPairsForRep(rep.id);
-            const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
-            return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-3 flex flex-col justify-between min-w-0 h-full">
-                <div>
-                  {/* Header — rep name is the loudest thing on the card so it
-                      reads across the office (Luke, Sept 16 mockup). */}
-                  <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
-                      <h4 className="text-xl font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
-                  </div>
-
-                  {/* WEEKLY */}
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
-                  <div className="space-y-1">
-                    <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={REP_TARGETS.oppsOpenedPerWeek} />
-                    <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
-                    <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
-                  </div>
-
-                  {/* MONTHLY */}
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
-                  <div className="space-y-1">
-                    <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
-                    <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
-                    <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
-                  </div>
-                </div>
-
-                {/* Aban + Lost — pinned to the bottom of the card, matching
-                    Luke's mockup with big numbers on either side. */}
-                <div className="mt-2 pt-2 border-t border-zinc-200 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Aban</span>
-                    <span className="text-xl font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Lost</span>
-                    <span className="text-xl font-bold tabular-nums text-red-500">{sum('lost')}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Row 2 — rep scoreboard (Luke, Oct 7: "clean this up"). One row per
+          rep, one column per metric, so every rep's number for the same KPI
+          lines up and reads straight down the column. Replaces the per-rep
+          cards, which repeated six labels nine times and spilled onto a
+          second, cut-off row at 9 reps. Rows share the remaining height, so
+          adding reps shrinks rows rather than overflowing. */}
+      <Panel className="flex-1 min-h-0 flex flex-col" title="By Rep" subtitle="number / per-rep target · bar fills toward the target" accent="Opportunities">
+        <Scoreboard />
       </Panel>
-
     </div>
   );
 }
 
-function MetricRow({ label, actual, target }) {
-  if (target == null) {
-    // No target, no bar — just label + value.
-    return (
-      <div className="flex items-baseline justify-between gap-2 min-w-0">
-        <span className="text-xs text-zinc-700 truncate">{label}</span>
-        <span className="text-lg font-bold tabular-nums text-zinc-900 shrink-0 leading-tight">{actual}</span>
+const WEEK_COLS = [
+  { key: 'oppsOpenedWeek', label: 'Opps Opened', target: REP_TARGETS.oppsOpenedPerWeek },
+  { key: 'offersWeek', label: 'Offers', target: REP_TARGETS.offersPerWeek },
+  { key: 'contractsWeek', label: 'Contracts', target: REP_TARGETS.contractsPerWeek },
+];
+const MONTH_COLS = [
+  { key: 'offersMonth', label: 'Offers', target: REP_TARGETS.offersPerMonth },
+  { key: 'contractsMonth', label: 'Contracts', target: REP_TARGETS.contractsPerMonth },
+  { key: 'dealsClosedMonth', label: 'Closed', target: REP_TARGETS.dealsClosedPerMonth },
+];
+const GRID = { gridTemplateColumns: 'minmax(170px, 1.3fr) repeat(3, minmax(0, 1fr)) 24px repeat(3, minmax(0, 1fr)) 24px repeat(2, minmax(0, 0.55fr))' };
+
+function Scoreboard() {
+  const rows = REPS.map((rep) => {
+    const pairs = getPairsForRep(rep.id);
+    const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
+    return { rep, sum };
+  });
+  const head = 'text-[11px] uppercase tracking-[0.16em] text-zinc-500 text-right';
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="grid gap-x-5 items-end pb-1 shrink-0" style={GRID}>
+        <span />
+        <span className="col-span-3 text-[11px] uppercase tracking-[0.2em] font-bold text-emerald-700 border-b-2 border-emerald-600/40 pb-1">This week</span>
+        <span />
+        <span className="col-span-3 text-[11px] uppercase tracking-[0.2em] font-bold text-blue-700 border-b-2 border-blue-600/40 pb-1">This month</span>
+        <span />
+        <span className="col-span-2 text-[11px] uppercase tracking-[0.2em] font-bold text-zinc-500 border-b-2 border-zinc-300 pb-1">This month</span>
       </div>
-    );
-  }
+      <div className="grid gap-x-5 items-end pb-2 border-b border-zinc-300 shrink-0" style={GRID}>
+        <span className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">Rep</span>
+        {WEEK_COLS.map((c) => <span key={c.key} className={head}>{c.label} <span className="text-zinc-400">/{c.target}</span></span>)}
+        <span />
+        {MONTH_COLS.map((c) => <span key={c.key} className={head}>{c.label} <span className="text-zinc-400">/{c.target}</span></span>)}
+        <span />
+        <span className={head}>Aban</span>
+        <span className={head}>Lost</span>
+      </div>
+      <div className="flex-1 min-h-0 grid" style={{ gridAutoRows: 'minmax(48px, 1fr)' }}>
+        {rows.map(({ rep, sum }, i) => (
+          <div key={rep.id} className={`grid gap-x-5 items-center px-0 ${i % 2 ? 'bg-zinc-50' : ''} border-b border-zinc-200`} style={GRID}>
+            <div className="flex items-center gap-2.5 min-w-0 pl-1">
+              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: rep.color }} />
+              <span className="text-2xl font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</span>
+              <span className="text-[10px] uppercase tracking-widest text-zinc-400 shrink-0">{rep.markets.length} mkt</span>
+            </div>
+            {WEEK_COLS.map((c) => <Cell key={c.key} actual={sum(c.key)} target={c.target} />)}
+            <span />
+            {MONTH_COLS.map((c) => <Cell key={c.key} actual={sum(c.key)} target={c.target} />)}
+            <span />
+            <span className="text-2xl font-semibold tabular-nums text-zinc-500 text-right">{sum('abandoned')}</span>
+            <span className="text-2xl font-semibold tabular-nums text-zinc-500 text-right">{sum('lost')}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// One metric for one rep: the number (green once the target is hit, dark
+// otherwise, so the board isn't a wall of red) over a slim bar coloured by
+// how close it is.
+function Cell({ actual, target }) {
   const s = kpiStatus(actual, target);
   const pctVal = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
-  // Bar under each targeted metric (Luke, Sept 16 mockup). Filled proportional
-  // to actual/target, coloured by kpiStatus. Tight vertical spacing so all six
-  // metric rows + header + aban/lost fit inside the ~360px card without
-  // overflowing.
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs text-zinc-700 truncate">{label}</span>
-        <span className={`text-lg font-bold ${s.text} tabular-nums shrink-0 leading-tight`}>
-          {actual}<span className="text-zinc-400 text-sm font-semibold">/{target}</span>
-        </span>
+      <div className={`text-right text-2xl font-bold tabular-nums leading-none ${s.status === 'on' ? 'text-emerald-600' : 'text-zinc-900'}`}>
+        {actual}
       </div>
-      <div className="h-1 mt-0.5 rounded-full overflow-hidden bg-zinc-200">
+      <div className="h-1.5 mt-1.5 rounded-full overflow-hidden bg-zinc-200">
         <div className="h-full rounded-full" style={{ width: `${pctVal}%`, background: s.color }} />
       </div>
     </div>
   );
 }
-
