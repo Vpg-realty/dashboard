@@ -136,7 +136,14 @@ Current targets (Luke, Sept 23; opps + offers Sept 29):
 ## Views
 
 Under `src/views/`:
-- **Conversations** — new-outreach counts + 7-day trend. State cards
+- **Conversations** — new-outreach counts + "This Week vs Last Week"
+  (Luke, Oct 7; replaced the 7-day chart with a line per rep): team new
+  conversations per day Mon–Sun, this week solid blue (today = live count
+  so far) vs last week dashed grey, from `history.json` via
+  `teamConvosByDay` (each pair's `convosWeek` minus the previous snapshot
+  in the same week). The subtitle compares completed days only (Mon–
+  yesterday vs the same days last week), since there's no intraday
+  history to compare today fairly. State cards
   at the bottom are sorted by today's outreach, busiest first, so the
   order shifts through the day (Luke, Oct 7). Never more than two rows
   of state cards: columns = ceil(states / 2) at TV width.

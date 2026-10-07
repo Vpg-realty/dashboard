@@ -1,10 +1,13 @@
-import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, LabelList } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, LabelList, ReferenceLine } from 'recharts';
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS } from '../data/config.js';
-import { getPair, totalConversationsByMarket, headline } from '../data/source.js';
+import { getPair, totalConversationsByMarket, headline, historyEntries } from '../data/source.js';
+import { laToday, weekStart, addDays, daysInclusive, teamConvosByDay } from '../utils/historyRange.js';
 import { formatNumber, niceMax } from '../utils/format.js';
 import { STATE_DOT, segmentFill } from '../utils/marketShade.js';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ConversationsView() {
   const head = headline();
@@ -27,24 +30,28 @@ export default function ConversationsView() {
     return row;
   });
 
-  // 7-day trend — company total + one line per rep on the same X axis.
-  // Luke (May 4): keep the company line, ADD per-rep lines underneath.
-  const trend = (() => {
-    const map = new Map();
-    REPS.forEach((rep) => {
-      rep.markets.forEach((m) => {
-        const p = getPair(rep.id, m);
-        if (!p?.daily) return;
-        p.daily.forEach((d) => {
-          if (!map.has(d.label)) map.set(d.label, { label: d.label, _all: 0 });
-          const row = map.get(d.label);
-          row[rep.id] = (row[rep.id] || 0) + d.count;
-          row._all += d.count;
-        });
-      });
-    });
-    return Array.from(map.values());
-  })();
+  // This week vs last week, by day (Luke, Oct 7 — replaced the 7-day chart
+  // with a line per rep). Team new conversations per day from history.json
+  // (teamConvosByDay); today's point is the live count, since the history
+  // entry for today is only as fresh as the last deploy anyway.
+  const today = laToday();
+  const monday = weekStart(today);
+  const lastMonday = addDays(monday, -7);
+  const byDay = teamConvosByDay(historyEntries());
+  const todayIdx = daysInclusive(monday, today) - 1;            // 0 = Mon
+  const trend = DAYS.map((label, i) => {
+    const d = addDays(monday, i);
+    const last = byDay.get(addDays(lastMonday, i));
+    const now = i < todayIdx ? byDay.get(d) : i === todayIdx ? head.conversationsToday : null;
+    return { label, last: last ?? null, now: now ?? null };
+  });
+  // Week-over-week on completed days only (we don't keep intraday history,
+  // so today vs a full day last week would always look behind).
+  const doneDays = trend.slice(0, todayIdx);
+  const doneNow = doneDays.reduce((a, r) => a + (r.now || 0), 0);
+  const doneLast = doneDays.reduce((a, r) => a + (r.last || 0), 0);
+  const wow = doneLast > 0 ? Math.round(((doneNow - doneLast) / doneLast) * 100) : null;
+  const lastWeekTotal = trend.reduce((a, r) => a + (r.last || 0), 0);
 
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
@@ -92,53 +99,40 @@ export default function ConversationsView() {
         </div>
       </Panel>
 
-      <Panel className="col-span-12 lg:col-span-5 min-h-0" title="7-Day Trend" subtitle="company total + per rep" accent="Conversations">
+      <Panel
+        className="col-span-12 lg:col-span-5 min-h-0"
+        title="This Week vs Last Week"
+        subtitle={todayIdx > 0 && wow != null
+          ? `${DAYS[0]}–${DAYS[todayIdx - 1]}: ${doneNow} vs ${doneLast} (${wow >= 0 ? '+' : ''}${wow}%)`
+          : `last week: ${lastWeekTotal} total`}
+        accent="Conversations · team"
+      >
         <div className="h-full flex flex-col gap-2 min-h-0">
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <LineChart data={trend} margin={{ top: 22, right: 16, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
                 <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
-                {/* Per-rep lines first so the company line draws on top */}
-                {REPS.map((rep) => (
-                  <Line
-                    key={rep.id}
-                    type="monotone"
-                    dataKey={rep.id}
-                    name={rep.name.split(' ')[0]}
-                    stroke={rep.color}
-                    strokeWidth={1.75}
-                    dot={{ r: 2.5, fill: rep.color }}
-                    activeDot={{ r: 4 }}
-                  />
-                ))}
+                <ReferenceLine x={DAYS[todayIdx]} stroke="#a1a1aa" strokeDasharray="2 4" label={{ value: 'today', position: 'top', fill: '#71717a', fontSize: 12 }} />
                 <Line
-                  type="monotone"
-                  dataKey="_all"
-                  name="Company"
-                  stroke="#18181b"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: '#18181b' }}
-                  activeDot={{ r: 6 }}
+                  type="monotone" dataKey="last" name="Last week" stroke="#a1a1aa" strokeWidth={2} strokeDasharray="6 5"
+                  dot={{ r: 3.5, fill: '#a1a1aa', strokeWidth: 0 }} connectNulls isAnimationActive={false}
+                />
+                <Line
+                  type="monotone" dataKey="now" name="This week" stroke="#2a78d6" strokeWidth={3}
+                  dot={{ r: 5, fill: '#2a78d6', strokeWidth: 0 }} activeDot={{ r: 7 }} isAnimationActive={false}
                 >
-                  <LabelList dataKey="_all" position="top" fill="#27272a" fontSize={14} fontWeight={700} offset={10} />
+                  <LabelList dataKey="now" position="top" fill="#1e3a8a" fontSize={14} fontWeight={700} offset={10} />
                 </Line>
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 shrink-0">
-            <div className="flex items-center gap-1.5 text-[11px] text-zinc-800 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-zinc-900" />
-              <span className="truncate font-semibold">Company</span>
-            </div>
-            {REPS.map((rep) => (
-              <div key={rep.id} className="flex items-center gap-1.5 text-[11px] text-zinc-600 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: rep.color }} />
-                <span className="truncate">{rep.name.split(' ')[0]}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-center gap-5 text-xs text-zinc-600 shrink-0">
+            <span className="inline-flex items-center gap-1.5"><span className="w-5 h-[3px] rounded bg-[#2a78d6]" /> This week</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" /> Last week</span>
+            <span className="text-zinc-400">new conversations per day · today so far</span>
           </div>
         </div>
       </Panel>
