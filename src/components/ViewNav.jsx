@@ -1,4 +1,4 @@
-import { CYCLE_VIEWS } from '../data/config.js';
+import { NAV_VIEWS } from '../data/config.js';
 
 const LABELS = {
   conversations: 'Conversations',
@@ -10,10 +10,10 @@ const LABELS = {
   advanced: 'Advanced',
 };
 
-export default function ViewNav({ active, onChange }) {
-  // master may or may not be in CYCLE_VIEWS (it's in the rotation now); dedupe
-  // so the tab never shows twice. advanced is always last, never in the cycle.
-  const views = [...new Set([...CYCLE_VIEWS, 'master', 'advanced'])];
+export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
+  // Rotation tabs first, then Revenue and Advanced, which the TV doesn't
+  // cycle through (Luke, Oct 7).
+  const views = NAV_VIEWS;
   return (
     <nav className="flex items-center gap-1 px-6 py-2.5 border-b border-zinc-300/80 bg-zinc-50 overflow-x-auto">
       {views.map((v) => (
@@ -34,7 +34,7 @@ export default function ViewNav({ active, onChange }) {
         </button>
       ))}
       <div className="ml-auto text-[10px] uppercase tracking-widest text-zinc-400 hidden md:block shrink-0">
-        rotates every 10 seconds
+        rotates every {Math.round(cycleIntervalMs / 1000)} seconds · revenue &amp; advanced stay put
       </div>
     </nav>
   );

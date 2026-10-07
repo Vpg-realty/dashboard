@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Header from './components/Header.jsx';
+import AlertStrip from './components/AlertStrip.jsx';
+import CelebrationBanner from './components/CelebrationBanner.jsx';
 import ViewNav from './components/ViewNav.jsx';
 import SubAccountsPanel from './components/SubAccountsPanel.jsx';
 import ConversationsView from './views/ConversationsView.jsx';
@@ -100,7 +102,7 @@ export default function App() {
   const ActiveView = VIEWS[view].component;
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-50">
+    <div className="relative h-screen flex flex-col bg-zinc-50">
       <Header
         viewName={VIEWS[view].label}
         isCycling={isCycling}
@@ -112,7 +114,9 @@ export default function App() {
         cycleIntervalMs={cycleIntervalMs}
         onCycleIntervalChange={handleCycleIntervalChange}
       />
-      <ViewNav active={view} onChange={handleViewChange} />
+      <ViewNav active={view} onChange={handleViewChange} cycleIntervalMs={cycleIntervalMs} />
+      <AlertStrip />
+      <CelebrationBanner />
 
       <main key={view} className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
         <div className="h-full animate-fadein">

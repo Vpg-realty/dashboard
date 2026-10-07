@@ -23,25 +23,25 @@ export default function OpportunitiesView() {
           Opened added Oct 6 (Luke). */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
         <KpiCard
-          label="Opps Opened (week)"
+          pace="week" label="Opps Opened (week)"
           actual={totalOppsOpened}
           target={TEAM_TARGETS.oppsOpenedPerWeek}
           sublabel={`${KPI_TARGETS.oppsOpenedPerWeek}/wk per rep × ${REPS.length} reps`}
         />
         <KpiCard
-          label="Offers Submitted (week)"
+          pace="week" label="Offers Submitted (week)"
           actual={head.offersWeek}
           target={TEAM_TARGETS.offersPerWeek}
           sublabel={`${KPI_TARGETS.offersPerWeek}/wk per rep × ${REPS.length} reps`}
         />
         <KpiCard
-          label="Contracts Accepted (month)"
+          pace="month" label="Contracts Accepted (month)"
           actual={head.contractsMonth}
           target={TEAM_TARGETS.contractsPerMonth}
           sublabel={`${KPI_TARGETS.contractsPerMonth}/mo per rep · ${totalAbandoned} aban this mo`}
         />
         <KpiCard
-          label="Deals Closed (month)"
+          pace="month" label="Deals Closed (month)"
           actual={head.dealsClosedMonth}
           target={TEAM_TARGETS.dealsClosedPerMonth}
           sublabel={`status: WON · ${totalLost} lost this mo`}
