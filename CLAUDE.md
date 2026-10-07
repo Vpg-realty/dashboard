@@ -145,10 +145,12 @@ Under `src/views/`:
   `RepStackBars` (one bar per rep, state segments). State cards are
   sorted by the total on each card (T1–T4), largest first, and capped
   at two rows like Conversations (Luke, Oct 7).
-- **Opportunities** — team KPI row + per-rep cards (weekly + monthly
-  targets, progress bars, Aban/Lost pinned to card bottom). By Rep
-  grid auto-fits: wraps to more rows as reps are added, never
-  squeezes skinnier.
+- **Opportunities** — four columns (Luke, Oct 7): team KPI card on top
+  (Opps Opened wk, Offers wk, Contracts mo, Closed mo), and under each a
+  ranked leaderboard of reps for that same number: one bar per rep in the
+  rep colour, dashed line at the per-rep target, number green once at
+  target. Rows share the panel height, so adding reps never overflows.
+  Replaced the per-rep cards; per-rep detail lives on Advanced.
 - **Revenue** — revenue tiles + market split.
 - **Master** — high-level overview. Conversations quadrant: one
   horizontal bar per rep, ranked busiest first, split into labelled

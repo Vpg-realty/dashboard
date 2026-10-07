@@ -2,27 +2,12 @@ import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
-import { kpiStatus } from '../utils/format.js';
 
-// Per-rep weekly/monthly targets used by the compact rep cards.
-// Weekly targets come from KPI_TARGETS; monthly = weekly × 4 where no
-// explicit monthly figure exists. Luke (May 11) wants both layers
-// visible per rep card.
-const REP_TARGETS = {
-  oppsOpenedPerWeek: KPI_TARGETS.oppsOpenedPerWeek,
-  offersPerWeek: KPI_TARGETS.offersPerWeek,
-  contractsPerWeek: KPI_TARGETS.contractsPerWeek,
-  offersPerMonth: KPI_TARGETS.offersPerWeek * 4,
-  contractsPerMonth: KPI_TARGETS.contractsPerMonth,
-  dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth,
-};
-
-// Layout: two full-width rows, fits one TV viewport.
+// Layout: four columns, fits one TV viewport (Luke, Oct 7).
 //   1. Team KPIs (4 cards: opps opened, offers, contracts, closed)
-//   2. Per-rep breakdown (one card per rep in a single horizontal row, each
-//      card split into Weekly + Monthly layers — Luke May 11)
-//   By Market row removed Sept 14 (Luke: "give more room to the individual
-//   score cards for each person, easier to see and read").
+//   2. Under each card, a ranked per-rep leaderboard for that same number.
+//   Replaced the per-rep Weekly + Monthly cards, which spilled off the TV
+//   at 9 reps. Every per-rep number is still on the Advanced tab.
 export default function OpportunitiesView() {
   const head = headline();
   const totalAbandoned = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
@@ -30,9 +15,8 @@ export default function OpportunitiesView() {
   const totalOppsOpened = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.oppsOpenedWeek ?? 0)).reduce((a, b) => a + b, 0);
 
   return (
-    // Flex column: the KPI row is content-sized, the By Rep panel takes ALL
-    // remaining vertical space so the cards are as tall and readable as
-    // possible now that By Market is gone (Luke, Sept 14).
+    // Flex column: the KPI row is content-sized, the leaderboards take all
+    // remaining vertical space.
     <div className="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
       {/* Row 1 — team KPIs against locked targets, in funnel order. Opps
           Opened added Oct 6 (Luke). */}
@@ -63,110 +47,46 @@ export default function OpportunitiesView() {
         />
       </div>
 
-      {/* Row 2 — Per rep, one card per rep. Grid wraps: cards keep a readable
-          minimum width and add new rows as more reps join, instead of
-          shrinking skinnier and skinnier along a single row (Luke, Sept 16:
-          "adding 3 new reps soon — will that make them super skinny?"). Each
-          row also has a minimum height so the metrics + bars stay legible on
-          the office TV — if content exceeds the panel, the outer flex-col
-          scrolls vertically (rare with ≤ 12 reps). */}
-      <Panel className="flex-1 min-h-0" title="By Rep" subtitle="weekly + monthly · per-rep targets" accent="Opportunities">
-        <div
-          className="grid gap-3 h-full"
-          style={{
-            // auto-fit lets us go from 8 reps today to 11 later without a code
-            // change; at 1920px width we get 4-5 cards per row, wrapping to a
-            // second row instead of squeezing skinny (Luke, Sept 16 concern).
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            // Rows flex to fill the panel; the auto min is chosen to hold all
-            // of a card's content (header + weekly + monthly + aban/lost row).
-            // If we ever go too tight, the outer flex-col scrolls.
-            gridAutoRows: 'minmax(360px, 1fr)',
-          }}
-        >
-          {REPS.map((rep) => {
-            const pairs = getPairsForRep(rep.id);
-            const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
-            return (
-              <div key={rep.id} className="rounded-xl border border-zinc-300/80 bg-zinc-50 p-3 flex flex-col justify-between min-w-0 h-full">
-                <div>
-                  {/* Header — rep name is the loudest thing on the card so it
-                      reads across the office (Luke, Sept 16 mockup). */}
-                  <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b border-zinc-200 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
-                      <h4 className="text-xl font-bold text-zinc-900 truncate">{rep.name.split(' ')[0]}</h4>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 shrink-0">{rep.markets.length} mkt</span>
-                  </div>
-
-                  {/* WEEKLY */}
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-600 font-bold mb-1">Weekly</div>
-                  <div className="space-y-1">
-                    <MetricRow label="Opps Opened" actual={sum('oppsOpenedWeek')} target={REP_TARGETS.oppsOpenedPerWeek} />
-                    <MetricRow label="Offers" actual={sum('offersWeek')} target={REP_TARGETS.offersPerWeek} />
-                    <MetricRow label="Contracts" actual={sum('contractsWeek')} target={REP_TARGETS.contractsPerWeek} />
-                  </div>
-
-                  {/* MONTHLY */}
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-blue-600 font-bold mt-2 mb-1">Monthly</div>
-                  <div className="space-y-1">
-                    <MetricRow label="Offers" actual={sum('offersMonth')} target={REP_TARGETS.offersPerMonth} />
-                    <MetricRow label="Contracts" actual={sum('contractsMonth')} target={REP_TARGETS.contractsPerMonth} />
-                    <MetricRow label="Closed" actual={sum('dealsClosedMonth')} target={REP_TARGETS.dealsClosedPerMonth} />
-                  </div>
-                </div>
-
-                {/* Aban + Lost — pinned to the bottom of the card, matching
-                    Luke's mockup with big numbers on either side. */}
-                <div className="mt-2 pt-2 border-t border-zinc-200 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Aban</span>
-                    <span className="text-xl font-bold tabular-nums text-orange-600">{sum('abandoned')}</span>
-                  </span>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500">Lost</span>
-                    <span className="text-xl font-bold tabular-nums text-red-500">{sum('lost')}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
-
+      {/* Row 2 — one ranked leaderboard under each team box, for the same
+          number (Luke, Oct 7: "clean this up"). Each rep is one bar in their
+          colour, best on top, with a dashed line at the per-rep target, so
+          the page reads as four columns: team total, then who's driving it.
+          Replaces nine per-rep cards that spilled off the TV at 9 reps. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 min-h-0">
+        <Leaderboard title="Opps Opened" period="this week" valueKey="oppsOpenedWeek" target={KPI_TARGETS.oppsOpenedPerWeek} />
+        <Leaderboard title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek} />
+        <Leaderboard title="Contracts Accepted" period="this month" valueKey="contractsMonth" target={KPI_TARGETS.contractsPerMonth} />
+        <Leaderboard title="Deals Closed" period="this month" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
+      </div>
     </div>
   );
 }
 
-function MetricRow({ label, actual, target }) {
-  if (target == null) {
-    // No target, no bar — just label + value.
-    return (
-      <div className="flex items-baseline justify-between gap-2 min-w-0">
-        <span className="text-xs text-zinc-700 truncate">{label}</span>
-        <span className="text-lg font-bold tabular-nums text-zinc-900 shrink-0 leading-tight">{actual}</span>
-      </div>
-    );
-  }
-  const s = kpiStatus(actual, target);
-  const pctVal = target > 0 ? Math.min(100, (actual / target) * 100) : 0;
-  // Bar under each targeted metric (Luke, Sept 16 mockup). Filled proportional
-  // to actual/target, coloured by kpiStatus. Tight vertical spacing so all six
-  // metric rows + header + aban/lost fit inside the ~360px card without
-  // overflowing.
+// Ranked bars for one metric: one row per rep, largest first. The scale
+// runs to the larger of the top rep and 1.25 × target so the dashed target
+// line always sits inside the panel. Numbers turn green at target.
+function Leaderboard({ title, period, valueKey, target }) {
+  const rows = REPS.map((rep) => ({
+    rep,
+    value: getPairsForRep(rep.id).reduce((a, p) => a + (p[valueKey] || 0), 0),
+  })).sort((a, b) => b.value - a.value || a.rep.name.localeCompare(b.rep.name));
+  const max = Math.max(target * 1.25, rows[0]?.value || 0, 1);
+  const hit = rows.filter((r) => r.value >= target).length;
   return (
-    <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs text-zinc-700 truncate">{label}</span>
-        <span className={`text-lg font-bold ${s.text} tabular-nums shrink-0 leading-tight`}>
-          {actual}<span className="text-zinc-400 text-sm font-semibold">/{target}</span>
-        </span>
+    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit} of ${rows.length} at target`} accent="By Rep">
+      <div className="h-full flex flex-col justify-around min-h-0 gap-1">
+        {rows.map(({ rep, value }) => (
+          <div key={rep.id} className="grid grid-cols-[6rem_1fr_2.5rem] items-center gap-2 min-h-0">
+            <span className="text-lg font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
+            <div className="relative h-8 min-w-0">
+              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: `${(value / max) * 100}%`, background: rep.color }} />
+              <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: `${(target / max) * 100}%` }} />
+            </div>
+            <span className={`text-2xl font-extrabold tabular-nums text-right ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
+          </div>
+        ))}
+        <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">┆ dashed line = target ({target} per rep)</div>
       </div>
-      <div className="h-1 mt-0.5 rounded-full overflow-hidden bg-zinc-200">
-        <div className="h-full rounded-full" style={{ width: `${pctVal}%`, background: s.color }} />
-      </div>
-    </div>
+    </Panel>
   );
 }
-
