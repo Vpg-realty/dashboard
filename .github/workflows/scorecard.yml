@@ -1,0 +1,44 @@
+name: Weekly scorecard
+
+# Fills the VPG Weekly Score Card Google Sheet every Friday at 12:00 Arizona
+# time (Luke, Oct 7): duplicates "TEMPLATE (copy me)" as "Week of <Mon> <D>"
+# and writes the week's numbers into its yellow cells. See
+# scripts/weekly-scorecard.mjs.
+#
+# Arizona is UTC-7 all year (no daylight saving), so noon AZ = 19:00 UTC.
+# GitHub may start scheduled runs a few minutes late.
+#
+# Needs repo secrets GOOGLE_SERVICE_ACCOUNT_JSON and SCORECARD_SHEET_ID, and
+# the sheet shared (Editor) with the service account's email.
+
+on:
+  schedule:
+    - cron: '0 19 * * 5'
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Write a "TEST – delete me" tab instead of the week''s tab'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-scorecard
+  cancel-in-progress: false
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fill this week's scorecard tab
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SCORECARD_SHEET_ID: ${{ secrets.SCORECARD_SHEET_ID }}
+          SCORECARD_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test && '1' || '0' }}
+        run: node scripts/weekly-scorecard.mjs

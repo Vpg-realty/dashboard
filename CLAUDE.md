@@ -187,6 +187,24 @@ Under `src/views/`:
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 
+## Weekly scorecard export (Luke, Oct 7)
+
+`.github/workflows/scorecard.yml` runs every Friday 19:00 UTC (= 12:00
+Arizona, which has no DST) and `scripts/weekly-scorecard.mjs`:
+reads the deployed `data.json`, duplicates the "TEMPLATE (copy me)" tab
+of the "VPG - Weekly Score Card" Google Sheet as "Week of <Mon> <D>"
+(inserted right after the template), and writes B3 (week-of label),
+B4 (week # of month = ceil(Friday's day / 7)) and, per rep row found by
+name in column A, B:E = Contracts (week), Projected $ (MTD: revenue
+closed this month + value of Assigned-stage deals), Offers (week), Opps
+Opened (week). CRM checklist, Reviewed By and notes stay for people; all
+scores are the template's formulas. Reps not on the sheet (pod leads,
+Patrick) are skipped. Re-runs update that week's tab in place. Manual
+"Run workflow" defaults to test mode (writes a "TEST – delete me" tab).
+Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `SCORECARD_SHEET_ID`; the sheet
+must be shared (Editor) with the service account. Pure logic lives in
+`scripts/scorecard-lib.mjs`.
+
 ## Rules of the road for editing
 
 - **Branch → PR → squash-merge**. Never push straight to main.
