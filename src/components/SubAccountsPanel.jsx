@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MARKETS, REPS, SUBACCOUNTS, REPO_OWNER, REPO_NAME } from '../data/config.js';
+import { ALL_MARKETS as MARKETS, REPS, SUBACCOUNTS, REPO_OWNER, REPO_NAME } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
 import { pickColor, suggestRepId, suggestMarketCode } from '../utils/autoColor.js';

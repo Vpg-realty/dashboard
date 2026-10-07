@@ -72,6 +72,13 @@ from it in both `src/data/config.js` (browser) and
 wires a new sub-account into every chart, dropdown, and aggregation
 automatically.
 
+Markets: `subaccounts.json` keeps every market ever configured, but
+`MARKETS` in `src/data/config.js` only includes markets with at least
+one sub-account, so deleting a state's last sub-account drops it from
+every chart, legend and dropdown (Luke, Oct 7 — Nevada, Michigan). The
+Sub-Accounts panel uses the full `ALL_MARKETS` list so a removed state
+can be re-added with its original code and colour.
+
 Two PIT sources merged at build time (later wins):
 1. `GHL_TOKENS` env — legacy single-blob JSON `{locationId: PIT}`.
 2. `PIT_<base32(locationId)>` env vars — written by the in-app
