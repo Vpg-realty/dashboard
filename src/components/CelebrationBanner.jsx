@@ -17,7 +17,7 @@ import { shortDate } from '../utils/historyRange.js';
 // shown it (keys in localStorage), so a freshly opened screen doesn't replay
 // the pipeline. Several at once queue and show one after another.
 const FRESH_MS = 45 * 60 * 1000;
-const SHOW_MS = 40 * 1000;
+const SHOW_MS = 60 * 1000;
 const STORE = 'vpg.celebrated';
 
 const loadSeen = () => {
