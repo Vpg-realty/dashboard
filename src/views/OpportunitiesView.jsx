@@ -2,7 +2,6 @@ import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
 import { getPair, getPairsForRep, headline } from '../data/source.js';
-import { marketShade } from '../utils/marketShade.js';
 
 // Layout: four columns, fits one TV viewport (Luke, Oct 7).
 //   1. Team KPIs (4 cards: opps opened, offers, contracts, closed)
@@ -48,20 +47,22 @@ export default function OpportunitiesView() {
         />
       </div>
 
-      {/* Row 2 — one ranked leaderboard under each team box, for the same
+      {/* Row 2 — ranked leaderboards under each team box, for the same
           number (Luke, Oct 7: "clean this up"). Each rep is one bar in their
           colour, best on top, with a dashed line at the per-rep target, so
           the page reads as four columns: team total, then who's driving it.
-          Replaces nine per-rep cards that spilled off the TV at 9 reps. */}
+          Opps Opened and Offers get two stacked boards, this week and this
+          month (monthly target = weekly × 4), in the same style (Luke,
+          Oct 7). Replaces nine per-rep cards that spilled off the TV. */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 min-h-0">
-        <Leaderboard
-          title="Opps Opened" period="this week" valueKey="oppsOpenedWeek" target={KPI_TARGETS.oppsOpenedPerWeek}
-          month={{ key: 'oppsOpenedMonth', target: KPI_TARGETS.oppsOpenedPerWeek * 4 }}
-        />
-        <Leaderboard
-          title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek}
-          month={{ key: 'offersMonth', target: KPI_TARGETS.offersPerWeek * 4 }}
-        />
+        <div className="flex flex-col gap-4 min-h-0">
+          <Leaderboard compact title="Opps Opened" period="this week" valueKey="oppsOpenedWeek" target={KPI_TARGETS.oppsOpenedPerWeek} />
+          <Leaderboard compact title="Opps Opened" period="this month" valueKey="oppsOpenedMonth" target={KPI_TARGETS.oppsOpenedPerWeek * 4} />
+        </div>
+        <div className="flex flex-col gap-4 min-h-0">
+          <Leaderboard compact title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek} />
+          <Leaderboard compact title="Offers Submitted" period="this month" valueKey="offersMonth" target={KPI_TARGETS.offersPerWeek * 4} />
+        </div>
         <Leaderboard title="Contracts Accepted" period="this month" valueKey="contractsMonth" target={KPI_TARGETS.contractsPerMonth} />
         <Leaderboard title="Deals Closed" period="this month" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
       </div>
@@ -70,59 +71,43 @@ export default function OpportunitiesView() {
 }
 
 // Ranked bars for one metric: one row per rep, largest first. Numbers turn
-// green at target.
-//
-// `month` (optional, Luke Oct 7): also show the month-to-date figure as a
-// thin, lighter bar under each rep's week bar. Both bars are drawn as a
-// share of their own target on one shared scale, so the single dashed line
-// is the week target for the thick bar and the month target (weekly × 4)
-// for the thin one. Ranking stays by the week.
-function Leaderboard({ title, period, valueKey, target, month }) {
-  const rows = REPS.map((rep) => {
-    const pairs = getPairsForRep(rep.id);
-    const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
-    return { rep, value: sum(valueKey), monthValue: month ? sum(month.key) : 0 };
-  }).sort((a, b) => b.value - a.value || a.rep.name.localeCompare(b.rep.name));
-  // Scale in "fractions of target": the dashed line sits where value =
-  // target, with 25% headroom after it. Anyone further past target fills
-  // the bar; the number beside it still shows exactly how far.
+// green at target. The scale runs to 125% of target so the dashed target
+// line sits in the same place on every board; anyone further past target
+// fills the bar and the number shows exactly how far. `compact` = half-height
+// board (two stacked in one column): thinner bars, target in the header
+// instead of a footer.
+function Leaderboard({ title, period, valueKey, target, compact = false }) {
+  const rows = REPS.map((rep) => ({
+    rep,
+    value: getPairsForRep(rep.id).reduce((a, p) => a + (p[valueKey] || 0), 0),
+  })).sort((a, b) => b.value - a.value || a.rep.name.localeCompare(b.rep.name));
   const span = 1.25;
-  const at = (v, t) => `${Math.min(100, (v / t / span) * 100)}%`;
+  const at = (v) => `${Math.min(100, (v / target / span) * 100)}%`;
   const hit = rows.filter((r) => r.value >= target).length;
+  const subtitle = compact
+    ? `target ${target} · ${hit} of ${rows.length} there`
+    : `${period} · ${hit} of ${rows.length} at target`;
   return (
-    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit} of ${rows.length} at target`} accent="By Rep">
-      <div className="h-full flex flex-col justify-around min-h-0 gap-1">
-        {rows.map(({ rep, value, monthValue }) => (
-          <div key={rep.id} className={`grid ${month ? 'grid-cols-[6rem_1fr_3.25rem]' : 'grid-cols-[6rem_1fr_2.5rem]'} items-center gap-2 min-h-0`}>
-            <span className="text-lg font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
-            <div className={`relative min-w-0 ${month ? 'h-9' : 'h-8'}`}>
-              <div
-                className={`absolute left-0 top-0 rounded-[4px] ${month ? 'h-6' : 'h-full'}`}
-                style={{ width: at(value, target), background: rep.color }}
-              />
-              {month && (
-                <div
-                  className="absolute left-0 bottom-0 h-2 rounded-[3px]"
-                  style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 2) }}
-                />
-              )}
-              <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
+    <Panel
+      className="flex-1 min-h-0 flex flex-col"
+      title={compact ? `${title} · ${period === 'this week' ? 'This Week' : 'This Month'}` : title}
+      subtitle={subtitle}
+      accent="By Rep"
+    >
+      <div className={`h-full flex flex-col justify-around min-h-0 ${compact ? 'gap-0.5' : 'gap-1'}`}>
+        {rows.map(({ rep, value }) => (
+          <div key={rep.id} className="grid grid-cols-[6rem_1fr_2.5rem] items-center gap-2 min-h-0">
+            <span className={`${compact ? 'text-base' : 'text-lg'} font-bold text-zinc-800 truncate`}>{rep.name.split(' ')[0]}</span>
+            <div className={`relative min-w-0 ${compact ? 'h-4' : 'h-8'}`}>
+              <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: at(value), background: rep.color }} />
+              <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(target) }} />
             </div>
-            <div className="text-right leading-none">
-              <div className={`text-2xl font-extrabold tabular-nums ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</div>
-              {month && (
-                <div className={`text-xs font-semibold tabular-nums mt-0.5 ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-500'}`}>
-                  {monthValue} mo
-                </div>
-              )}
-            </div>
+            <span className={`${compact ? 'text-lg' : 'text-2xl'} font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
           </div>
         ))}
-        <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">
-          {month
-            ? `thick bar = week · thin bar = month · ┆ target ${target}/wk, ${month.target}/mo`
-            : `┆ dashed line = target (${target} per rep)`}
-        </div>
+        {!compact && (
+          <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">┆ dashed line = target ({target} per rep)</div>
+        )}
       </div>
     </Panel>
   );

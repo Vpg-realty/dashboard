@@ -150,10 +150,9 @@ Under `src/views/`:
   ranked leaderboard of reps for that same number: one bar per rep in the
   rep colour, dashed line at the per-rep target, number green once at
   target. Rows share the panel height, so adding reps never overflows.
-  Opps Opened and Offers also show month-to-date as a thin lighter bar
-  under each week bar plus a small "N mo" figure; both bars are scaled
-  to their own target (weekly × 4 for the month) so one dashed line
-  serves both. Scale stops at 125% of target; past that the bar is full.
+  Opps Opened and Offers columns hold two stacked boards, This Week and
+  This Month (monthly target = weekly × 4), same style. Scale stops at
+  125% of target; past that the bar is full and the number tells.
   Replaced the per-rep cards; per-rep detail lives on Advanced.
 - **Revenue** — revenue tiles + market split.
 - **Master** — high-level overview. Conversations quadrant: one
