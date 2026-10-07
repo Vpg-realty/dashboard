@@ -2,7 +2,7 @@ import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, LineCh
 import Panel from '../components/Panel.jsx';
 import { REPS, MARKETS } from '../data/config.js';
 import { getPair, totalConversationsByMarket, headline } from '../data/source.js';
-import { formatNumber } from '../utils/format.js';
+import { formatNumber, niceMax } from '../utils/format.js';
 import { STATE_DOT, segmentFill } from '../utils/marketShade.js';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
 
@@ -17,7 +17,7 @@ export default function ConversationsView() {
   // Per-rep × market — rep on the X axis, stacked by market.
   // _total drives the LabelList on top of each stacked bar (Luke, May 4).
   const byRep = REPS.map((rep) => {
-    const row = { rep: rep.name.split(' ')[0], _total: 0 };
+    const row = { rep: rep.name.split(' ')[0], _total: 0, _cap: 1e-6 };
     rep.markets.forEach((m) => {
       const p = getPair(rep.id, m);
       const v = p?.convosWeek ?? 0;
@@ -61,23 +61,28 @@ export default function ConversationsView() {
               <BarChart data={byRep} margin={{ top: 22, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
                 <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} interval={0} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 14 }} axisLine={false} tickLine={false} domain={[0, niceMax(Math.max(...byRep.map((r) => r._total)))]} allowDataOverflow />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
                 {/* Each market segment is a shade of its rep's colour, labelled
                     with the state code (Oct 7 palette change), so the chart
                     needs no 17-colour state legend. */}
-                {MARKETS.map((m, idx) => {
+                {MARKETS.map((m) => {
                   const fills = REPS.map((rep) => segmentFill(rep, m.id));
                   return (
                   <Bar key={m.id} dataKey={m.id} stackId="a" radius={[0, 0, 0, 0]} stroke="#ffffff" strokeWidth={1.5}>
                     {fills.map((f, i) => <Cell key={i} fill={f} />)}
                     <LabelList dataKey={m.id} content={segmentLabel(m.id)} />
-                    {idx === MARKETS.length - 1 && (
-                      <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} />
-                    )}
                   </Bar>
                   );
                 })}
+                {/* Total above every rep's stack: an invisible near-zero "cap" segment
+                    sits on top of every stack (so no rep is skipped) and
+                    carries the total as its label. Recharts 3 no longer feeds
+                    the old Customized overlay, and a label on the last
+                    market only covered reps in that market (Luke, Oct 7). */}
+                <Bar dataKey="_cap" stackId="a" fill="transparent" isAnimationActive={false} tooltipType="none" legendType="none">
+                  <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

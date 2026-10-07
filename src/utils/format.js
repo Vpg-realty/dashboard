@@ -25,3 +25,12 @@ export const kpiStatus = (actual, target) => {
 
 export const pct = (actual, target) =>
   target > 0 ? Math.min(100, Math.round((actual / target) * 100)) : 0;
+
+// A round axis maximum at or above `v` (40 → 40, 41 → 50, 177000 → 200000),
+// for stacked rep charts whose total-label "cap" segment would otherwise
+// nudge the auto axis to an ugly value.
+export const niceMax = (v) => {
+  if (!(v > 0)) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * p >= v) * p;
+};
