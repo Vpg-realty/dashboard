@@ -102,10 +102,31 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
     contractsWeek = Math.max(contractsWeek, bcContractsWeek);
     contractsMonth = Math.max(contractsMonth, bcContractsMonth);
 
+    // "New deal" start times (Luke, Oct 7): the first time each opp reached
+    // the contract band (Under Contract or later), so the TV celebrates a
+    // deal once — on Under Contract, or on DISPO Active if it skipped Under
+    // Contract — and not again when it moves on. Kept per opp across runs;
+    // entries are dropped only when the opp disappears from the pipeline.
+    // Opps already in the band when there's no prior start-time map (first
+    // run of this feature, or a never-seen pair) get 0 = "started long ago",
+    // so rolling this out doesn't fire a banner for every open deal.
+    const prevStarted = prev?.started || null;
+    const stageSinceById = {};
+    for (const d of p.deals || []) stageSinceById[d.id] = d.stageSince;
+    const started = {};
+    for (const o of curr) {
+      if (prevStarted && prevStarted[o.id] != null) {
+        started[o.id] = prevStarted[o.id];
+      } else if (inContractBand(o.r)) {
+        started[o.id] = prevStarted ? (stageSinceById[o.id] || now.getTime()) : 0;
+      }
+    }
+    const deals = (p.deals || []).map((d) => ({ ...d, startedAt: started[d.id] || null }));
+
     // Strip the heavy per-opp rank list — it must never reach the browser.
     const { _oppRanks, ...clean } = p;
-    newPairs.push({ ...clean, offersWeek, offersMonth, contractsWeek, contractsMonth });
-    statePairs[key] = { ranks: currMap, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth });
+    statePairs[key] = { ranks: currMap, started, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {

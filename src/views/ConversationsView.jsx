@@ -9,6 +9,32 @@ import { segmentLabel } from '../components/SegmentLabel.jsx';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Week-over-week badge in the trend panel header (Luke, Oct 7: the grey
+// subtitle was too easy to miss). Green ▲ when completed days are at or
+// above the same days last week, red ▼ when below.
+function WowBadge({ now, last, pct, range }) {
+  const up = now >= last;
+  const diff = now - last;
+  return (
+    <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${up ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-red-50 text-red-700 ring-1 ring-red-200'}`}>
+      <span className="text-2xl leading-none">{up ? '▲' : '▼'}</span>
+      <div className="leading-tight text-right">
+        <div className="text-xl font-extrabold tabular-nums">{diff >= 0 ? '+' : ''}{pct}%</div>
+        <div className="text-[11px] font-semibold opacity-80 tabular-nums">{range}: {now} vs {last} ({diff >= 0 ? '+' : ''}{diff})</div>
+      </div>
+    </div>
+  );
+}
+
+// This-week dot: green at/above the same day last week, red below. Today is
+// still in progress, so it stays blue.
+function DayDot({ cx, cy, index, payload, todayIdx }) {
+  if (cx == null || cy == null || payload?.now == null) return null;
+  const done = index < todayIdx && payload.last != null;
+  const fill = !done ? '#2a78d6' : payload.now >= payload.last ? '#10b981' : '#ef4444';
+  return <circle key={index} cx={cx} cy={cy} r={done ? 6 : 5} fill={fill} stroke="#ffffff" strokeWidth={1.5} />;
+}
+
 export default function ConversationsView() {
   const head = headline();
   // State cards ordered by today's outreach, busiest first (Luke, Oct 7), so
@@ -103,7 +129,7 @@ export default function ConversationsView() {
         className="col-span-12 lg:col-span-5 min-h-0"
         title="This Week vs Last Week"
         subtitle={todayIdx > 0 && wow != null
-          ? `${DAYS[0]}–${DAYS[todayIdx - 1]}: ${doneNow} vs ${doneLast} (${wow >= 0 ? '+' : ''}${wow}%)`
+          ? <WowBadge now={doneNow} last={doneLast} pct={wow} range={todayIdx > 1 ? `${DAYS[0]}–${DAYS[todayIdx - 1]}` : DAYS[0]} />
           : `last week: ${lastWeekTotal} total`}
         accent="Conversations · team"
       >
@@ -122,7 +148,7 @@ export default function ConversationsView() {
                 />
                 <Line
                   type="monotone" dataKey="now" name="This week" stroke="#2a78d6" strokeWidth={3}
-                  dot={{ r: 5, fill: '#2a78d6', strokeWidth: 0 }} activeDot={{ r: 7 }} isAnimationActive={false}
+                  dot={<DayDot todayIdx={todayIdx} />} activeDot={{ r: 7 }} isAnimationActive={false}
                 >
                   <LabelList dataKey="now" position="top" fill="#1e3a8a" fontSize={14} fontWeight={700} offset={10} />
                 </Line>
@@ -132,7 +158,8 @@ export default function ConversationsView() {
           <div className="flex items-center justify-center gap-5 text-xs text-zinc-600 shrink-0">
             <span className="inline-flex items-center gap-1.5"><span className="w-5 h-[3px] rounded bg-[#2a78d6]" /> This week</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" /> Last week</span>
-            <span className="text-zinc-400">new conversations per day · today so far</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />/<span className="w-2.5 h-2.5 rounded-full bg-red-500" /> up / down vs same day</span>
+            <span className="text-zinc-400">today so far</span>
           </div>
         </div>
       </Panel>

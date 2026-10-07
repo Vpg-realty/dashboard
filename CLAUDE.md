@@ -143,7 +143,9 @@ Under `src/views/`:
   `teamConvosByDay` (each pair's `convosWeek` minus the previous snapshot
   in the same week). The subtitle compares completed days only (Mon–
   yesterday vs the same days last week), since there's no intraday
-  history to compare today fairly. State cards
+  history to compare today fairly. That comparison is a big green ▲ / red ▼
+  badge in the panel header, and each completed day's dot is green (at or
+  above the same day last week) or red (below); today's dot stays blue. State cards
   at the bottom are sorted by today's outreach, busiest first, so the
   order shifts through the day (Luke, Oct 7). Never more than two rows
   of state cards: columns = ceil(states / 2) at TV width.
@@ -223,14 +225,19 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   IP ends today / tomorrow, DISPO deals whose IP ends within 2 days,
   closings (COE) today / tomorrow, reps with no conversations yet (only
   after 10am Arizona). Hidden when there's nothing to flag.
-- **Celebration banners** (`components/CelebrationBanner.jsx`): a deal
-  moving into DISPO Active ("got one to DISPO", no value — value only
-  exists once assigned; shows IP end / COE) or Closed ("closed one!",
-  with value). A move counts when the deal's `stageSince` (GHL
-  `lastStageChangeAt`) is within 45 min and this screen hasn't shown it
-  (keys in localStorage `vpg.celebrated`), so each move celebrates once
-  per TV and a freshly opened screen doesn't replay old ones. Checked
-  every 30s; several queue, 40s each.
+- **Celebration banners** (`components/CelebrationBanner.jsx`): once per
+  deal when it first goes Under Contract ("got one under contract!"), or
+  straight to DISPO Active if Under Contract was skipped ("got one to
+  DISPO"); Under Contract → DISPO does NOT fire again (Luke, Oct 7). No
+  value on these (value only exists once assigned); shows IP end / COE.
+  Driven by `deal.startedAt`, which `server/stickyCounts.js` keeps per opp
+  in `opp-state.json` (`started`): set the first run an opp is seen in the
+  contract band (rank 5+, not abandoned/lost), carried forward after that;
+  0 = was already in the band when tracking began, so rollout didn't flood
+  the TV. Closed ("closed one!", with value) still fires off `stageSince`.
+  An event shows when its time is within 45 min and this screen hasn't
+  shown it (keys `${id}:start` / `${id}:closed` in localStorage
+  `vpg.celebrated`). Any tab, checked every 30s; several queue, 40s each.
 - **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
   Opportunities team boxes are graded against target × share of the
   period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
