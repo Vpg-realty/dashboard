@@ -147,14 +147,16 @@ Under `src/views/`:
   at two rows like Conversations (Luke, Oct 7).
 - **Opportunities** — four columns (Luke, Oct 7): team KPI card on top
   (Opps Opened wk, Offers wk, Contracts mo, Closed mo), and under each a
-  ranked leaderboard of reps for that same number: one bar per rep in the
-  rep colour, dashed line at the per-rep target, number green once at
-  target. Rows share the panel height, so adding reps never overflows.
-  Opps Opened and Offers also show month-to-date as a thin lighter bar
-  under each week bar plus a small "N mo" figure; both bars are scaled
-  to their own target (weekly × 4 for the month) so one dashed line
-  serves both. Scale stops at 125% of target; past that the bar is full.
-  Replaced the per-rep cards; per-rep detail lives on Advanced.
+  ranked leaderboard of reps for that same metric: per rep a thick bar
+  (this week) and a thin lighter bar (this month) in the rep colour,
+  plus the week number and a small "N mo" figure. Both bars are scaled
+  to their own target so one dashed line serves both: opps 10/wk 40/mo,
+  offers 5/wk 20/mo, contracts 1/wk 4/mo, closed 2/mo with the weekly
+  bar at monthly ÷ 4 (½, no weekly closing target is set). Ranked by
+  the week, ties by the month. Scale stops at 125% of target; past that
+  the bar is full and the number tells. Rows share the panel height, so
+  adding reps never overflows. Replaced the per-rep cards (and a short-
+  lived week/month split-board version Luke found confusing).
 - **Revenue** — revenue tiles + market split.
 - **Master** — high-level overview. Conversations quadrant: one
   horizontal bar per rep, ranked busiest first, split into labelled
