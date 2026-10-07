@@ -209,3 +209,29 @@ export function periodTargets(kind, days, t) {
   const scale = (n) => Math.max(1, Math.round(n * weeks));
   return { oppsOpened: scale(t.oppsOpenedPerWeek), offers: scale(t.offersPerWeek), contracts: scale(t.contractsPerWeek) };
 }
+
+// New conversations per day for the whole team, from history snapshots
+// (Luke, Oct 7: Conversations week-over-week chart). Each pair's day count
+// is its week-to-date `convosWeek` minus the previous snapshot in the same
+// Mon–Sun week (Monday = the value itself), summed across pairs; a day with
+// no snapshot lands on the next day on file, like computeRange. Legacy
+// (pre-Sept 14) snapshots have no convosWeek and count as 0.
+// Returns Map 'YYYY-MM-DD' → count.
+export function teamConvosByDay(entries) {
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const prevByPair = new Map();
+  const out = new Map();
+  for (const entry of sorted) {
+    let day = 0;
+    for (const p of entry.pairs || []) {
+      if (p.convosWeek == null) continue;
+      const key = `${p.repId}__${p.marketId}`;
+      const prev = prevByPair.get(key);
+      const same = prev && weekStart(prev.date) === weekStart(entry.date);
+      day += Math.max(0, (p.convosWeek || 0) - (same ? prev.value : 0));
+      prevByPair.set(key, { date: entry.date, value: p.convosWeek || 0 });
+    }
+    out.set(entry.date, day);
+  }
+  return out;
+}
