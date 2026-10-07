@@ -95,38 +95,44 @@ function Leaderboard({ title, period, valueKey, target, month }) {
   const at = (v, t) => `${Math.min(100, (v / t / span) * 100)}%`;
   const hit = rows.filter((r) => r.value >= target).length;
   return (
-    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit} of ${rows.length} at target`} accent="By Rep">
-      <div className="h-full flex flex-col justify-around min-h-0 gap-1">
-        {rows.map(({ rep, value, monthValue }) => (
-          <div key={rep.id} className={`grid ${month ? 'grid-cols-[6rem_1fr_4rem]' : 'grid-cols-[6rem_1fr_2.5rem]'} items-center gap-2 min-h-0`}>
-            <span className="text-lg font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
-            <div className={`relative min-w-0 ${month ? 'h-11' : 'h-8'}`}>
-              <div
-                className={`absolute left-0 top-0 rounded-[4px] ${month ? 'h-6' : 'h-full'}`}
-                style={{ width: at(value, target), background: rep.color }}
-              />
-              {month && <div className="absolute inset-x-0 bottom-0 h-4 rounded-[3px] bg-zinc-100" />}
-              {month && (
-                <div
-                  className="absolute left-0 bottom-0 h-4 rounded-[3px]"
-                  style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 1) }}
-                />
-              )}
+    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit}/${rows.length} at target`} accent="By Rep">
+      <div className="h-full flex flex-col justify-around min-h-0 gap-[2px]">
+        {rows.map(({ rep, value, monthValue }) => (month ? (
+          // Week + month: two lines per rep, each number beside its own bar
+          // (Luke, Oct 7: stacked numbers in one column overran the row and
+          // didn't line up with the bars on the TV).
+          // Each rep row takes an equal share of the panel height and the
+          // bars/text are capped at their 1080p size but shrink with the
+          // viewport (vh), so a shorter TV/browser window squeezes rows
+          // instead of overlapping them.
+          <div key={rep.id} className="flex-1 min-h-0 max-h-20 grid grid-cols-[6rem_1fr_4.25rem] grid-rows-[3fr_2fr] gap-x-2 gap-y-[2px]">
+            <span className="row-span-2 self-center text-[min(1.125rem,2vh)] font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
+            <div className="relative self-end h-full max-h-6 min-w-0">
+              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: at(value, target), background: rep.color }} />
+              <div className="absolute -top-1 -bottom-[3px] border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
+            </div>
+            <span className={`self-end text-[min(1.5rem,2.2vh)] font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
+            <div className="relative self-start h-full max-h-4 min-w-0 rounded-[3px] bg-zinc-100">
+              <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 1) }} />
+              <div className="absolute top-0 -bottom-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
+            </div>
+            <span className={`self-start text-[min(1rem,1.6vh)] font-bold tabular-nums text-right leading-none ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-600'}`}>
+              {monthValue}<span className="text-[0.75em] font-semibold"> mo</span>
+            </span>
+          </div>
+        ) : (
+          <div key={rep.id} className="flex-1 min-h-0 max-h-20 grid grid-cols-[6rem_1fr_2.5rem] items-center gap-2">
+            <span className="text-[min(1.125rem,2vh)] font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
+            <div className="relative h-[70%] max-h-8 min-w-0">
+              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: at(value, target), background: rep.color }} />
               <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
             </div>
-            <div className="text-right leading-none">
-              <div className={`text-2xl font-extrabold tabular-nums ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</div>
-              {month && (
-                <div className={`text-lg font-bold tabular-nums mt-1 ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-600'}`}>
-                  {monthValue}<span className="text-xs font-semibold"> mo</span>
-                </div>
-              )}
-            </div>
+            <span className={`text-[min(1.5rem,2.4vh)] font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
           </div>
-        ))}
+        )))}
         <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">
           {month
-            ? `top bar = week · lower bar = month · ┆ target ${target}/wk, ${month.target}/mo`
+            ? `top = week · lower = month · ┆ target ${target}/wk, ${month.target}/mo`
             : `┆ dashed line = target (${target} per rep)`}
         </div>
       </div>

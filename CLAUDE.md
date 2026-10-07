@@ -149,8 +149,11 @@ Under `src/views/`:
   (Opps Opened wk, Offers wk, Contracts mo, Closed mo), and under each a
   ranked leaderboard of reps for that same metric: per rep a top bar
   (this week) and a lower, lighter bar on a grey track (this month) in
-  the rep colour, plus the week number and an "N mo" figure (enlarged
-  Oct 7 so the month reads from across the office). Both bars are scaled
+  the rep colour; each number sits beside its own bar (week number by
+  the top bar, "N mo" by the lower one). Rows share the panel height
+  and bar/text sizes are capped at their 1080p size but scale with vh,
+  so a shorter browser window (e.g. 1440×810) squeezes rows instead of
+  overlapping them (Luke, Oct 7). Both bars are scaled
   to their own target so one dashed line serves both: opps 10/wk 40/mo,
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
