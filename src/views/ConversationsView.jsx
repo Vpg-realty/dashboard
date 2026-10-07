@@ -158,8 +158,6 @@ export default function ConversationsView() {
           <div className="flex items-center justify-center gap-5 text-xs text-zinc-600 shrink-0">
             <span className="inline-flex items-center gap-1.5"><span className="w-5 h-[3px] rounded bg-[#2a78d6]" /> This week</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" /> Last week</span>
-            <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />/<span className="w-2.5 h-2.5 rounded-full bg-red-500" /> up / down vs same day</span>
-            <span className="text-zinc-400">today so far</span>
           </div>
         </div>
       </Panel>
