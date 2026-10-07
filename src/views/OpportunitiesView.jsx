@@ -98,17 +98,18 @@ function Leaderboard({ title, period, valueKey, target, month }) {
     <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${period} · ${hit} of ${rows.length} at target`} accent="By Rep">
       <div className="h-full flex flex-col justify-around min-h-0 gap-1">
         {rows.map(({ rep, value, monthValue }) => (
-          <div key={rep.id} className={`grid ${month ? 'grid-cols-[6rem_1fr_3.25rem]' : 'grid-cols-[6rem_1fr_2.5rem]'} items-center gap-2 min-h-0`}>
+          <div key={rep.id} className={`grid ${month ? 'grid-cols-[6rem_1fr_4rem]' : 'grid-cols-[6rem_1fr_2.5rem]'} items-center gap-2 min-h-0`}>
             <span className="text-lg font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
-            <div className={`relative min-w-0 ${month ? 'h-9' : 'h-8'}`}>
+            <div className={`relative min-w-0 ${month ? 'h-11' : 'h-8'}`}>
               <div
                 className={`absolute left-0 top-0 rounded-[4px] ${month ? 'h-6' : 'h-full'}`}
                 style={{ width: at(value, target), background: rep.color }}
               />
+              {month && <div className="absolute inset-x-0 bottom-0 h-4 rounded-[3px] bg-zinc-100" />}
               {month && (
                 <div
-                  className="absolute left-0 bottom-0 h-2 rounded-[3px]"
-                  style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 2) }}
+                  className="absolute left-0 bottom-0 h-4 rounded-[3px]"
+                  style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 1) }}
                 />
               )}
               <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
@@ -116,8 +117,8 @@ function Leaderboard({ title, period, valueKey, target, month }) {
             <div className="text-right leading-none">
               <div className={`text-2xl font-extrabold tabular-nums ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</div>
               {month && (
-                <div className={`text-xs font-semibold tabular-nums mt-0.5 ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-500'}`}>
-                  {monthValue} mo
+                <div className={`text-lg font-bold tabular-nums mt-1 ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-600'}`}>
+                  {monthValue}<span className="text-xs font-semibold"> mo</span>
                 </div>
               )}
             </div>
@@ -125,7 +126,7 @@ function Leaderboard({ title, period, valueKey, target, month }) {
         ))}
         <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">
           {month
-            ? `thick bar = week · thin bar = month · ┆ target ${target}/wk, ${month.target}/mo`
+            ? `top bar = week · lower bar = month · ┆ target ${target}/wk, ${month.target}/mo`
             : `┆ dashed line = target (${target} per rep)`}
         </div>
       </div>

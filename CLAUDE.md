@@ -147,9 +147,10 @@ Under `src/views/`:
   at two rows like Conversations (Luke, Oct 7).
 - **Opportunities** — four columns (Luke, Oct 7): team KPI card on top
   (Opps Opened wk, Offers wk, Contracts mo, Closed mo), and under each a
-  ranked leaderboard of reps for that same metric: per rep a thick bar
-  (this week) and a thin lighter bar (this month) in the rep colour,
-  plus the week number and a small "N mo" figure. Both bars are scaled
+  ranked leaderboard of reps for that same metric: per rep a top bar
+  (this week) and a lower, lighter bar on a grey track (this month) in
+  the rep colour, plus the week number and an "N mo" figure (enlarged
+  Oct 7 so the month reads from across the office). Both bars are scaled
   to their own target so one dashed line serves both: opps 10/wk 40/mo,
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
