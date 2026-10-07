@@ -22,6 +22,18 @@ const PALETTE = [
   '#facc15', // amber-bright
   '#8b5cf6', // violet
   '#f43f5e', // rose
+  // Added Oct 7 once 19 markets had exhausted the first 18 (Arkansas had
+  // been handed New Mexico's orange).
+  '#a16207', // bronze
+  '#0284c7', // ocean
+  '#65a30d', // olive
+  '#be123c', // crimson
+  '#7c3aed', // grape
+  '#0f766e', // pine
+  '#c2410c', // rust
+  '#4f46e5', // royal
+  '#15803d', // forest
+  '#db2777', // magenta
 ];
 
 function hash(s) {

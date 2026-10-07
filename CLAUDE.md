@@ -72,6 +72,13 @@ from it in both `src/data/config.js` (browser) and
 wires a new sub-account into every chart, dropdown, and aggregation
 automatically.
 
+Markets: `subaccounts.json` keeps every market ever configured, but
+`MARKETS` in `src/data/config.js` only includes markets with at least
+one sub-account, so deleting a state's last sub-account drops it from
+every chart, legend and dropdown (Luke, Oct 7 — Nevada, Michigan). The
+Sub-Accounts panel uses the full `ALL_MARKETS` list so a removed state
+can be re-added with its original code and colour.
+
 Two PIT sources merged at build time (later wins):
 1. `GHL_TOKENS` env — legacy single-blob JSON `{locationId: PIT}`.
 2. `PIT_<base32(locationId)>` env vars — written by the in-app
@@ -120,8 +127,12 @@ Current targets (Luke, Sept 23; opps + offers Sept 29):
 ## Views
 
 Under `src/views/`:
-- **Conversations** — new-outreach counts + 7-day trend.
-- **Agents** — total confirmed + tier breakdown.
+- **Conversations** — new-outreach counts + 7-day trend. State cards
+  at the bottom are sorted by today's outreach, busiest first, so the
+  order shifts through the day (Luke, Oct 7).
+- **Agents** — total confirmed + tier breakdown. State cards are sorted
+  by the total on each card (T1–T4), largest first, filling rows left
+  to right (Luke, Oct 7).
 - **Opportunities** — team KPI row + per-rep cards (weekly + monthly
   targets, progress bars, Aban/Lost pinned to card bottom). By Rep
   grid auto-fits: wraps to more rows as reps are added, never

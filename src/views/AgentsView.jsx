@@ -109,10 +109,11 @@ export default function AgentsView() {
       </Panel>
 
       <div className="col-span-12 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+        {/* State cards ordered by total agents (the number on each card),
+            largest first, filling left to right then down (Luke, Oct 7). */}
         {MARKETS.map((market) => {
-          const reps = REPS.filter((r) => r.markets.includes(market.id));
           const totals = { 1: 0, 2: 0, 3: 0, 4: 0 };
-          reps.forEach((r) => {
+          REPS.filter((r) => r.markets.includes(market.id)).forEach((r) => {
             const p = getPair(r.id, market.id);
             if (p) {
               totals[1] += p.agentTiers[1];
@@ -121,7 +122,10 @@ export default function AgentsView() {
               totals[4] += p.agentTiers[4];
             }
           });
-          const total = totals[1] + totals[2] + totals[3] + totals[4];
+          return { market, totals, total: totals[1] + totals[2] + totals[3] + totals[4] };
+        })
+          .sort((a, b) => b.total - a.total || a.market.name.localeCompare(b.market.name))
+          .map(({ market, totals, total }) => {
           return (
             <div key={market.id} className="rounded-xl border border-zinc-300/80 bg-white p-3 min-w-0">
               <div className="flex items-center justify-between mb-2 min-w-0 gap-2">

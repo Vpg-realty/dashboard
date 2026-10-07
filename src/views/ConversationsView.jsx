@@ -6,7 +6,11 @@ import { formatNumber } from '../utils/format.js';
 
 export default function ConversationsView() {
   const head = headline();
-  const byMarket = totalConversationsByMarket();
+  // State cards ordered by today's outreach, busiest first (Luke, Oct 7), so
+  // the order shifts as the day goes on. Ties: this week, then name.
+  const byMarket = [...totalConversationsByMarket()].sort(
+    (a, b) => b.today - a.today || b.week - a.week || a.name.localeCompare(b.name),
+  );
 
   // Per-rep × market — rep on the X axis, stacked by market.
   // _total drives the LabelList on top of each stacked bar (Luke, May 4).

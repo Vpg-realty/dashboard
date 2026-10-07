@@ -17,7 +17,16 @@ export const KPI_TARGETS = {
 // drill-down, and the snapshot fan-out.
 import config from '../../subaccounts.json';
 
-export const MARKETS = config.markets;
+// Every market ever configured. Only the Sub-Accounts panel uses this full
+// list, so a state whose last sub-account was deleted can be picked again
+// with its original code and colour.
+export const ALL_MARKETS = config.markets;
+
+// Markets that are actually tracked: those with at least one sub-account.
+// Deleting a state's last sub-account drops it from every chart, legend and
+// dropdown (Luke, Oct 7: Nevada and Michigan lingered after deletion).
+const LINKED_MARKET_IDS = new Set(config.subaccounts.map((s) => s.marketId));
+export const MARKETS = config.markets.filter((m) => LINKED_MARKET_IDS.has(m.id));
 
 // Rep `markets` list is derived from the sub-account table so we never go
 // out of sync — adding a sub-account row is enough to wire a new (rep ×
