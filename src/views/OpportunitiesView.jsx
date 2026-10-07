@@ -66,19 +66,13 @@ export default function OpportunitiesView() {
           title="Contracts Accepted" period="this week" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
           month={{ key: 'contractsMonth', target: KPI_TARGETS.contractsPerMonth }}
         />
-        {/* No weekly closing target is set, so the week bar uses the
-            monthly target ÷ 4 (½ a week: one close in the week hits it). */}
-        <Leaderboard
-          title="Deals Closed" period="this week" valueKey="dealsClosedWeek" target={KPI_TARGETS.dealsClosedPerMonth / 4}
-          month={{ key: 'dealsClosedMonth', target: KPI_TARGETS.dealsClosedPerMonth }}
-        />
+        {/* Deals Closed has only a monthly target, so it stays month-only
+            (Luke, Oct 7). */}
+        <Leaderboard title="Deals Closed" period="this month" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
       </div>
     </div>
   );
 }
-
-// ½-style display for fractional targets (Deals Closed weekly = 2/mo ÷ 4).
-const fmtTarget = (t) => (Number.isInteger(t) ? t : t === 0.5 ? '½' : t.toFixed(1));
 
 // Ranked bars for one metric: one row per rep, largest first. Numbers turn
 // green at target.
@@ -131,7 +125,7 @@ function Leaderboard({ title, period, valueKey, target, month }) {
         ))}
         <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">
           {month
-            ? `thick bar = week · thin bar = month · ┆ target ${fmtTarget(target)}/wk, ${month.target}/mo`
+            ? `thick bar = week · thin bar = month · ┆ target ${target}/wk, ${month.target}/mo`
             : `┆ dashed line = target (${target} per rep)`}
         </div>
       </div>

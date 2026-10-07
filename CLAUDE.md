@@ -151,9 +151,9 @@ Under `src/views/`:
   (this week) and a thin lighter bar (this month) in the rep colour,
   plus the week number and a small "N mo" figure. Both bars are scaled
   to their own target so one dashed line serves both: opps 10/wk 40/mo,
-  offers 5/wk 20/mo, contracts 1/wk 4/mo, closed 2/mo with the weekly
-  bar at monthly ÷ 4 (½, no weekly closing target is set). Ranked by
-  the week, ties by the month. Scale stops at 125% of target; past that
+  offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
+  monthly target (2/mo), so its board is month-only, one bar per rep.
+  Ranked by the week, ties by the month. Scale stops at 125% of target; past that
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
