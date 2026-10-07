@@ -62,12 +62,23 @@ export default function OpportunitiesView() {
           title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek}
           month={{ key: 'offersMonth', target: KPI_TARGETS.offersPerWeek * 4 }}
         />
-        <Leaderboard title="Contracts Accepted" period="this month" valueKey="contractsMonth" target={KPI_TARGETS.contractsPerMonth} />
-        <Leaderboard title="Deals Closed" period="this month" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
+        <Leaderboard
+          title="Contracts Accepted" period="this week" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
+          month={{ key: 'contractsMonth', target: KPI_TARGETS.contractsPerMonth }}
+        />
+        {/* No weekly closing target is set, so the week bar uses the
+            monthly target ÷ 4 (½ a week: one close in the week hits it). */}
+        <Leaderboard
+          title="Deals Closed" period="this week" valueKey="dealsClosedWeek" target={KPI_TARGETS.dealsClosedPerMonth / 4}
+          month={{ key: 'dealsClosedMonth', target: KPI_TARGETS.dealsClosedPerMonth }}
+        />
       </div>
     </div>
   );
 }
+
+// ½-style display for fractional targets (Deals Closed weekly = 2/mo ÷ 4).
+const fmtTarget = (t) => (Number.isInteger(t) ? t : t === 0.5 ? '½' : t.toFixed(1));
 
 // Ranked bars for one metric: one row per rep, largest first. Numbers turn
 // green at target.
@@ -76,13 +87,13 @@ export default function OpportunitiesView() {
 // thin, lighter bar under each rep's week bar. Both bars are drawn as a
 // share of their own target on one shared scale, so the single dashed line
 // is the week target for the thick bar and the month target (weekly × 4)
-// for the thin one. Ranking stays by the week.
+// for the thin one. Ranking is by the week, ties broken by the month.
 function Leaderboard({ title, period, valueKey, target, month }) {
   const rows = REPS.map((rep) => {
     const pairs = getPairsForRep(rep.id);
     const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
     return { rep, value: sum(valueKey), monthValue: month ? sum(month.key) : 0 };
-  }).sort((a, b) => b.value - a.value || a.rep.name.localeCompare(b.rep.name));
+  }).sort((a, b) => b.value - a.value || b.monthValue - a.monthValue || a.rep.name.localeCompare(b.rep.name));
   // Scale in "fractions of target": the dashed line sits where value =
   // target, with 25% headroom after it. Anyone further past target fills
   // the bar; the number beside it still shows exactly how far.
@@ -120,7 +131,7 @@ function Leaderboard({ title, period, valueKey, target, month }) {
         ))}
         <div className="text-[11px] text-zinc-500 text-center pt-1 border-t border-zinc-200">
           {month
-            ? `thick bar = week · thin bar = month · ┆ target ${target}/wk, ${month.target}/mo`
+            ? `thick bar = week · thin bar = month · ┆ target ${fmtTarget(target)}/wk, ${month.target}/mo`
             : `┆ dashed line = target (${target} per rep)`}
         </div>
       </div>
