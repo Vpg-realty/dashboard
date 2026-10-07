@@ -9,7 +9,9 @@
 //     currently in the Assigned stage (an Assigned deal counts before EM).
 //   - Week # of Month = which week of the month that Friday falls in
 //     (Fri Oct 2 → 1, Fri Oct 9 → 2): ceil(day-of-month / 7).
-//   - Patrick isn't on the scorecard and is skipped; pod leads too.
+//   - Patrick isn't on the scorecard and is skipped. Pod leads have their
+//     own "POD LEADS" box on the template (outside pod totals); they're
+//     found by name like everyone else.
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_MS = 86_400_000;

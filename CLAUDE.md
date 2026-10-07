@@ -198,8 +198,12 @@ B4 (week # of month = ceil(Friday's day / 7)) and, per rep row found by
 name in column A, B:E = Contracts (week), Projected $ (MTD: revenue
 closed this month + value of Assigned-stage deals), Offers (week), Opps
 Opened (week). CRM checklist, Reviewed By and notes stay for people; all
-scores are the template's formulas. Reps not on the sheet (pod leads,
-Patrick) are skipped. Re-runs update that week's tab in place. Manual
+scores are the template's formulas. Pod leads (Anthony, Sam) have their
+own "POD LEADS" box between Pod B and the Leadership Snapshot, scored the
+same way but kept out of pod totals and pace (Luke, Oct 7). Reps not on
+the sheet (Patrick) are skipped. The job finds rows by name, so the
+template layout can change freely as long as each name appears once in
+column A and B:E keep their order. Re-runs update that week's tab in place. Manual
 "Run workflow" defaults to test mode (writes a "TEST – delete me" tab).
 Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `SCORECARD_SHEET_ID`; the sheet
 must be shared (Editor) with the service account. Pure logic lives in
