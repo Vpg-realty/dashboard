@@ -4,8 +4,8 @@ import { getPair, getPairsForRep, headline } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import StackedTotalLabel from '../components/StackedTotalLabel.jsx';
 import { segmentLabel } from '../components/SegmentLabel.jsx';
-import { inkOn, segmentFill } from '../utils/marketShade.js';
-import { useEffect, useRef, useState } from 'react';
+import { segmentFill } from '../utils/marketShade.js';
+import RepStackBars from '../components/RepStackBars.jsx';
 
 // Active tiers — Luke (May 11): the active agent count excludes Tier 4 (DNC).
 const ACTIVE_TIERS = [1, 2, 3];
@@ -37,7 +37,7 @@ export default function MasterView() {
   const offersMonth = teamSum('offersMonth');
   const contractsWeek = teamSum('contractsWeek');
 
-  // Per-rep aggregates for the conversation pies + revenue list + agent bars.
+  // Per-rep aggregates for the revenue list.
   const perRep = REPS.map((rep) => {
     const pairs = getPairsForRep(rep.id);
     const convosWeek = pairs.reduce((a, p) => a + (p.convosWeek || 0), 0);
@@ -46,12 +46,7 @@ export default function MasterView() {
       const t = p.agentTiers || {};
       return a + ACTIVE_TIERS.reduce((s, n) => s + (t[n] || 0), 0);
     }, 0);
-    // Pie slices: one per market, in shades of the rep's colour.
-    const convosByMarket = MARKETS.filter((mk) => rep.markets.includes(mk.id)).map(({ id: m }) => {
-      const p = getPair(rep.id, m);
-      return { market: m, color: segmentFill(rep, m), value: p?.convosWeek || 0 };
-    });
-    return { ...rep, convosWeek, revenueMonth, agentsActive, convosByMarket };
+    return { ...rep, convosWeek, revenueMonth, agentsActive };
   });
 
   // Stacked bar data for the Active Agent Count quadrant — each row is a rep,
@@ -88,7 +83,11 @@ export default function MasterView() {
         bigColor="#a78bfa"
         bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg/day`}
       >
-        <RepConvoBars reps={perRep} />
+        <RepStackBars
+          reps={REPS}
+          valueOf={(rep, m) => getPair(rep.id, m)?.convosWeek}
+          footer="Ranked by total · each segment is one of the rep's states · hover a segment for details"
+        />
       </Quadrant>
 
       {/* Active Agent Count (renamed from "Agent Confirmed", Luke Oct 7) —
@@ -206,57 +205,6 @@ export default function MasterView() {
           </div>
         </div>
       </Quadrant>
-    </div>
-  );
-}
-
-// Ranked horizontal bars: one per rep (busiest on top), each split into its
-// states in configured market order, shaded from the rep's colour. Bar
-// length is the rep's weekly total relative to the busiest rep. A segment
-// shows "AZ 65" when wide enough, just the number when narrower, nothing
-// when tiny; hovering always gives the full state name and count.
-function RepConvoBars({ reps }) {
-  const trackRef = useRef(null);
-  const [trackPx, setTrackPx] = useState(600);
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(([entry]) => setTrackPx(entry.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const ranked = [...reps].sort((a, b) => b.convosWeek - a.convosWeek || a.name.localeCompare(b.name));
-  const max = Math.max(1, ranked[0]?.convosWeek || 0);
-  const nameOf = Object.fromEntries(MARKETS.map((m) => [m.id, m.name]));
-  return (
-    <div className="flex-1 flex flex-col justify-around min-h-0 gap-1 pt-1">
-      {ranked.map((rep, i) => (
-        <div key={rep.id} className="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-2 min-h-0">
-          <span className="text-sm font-bold text-right truncate" style={{ color: rep.color }}>{rep.name.split(' ')[0]}</span>
-          <div ref={i === 0 ? trackRef : undefined} className="h-7 min-w-0">
-            <div className="flex h-full gap-[2px]" style={{ width: `${(rep.convosWeek / max) * 100}%` }}>
-              {rep.convosByMarket.filter((s) => s.value > 0).map((s) => {
-                const px = (s.value / max) * trackPx;
-                const text = px >= 50 ? `${s.market} ${s.value}` : px >= 22 ? String(s.value) : '';
-                return (
-                  <div
-                    key={s.market}
-                    title={`${nameOf[s.market] || s.market}: ${s.value}`}
-                    className="flex items-center justify-center rounded-[3px] text-xs font-bold whitespace-nowrap overflow-hidden min-w-0"
-                    style={{ flex: s.value, background: s.color, color: inkOn(s.color) }}
-                  >
-                    {text}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <span className="text-base font-extrabold tabular-nums text-zinc-900">{formatNumber(rep.convosWeek)}</span>
-        </div>
-      ))}
-      <div className="text-center text-[10px] text-zinc-500 shrink-0 pt-1 border-t border-zinc-300/40">
-        Ranked by total · each segment is one of the rep&apos;s states · hover a segment for details
-      </div>
     </div>
   );
 }
