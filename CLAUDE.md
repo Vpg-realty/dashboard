@@ -241,7 +241,9 @@ Under `src/views/`:
   but still lists the month's closings. Stage reads "Dispo Active" (Luke
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
-- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — click-only,
+- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team, Rep,
+  Coaching (a Revenue & Forecast tab was built and dropped as a duplicate
+  of Overview) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
   opens with a blue "MANAGER VIEW · not shown on the TV rotation" strip
@@ -265,13 +267,6 @@ Under `src/views/`:
     funnel with step rates vs team, and a by-state table.
   - **Coaching** — conversion per rep vs team (biggest leak ringed),
     month counts, sorted worst leak first.
-  - **Revenue & Forecast** — Closed + Assigned = Forecast + gap to goal
-    ($/day), goal bar with pace marker, what's coming (DISPO / under
-    contract counts, assigned with a COE outside the month), closed +
-    assigned per rep vs $25k, the weekly **Leaderboard** (scorecard
-    scoring, top 3 highlighted) and the **Pod battle** (pods from the
-    scorecard sheet: A = Spencer, Axel, Cayden, lead Anthony; B = Danni,
-    Daniel, Rory, lead Sam). No forecast guesses for pre-Assigned deals.
   The old Advanced tab (per-sub-account drill-down with past-period
   picker) was removed; `historyRange.js` still has its range helpers.
 

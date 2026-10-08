@@ -9,7 +9,6 @@ const LABELS = {
   'mgr-team': 'Team',
   'mgr-rep': 'Rep',
   'mgr-coaching': 'Coaching',
-  'mgr-revenue': 'Revenue & Forecast',
 };
 
 // Two groups (Luke, Oct 8): the TV tabs, which rotate, then the Manager

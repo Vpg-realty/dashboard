@@ -1,5 +1,5 @@
-// Shared numbers for the Manager views (Luke, Oct 8: Team, Rep, Coaching,
-// Revenue & Forecast — click-only, never on the TV). Everything comes from
+// Shared numbers for the Manager views (Luke, Oct 8: Team, Rep, Coaching —
+// click-only, never on the TV). Everything comes from
 // the live pairs + history; nothing is estimated.
 import { REPS, KPI_TARGETS } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
@@ -9,13 +9,6 @@ import { laToday, pairConvosMonth } from '../../utils/historyRange.js';
 export const T = KPI_TARGETS;
 export const first = (r) => r.name.split(' ')[0];
 const sumP = (pairs, k) => pairs.reduce((a, p) => a + (Number(p[k]) || 0), 0);
-
-// Pods from the Friday scorecard sheet (pod leads Anthony and Sam sit in
-// their own box there, outside the pods).
-export const PODS = [
-  { name: 'Pod A', lead: 'anthony', reps: ['spencer_brown', 'axel', 'cayden_sicz'] },
-  { name: 'Pod B', lead: 'sam_mackenzie', reps: ['danni_brown', 'daniel', 'prince_pharrams'] },
-];
 
 // Month-to-date numbers for a set of pairs (a rep, a state, or the team).
 // Projected = closed + Assigned deals whose COE is this month (same rule
