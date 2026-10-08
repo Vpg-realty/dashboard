@@ -113,6 +113,15 @@ Implementation is two layers:
    them onto the persisted totals. Week/month resets reseed from
    the current run.
 
+Monthly contracts (Luke, Oct 8) = every contract accepted this month
+(cancelling doesn't take it back) PLUS every contract still active from
+earlier months (Under Contract / Dispo / Assigned, not abandoned/lost).
+On the 1st it starts fresh, seeded with the contracts still active.
+`stickyCounts.js` keeps that set as `contractIdsMonth` (and this week's
+accepted contracts as `contractIdsWeek`); the published `contractsMonth`
+is the size of the set (never below the sticky crossing count). Weekly
+contracts are unchanged: accepted this week only.
+
 If contracts ever appear inflated (e.g. Luke's "58 contracts when it
 should be much less"), the failure mode is usually one of:
 - `OFFER_OR_BEYOND` style fanout accidentally re-introduced
@@ -167,19 +176,16 @@ Under `src/views/`:
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
   Ranked by the week, ties by the month. Scale stops at 125% of target; past that
-  the bar is full and the number tells. Contracts Accepted (Luke, Oct 8)
-  is a weekly box and the usual week + month board, and counts EVERY
-  contract (each one is celebrated), split by COE month: box sublabel
-  "2 Oct COE · 1 later", week bars solid = COE this month, striped = later
-  (Luke wants the month bars kept). The Overview
-  Contracts (month) box shows the same split. `src/utils/contracts.js`
-  `contractSplit` does it from `pair.contractIdsWeek` / `contractIdsMonth`
-  (from `stickyCounts.js`: the opps behind each sticky contract count) and
-  `deals[].coe`; "later" also covers no COE set or a deal that has left the
-  pipeline. The id lists grow with each new crossing and, when missing (new
-  period/pair, or the first run mid-period), are seeded with the N most
-  recently moved in-band opps whose stage changed in the period (N = the
-  sticky count). Rows share the panel height, so
+  the bar is full and the number tells. Board headings are just "BY REP";
+  all four boards have week + month bars (Deals Closed's week bar runs
+  against monthly ÷ 4 = 0.5/wk, Luke Oct 8). Contracts (Luke, Oct 8):
+  every contract counts (each is celebrated) and is split by COE month —
+  the box bar (thin, same as the others) is solid for COE this month and
+  striped for the rest, with small per-month counts bottom right
+  ("Oct 13 · Nov 4 · past 8 · no COE 3"); rep bars split the same way.
+  The Overview Contracts (month) box does the same. `src/utils/contracts.js`
+  (`contractSplit`, `monthsLabel`) works from `pair.contractIdsWeek` /
+  `contractIdsMonth` and `deals[].coe`. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
 - **Overview** (`MasterView.jsx`, view key `master`; renamed from Master

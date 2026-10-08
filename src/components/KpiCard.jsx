@@ -1,11 +1,15 @@
 import { kpiStatus, pct, formatNumber } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
+import { monthsLabel } from '../utils/contracts.js';
 
 // `pace` ('week' | 'month'): grade against where the team should be by now
 // (target × share of the period gone, utils/pace.js) instead of the full
 // target, show that "pace now" number, and tick the spot on the bar
 // (Luke, Oct 7). Without `pace` the card grades against the full target.
-export default function KpiCard({ label, actual, target, unit = '', sublabel, pace }) {
+// `split` (optional, contracts — Luke Oct 8): the bar's fill is solid for
+// contracts with a COE this month and striped for later ones, with the
+// per-month counts in small type at the bottom right (utils/contracts.js).
+export default function KpiCard({ label, actual, target, unit = '', sublabel, pace, split }) {
   const frac = pace ? paceFraction(pace) : 1;
   const paceTarget = target * frac;
   const s = kpiStatus(actual, paceTarget);
@@ -35,17 +39,25 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
       </div>
 
       <div className="relative h-1.5 bg-zinc-100 rounded-full">
-        <div
-          className="absolute inset-y-0 left-0 transition-all duration-700 ease-out rounded-full"
-          style={{ width: `${percent}%`, background: s.color }}
-        />
+        {split?.known && split.other > 0 ? (
+          <div className="absolute inset-y-0 left-0 flex rounded-full overflow-hidden transition-all duration-700 ease-out" style={{ width: `${percent}%` }}>
+            <div style={{ flex: `${split.thisMonth} 1 0`, background: s.color }} />
+            <div style={{ flex: `${split.other} 1 0`, background: `repeating-linear-gradient(135deg, ${s.color} 0 3px, ${s.color}55 3px 6px)` }} />
+          </div>
+        ) : (
+          <div
+            className="absolute inset-y-0 left-0 transition-all duration-700 ease-out rounded-full"
+            style={{ width: `${percent}%`, background: s.color }}
+          />
+        )}
         {pace && (
           <div className="absolute -top-1.5 -bottom-1.5 w-[3px] rounded bg-zinc-900" style={{ left: `calc(${frac * 100}% - 1.5px)` }} />
         )}
       </div>
-      <div className="mt-1.5 text-[10px] text-zinc-500 tabular-nums">
-        {percent}% of target
-        {pace && <> · pace now <b className="text-zinc-800">{formatNumber(Math.round(paceTarget))}</b> ({Math.round(frac * 100)}% of the {pace} gone)</>}
+      <div className="mt-1.5 flex gap-2 text-[10px] text-zinc-500 tabular-nums">
+        <span className="truncate">{percent}% of target
+        {pace && <> · pace now <b className="text-zinc-800">{formatNumber(Math.round(paceTarget))}</b> ({Math.round(frac * 100)}% of the {pace} gone)</>}</span>
+        {split && monthsLabel(split) && <span className="ml-auto shrink-0 font-semibold text-zinc-600">{monthsLabel(split)}</span>}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { PAIRS, headline, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
-import { contractSplit, splitLabel } from '../utils/contracts.js';
+import { contractSplit, monthsLabel } from '../utils/contracts.js';
 
 // Overview (view key 'master', first tab) — the sales-floor overview
 // (Luke, Oct 8):
@@ -102,7 +102,7 @@ export default function MasterView() {
         return (
           <SlimCard
             key={c.key} label={c.label} actual={actual} target={c.target} frac={monthFrac}
-            extra={c.key === 'contractsMonth' ? splitLabel(contractSplit(PAIRS, 'month')) : ''}
+            split={c.key === 'contractsMonth' ? contractSplit(PAIRS, 'month') : null}
             note={need <= 0 ? 'target hit' : `need ${rate(need / left)}/day · ${left} days left`}
           />
         );
@@ -212,7 +212,7 @@ function Marker({ at, label, light }) {
 
 // Compact month card: label + pace badge, number / target, a thin bar with
 // the "where we should be" tick, and one line of context.
-function SlimCard({ label, actual, target, frac, note, extra }) {
+function SlimCard({ label, actual, target, frac, note, split }) {
   const s = target ? kpiStatus(actual, target * frac) : null;
   const badge = s && { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status];
   return (
@@ -224,16 +224,27 @@ function SlimCard({ label, actual, target, frac, note, extra }) {
       <div className="flex items-baseline gap-1.5 mt-1">
         <span className={`text-[min(2.25rem,4vh)] font-bold tabular-nums leading-none ${s ? s.text : 'text-zinc-900'}`}>{formatNumber(actual)}</span>
         {target && <span className="text-sm text-zinc-500 tabular-nums">/ {formatNumber(target)}</span>}
-        {/* e.g. contracts split by COE month (Luke, Oct 8). */}
-        {extra && <span className="ml-auto text-[11px] font-semibold text-zinc-600 whitespace-nowrap">{extra}</span>}
       </div>
       {target ? (
         <div className="relative h-1.5 mt-2 bg-white/70 rounded-full">
-          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (actual / target) * 100)}%`, background: s.color }} />
+          {split?.known && split.other > 0 ? (
+            // Contracts (Luke, Oct 8): solid = COE this month, striped = later.
+            <div className="absolute inset-y-0 left-0 flex rounded-full overflow-hidden" style={{ width: `${Math.min(100, (actual / target) * 100)}%` }}>
+              <div style={{ flex: `${split.thisMonth} 1 0`, background: s.color }} />
+              <div style={{ flex: `${split.other} 1 0`, background: `repeating-linear-gradient(135deg, ${s.color} 0 3px, ${s.color}55 3px 6px)` }} />
+            </div>
+          ) : (
+            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (actual / target) * 100)}%`, background: s.color }} />
+          )}
           <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, frac * 100)}% - 1px)` }} />
         </div>
       ) : <div className="h-1.5 mt-2" />}
-      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{note}</div>
+      {/* Contracts: the per-month counts take the footer, bottom right. */}
+      <div className="flex gap-2 text-[11px] text-zinc-500 mt-1.5">
+        {split && monthsLabel(split)
+          ? <span className="ml-auto font-semibold text-zinc-600 truncate">{monthsLabel(split)}</span>
+          : <span className="truncate">{note}</span>}
+      </div>
     </div>
   );
 }

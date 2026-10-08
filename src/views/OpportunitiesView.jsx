@@ -2,7 +2,7 @@ import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
 import { PAIRS, getPair, getPairsForRep, headline } from '../data/source.js';
-import { contractSplit, splitLabel } from '../utils/contracts.js';
+import { contractSplit } from '../utils/contracts.js';
 import { marketShade } from '../utils/marketShade.js';
 
 // Layout: four columns, fits one TV viewport (Luke, Oct 7).
@@ -41,7 +41,8 @@ export default function OpportunitiesView() {
           pace="week" label="Contracts (week)"
           actual={contractWeek.total}
           target={KPI_TARGETS.contractsPerWeek * REPS.length}
-          sublabel={[splitLabel(contractWeek), `${KPI_TARGETS.contractsPerWeek}/wk per rep`].filter(Boolean).join(' · ')}
+          sublabel={`${KPI_TARGETS.contractsPerWeek}/wk per rep × ${REPS.length} reps`}
+          split={contractWeek}
         />
         <KpiCard
           pace="month" label="Deals Closed (month)"
@@ -58,24 +59,27 @@ export default function OpportunitiesView() {
           Replaces nine per-rep cards that spilled off the TV at 9 reps. */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1 min-h-0">
         <Leaderboard
-          title="Opps Opened" period="this week" valueKey="oppsOpenedWeek" target={KPI_TARGETS.oppsOpenedPerWeek}
+          title="Opps Opened" valueKey="oppsOpenedWeek" target={KPI_TARGETS.oppsOpenedPerWeek}
           month={{ key: 'oppsOpenedMonth', target: KPI_TARGETS.oppsOpenedPerWeek * 4 }}
         />
         <Leaderboard
-          title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek}
+          title="Offers Submitted" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek}
           month={{ key: 'offersMonth', target: KPI_TARGETS.offersPerWeek * 4 }}
         />
         {/* Contracts: week + month bars like Opps and Offers (Luke, Oct 8:
             keep the month bars). Every contract counts; on the week bar,
             solid = COE this month, striped = later. */}
         <Leaderboard
-          title="Contracts Accepted" period="this week" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
+          title="Contracts Accepted" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
           month={{ key: 'contractsMonth', target: KPI_TARGETS.contractsPerMonth }}
-          partFn={(pairs) => contractSplit(pairs, 'week')}
+          partFn={(pairs) => contractSplit(pairs, 'week')} monthPartFn={(pairs) => contractSplit(pairs, 'month')}
         />
-        {/* Deals Closed has only a monthly target, so it stays month-only
-            (Luke, Oct 7). */}
-        <Leaderboard title="Deals Closed" period="this month" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
+        {/* Deals Closed: week + month bars like the others (Luke, Oct 8).
+            No weekly target, so the week bar runs against monthly ÷ 4. */}
+        <Leaderboard
+          title="Deals Closed" valueKey="dealsClosedWeek" target={KPI_TARGETS.dealsClosedPerMonth / 4}
+          month={{ key: 'dealsClosedMonth', target: KPI_TARGETS.dealsClosedPerMonth }}
+        />
       </div>
     </div>
   );
@@ -89,12 +93,13 @@ export default function OpportunitiesView() {
 // share of their own target on one shared scale, so the single dashed line
 // is the week target for the thick bar and the month target (weekly × 4)
 // for the thin one. Ranking is by the week, ties broken by the month.
-function Leaderboard({ title, period, valueKey, target, month, partFn }) {
+function Leaderboard({ title, valueKey, target, month, partFn, monthPartFn }) {
   const rows = REPS.map((rep) => {
     const pairs = getPairsForRep(rep.id);
     const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
     const split = partFn ? partFn(pairs) : null;
-    return { rep, value: sum(valueKey), monthValue: month ? sum(month.key) : 0, split };
+    const monthSplit = monthPartFn ? monthPartFn(pairs) : null;
+    return { rep, value: sum(valueKey), monthValue: month ? sum(month.key) : 0, split, monthSplit };
   }).sort((a, b) => b.value - a.value || b.monthValue - a.monthValue || a.rep.name.localeCompare(b.rep.name));
   // Scale in "fractions of target": the dashed line sits where value =
   // target, with 25% headroom after it. Anyone further past target fills
@@ -103,9 +108,9 @@ function Leaderboard({ title, period, valueKey, target, month, partFn }) {
   const at = (v, t) => `${Math.min(100, (v / t / span) * 100)}%`;
   const hit = rows.filter((r) => r.value >= target).length;
   return (
-    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${hit}/${rows.length} at target`} accent={`By Rep · ${period}`}>
+    <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${hit}/${rows.length} at target`} accent="By Rep">
       <div className="h-full flex flex-col justify-around min-h-0 gap-[2px]">
-        {rows.map(({ rep, value, monthValue, split }) => (month ? (
+        {rows.map(({ rep, value, monthValue, split, monthSplit }) => (month ? (
           // Week + month: two lines per rep, each number beside its own bar
           // (Luke, Oct 7: stacked numbers in one column overran the row and
           // didn't line up with the bars on the TV).
@@ -121,7 +126,7 @@ function Leaderboard({ title, period, valueKey, target, month, partFn }) {
             </div>
             <span className={`self-end text-[min(1.5rem,2.2vh)] font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
             <div className="relative self-start h-full max-h-4 min-w-0 rounded-[3px] bg-zinc-100">
-              <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: at(monthValue, month.target), background: marketShade(rep.color, 1) }} />
+              <SplitBar width={at(monthValue, month.target)} color={marketShade(rep.color, 1)} split={monthSplit} />
               <div className="absolute top-0 -bottom-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
             </div>
             <span className={`self-start text-[min(1rem,1.6vh)] font-bold tabular-nums text-right leading-none ${monthValue >= month.target ? 'text-emerald-600' : 'text-zinc-600'}`}>

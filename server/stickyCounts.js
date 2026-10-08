@@ -25,6 +25,7 @@
 
 const OFFER_RANK = 3; // offer_submitted — see STAGE_RANK in aggregate.js
 const UC_RANK = 5;    // under_contract
+const CLOSED_RANK = 8; // closed (dispo 6, assigned 7)
 const BAND_MAX = 99;  // abandoned / lost sentinel — outside every band
 
 const inOfferBand = (r) => r >= OFFER_RANK && r < BAND_MAX;
@@ -152,11 +153,26 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
         .map((o) => o.id);
     };
     const contractIdsWeek = idsFor(prev?.contractIdsWeek, weekReset, weekStartMs(now), contractsWeek);
-    const contractIdsMonth = idsFor(prev?.contractIdsMonth, monthReset, monthStartMs(now), contractsMonth);
+    // Month (Luke, Oct 8): every contract accepted this month (cancelling it
+    // doesn't take it back) PLUS every contract still active from earlier —
+    // Under Contract, Dispo or Assigned, not abandoned/lost. On the 1st the
+    // list starts fresh from the contracts that are still active; the first
+    // run of this rule mid-month also adds deals that closed this month.
+    const ms = monthStartMs(now);
+    // Active = Under Contract / Dispo / Assigned (ranks 5–7); a Closed opp
+    // (rank 8) only counts if it closed this month.
+    const activeIds = curr
+      .filter((o) => (o.r >= UC_RANK && o.r < CLOSED_RANK) || (o.r === CLOSED_RANK && (stageSinceById[o.id] || 0) >= ms))
+      .map((o) => o.id);
+    const contractIdsMonth = prev && !monthReset && Array.isArray(prev.contractIdsMonth)
+      ? [...new Set([...prev.contractIdsMonth, ...crossedIds])]
+      : [...new Set([...idsFor(null, true, ms, contractsMonth), ...activeIds])];
+    // Published monthly count = that list (never below the sticky count).
+    const contractsMonthShown = Math.max(contractsMonth, contractIdsMonth.length);
 
     // Strip the heavy per-opp rank list — it must never reach the browser.
     const { _oppRanks, ...clean } = p;
-    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, contractIdsWeek, contractIdsMonth });
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth: contractsMonthShown, contractIdsWeek, contractIdsMonth });
     statePairs[key] = { ranks: currMap, started, contractIdsWeek, contractIdsMonth, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
