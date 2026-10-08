@@ -170,7 +170,6 @@ Under `src/views/`:
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
-- **Revenue** — revenue tiles + market split. Not in the TV rotation.
 - **Master** — high-level overview. Conversations quadrant: one
   horizontal bar per rep, ranked busiest first, split into labelled
   state segments (replaced per-rep pies, Luke Oct 7). Top-right
@@ -217,7 +216,7 @@ Under `src/views/`:
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified): Conversations, Agents, Opportunities,
-Master, Pipeline (`CYCLE_VIEWS`). Revenue and Advanced are click-only tabs
+Master, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
 at the end of the nav (`NAV_VIEWS`); Master carries the revenue goal bar.
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
