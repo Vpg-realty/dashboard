@@ -1,339 +1,195 @@
-import { Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList } from 'recharts';
-import { REPS, MARKETS, TEAM_TARGETS, KPI_TARGETS } from '../data/config.js';
-import { getPair, getPairsForRep, headline } from '../data/source.js';
-import { formatCompactCurrency, formatNumber, kpiStatus, niceMax } from '../utils/format.js';
-import { segmentLabel } from '../components/SegmentLabel.jsx';
-import { segmentFill } from '../utils/marketShade.js';
-import RepStackBars from '../components/RepStackBars.jsx';
-import { laToday } from '../utils/historyRange.js';
+import { useState } from 'react';
+import { REPS, KPI_TARGETS } from '../data/config.js';
+import { PAIRS, headline, historyEntries } from '../data/source.js';
+import { formatCompactCurrency, formatNumber } from '../utils/format.js';
+import { paceFraction } from '../utils/pace.js';
+import { laToday, teamConvosByDay } from '../utils/historyRange.js';
+import KpiCard from '../components/KpiCard.jsx';
 
-// Active tiers — Luke (May 11): the active agent count excludes Tier 4 (DNC).
-const ACTIVE_TIERS = [1, 2, 3];
+// Master — the sales-floor overview (Luke, Oct 8):
+//   1. Month totals for conversations, opps opened, offers and contracts,
+//      graded against pace the same way as the Opportunities boxes, with
+//      what's needed per day to still hit each target.
+//   2. Revenue this month: closed + assigned = projected (deals before
+//      Assigned have no fee yet, so they don't count), goal + pace markers,
+//      the gap per day, and each rep's closed + assigned.
+//   3. Latest wins: closes, assignments and new contracts, last 7 days.
 
-// 4-quadrant compact dashboard. Luke (May 11):
-//  - All quadrants: big number lives in the top-right corner.
-//  - Conversations: ranked horizontal bars, one per rep, state segments.
-//  - Active Agent Count: vertical stacked bars (by rep × market).
-//  - Opportunities: monthly team funnel with weekly chips (Luke, Oct 7).
-//  - Revenue: goal bar made of each rep's contribution, pace-for-today
-//    marker, to-go / days-left / needed-per-day, ranked rep list (Oct 7).
+const N = REPS.length;
+const sum = (pairs, k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
+
+function azParts() {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', hour12: false, day: 'numeric', month: 'numeric', year: 'numeric' })
+    .formatToParts(new Date()).reduce((o, x) => ({ ...o, [x.type]: x.value }), {});
+  return { wd: { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[p.weekday], h: +p.hour % 24, d: +p.day, m: +p.month, y: +p.year };
+}
+function daysLeft(period) {
+  const a = azParts();
+  if (period === 'week') return a.wd >= 5 ? 0 : 5 - a.wd - (a.h >= 18 ? 1 : 0);
+  return new Date(Date.UTC(a.y, a.m, 0)).getUTCDate() - a.d + 1;
+}
+
+const MONTH_CARDS = [
+  { key: 'oppsOpenedMonth', label: 'Opps Opened (month)', target: KPI_TARGETS.oppsOpenedPerWeek * 4 * N },
+  { key: 'offersMonth', label: 'Offers Submitted (month)', target: KPI_TARGETS.offersPerWeek * 4 * N },
+  { key: 'contractsMonth', label: 'Contracts Accepted (month)', target: KPI_TARGETS.contractsPerMonth * N },
+];
+
+const rate = (v) => (v >= 10 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString());
+
 export default function MasterView() {
   const head = headline();
+  const today = laToday();
+  // Captured once per mount (Master remounts on every rotation), so the
+  // "x ago" times and the 7-day window stay pure during render.
+  const [nowMs] = useState(() => Date.now());
+  const left = daysLeft('month');
 
-  const closedStatus = kpiStatus(head.dealsClosedMonth, TEAM_TARGETS.dealsClosedPerMonth);
+  // Conversations this month: no month counter in GHL data, so add up each
+  // earlier day this month from history, plus today's live count.
+  const monthStart = `${today.slice(0, 8)}01`;
+  let convosMonth = head.conversationsToday;
+  for (const [date, n] of teamConvosByDay(historyEntries())) {
+    if (date >= monthStart && date < today) convosMonth += n;
+  }
 
-  // Revenue goes yellow the whole time, then green when we hit the $100k goal.
-  const revPct = TEAM_TARGETS.revenuePerMonth > 0
-    ? Math.min(100, (head.revenueMonth / TEAM_TARGETS.revenuePerMonth) * 100)
-    : 0;
-  const revHit = head.revenueMonth >= TEAM_TARGETS.revenuePerMonth;
-  const revColor = revHit ? '#10b981' : '#f59e0b';
+  // Money this month (Luke, Oct 8): projected = closed + assigned. Deals
+  // before Assigned have no fee yet, so they don't count toward revenue.
+  const deals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, repId: p.repId })));
+  const closed = head.revenueMonth;
+  const assignedDeals = deals.filter((d) => d.stage === 'assigned');
+  const assigned = assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
+  const projected = closed + assigned;
+  const goal = KPI_TARGETS.revenuePerRepMonth * N;
+  const monthFrac = paceFraction('month');
+  const scale = Math.max(goal, projected) * 1.04;
+  const perRep = REPS.map((r) => {
+    const ps = PAIRS.filter((p) => p.repId === r.id);
+    const c = sum(ps, 'revenueMonth');
+    const a = assignedDeals.filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
+    return { r, c, a, t: c + a };
+  }).sort((x, y) => y.t - x.t);
+  const repMax = Math.max(1, ...perRep.map((x) => x.t));
 
-  // Team-wide oppsOpened sums.
-  const teamSum = (k) => REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.[k] || 0)).reduce((a, b) => a + b, 0);
-  const oppsOpenedWeek = teamSum('oppsOpenedWeek');
-  const offersMonth = teamSum('offersMonth');
-  const contractsWeek = teamSum('contractsWeek');
-
-  // Per-rep aggregates for the revenue list.
-  const perRep = REPS.map((rep) => {
-    const pairs = getPairsForRep(rep.id);
-    const convosWeek = pairs.reduce((a, p) => a + (p.convosWeek || 0), 0);
-    const revenueMonth = pairs.reduce((a, p) => a + (p.revenueMonth || 0), 0);
-    const agentsActive = pairs.reduce((a, p) => {
-      const t = p.agentTiers || {};
-      return a + ACTIVE_TIERS.reduce((s, n) => s + (t[n] || 0), 0);
-    }, 0);
-    return { ...rep, convosWeek, revenueMonth, agentsActive };
-  });
-
-  // Stacked bar data for the Active Agent Count quadrant — each row is a rep,
-  // each market they work is a stacked segment colored by market.
-  const agentBarData = REPS.map((rep) => {
-    const row = { rep: rep.name.split(' ')[0], _total: 0, _cap: 1e-6 };
-    rep.markets.forEach((m) => {
-      const p = getPair(rep.id, m);
-      const v = ACTIVE_TIERS.reduce((s, n) => s + (p?.agentTiers?.[n] || 0), 0);
-      row[m] = v;
-      row._total += v;
-    });
-    return row;
-  });
-  const agentsTotalActive = agentBarData.reduce((a, r) => a + r._total, 0);
-
-  // Luke (May 12 follow-up): "can everyone be calculated for tier 1/2/3?
-  // simpler for all of us". The whole quadrant now reads as a single
-  // unified metric — total contacts tagged Tier 1 + 2 + 3 — without any
-  // "this week" framing. No per-rep delta, no agent-confirmed tag, no
-  // mixed time windows; just the same calc applied to every rep.
-  const repsCount = REPS.length;
-  const perRepAvg = repsCount > 0 ? Math.round(agentsTotalActive / repsCount) : 0;
+  // Wins in the last 7 days.
+  const since = nowMs - 7 * 864e5;
+  const wins = deals.flatMap((d) => {
+    const out = [];
+    if (d.stage === 'closed' && d.stageSince > since) out.push({ d, at: d.stageSince, kind: 'Closed', icon: '🎉' });
+    if (d.stage === 'assigned' && d.stageSince > since) out.push({ d, at: d.stageSince, kind: 'Assigned', icon: '🤝' });
+    if (d.startedAt > since) out.push({ d, at: d.startedAt, kind: d.stage === 'under_contract' ? 'Under contract' : 'New deal', icon: '✍️' });
+    return out;
+  }).sort((a, b) => b.at - a.at).slice(0, 6);
 
   return (
-    <div className="grid grid-cols-2 grid-rows-2 gap-4 h-full">
-      {/* Conversations — one horizontal bar per rep, ranked busiest first,
-          split into labelled state segments (Luke, Oct 7: pies lost the
-          markets). Replaced the per-rep mini pies. */}
-      <Quadrant
-        title="Conversations"
-        subtitle="this week · per rep, split by market"
-        big={formatNumber(head.conversationsWeek)}
-        bigColor="#a78bfa"
-        bigSub={`${head.conversationsToday} today · ${Math.round(head.conversationsWeek / 7)} avg/day`}
-      >
-        <RepStackBars
-          reps={REPS}
-          valueOf={(rep, m) => getPair(rep.id, m)?.convosWeek}
-          footer="Ranked by total · each segment is one of the rep's states · hover a segment for details"
-        />
-      </Quadrant>
-
-      {/* Active Agent Count (renamed from "Agent Confirmed", Luke Oct 7) —
-          vertical stacked bars by rep × market.
-          Luke (May 12 follow-up): single unified metric for everyone —
-          contacts tagged Tier 1 + 2 + 3 (T4 = DNC excluded). No "this
-          week" framing anywhere in this quadrant. Same calc applied to
-          every rep. */}
-      <Quadrant
-        title="Active Agent Count"
-        subtitle={`Tier 1 + 2 + 3 · all reps, same calc`}
-        big={formatNumber(agentsTotalActive)}
-        bigColor="#fbbf24"
-        bigSub={`~${formatNumber(perRepAvg)} per rep · DNC excluded`}
-      >
-        <div className="flex-1 min-h-0 flex flex-col gap-1">
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={agentBarData.map((r) => ({ ...r, _tk: r.rep }))} margin={{ top: 18, right: 6, left: -22, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-                <XAxis dataKey="rep" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} interval={0} />
-                <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} domain={[0, niceMax(Math.max(...agentBarData.map((r) => r._total)))]} allowDataOverflow />
-                <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
-                {MARKETS.map((m) => {
-                  const fills = REPS.map((rep) => segmentFill(rep, m.id));
-                  return (
-                    <Bar key={m.id} dataKey={m.id} stackId="a" stroke="#ffffff" strokeWidth={1.5}>
-                      {fills.map((f, i) => <Cell key={i} fill={f} />)}
-                      <LabelList dataKey={m.id} content={segmentLabel(m.id)} />
-                    </Bar>
-                  );
-                })}
-                {/* Total above every rep's stack: an invisible near-zero "cap" segment
-                    sits on top of every stack (so no rep is skipped) and
-                    carries the total as its label. Recharts 3 no longer feeds
-                    the old Customized overlay, and a label on the last
-                    market only covered reps in that market (Luke, Oct 7). */}
-                <Bar dataKey="_cap" stackId="a" fill="transparent" isAnimationActive={false} tooltipType="none" legendType="none">
-                  <LabelList dataKey="_total" position="top" fill="#27272a" fontSize={13} fontWeight={700} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+    <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4">
+      {/* Month totals */}
+      <div className="col-span-3 rounded-xl border border-zinc-300/80 bg-white p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs uppercase tracking-[0.18em] text-zinc-600">Conversations (month)</div>
         </div>
-      </Quadrant>
-
-      {/* Opportunities — monthly funnel (Luke, Oct 7: "add some flare").
-          Opps Opened → Offers → Contracts → Closed, each band filled toward
-          its team target for the month, with the week's number on a chip
-          where a weekly target exists and the stage-to-stage conversion
-          between bands. Replaced a 2×3 grid of number tiles. */}
-      <Quadrant
-        title="Opportunities"
-        subtitle="this month · team funnel · chips = this week"
-        big={`${head.dealsClosedMonth}/${TEAM_TARGETS.dealsClosedPerMonth}`}
-        bigColor={closedStatus.color}
-        bigSub={`closed / month · ${closedStatus.label.toLowerCase()}`}
-      >
-        <Funnel
-          stages={[
-            { label: 'Opps Opened', month: teamSum('oppsOpenedMonth'), monthTarget: TEAM_TARGETS.oppsOpenedPerWeek * 4, week: oppsOpenedWeek, weekTarget: TEAM_TARGETS.oppsOpenedPerWeek },
-            { label: 'Offers', month: offersMonth, monthTarget: TEAM_TARGETS.offersPerWeek * 4, week: head.offersWeek, weekTarget: TEAM_TARGETS.offersPerWeek },
-            { label: 'Contracts', month: head.contractsMonth, monthTarget: TEAM_TARGETS.contractsPerMonth, week: contractsWeek, weekTarget: KPI_TARGETS.contractsPerWeek * REPS.length },
-            { label: 'Closed', month: head.dealsClosedMonth, monthTarget: TEAM_TARGETS.dealsClosedPerMonth, noConversion: true },
-          ]}
-        />
-      </Quadrant>
-
-      {/* Revenue — goal bar built from each rep's contribution in their
-          colour, a marker where the team should be by today to hit the goal,
-          and what's left to do (Luke, Oct 7: "make it more exciting"). */}
-      <Quadrant
-        title="Revenue"
-        subtitle={`this month · goal ${formatCompactCurrency(TEAM_TARGETS.revenuePerMonth)}`}
-        big={formatCompactCurrency(head.revenueMonth)}
-        bigColor={revColor}
-        bigSub={`${head.dealsClosedMonth} closed · ${revHit ? 'goal hit' : `${Math.round(revPct)}% of goal`}`}
-      >
-        <RevenueGoal perRep={perRep} total={head.revenueMonth} goal={TEAM_TARGETS.revenuePerMonth} />
-      </Quadrant>
-    </div>
-  );
-}
-
-// Quadrant container — title + subtitle top-left, big number top-right (Luke May 11).
-function Quadrant({ title, subtitle, big, bigColor, bigSub, children }) {
-  return (
-    <div className="rounded-xl border border-zinc-300/80 bg-white p-4 flex flex-col min-w-0 min-h-0">
-      <div className="flex items-start justify-between mb-3 gap-2">
-        <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-500">{title}</div>
-          <div className="text-xs text-zinc-500 truncate">{subtitle}</div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-4xl xl:text-5xl font-bold tabular-nums leading-none truncate" style={{ color: bigColor }}>
-            {big}
-          </div>
-          <div className="text-[11px] text-zinc-500 mt-1 truncate">{bigSub}</div>
-        </div>
+        <div className="text-5xl font-bold tabular-nums text-zinc-900">{formatNumber(convosMonth)}</div>
+        <div className="text-xs text-zinc-500 mt-1">{formatNumber(head.conversationsToday)} today · {formatNumber(head.conversationsWeek)} this week</div>
       </div>
-      <div className="flex-1 min-h-0 flex flex-col">{children}</div>
-    </div>
-  );
-}
-
-// Monthly team funnel: four bands narrowing top to bottom. Each band's
-// darker fill is progress toward the month's team target (full + green at
-// target); a chip on the right shows the week against its weekly target.
-// Between bands: what share of the stage above made it to this one.
-const FUNNEL_SHADES = ['#2a78d6', '#2466b8', '#1d559a', '#1baf7a'];
-
-function Funnel({ stages }) {
-  return (
-    <div className="flex-1 min-h-0 flex flex-col justify-around items-center gap-1">
-      {stages.map((st, i) => {
-        const pct = st.monthTarget > 0 ? Math.min(100, (st.month / st.monthTarget) * 100) : 0;
-        const hit = st.month >= st.monthTarget;
-        const color = FUNNEL_SHADES[i];
-        const prev = stages[i - 1];
-        // Closed deals mostly come from earlier months' contracts, so no
-        // conversion % into Closed — just the arrow.
-        const conv = prev && prev.month > 0 && !st.noConversion ? Math.round((st.month / prev.month) * 100) : null;
-        const weekHit = st.weekTarget != null && st.week >= st.weekTarget;
+      {MONTH_CARDS.map((c) => {
+        const actual = sum(PAIRS, c.key);
+        const need = Math.max(0, c.target - actual);
         return (
-          <div key={st.label} className="w-full flex flex-col items-center min-h-0">
-            {i > 0 && (
-              <div className="text-[11px] text-zinc-500 tabular-nums leading-none mb-1">
-                ↓ {conv != null && <>{conv}% <span className="text-zinc-400">of {prev.label.toLowerCase()}</span></>}
-              </div>
-            )}
-            <div
-              className="relative h-12 xl:h-14 rounded-lg overflow-hidden"
-              style={{ width: `${100 - i * 12}%`, background: `${color}1f`, border: `1px solid ${color}40` }}
-            >
-              <div
-                className="absolute inset-y-0 left-0 transition-all duration-700"
-                style={{ width: `${pct}%`, background: hit ? '#10b981' : color, opacity: 0.9 }}
-              />
-              <div className="relative h-full flex items-center justify-between gap-2 px-3">
-                <span className={`text-sm xl:text-base font-bold truncate ${pct >= 22 ? 'text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]' : 'text-zinc-800'}`}>{st.label}</span>
-                <span className="text-2xl xl:text-3xl font-extrabold tabular-nums text-zinc-900 bg-white/85 rounded-md px-2 leading-tight shrink-0">
-                  {formatNumber(st.month)}<span className="text-zinc-400 text-base xl:text-lg font-semibold"> / {formatNumber(st.monthTarget)}</span>
-                </span>
-                {st.weekTarget != null ? (
-                  <span className={`text-xs font-bold tabular-nums rounded-full px-2 py-0.5 shrink-0 ${weekHit ? 'bg-emerald-500 text-white' : 'bg-white/90 text-zinc-700'}`}>
-                    wk {st.week}/{st.weekTarget}
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold rounded-full px-2 py-0.5 shrink-0 bg-white/90 text-zinc-700">month</span>
-                )}
-              </div>
-            </div>
+          <div key={c.key} className="col-span-3 [&>div]:h-full">
+            <KpiCard
+              pace="month" label={c.label} actual={actual} target={c.target}
+              sublabel={need <= 0 ? 'target hit' : `need ${rate(need / left)}/day · ${left} days left`}
+            />
           </div>
         );
       })}
-    </div>
-  );
-}
 
-// Revenue goal bar: the fill is each rep's revenue this month as a segment
-// in their colour (largest first), on a scale that ends at the goal (or the
-// total, once past it). A dark marker shows where the team should be by
-// today to hit the goal on a straight-line pace. Below: to go, days left,
-// needed per day, and the ranked per-rep list.
-function RevenueGoal({ perRep, total, goal }) {
-  const today = laToday();
-  const [y, m, d] = today.split('-').map(Number);
-  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const daysLeft = daysInMonth - d + 1; // today counts as a selling day
-  const pace = goal * (d / daysInMonth);
-  const scale = Math.max(goal, total, 1);
-  const ahead = total - pace;
-  const toGo = Math.max(0, goal - total);
-  const ranked = [...perRep].sort((a, b) => b.revenueMonth - a.revenueMonth);
-  const segs = ranked.filter((r) => r.revenueMonth > 0);
-  return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3 justify-between">
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className={`text-sm font-bold rounded-full px-3 py-1 ${ahead >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}
-        >
-          {ahead >= 0 ? '▲' : '▼'} {formatCompactCurrency(Math.abs(Math.round(ahead)))} {ahead >= 0 ? 'ahead of' : 'behind'} pace
-        </span>
-        <span className="text-xs text-zinc-500 tabular-nums">pace for today: {formatCompactCurrency(Math.round(pace))}</span>
+      {/* Money */}
+      <div className="col-span-8 min-h-0 rounded-xl border border-zinc-300/80 bg-white px-6 py-4 flex flex-col">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold">Revenue · this month · goal {formatCompactCurrency(goal)}</div>
+        <div className="grid grid-cols-3 gap-4 mt-2">
+          <Big label="Closed" value={formatCompactCurrency(closed)} sub={`${head.dealsClosedMonth} deals closed`} color="text-emerald-700" />
+          <Big label="Assigned" value={formatCompactCurrency(assigned)} sub={`${assignedDeals.length} deals waiting to close`} color="text-emerald-500" />
+          <Big label="Projected" value={formatCompactCurrency(projected)} sub={`${Math.round((projected / goal) * 100)}% of goal`} color={projected >= goal ? 'text-emerald-600' : 'text-amber-600'} />
+        </div>
+        <div className="relative mt-4 mb-8">
+          <div className="flex h-9 rounded-lg overflow-hidden bg-zinc-100">
+            <div style={{ width: `${(closed / scale) * 100}%`, background: '#047857' }} className="border-r-2 border-white" />
+            <div style={{ width: `${(assigned / scale) * 100}%`, background: '#34d399' }} />
+          </div>
+          <Marker at={goal / scale} label={`goal ${formatCompactCurrency(goal)}`} />
+          <Marker at={(goal * monthFrac) / scale} label="pace today" light />
+        </div>
+        <div className="text-base text-zinc-700">
+          {projected >= goal
+            ? <><b className="text-emerald-600">Goal covered</b> · {formatCompactCurrency(projected - goal)} over if every assigned deal closes</>
+            : <>Need <b>{formatCompactCurrency(goal - projected)}</b> more assigned to hit goal · <b>{formatCompactCurrency((goal - projected) / daysLeft('month'))}/day</b> for {daysLeft('month')} days</>}
+        </div>
+        <div className="mt-auto pt-3">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-1.5">By rep · <Dot c="#047857" />closed <Dot c="#34d399" />assigned</div>
+          <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
+            {perRep.map(({ r, c, a, t }) => (
+              <div key={r.id} className="flex items-center gap-2">
+                <span className="w-20 text-sm font-semibold truncate" style={{ color: r.color }}>{r.name.split(' ')[0]}</span>
+                <div className="flex-1 flex h-3 rounded bg-zinc-100 overflow-hidden">
+                  <div style={{ width: `${(c / repMax) * 100}%`, background: '#047857' }} />
+                  <div style={{ width: `${(a / repMax) * 100}%`, background: '#34d399' }} />
+                </div>
+                <span className="w-14 text-right text-sm font-bold tabular-nums">{formatCompactCurrency(t)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div>
-        <div className="relative">
-        <div className="relative h-14 xl:h-16 w-full rounded-lg overflow-hidden bg-zinc-100 border border-zinc-200 flex gap-[2px]">
-          {segs.map((r) => {
-            const w = (r.revenueMonth / scale) * 100;
+      {/* Wins */}
+      <div className="col-span-4 min-h-0 rounded-xl border border-zinc-300/80 bg-white px-5 py-4 flex flex-col">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold mb-2">Latest wins · last 7 days</div>
+        <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">
+          {wins.length === 0 && <div className="text-zinc-400 text-sm">No moves yet this week</div>}
+          {wins.map(({ d, at, kind, icon }) => {
+            const rep = REPS.find((r) => r.id === d.repId);
             return (
-              <div
-                key={r.id}
-                title={`${r.name}: ${formatCompactCurrency(r.revenueMonth)}`}
-                className="h-full flex items-center justify-center text-white text-xs xl:text-sm font-bold whitespace-nowrap overflow-hidden"
-                style={{ width: `${w}%`, background: r.color }}
-              >
-                {w >= 17 ? `${r.name.split(' ')[0]} ${formatCompactCurrency(r.revenueMonth)}` : w >= 7 ? r.name.split(' ')[0] : w >= 2.5 ? r.name[0] : ''}
+              <div key={`${d.id}${kind}`} className="flex items-center gap-3 rounded-lg bg-zinc-50 px-3 py-2">
+                <span className="text-2xl">{icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold truncate"><span style={{ color: rep?.color }}>{rep?.name.split(' ')[0]}</span> · {kind}</div>
+                  <div className="text-xs text-zinc-500 truncate">{d.address} · {ago(nowMs, at)}</div>
+                </div>
+                {d.value > 0 && (kind === 'Closed' || kind === 'Assigned') && <span className="text-sm font-extrabold text-emerald-700">{formatCompactCurrency(d.value)}</span>}
               </div>
             );
           })}
-          <span className="absolute right-3 inset-y-0 flex items-center text-xs uppercase tracking-widest font-bold text-zinc-500">
-            {formatCompactCurrency(goal)} goal
-          </span>
         </div>
-        {/* Pace marker */}
-        <div
-          className="absolute -top-1.5 -bottom-1.5 w-[3px] bg-zinc-900 rounded"
-          title="Pace for today"
-          style={{ left: `calc(${Math.min(100, (pace / scale) * 100)}% - 1.5px)` }}
-        />
-        </div>
-        <div className="flex justify-between text-[10px] text-zinc-400 tabular-nums mt-1">
-          {[0, 25, 50, 75, 100].map((q) => <span key={q}>{q === 0 ? '$0' : formatCompactCurrency((goal * q) / 100)}</span>)}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        <RevStat label="To go" value={toGo > 0 ? formatCompactCurrency(toGo) : 'Goal hit 🎉'} />
-        <RevStat label="Days left" value={daysLeft} />
-        <RevStat label="Needed / day" value={toGo > 0 ? formatCompactCurrency(Math.round(toGo / daysLeft)) : '—'} />
-      </div>
-
-      <div
-        className="grid gap-2 shrink-0 pt-2 border-t border-zinc-300/40"
-        style={{ gridTemplateColumns: `repeat(${ranked.length}, minmax(0, 1fr))` }}
-      >
-        {ranked.map((rep, i) => (
-          <div key={rep.id} className="flex flex-col items-center text-center min-w-0">
-            <span className="text-[10px] uppercase tracking-wider truncate w-full font-semibold" style={{ color: rep.color }}>
-              {i === 0 && rep.revenueMonth > 0 ? '★ ' : ''}{rep.name.split(' ')[0]}
-            </span>
-            <span className={`text-base xl:text-lg font-bold tabular-nums ${rep.revenueMonth > 0 ? 'text-zinc-900' : 'text-zinc-300'}`}>
-              {formatCompactCurrency(rep.revenueMonth)}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );
 }
 
-function RevStat({ label, value }) {
+function ago(now, t) {
+  const m = Math.round((now - t) / 60000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h} hr ago` : `${Math.round(h / 24)}d ago`;
+}
+
+const Dot = ({ c }) => <span className="inline-block w-2.5 h-2.5 rounded-sm mr-2 align-middle" style={{ background: c }} />;
+
+function Big({ label, value, sub, color }) {
   return (
-    <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-center min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</div>
-      <div className="text-2xl xl:text-3xl font-extrabold tabular-nums text-zinc-900 truncate">{value}</div>
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">{label}</div>
+      <div className={`text-[min(2.5rem,4.6vh)] font-extrabold tabular-nums leading-tight ${color}`}>{value}</div>
+      {sub && <div className="text-xs text-zinc-500">{sub}</div>}
+    </div>
+  );
+}
+
+function Marker({ at, label, light }) {
+  return (
+    <div className="absolute -top-1.5 h-[3.4rem] flex flex-col items-center" style={{ left: `${Math.min(100, at * 100)}%`, transform: 'translateX(-50%)' }}>
+      <div className={`w-[3px] flex-1 rounded ${light ? 'bg-zinc-400' : 'bg-zinc-900'}`} />
+      <div className={`text-[10px] font-bold whitespace-nowrap ${light ? 'text-zinc-400' : 'text-zinc-700'}`}>{label}</div>
     </div>
   );
 }

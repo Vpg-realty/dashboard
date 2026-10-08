@@ -170,20 +170,17 @@ Under `src/views/`:
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
-- **Master** — high-level overview. Conversations quadrant: one
-  horizontal bar per rep, ranked busiest first, split into labelled
-  state segments (replaced per-rep pies, Luke Oct 7). Top-right
-  quadrant is "Active Agent Count" (T1+T2+T3), same name as the
-  Agents tab's first box.
-  Opportunities quadrant (Luke, Oct 7) is a monthly team funnel: Opps
-  Opened → Offers → Contracts → Closed bands, each filled toward the
-  month's team target (green at target), a "wk N/target" chip where a
-  weekly target exists, and stage-to-stage % between bands (none into
-  Closed: those deals mostly come from earlier months). Revenue quadrant
-  is a goal bar made of each rep's revenue in their colour, a black
-  marker at straight-line pace for today (goal × day / days in month,
-  LA date), an ahead/behind-pace badge, To go / Days left (today
-  counts) / Needed per day, and the ranked per-rep list.
+- **Master** — the sales-floor overview (Luke, Oct 8; replaced the four
+  quadrants). Top row, month totals: Conversations (month = each earlier
+  day this month from `teamConvosByDay` + today's live count; no target),
+  then Opps Opened 40/rep, Offers 20/rep, Contracts 4/rep as `KpiCard`s
+  graded on month pace like the Opportunities boxes, each with "need N/day"
+  for the calendar days left. Revenue panel: Closed (`revenueMonth`) +
+  Assigned (sum of Assigned-stage deal values) = Projected — anything
+  before Assigned has no fee yet, so it never counts (Luke). Goal bar with
+  goal + pace-today markers, the $ still needed per day, and a closed +
+  assigned bar per rep. Latest wins: Closed / Assigned (`stageSince`) and
+  new contracts (`startedAt`) in the last 7 days.
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals
