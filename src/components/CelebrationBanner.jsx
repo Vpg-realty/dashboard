@@ -66,6 +66,20 @@ function lookFor(deal, first) {
   return { icon: '🚀', label: 'New deal in DISPO', line: `${first} got one to DISPO!`, accent: '#f59e0b' };
 }
 
+// Test link (Luke, Oct 8): open the dashboard with ?celebrate (or
+// ?celebrate=contract / ?celebrate=dispo) to play that celebration once on
+// this screen with a made-up deal. Nothing is written anywhere.
+function demoEvent() {
+  let kind;
+  try { kind = new URLSearchParams(window.location.search).get('celebrate'); } catch { return null; }
+  if (kind == null) return null;
+  const rep = REPS[0];
+  const base = { id: `demo-${Date.now()}`, repId: rep?.id, marketId: MARKETS[0]?.id, address: 'TEST — 123 Demo St', coe: null, ipEnd: null };
+  if (kind === 'contract') return { ...base, stage: 'under_contract', kind: 'start' };
+  if (kind === 'dispo') return { ...base, stage: 'dispo', kind: 'start' };
+  return { ...base, stage: 'closed', kind: 'closed', value: 25000 };
+}
+
 export default function CelebrationBanner() {
   const [queue, setQueue] = useState([]);
 
@@ -76,7 +90,11 @@ export default function CelebrationBanner() {
       const add = takeFreshMoves();
       if (add.length) setQueue((q) => [...q, ...add]);
     };
-    const first = setTimeout(check, 3000);
+    const first = setTimeout(() => {
+      const demo = demoEvent();
+      if (demo) setQueue((q) => [demo, ...q]);
+      check();
+    }, 3000);
     const timer = setInterval(check, 30000);
     return () => { clearTimeout(first); clearInterval(timer); };
   }, []);
