@@ -240,6 +240,9 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   An event shows when its time is within 45 min and this screen hasn't
   shown it (keys `${id}:start` / `${id}:closed` in localStorage
   `vpg.celebrated`). Any tab, checked every 30s; several queue, 1 min each (Luke, Oct 7).
+  Test on a screen with `?celebrate` (closed / fireworks), `?celebrate=contract`
+  or `?celebrate=dispo`: plays once with a made-up "TEST — 123 Demo St" deal,
+  writes nothing (Luke, Oct 8).
 - **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
   Opportunities team boxes are graded against target × share of the
   period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
