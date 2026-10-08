@@ -68,12 +68,9 @@ export default function OpportunitiesView() {
           title="Contracts Accepted" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
           month={{ key: 'contractsMonth', target: KPI_TARGETS.contractsPerMonth }}
         />
-        {/* Deals Closed: week + month bars like the others (Luke, Oct 8).
-            No weekly target, so the week bar runs against monthly ÷ 4. */}
-        <Leaderboard
-          title="Deals Closed" valueKey="dealsClosedWeek" target={KPI_TARGETS.dealsClosedPerMonth / 4}
-          month={{ key: 'dealsClosedMonth', target: KPI_TARGETS.dealsClosedPerMonth }}
-        />
+        {/* Deals Closed has only a monthly target, so its board is month-only
+            (Luke, Oct 7; confirmed again Oct 8). */}
+        <Leaderboard title="Deals Closed" valueKey="dealsClosedMonth" target={KPI_TARGETS.dealsClosedPerMonth} />
       </div>
     </div>
   );

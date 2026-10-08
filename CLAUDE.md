@@ -168,8 +168,8 @@ Under `src/views/`:
   monthly target (2/mo), so its board is month-only, one bar per rep.
   Ranked by the week, ties by the month. Scale stops at 125% of target; past that
   the bar is full and the number tells. Oct 8 (Luke): board headings are
-  just "BY REP"; all four boards have week + month bars (Deals Closed's
-  week bar runs against monthly ÷ 4 = 0.5/wk); the Contracts box is weekly
+  just "BY REP"; Opps, Offers and Contracts boards have week + month bars,
+  Deals Closed stays month-only (Luke, Oct 8); the Contracts box is weekly
   (plain count — the month total is on Overview). A COE-month split and a
   "month = accepted + still-active" contract count were tried and dropped. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
