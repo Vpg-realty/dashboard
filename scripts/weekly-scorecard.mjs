@@ -84,7 +84,7 @@ async function main() {
   if (!Array.isArray(data?.pairs)) fail('data.json is malformed.');
   console.log(`[scorecard] data.json generated ${data.generatedAt}`);
   const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'subaccounts.json'), 'utf8'));
-  const numbers = repNumbers(data, config.reps);
+  const numbers = repNumbers(data, config.reps, azDate().slice(0, 7));
 
   const token = await accessToken(key);
   const auth = { Authorization: `Bearer ${token}` };

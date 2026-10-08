@@ -167,7 +167,14 @@ Under `src/views/`:
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
   Ranked by the week, ties by the month. Scale stops at 125% of target; past that
-  the bar is full and the number tells. Rows share the panel height, so
+  the bar is full and the number tells. Contracts Accepted (Luke, Oct 8)
+  is weekly only — box and board — and counts only contracts whose deal
+  has a COE in the current month: `pair.contractIdsWeek` (from
+  `stickyCounts.js`) names the opps behind each weekly contract count and
+  the browser keeps those whose `deals[].coe` is this month. The list is
+  extended with each new crossing and, when missing (new week/pair, or the
+  first run of the feature mid-week), seeded with the `contractsWeek` most
+  recently moved in-band opps whose stage changed this week. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
 - **Overview** (`MasterView.jsx`, view key `master`; renamed from Master
@@ -276,7 +283,8 @@ of the "VPG - Weekly Score Card" Google Sheet as "Week of <Mon> <D>"
 (inserted right after the template), and writes B3 (week-of label),
 B4 (week # of month = ceil(Friday's day / 7)) and, per rep row found by
 name in column A, B:E = Contracts (week), Projected $ (MTD: revenue
-closed this month + value of Assigned-stage deals), Offers (week), Opps
+closed this month + value of Assigned-stage deals with a COE in the
+same month — Luke, Oct 8), Offers (week), Opps
 Opened (week). CRM checklist, Reviewed By and notes stay for people; all
 scores are the template's formulas. Pod leads (Anthony, Sam) have their
 own "POD LEADS" box between Pod B and the Leadership Snapshot, scored the
