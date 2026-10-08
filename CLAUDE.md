@@ -170,20 +170,19 @@ Under `src/views/`:
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
-- **Master** — high-level overview. Conversations quadrant: one
-  horizontal bar per rep, ranked busiest first, split into labelled
-  state segments (replaced per-rep pies, Luke Oct 7). Top-right
-  quadrant is "Active Agent Count" (T1+T2+T3), same name as the
-  Agents tab's first box.
-  Opportunities quadrant (Luke, Oct 7) is a monthly team funnel: Opps
-  Opened → Offers → Contracts → Closed bands, each filled toward the
-  month's team target (green at target), a "wk N/target" chip where a
-  weekly target exists, and stage-to-stage % between bands (none into
-  Closed: those deals mostly come from earlier months). Revenue quadrant
-  is a goal bar made of each rep's revenue in their colour, a black
-  marker at straight-line pace for today (goal × day / days in month,
-  LA date), an ahead/behind-pace badge, To go / Days left (today
-  counts) / Needed per day, and the ranked per-rep list.
+- **Overview** (`MasterView.jsx`, view key `master`; renamed from Master
+  and made the first tab, Luke Oct 8) — the sales-floor overview (replaced
+  the four quadrants). Top row, month totals: Conversations (month = each earlier
+  day this month from `teamConvosByDay` + today's live count; no target),
+  then Opps opened 40/rep, Offers 20/rep, Contracts 4/rep as slim cards
+  (`SlimCard`, smaller than `KpiCard`) graded on month pace with the same
+  colours/badges as the Opportunities boxes, each with "need N/day"
+  for the calendar days left. Revenue panel: Closed (`revenueMonth`) +
+  Assigned (sum of Assigned-stage deal values) = Projected — anything
+  before Assigned has no fee yet, so it never counts (Luke). Goal bar with
+  goal + pace-today markers, the $ still needed per day, and a closed +
+  assigned bar per rep. Latest wins: Closed / Assigned (`stageSince`) and
+  new contracts (`startedAt`) in the last 7 days.
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals
@@ -229,9 +228,9 @@ Under `src/views/`:
   from day-over-day growth of the all-time totals.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
-Cycled (Luke, Oct 7 — simplified): Conversations, Agents, Opportunities,
-Master, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
-at the end of the nav (`NAV_VIEWS`); Master carries the revenue goal bar.
+Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
+Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
+at the end of the nav (`NAV_VIEWS`); Overview carries the revenue goal bar.
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 - **Needs attention strip** (`components/AlertStrip.jsx`) under the tabs:
