@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
@@ -16,8 +16,9 @@ import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRang
 // LATE once it has passed; the other date stays grey. Late deals sort to the
 // top. Headers show count, $ (when there is any) and late / due-soon chips.
 // Closed is narrower but still lists the month's closings.
-// A "Due now" column on the far left (Luke, Oct 8) pulls out the deals whose
-// key date is today or tomorrow; they stay in their stage columns too. Late
+// A "Due This Week" column on the far left (Luke, Oct 8; was "Due now")
+// lists the deals whose key date is today, tomorrow, 2 or 3 days out, one
+// list per day; they stay in their stage columns too. Late
 // deals are only a count at its foot (they're red at the top of each column).
 
 const COLUMNS = [
@@ -119,27 +120,33 @@ const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function DueNowColumn({ deals, today }) {
   const open = deals.filter((d) => d.stage !== 'closed');
   const byValue = (a, b) => b.value - a.value;
-  const dueToday = open.filter((d) => d.keyDays === 0).sort(byValue);
-  const dueTomorrow = open.filter((d) => d.keyDays === 1).sort(byValue);
+  // Today through 3 days out, one list per day (Luke, Oct 8).
+  const days = [0, 1, 2, 3].map((n) => {
+    const date = addDays(today, n);
+    const when = n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `${n} days out`;
+    return { n, label: `${when} · ${dayName(date)}`, list: open.filter((d) => d.keyDays === n).sort(byValue) };
+  });
+  const total = days.reduce((a, d) => a + d.list.length, 0);
   const late = open.filter((d) => d.late).length;
-  const tomorrow = addDays(today, 1);
-  const dayName = (s) => `${WEEKDAY[new Date(`${s}T12:00:00Z`).getUTCDay()]} ${shortDate(s)}`;
   return (
     <section className="rounded-xl border border-zinc-300 bg-white flex flex-col min-h-0 overflow-hidden">
       <div className="px-4 pt-2.5 pb-2 border-b border-zinc-200 shrink-0" style={{ borderTop: '5px solid #dc2626' }}>
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-xl font-bold text-zinc-900 truncate">Due now</h3>
-          <span className="text-3xl font-extrabold tabular-nums leading-none text-red-600">{dueToday.length + dueTomorrow.length}</span>
+          <h3 className="text-xl font-bold text-zinc-900 truncate">Due This Week</h3>
+          <span className="text-3xl font-extrabold tabular-nums leading-none text-red-600">{total}</span>
         </div>
-        <div className="mt-1 min-h-[1.5rem] text-sm text-zinc-500">IP ends &amp; closings, today and tomorrow</div>
+        <div className="mt-1 min-h-[1.5rem] text-sm text-zinc-500">IP ends &amp; closings, next 3 days</div>
       </div>
       <AutoScroll className="p-2 flex flex-col gap-1.5">
-        <DueHeading label={`Today · ${dayName(today)}`} count={dueToday.length} strong />
-        {dueToday.length === 0 && <div className="text-sm font-semibold text-emerald-700 px-1 pb-1">✓ Nothing due today</div>}
-        {dueToday.map((d) => <DueCard key={d.id} deal={d} />)}
-        <DueHeading label={`Tomorrow · ${dayName(tomorrow)}`} count={dueTomorrow.length} />
-        {dueTomorrow.length === 0 && <div className="text-sm text-zinc-400 px-1">Nothing due tomorrow</div>}
-        {dueTomorrow.map((d) => <DueCard key={d.id} deal={d} />)}
+        {days.map(({ n, label, list }) => (
+          <Fragment key={n}>
+            <DueHeading label={label} count={list.length} strong={n === 0} />
+            {list.length === 0 && (n === 0
+              ? <div className="text-sm font-semibold text-emerald-700 px-1 pb-1">✓ Nothing due today</div>
+              : <div className="text-sm text-zinc-400 px-1">Nothing due</div>)}
+            {list.map((d) => <DueCard key={d.id} deal={d} />)}
+          </Fragment>
+        ))}
       </AutoScroll>
       {late > 0 && (
         <div className="shrink-0 m-2 mt-0 rounded-lg bg-rose-600 text-white px-3 py-2">
@@ -150,6 +157,8 @@ function DueNowColumn({ deals, today }) {
     </section>
   );
 }
+
+const dayName = (s) => `${WEEKDAY[new Date(`${s}T12:00:00Z`).getUTCDay()]} ${shortDate(s)}`;
 
 function DueHeading({ label, count, strong }) {
   return (

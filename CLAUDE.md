@@ -202,8 +202,9 @@ Under `src/views/`:
   the affected sub-accounts; `pair.dealFieldsError` has the reason.
   Value is the standard `monetaryValue`.
   Oct 8 rework (Luke, built in the dashboard-lab first): five columns,
-  starting with **Due now** (deals whose key date is today or tomorrow,
-  under Today / Tomorrow headings, "✓ Nothing due today" when empty, and a
+  starting with **Due This Week** (renamed from Due now, Oct 8: deals whose
+  key date is today through 3 days out, under Today / Tomorrow / 2 days out /
+  3 days out headings, "✓ Nothing due today" when empty, and a
   red "N late" count pinned at its foot; those deals also stay in their
   stage columns). Each stage runs off one key date (`KEY_DATE`): IP end
   for Under Contract and Dispo, COE for Assigned. Only that date gets the
