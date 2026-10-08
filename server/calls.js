@@ -27,3 +27,32 @@ export function summarizeCalls(messages, { todayStartMs, weekStartMs }) {
   }
   return out;
 }
+
+// GHL's message export sometimes answers 200 with an empty list for a
+// location that does have calls (seen Oct 8: five sub-accounts dropped from
+// 3–24 calls this week to 0 between two runs, no error). Call counts only
+// ever grow within a period, so each field keeps the higher of this run and
+// the previous published run, as long as that run is in the same week (or
+// the same day, for `today`). Pure; mutates nothing.
+export function keepCallsMonotonic(pairs, prevPairs, { prevGeneratedMs, todayStartMs, weekStartMs }) {
+  if (!Array.isArray(prevPairs) || !Number.isFinite(prevGeneratedMs) || prevGeneratedMs < weekStartMs) return pairs;
+  const sameDay = prevGeneratedMs >= todayStartMs;
+  const prevByKey = new Map(prevPairs.map((p) => [`${p.repId}|${p.marketId}`, p.calls]));
+  const maxOf = (a, b) => ({
+    inbound: Math.max(a.inbound, b.inbound),
+    outbound: Math.max(a.outbound, b.outbound),
+    connected: Math.max(a.connected, b.connected),
+    talkSec: Math.max(a.talkSec, b.talkSec),
+  });
+  return pairs.map((p) => {
+    const prev = prevByKey.get(`${p.repId}|${p.marketId}`);
+    if (!prev?.week) return p;
+    // Pull failed outright this run: carry the previous numbers, keep the error.
+    const cur = p.calls || { today: { inbound: 0, outbound: 0, connected: 0, talkSec: 0 }, week: { inbound: 0, outbound: 0, connected: 0, talkSec: 0 } };
+    const calls = {
+      week: maxOf(cur.week, prev.week),
+      today: sameDay && prev.today ? maxOf(cur.today, prev.today) : cur.today,
+    };
+    return { ...p, calls };
+  });
+}

@@ -103,7 +103,13 @@ status `completed`; `talkSec` sums `meta.call.duration` of those. Calls
 made outside GHL (personal cells, other dialers) aren't counted. Needs the
 PIT's `conversations/message.readonly` scope; if the pull fails the pair
 gets `callsError` (reason) instead of `calls` and nothing else is
-affected. Not in `history.json` yet. Shown in the dashboard-lab's
+affected. GHL's export sometimes answers an empty list for a location that
+has calls (Oct 8: five sub-accounts dropped to 0 between runs, no error),
+so `listCallsSince` retries an empty first page twice, and
+`scripts/build-snapshot.mjs` loads the previous published `data.json` and
+runs `keepCallsMonotonic` (server/calls.js): within the same week (day,
+for `today`) every call field keeps the higher of this run and the last
+one. Not in `history.json` yet. Shown in the dashboard-lab's
 Conversations tab first (not on this board yet).
 
 ## Sticky offer/contract counts (Luke, Sept 14)
