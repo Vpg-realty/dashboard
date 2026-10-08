@@ -160,11 +160,35 @@ function hydratePair(p) {
   };
 }
 
+// New-version check (Luke, Oct 8: "not updating"). Data refreshes every
+// POLL_MS, but the app code only changes when the page reloads, so a TV left
+// open kept showing the old layout after a release. Every few minutes, read
+// the deployed index.html and compare its app bundle (Vite names it
+// assets/index-<hash>.js, and the hash only changes when the code does) with
+// the one this page is running; if they differ, reload.
+const VERSION_CHECK_MS = Number(import.meta.env.VITE_VERSION_CHECK_MS || 5 * 60 * 1000);
+let versionTimer = null;
+const runningBundle = () =>
+  typeof document === 'undefined' ? null
+    : [...document.querySelectorAll('script[src]')].map((el) => el.getAttribute('src')).find((src) => /assets\/index-[^/]+\.js$/.test(src)) || null;
+
+async function checkForNewVersion() {
+  const current = runningBundle();
+  if (!current) return;  // dev server: no hashed bundle to compare
+  try {
+    const res = await fetch(`${BASE}?v=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const deployed = (await res.text()).match(/assets\/index-[^"']+\.js/)?.[0];
+    if (deployed && !current.endsWith(deployed)) window.location.reload();
+  } catch { /* offline — try again next time */ }
+}
+
 function startPolling() {
   if (pollTimer) return;
   fetchSnapshot();  // immediate
   fetchHistory();   // history changes at most once a day; one fetch per visibility resume is plenty
   pollTimer = setInterval(fetchSnapshot, POLL_MS);
+  if (!versionTimer) versionTimer = setInterval(checkForNewVersion, VERSION_CHECK_MS);
 }
 function stopPolling() {
   if (pollTimer) clearInterval(pollTimer);

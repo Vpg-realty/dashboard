@@ -339,6 +339,14 @@ aborted (deployed history load failed 3 times). Second cause: it's
 too early in the deploy chain — history only reaches back to the day
 `append-history.mjs` was first wired in.
 
+**TV shows an old layout after a release**
+The page polls `data.json` every 30s but only picks up new app code on a
+reload. `src/data/liveStore.js` `checkForNewVersion()` reads the deployed
+`index.html` every 5 min and reloads when its `assets/index-<hash>.js`
+differs from the running one (Luke, Oct 8: "not updating"). Data-only
+deploys keep the same hash, so they don't trigger reloads. A screen
+opened before this shipped needs one manual refresh.
+
 **A refresh from the "Refresh" button doesn't do anything**
 It fires a `repository_dispatch` `refresh` event. If the deploy
 concurrency lock is held by an in-flight run it queues (fine). If
