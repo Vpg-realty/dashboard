@@ -6,7 +6,9 @@
 // "Week of <Mon> <D>", and fill the yellow cells with Monday → Friday-noon
 // numbers. Decisions:
 //   - Projected $ (MTD) = revenue closed this month + value of deals
-//     currently in the Assigned stage (an Assigned deal counts before EM).
+//     currently in the Assigned stage whose COE is in the same month (Luke,
+//     Oct 8: a deal closing next month, or with no COE, isn't this month's
+//     money; same rule as the Overview tab).
 //   - Week # of Month = which week of the month that Friday falls in
 //     (Fri Oct 2 → 1, Fri Oct 9 → 2): ceil(day-of-month / 7).
 //   - Patrick isn't on the scorecard and is skipped. Pod leads have their
@@ -42,15 +44,15 @@ export function weekInfo(dateStr) {
 
 // Per-rep scorecard numbers from the dashboard's data.json, keyed by the
 // rep's full name (matches column A of the sheet). Sums every sub-account
-// (state) the rep works.
-export function repNumbers(data, reps) {
+// (state) the rep works. `month` is 'YYYY-MM' (the scorecard's month).
+export function repNumbers(data, reps, month) {
   const out = {};
   for (const rep of reps) {
     const pairs = (data.pairs || []).filter((p) => p.repId === rep.id);
     const sum = (k) => pairs.reduce((a, p) => a + (Number(p[k]) || 0), 0);
     const assigned = pairs
       .flatMap((p) => p.deals || [])
-      .filter((d) => d.stage === 'assigned')
+      .filter((d) => d.stage === 'assigned' && typeof d.coe === 'string' && d.coe.slice(0, 7) === month)
       .reduce((a, d) => a + (Number(d.value) || 0), 0);
     out[rep.name] = {
       contracts: sum('contractsWeek'),
