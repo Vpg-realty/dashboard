@@ -264,11 +264,21 @@ Under `src/views/`:
     coloured vs pace, funnel cells coloured vs team, biggest leak. Click a
     rep → Rep.
   - **Rep** — picker; score, leak callout, 8 pace tiles (week + month),
-    funnel with step rates vs team, and a by-state table.
+    funnel with step rates vs team, and a by-state table. Period picker
+    (Luke, Oct 8; from the old Advanced tab): Current, Custom range, every
+    Mon–Sun week and calendar month on file. A past period is totalled from
+    history.json (`computeRange` via `rangeMetrics` in metrics.js; team rates
+    over the same range) and shows 5 tiles (opps, offers, contracts, closed,
+    revenue closed — no Assigned/projected in history) against
+    `rangeTargets` (finished periods HIT / CLOSE / MISSED, "so far" ones on
+    pace), plus "N of M days on file". Untracked (pre-Sept 14 or no
+    snapshot) reads "—", never 0.
   - **Coaching** — conversion per rep vs team (biggest leak ringed),
-    month counts, sorted worst leak first.
-  The old Advanced tab (per-sub-account drill-down with past-period
-  picker) was removed; `historyRange.js` still has its range helpers.
+    sorted worst leak first. Each cell reads "31% · 4 of 13" (rate, then
+    moved on of started); the separate counts block was dropped as hard to
+    read (Luke, Oct 8).
+  The old Advanced tab (per-sub-account drill-down) was removed; its
+  past-period picker lives on in Rep.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
@@ -365,7 +375,7 @@ loader falls through to null on a real run (not just first-of-week),
 sticky counts reseed and can jump up. `build-snapshot.mjs`
 `loadPrevOppState()` logs a warning line when this happens.
 
-**Advanced period shows "No snapshots on file" / few days on file**
+**Rep period picker shows "No snapshots on file" / few days on file**
 `history.json` is missing those days. First cause: append-history
 aborted (deployed history load failed 3 times). Second cause: it's
 too early in the deploy chain — history only reaches back to the day
