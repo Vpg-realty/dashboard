@@ -167,14 +167,11 @@ Under `src/views/`:
   offers 5/wk 20/mo, contracts 1/wk 4/mo. Deals Closed has only a
   monthly target (2/mo), so its board is month-only, one bar per rep.
   Ranked by the week, ties by the month. Scale stops at 125% of target; past that
-  the bar is full and the number tells. Contracts Accepted (Luke, Oct 8)
-  is weekly only — box and board — and counts only contracts whose deal
-  has a COE in the current month: `pair.contractIdsWeek` (from
-  `stickyCounts.js`) names the opps behind each weekly contract count and
-  the browser keeps those whose `deals[].coe` is this month. The list is
-  extended with each new crossing and, when missing (new week/pair, or the
-  first run of the feature mid-week), seeded with the `contractsWeek` most
-  recently moved in-band opps whose stage changed this week. Rows share the panel height, so
+  the bar is full and the number tells. Oct 8 (Luke): board headings are
+  just "BY REP"; all four boards have week + month bars (Deals Closed's
+  week bar runs against monthly ÷ 4 = 0.5/wk); the Contracts box is weekly
+  (plain count — the month total is on Overview). A COE-month split and a
+  "month = accepted + still-active" contract count were tried and dropped. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
 - **Overview** (`MasterView.jsx`, view key `master`; renamed from Master
