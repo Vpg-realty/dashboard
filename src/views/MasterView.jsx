@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { REPS, KPI_TARGETS } from '../data/config.js';
 import { PAIRS, headline, historyEntries } from '../data/source.js';
-import { formatCompactCurrency, formatNumber } from '../utils/format.js';
+import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
-import KpiCard from '../components/KpiCard.jsx';
 
-// Master — the sales-floor overview (Luke, Oct 8):
+// Overview (view key 'master', first tab) — the sales-floor overview
+// (Luke, Oct 8):
 //   1. Month totals for conversations, opps opened, offers and contracts,
 //      graded against pace the same way as the Opportunities boxes, with
 //      what's needed per day to still hit each target.
@@ -30,9 +30,9 @@ function daysLeft(period) {
 }
 
 const MONTH_CARDS = [
-  { key: 'oppsOpenedMonth', label: 'Opps Opened (month)', target: KPI_TARGETS.oppsOpenedPerWeek * 4 * N },
-  { key: 'offersMonth', label: 'Offers Submitted (month)', target: KPI_TARGETS.offersPerWeek * 4 * N },
-  { key: 'contractsMonth', label: 'Contracts Accepted (month)', target: KPI_TARGETS.contractsPerMonth * N },
+  { key: 'oppsOpenedMonth', label: 'Opps opened', target: KPI_TARGETS.oppsOpenedPerWeek * 4 * N },
+  { key: 'offersMonth', label: 'Offers', target: KPI_TARGETS.offersPerWeek * 4 * N },
+  { key: 'contractsMonth', label: 'Contracts', target: KPI_TARGETS.contractsPerMonth * N },
 ];
 
 const rate = (v) => (v >= 10 ? Math.round(v).toString() : (Math.round(v * 10) / 10).toString());
@@ -44,6 +44,7 @@ export default function MasterView() {
   // "x ago" times and the 7-day window stay pure during render.
   const [nowMs] = useState(() => Date.now());
   const left = daysLeft('month');
+  const monthFrac = paceFraction('month');
 
   // Conversations this month: no month counter in GHL data, so add up each
   // earlier day this month from history, plus today's live count.
@@ -61,7 +62,6 @@ export default function MasterView() {
   const assigned = assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
   const projected = closed + assigned;
   const goal = KPI_TARGETS.revenuePerRepMonth * N;
-  const monthFrac = paceFraction('month');
   const scale = Math.max(goal, projected) * 1.04;
   const perRep = REPS.map((r) => {
     const ps = PAIRS.filter((p) => p.repId === r.id);
@@ -83,24 +83,17 @@ export default function MasterView() {
 
   return (
     <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4">
-      {/* Month totals */}
-      <div className="col-span-3 rounded-xl border border-zinc-300/80 bg-white p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-xs uppercase tracking-[0.18em] text-zinc-600">Conversations (month)</div>
-        </div>
-        <div className="text-5xl font-bold tabular-nums text-zinc-900">{formatNumber(convosMonth)}</div>
-        <div className="text-xs text-zinc-500 mt-1">{formatNumber(head.conversationsToday)} today · {formatNumber(head.conversationsWeek)} this week</div>
-      </div>
+      {/* Month totals — slim cards (Luke, Oct 8: the full KpiCards were too
+          big here). Same pace grading and colours as the Opportunities boxes. */}
+      <SlimCard label="Conversations" actual={convosMonth} note={`${formatNumber(head.conversationsToday)} today · ${formatNumber(head.conversationsWeek)} this week`} />
       {MONTH_CARDS.map((c) => {
         const actual = sum(PAIRS, c.key);
         const need = Math.max(0, c.target - actual);
         return (
-          <div key={c.key} className="col-span-3 [&>div]:h-full">
-            <KpiCard
-              pace="month" label={c.label} actual={actual} target={c.target}
-              sublabel={need <= 0 ? 'target hit' : `need ${rate(need / left)}/day · ${left} days left`}
-            />
-          </div>
+          <SlimCard
+            key={c.key} label={c.label} actual={actual} target={c.target} frac={monthFrac}
+            note={need <= 0 ? 'target hit' : `need ${rate(need / left)}/day · ${left} days left`}
+          />
         );
       })}
 
@@ -127,15 +120,15 @@ export default function MasterView() {
         </div>
         <div className="mt-auto pt-3">
           <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-1.5">By rep · <Dot c="#047857" />closed <Dot c="#34d399" />assigned</div>
-          <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
+          <div className="grid grid-cols-3 gap-x-6 gap-y-[min(0.75rem,1.4vh)]">
             {perRep.map(({ r, c, a, t }) => (
               <div key={r.id} className="flex items-center gap-2">
-                <span className="w-20 text-sm font-semibold truncate" style={{ color: r.color }}>{r.name.split(' ')[0]}</span>
-                <div className="flex-1 flex h-3 rounded bg-zinc-100 overflow-hidden">
+                <span className="w-20 text-base font-semibold truncate" style={{ color: r.color }}>{r.name.split(' ')[0]}</span>
+                <div className="flex-1 flex h-4 rounded bg-zinc-100 overflow-hidden">
                   <div style={{ width: `${(c / repMax) * 100}%`, background: '#047857' }} />
                   <div style={{ width: `${(a / repMax) * 100}%`, background: '#34d399' }} />
                 </div>
-                <span className="w-14 text-right text-sm font-bold tabular-nums">{formatCompactCurrency(t)}</span>
+                <span className="w-16 text-right text-base font-bold tabular-nums">{formatCompactCurrency(t)}</span>
               </div>
             ))}
           </div>
@@ -190,6 +183,32 @@ function Marker({ at, label, light }) {
     <div className="absolute -top-1.5 h-[3.4rem] flex flex-col items-center" style={{ left: `${Math.min(100, at * 100)}%`, transform: 'translateX(-50%)' }}>
       <div className={`w-[3px] flex-1 rounded ${light ? 'bg-zinc-400' : 'bg-zinc-900'}`} />
       <div className={`text-[10px] font-bold whitespace-nowrap ${light ? 'text-zinc-400' : 'text-zinc-700'}`}>{label}</div>
+    </div>
+  );
+}
+
+// Compact month card: label + pace badge, number / target, a thin bar with
+// the "where we should be" tick, and one line of context.
+function SlimCard({ label, actual, target, frac, note }) {
+  const s = target ? kpiStatus(actual, target * frac) : null;
+  const badge = s && { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status];
+  return (
+    <div className={`col-span-3 rounded-xl border px-4 py-3 ${s ? `${s.border} ${s.bg}` : 'border-zinc-300/80 bg-white'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-600 truncate">{label} · month</div>
+        {badge && <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded whitespace-nowrap border ${s.text} ${s.border}`}>{badge}</span>}
+      </div>
+      <div className="flex items-baseline gap-1.5 mt-1">
+        <span className={`text-[min(2.25rem,4vh)] font-bold tabular-nums leading-none ${s ? s.text : 'text-zinc-900'}`}>{formatNumber(actual)}</span>
+        {target && <span className="text-sm text-zinc-500 tabular-nums">/ {formatNumber(target)}</span>}
+      </div>
+      {target ? (
+        <div className="relative h-1.5 mt-2 bg-white/70 rounded-full">
+          <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (actual / target) * 100)}%`, background: s.color }} />
+          <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, frac * 100)}% - 1px)` }} />
+        </div>
+      ) : <div className="h-1.5 mt-2" />}
+      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{note}</div>
     </div>
   );
 }

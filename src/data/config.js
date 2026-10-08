@@ -80,7 +80,9 @@ export const PIPELINE_STAGES = [
 // View cycle order + per-view duration (ms).
 // Pipeline added Sept 29 (Luke). Revenue tab removed Oct 8 (Luke: not
 // needed; Master carries the revenue goal bar).
-export const CYCLE_VIEWS = ['conversations', 'agents', 'opportunities', 'master', 'pipeline'];
+// Overview (view key 'master') is the first tab and first in the rotation
+// (Luke, Oct 8).
+export const CYCLE_VIEWS = ['master', 'conversations', 'agents', 'opportunities', 'pipeline'];
 // Tab order in the nav bar: the rotation first, then the click-only tabs.
 export const NAV_VIEWS = [...CYCLE_VIEWS, 'advanced'];
 export const CYCLE_INTERVAL_MS = 10000;

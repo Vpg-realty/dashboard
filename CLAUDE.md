@@ -170,11 +170,13 @@ Under `src/views/`:
   the bar is full and the number tells. Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
-- **Master** — the sales-floor overview (Luke, Oct 8; replaced the four
-  quadrants). Top row, month totals: Conversations (month = each earlier
+- **Overview** (`MasterView.jsx`, view key `master`; renamed from Master
+  and made the first tab, Luke Oct 8) — the sales-floor overview (replaced
+  the four quadrants). Top row, month totals: Conversations (month = each earlier
   day this month from `teamConvosByDay` + today's live count; no target),
-  then Opps Opened 40/rep, Offers 20/rep, Contracts 4/rep as `KpiCard`s
-  graded on month pace like the Opportunities boxes, each with "need N/day"
+  then Opps opened 40/rep, Offers 20/rep, Contracts 4/rep as slim cards
+  (`SlimCard`, smaller than `KpiCard`) graded on month pace with the same
+  colours/badges as the Opportunities boxes, each with "need N/day"
   for the calendar days left. Revenue panel: Closed (`revenueMonth`) +
   Assigned (sum of Assigned-stage deal values) = Projected — anything
   before Assigned has no fee yet, so it never counts (Luke). Goal bar with
@@ -212,9 +214,9 @@ Under `src/views/`:
   from day-over-day growth of the all-time totals.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
-Cycled (Luke, Oct 7 — simplified): Conversations, Agents, Opportunities,
-Master, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
-at the end of the nav (`NAV_VIEWS`); Master carries the revenue goal bar.
+Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
+Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
+at the end of the nav (`NAV_VIEWS`); Overview carries the revenue goal bar.
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 - **Needs attention strip** (`components/AlertStrip.jsx`) under the tabs:
