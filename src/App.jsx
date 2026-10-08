@@ -8,7 +8,10 @@ import ConversationsView from './views/ConversationsView.jsx';
 import AgentsView from './views/AgentsView.jsx';
 import OpportunitiesView from './views/OpportunitiesView.jsx';
 import MasterView from './views/MasterView.jsx';
-import AdvancedView from './views/AdvancedView.jsx';
+import ManagerTeamView from './views/manager/TeamView.jsx';
+import ManagerRepView from './views/manager/RepView.jsx';
+import ManagerCoachingView from './views/manager/CoachingView.jsx';
+import ManagerRevenueView from './views/manager/RevenueView.jsx';
 import PipelineView from './views/PipelineView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
 import { useDataUpdates, useDataStatus } from './data/source.js';
@@ -19,7 +22,10 @@ const VIEWS = {
   opportunities: { label: 'Opportunities · KPI tracking',   component: OpportunitiesView },
   master:        { label: 'Overview · this month',          component: MasterView },
   pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
-  advanced:      { label: 'Advanced · per-subaccount drill-down', component: AdvancedView },
+  'mgr-team':     { label: 'Manager · team',                 component: ManagerTeamView },
+  'mgr-rep':      { label: 'Manager · rep',                  component: ManagerRepView },
+  'mgr-coaching': { label: 'Manager · coaching',             component: ManagerCoachingView },
+  'mgr-revenue':  { label: 'Manager · revenue & forecast',   component: ManagerRevenueView },
 };
 
 export default function App() {
@@ -28,6 +34,8 @@ export default function App() {
   const dataStatus = useDataStatus();
 
   const [view, setView] = useState(CYCLE_VIEWS[0]);
+  // Rep shown on Manager · Rep; clicking a rep on any manager tab opens it.
+  const [mgrRep, setMgrRep] = useState(null);
   const [isCycling, setIsCycling] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -48,7 +56,7 @@ export default function App() {
     try { localStorage.setItem('vpg.cycleIntervalMs', String(clamped)); } catch {}
   }, []);
 
-  // Cycle through views every N seconds (paused on advanced/master)
+  // Cycle through views every N seconds (manager tabs pause it)
   useEffect(() => {
     if (!isCycling) return;
     const timer = setInterval(() => {
@@ -118,7 +126,11 @@ export default function App() {
 
       <main key={view} className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
         <div className="h-full animate-fadein">
-          <ActiveView />
+          <ActiveView
+            repId={mgrRep}
+            onPickRep={(id) => { setMgrRep(id); handleViewChange('mgr-rep'); }}
+            onBack={() => handleViewChange('mgr-team')}
+          />
         </div>
       </main>
 

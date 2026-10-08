@@ -235,3 +235,26 @@ export function teamConvosByDay(entries) {
   }
   return out;
 }
+
+// Conversations this month per sub-account (manager views, Luke Oct 8):
+// same per-day deltas as teamConvosByDay, summed for each pair over the
+// days before `today` in today's month. Add the pair's live convosToday on
+// top for the month-to-date total. Returns Map 'repId__marketId' → count.
+export function pairConvosMonth(entries, today) {
+  const month = today.slice(0, 7);
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const prevByPair = new Map();
+  const out = new Map();
+  for (const entry of sorted) {
+    for (const p of entry.pairs || []) {
+      if (p.convosWeek == null) continue;
+      const key = `${p.repId}__${p.marketId}`;
+      const prev = prevByPair.get(key);
+      const same = prev && weekStart(prev.date) === weekStart(entry.date);
+      const day = Math.max(0, (p.convosWeek || 0) - (same ? prev.value : 0));
+      prevByPair.set(key, { date: entry.date, value: p.convosWeek || 0 });
+      if (entry.date.slice(0, 7) === month && entry.date < today) out.set(key, (out.get(key) || 0) + day);
+    }
+  }
+  return out;
+}

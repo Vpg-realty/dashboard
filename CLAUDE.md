@@ -241,26 +241,44 @@ Under `src/views/`:
   but still lists the month's closings. Stage reads "Dispo Active" (Luke
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
-- **Advanced** — subaccount drill-down, 3 KPI rows (convos + agents ·
-  opps opened, offers, contracts · closed + revenue). Period dropdown
-  (Luke, Sept 29): Current, Custom range (From/To), every Mon–Sun week
-  and every calendar month on file. Past periods are totalled by
-  `src/utils/historyRange.js` from `history.json`: each day's activity =
-  its week/month-to-date value minus the previous snapshot in the same
-  week/month, summed over the range. Full weeks/months come out exactly
-  equal to the end-of-period total; a missing day's activity lands on
-  the next day on file (the UI shows "N of M days on file").
-  Custom-range targets scale the weekly targets by range length.
-  History goes back to late June 2026, but snapshots before Sept 14
-  (no `v`, no `convosWeek`) only stored closed deals, revenue,
-  agentsTotal and convosAllTime: those days show opps / offers /
-  contracts / aban / lost as "—", and derive new convos + agents added
-  from day-over-day growth of the all-time totals.
+- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — click-only,
+  never in the TV rotation. The nav shows them as a blue group after a
+  "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
+  opens with a blue "MANAGER VIEW · not shown on the TV rotation" strip
+  (`views/manager/ManagerFrame.jsx`). Numbers live in
+  `views/manager/metrics.js`: month-to-date per rep/state/team from the
+  pairs; conversations this month per pair from history
+  (`pairConvosMonth`) + today; projected = closed + Assigned deals with a
+  COE this month (same as Overview/scorecard). Weekly score = Friday
+  scorecard weights (contracts 35, projected $ 15, offers 15, opps 10;
+  CRM's 25 is manual, so the rest is scaled to 100; no contract caps at 89;
+  projected judged vs $25k/4 × week-of-month). Funnel steps are this
+  month's counts stage to stage (Convo→Opp, Opp→Offer, Offer→Contract; no
+  Contract→Close — closings come from earlier months); "biggest leak" =
+  the step furthest below the team rate, flagged when 20%+ below.
+  - **Team** — 4 summary tiles (reps on pace, avg score, most common leak,
+    needs a 1-on-1 = score < 75) and a table: score, week (opps/offers/
+    contracts) and month (opps/offers/contracts/closed/projected $) cells
+    coloured vs pace, funnel cells coloured vs team, biggest leak. Click a
+    rep → Rep.
+  - **Rep** — picker; score, leak callout, 8 pace tiles (week + month),
+    funnel with step rates vs team, and a by-state table.
+  - **Coaching** — conversion per rep vs team (biggest leak ringed),
+    month counts, sorted worst leak first.
+  - **Revenue & Forecast** — Closed + Assigned = Forecast + gap to goal
+    ($/day), goal bar with pace marker, what's coming (DISPO / under
+    contract counts, assigned with a COE outside the month), closed +
+    assigned per rep vs $25k, the weekly **Leaderboard** (scorecard
+    scoring, top 3 highlighted) and the **Pod battle** (pods from the
+    scorecard sheet: A = Spencer, Axel, Cayden, lead Anthony; B = Danni,
+    Daniel, Rory, lead Sam). No forecast guesses for pre-Assigned deals.
+  The old Advanced tab (per-sub-account drill-down with past-period
+  picker) was removed; `historyRange.js` still has its range helpers.
 
 Rotation: the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
-Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). Advanced is the one click-only tab
-at the end of the nav (`NAV_VIEWS`); Overview carries the revenue goal bar.
+Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). The Manager
+tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 - **Needs attention strip** (`components/AlertStrip.jsx`) under the tabs:
