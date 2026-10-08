@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { REPS, KPI_TARGETS } from '../data/config.js';
 import { PAIRS, headline, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
@@ -13,7 +13,8 @@ import { laToday, teamConvosByDay } from '../utils/historyRange.js';
 //   2. Revenue this month: closed + assigned = projected (deals before
 //      Assigned have no fee yet, so they don't count), goal + pace markers,
 //      the gap per day, and each rep's closed + assigned.
-//   3. Latest wins: closes, assignments and new contracts, last 7 days.
+//   3. Wins this month: closes, assignments and new contracts, newest first,
+//      as many as fit the panel.
 
 const N = REPS.length;
 const sum = (pairs, k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
@@ -63,23 +64,25 @@ export default function MasterView() {
   const projected = closed + assigned;
   const goal = KPI_TARGETS.revenuePerRepMonth * N;
   const scale = Math.max(goal, projected) * 1.04;
+  const repGoal = KPI_TARGETS.revenuePerRepMonth;
   const perRep = REPS.map((r) => {
     const ps = PAIRS.filter((p) => p.repId === r.id);
     const c = sum(ps, 'revenueMonth');
     const a = assignedDeals.filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
     return { r, c, a, t: c + a };
   }).sort((x, y) => y.t - x.t);
-  const repMax = Math.max(1, ...perRep.map((x) => x.t));
+  const repMax = Math.max(repGoal * 1.25, ...perRep.map((x) => x.t));
 
-  // Wins in the last 7 days.
-  const since = nowMs - 7 * 864e5;
+  // This month's wins, newest first (Luke, Oct 8). The panel shows as many
+  // as fit and drops the oldest (FitList).
+  const since = Date.parse(`${monthStart}T00:00:00-07:00`);
   const wins = deals.flatMap((d) => {
     const out = [];
-    if (d.stage === 'closed' && d.stageSince > since) out.push({ d, at: d.stageSince, kind: 'Closed', icon: '🎉' });
-    if (d.stage === 'assigned' && d.stageSince > since) out.push({ d, at: d.stageSince, kind: 'Assigned', icon: '🤝' });
-    if (d.startedAt > since) out.push({ d, at: d.startedAt, kind: d.stage === 'under_contract' ? 'Under contract' : 'New deal', icon: '✍️' });
+    if (d.stage === 'closed' && d.stageSince >= since) out.push({ d, at: d.stageSince, kind: 'Closed', icon: '🎉' });
+    if (d.stage === 'assigned' && d.stageSince >= since) out.push({ d, at: d.stageSince, kind: 'Assigned', icon: '🤝' });
+    if (d.startedAt >= since) out.push({ d, at: d.startedAt, kind: d.stage === 'under_contract' ? 'Under contract' : 'New deal', icon: '✍️' });
     return out;
-  }).sort((a, b) => b.at - a.at).slice(0, 6);
+  }).sort((a, b) => b.at - a.at);
 
   return (
     <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4">
@@ -97,39 +100,58 @@ export default function MasterView() {
         );
       })}
 
-      {/* Money */}
+      {/* Money — closed + assigned = projected (Luke, Oct 8: "a little
+          bland" → equation tiles, a labelled goal bar, per-rep columns
+          against each rep's own goal). Solid = closed, striped = assigned. */}
       <div className="col-span-8 min-h-0 rounded-xl border border-zinc-300/80 bg-white px-6 py-4 flex flex-col">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold">Revenue · this month · goal {formatCompactCurrency(goal)}</div>
-        <div className="grid grid-cols-3 gap-4 mt-2">
-          <Big label="Closed" value={formatCompactCurrency(closed)} sub={`${head.dealsClosedMonth} deals closed`} color="text-emerald-700" />
-          <Big label="Assigned" value={formatCompactCurrency(assigned)} sub={`${assignedDeals.length} deals waiting to close`} color="text-emerald-500" />
-          <Big label="Projected" value={formatCompactCurrency(projected)} sub={`${Math.round((projected / goal) * 100)}% of goal`} color={projected >= goal ? 'text-emerald-600' : 'text-amber-600'} />
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold">Revenue · this month</div>
+          <span className={`text-sm font-extrabold px-3 py-1 rounded-full ${projected >= goal ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+            {Math.round((projected / goal) * 100)}% of {formatCompactCurrency(goal)} goal
+            {projected < goal && ` · ${formatCompactCurrency(goal - projected)} to go`}
+          </span>
         </div>
-        <div className="relative mt-4 mb-8">
-          <div className="flex h-9 rounded-lg overflow-hidden bg-zinc-100">
-            <div style={{ width: `${(closed / scale) * 100}%`, background: '#047857' }} className="border-r-2 border-white" />
-            <div style={{ width: `${(assigned / scale) * 100}%`, background: '#34d399' }} />
+        <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 mt-3">
+          <Tile label="Closed" value={closed} sub={`${head.dealsClosedMonth} deals`} cls="bg-emerald-700 text-white" />
+          <span className="text-3xl font-black text-zinc-300">+</span>
+          <Tile label="Assigned" value={assigned} sub={`${assignedDeals.length} waiting to close`} cls="text-emerald-900" style={{ background: STRIPE('#a7f3d0', '#d1fae5') }} />
+          <span className="text-3xl font-black text-zinc-300">=</span>
+          <Tile label="Projected" value={projected} sub={projected >= goal ? 'goal covered 🎯' : `need ${formatCompactCurrency((goal - projected) / left)}/day`} cls={projected >= goal ? 'bg-emerald-50 text-emerald-700 ring-2 ring-emerald-400' : 'bg-amber-50 text-amber-700 ring-2 ring-amber-300'} />
+        </div>
+        <div className="relative mt-5 mb-7">
+          <div className="flex h-10 rounded-lg overflow-hidden bg-zinc-100">
+            <BarSeg width={(closed / scale) * 100} style={{ background: '#047857' }} text={formatCompactCurrency(closed)} light />
+            <BarSeg width={(assigned / scale) * 100} style={{ background: STRIPE('#34d399', '#6ee7b7') }} text={formatCompactCurrency(assigned)} />
           </div>
           <Marker at={goal / scale} label={`goal ${formatCompactCurrency(goal)}`} />
-          <Marker at={(goal * monthFrac) / scale} label="pace today" light />
+          <Marker at={(goal * monthFrac) / scale} label={`pace today ${formatCompactCurrency(goal * monthFrac)}`} light />
         </div>
-        <div className="text-base text-zinc-700">
-          {projected >= goal
-            ? <><b className="text-emerald-600">Goal covered</b> · {formatCompactCurrency(projected - goal)} over if every assigned deal closes</>
-            : <>Need <b>{formatCompactCurrency(goal - projected)}</b> more assigned to hit goal · <b>{formatCompactCurrency((goal - projected) / daysLeft('month'))}/day</b> for {daysLeft('month')} days</>}
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">
+          <span>By rep · goal {formatCompactCurrency(repGoal)} each</span>
+          <span><Dot c="#71717a" />closed <Dot c={STRIPE('#d4d4d8', '#f4f4f5')} />assigned</span>
         </div>
-        <div className="mt-auto pt-3">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-1.5">By rep · <Dot c="#047857" />closed <Dot c="#34d399" />assigned</div>
-          <div className="grid grid-cols-3 gap-x-6 gap-y-[min(0.75rem,1.4vh)]">
-            {perRep.map(({ r, c, a, t }) => (
-              <div key={r.id} className="flex items-center gap-2">
-                <span className="w-20 text-base font-semibold truncate" style={{ color: r.color }}>{r.name.split(' ')[0]}</span>
-                <div className="flex-1 flex h-4 rounded bg-zinc-100 overflow-hidden">
-                  <div style={{ width: `${(c / repMax) * 100}%`, background: '#047857' }} />
-                  <div style={{ width: `${(a / repMax) * 100}%`, background: '#34d399' }} />
+        <div className="flex-1 min-h-[7rem] flex flex-col mt-1">
+          {/* Bar area: heights are % of this box, so the dashed per-rep goal
+              line lines up exactly. Top padding leaves room for labels. */}
+          <div className="relative flex-1 pt-6">
+            <div className="relative h-full flex gap-3">
+              <div className="absolute inset-x-0 border-t-2 border-dashed border-zinc-400 z-10 pointer-events-none" style={{ bottom: `${(repGoal / repMax) * 100}%` }} />
+              {perRep.map(({ r, c, a, t }) => (
+                <div key={r.id} className="relative flex-1 h-full">
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col justify-end" style={{ height: `${(t / repMax) * 100}%` }}>
+                    {a > 0 && <div className="w-full rounded-t-md" style={{ flex: `${a} 1 0`, background: STRIPE(r.color, `${r.color}88`) }} />}
+                    {c > 0 && <div className={`w-full ${a ? '' : 'rounded-t-md'}`} style={{ flex: `${c} 1 0`, background: r.color }} />}
+                  </div>
+                  <div className="absolute inset-x-0 z-20 flex justify-center pointer-events-none" style={{ bottom: `calc(${(t / repMax) * 100}% + 2px)` }}>
+                    <span className="px-1 rounded bg-white/90 text-sm font-extrabold tabular-nums text-zinc-800 whitespace-nowrap">{t >= repGoal && <span className="text-emerald-600">✓ </span>}{formatCompactCurrency(t)}</span>
+                  </div>
                 </div>
-                <span className="w-16 text-right text-base font-bold tabular-nums">{formatCompactCurrency(t)}</span>
-              </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 border-t border-zinc-200 pt-1">
+            {perRep.map(({ r }) => (
+              <div key={r.id} className="flex-1 min-w-0 text-center text-sm font-semibold truncate" style={{ color: r.color }}>{r.name.split(' ')[0]}</div>
             ))}
           </div>
         </div>
@@ -137,9 +159,12 @@ export default function MasterView() {
 
       {/* Wins */}
       <div className="col-span-4 min-h-0 rounded-xl border border-zinc-300/80 bg-white px-5 py-4 flex flex-col">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold mb-2">Latest wins · last 7 days</div>
-        <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">
-          {wins.length === 0 && <div className="text-zinc-400 text-sm">No moves yet this week</div>}
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold">Wins · this month</div>
+          <div className="text-xs text-zinc-500">{wins.length} so far</div>
+        </div>
+        <FitList>
+          {wins.length === 0 && <div className="text-zinc-400 text-sm">No moves yet this month</div>}
           {wins.map(({ d, at, kind, icon }) => {
             const rep = REPS.find((r) => r.id === d.repId);
             return (
@@ -153,7 +178,7 @@ export default function MasterView() {
               </div>
             );
           })}
-        </div>
+        </FitList>
       </div>
     </div>
   );
@@ -168,19 +193,9 @@ function ago(now, t) {
 
 const Dot = ({ c }) => <span className="inline-block w-2.5 h-2.5 rounded-sm mr-2 align-middle" style={{ background: c }} />;
 
-function Big({ label, value, sub, color }) {
-  return (
-    <div>
-      <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">{label}</div>
-      <div className={`text-[min(2.5rem,4.6vh)] font-extrabold tabular-nums leading-tight ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-zinc-500">{sub}</div>}
-    </div>
-  );
-}
-
 function Marker({ at, label, light }) {
   return (
-    <div className="absolute -top-1.5 h-[3.4rem] flex flex-col items-center" style={{ left: `${Math.min(100, at * 100)}%`, transform: 'translateX(-50%)' }}>
+    <div className="absolute -top-1.5 h-[3.9rem] flex flex-col items-center" style={{ left: `${Math.min(100, at * 100)}%`, transform: 'translateX(-50%)' }}>
       <div className={`w-[3px] flex-1 rounded ${light ? 'bg-zinc-400' : 'bg-zinc-900'}`} />
       <div className={`text-[10px] font-bold whitespace-nowrap ${light ? 'text-zinc-400' : 'text-zinc-700'}`}>{label}</div>
     </div>
@@ -211,4 +226,48 @@ function SlimCard({ label, actual, target, frac, note }) {
       <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{note}</div>
     </div>
   );
+}
+
+// Diagonal stripes = assigned (money lined up, not closed yet).
+const STRIPE = (a, b) => `repeating-linear-gradient(135deg, ${a} 0 8px, ${b} 8px 16px)`;
+
+function Tile({ label, value, sub, cls, style }) {
+  return (
+    <div className={`rounded-xl px-4 py-2.5 ${cls}`} style={style}>
+      <div className="text-[11px] uppercase tracking-[0.18em] font-bold opacity-80">{label}</div>
+      <div className="text-[min(2.5rem,4.6vh)] font-extrabold tabular-nums leading-tight">{formatCompactCurrency(value)}</div>
+      <div className="text-xs font-semibold opacity-80 truncate">{sub}</div>
+    </div>
+  );
+}
+
+function BarSeg({ width, style, text, light }) {
+  return (
+    <div className="h-full flex items-center justify-center overflow-hidden border-r-2 border-white last:border-0" style={{ width: `${width}%`, ...style }}>
+      {width > 9 && <span className={`text-sm font-extrabold ${light ? 'text-white' : 'text-emerald-950'}`}>{text}</span>}
+    </div>
+  );
+}
+
+// Shows children top-down and hides any that don't fully fit, so the
+// panel always ends on a whole row (Luke, Oct 8: "keeps only as many that
+// can fit"). Re-checks when the panel resizes or the list changes.
+function FitList({ children }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const fit = () => {
+      const max = el.clientHeight;
+      for (const c of el.children) {
+        c.style.visibility = '';
+        c.style.visibility = c.offsetTop + c.offsetHeight <= max ? '' : 'hidden';
+      }
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  return <div ref={ref} className="relative flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">{children}</div>;
 }
