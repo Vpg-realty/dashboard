@@ -4,15 +4,14 @@ const LABELS = {
   conversations: 'Conversations',
   agents: 'Agents',
   opportunities: 'Opportunities',
-  revenue: 'Revenue',
   master: 'Master',
   pipeline: 'Pipeline',
   advanced: 'Advanced',
 };
 
 export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
-  // Rotation tabs first, then Revenue and Advanced, which the TV doesn't
-  // cycle through (Luke, Oct 7).
+  // Rotation tabs first, then Advanced, which the TV doesn't
+  // cycle through (Luke, Oct 7; Revenue tab removed Oct 8).
   const views = NAV_VIEWS;
   return (
     <nav className="flex items-center gap-1 px-6 py-2.5 border-b border-zinc-300/80 bg-zinc-50 overflow-x-auto">
@@ -34,7 +33,7 @@ export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
         </button>
       ))}
       <div className="ml-auto text-[10px] uppercase tracking-widest text-zinc-400 hidden md:block shrink-0">
-        rotates every {Math.round(cycleIntervalMs / 1000)} seconds · revenue &amp; advanced stay put
+        rotates every {Math.round(cycleIntervalMs / 1000)} seconds · advanced stays put
       </div>
     </nav>
   );
