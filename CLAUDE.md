@@ -198,6 +198,20 @@ Under `src/views/`:
   show (address falls back to the opp name) and the tab footer names
   the affected sub-accounts; `pair.dealFieldsError` has the reason.
   Value is the standard `monetaryValue`.
+  Oct 8 rework (Luke, built in the dashboard-lab first): five columns,
+  starting with **Due now** (deals whose key date is today or tomorrow,
+  under Today / Tomorrow headings, "✓ Nothing due today" when empty, and a
+  red "N late" count pinned at its foot; those deals also stay in their
+  stage columns). Each stage runs off one key date (`KEY_DATE`): IP end
+  for Under Contract and Dispo, COE for Assigned. Only that date gets the
+  deadline colours and turns solid red "late Nd" once passed; the other
+  date is a grey reference chip (hidden below 2xl width). Late deals sort
+  to the top, then soonest key date. Cards are two lines (address + value;
+  rep · state + date chips), so ~11 fit per column. Headers: count, $ only
+  when non-zero, "N late" and "due today / tmrw" chips. Closed is narrower
+  but still lists the month's closings. Stage reads "Dispo Active" (Luke
+  doesn't want DISPO in caps on this tab). Overflowing columns scroll at
+  ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
 - **Advanced** — subaccount drill-down, 3 KPI rows (convos + agents ·
   opps opened, offers, contracts · closed + revenue). Period dropdown
   (Luke, Sept 29): Current, Custom range (From/To), every Mon–Sun week
