@@ -178,7 +178,9 @@ Under `src/views/`:
   (`SlimCard`, smaller than `KpiCard`) graded on month pace with the same
   colours/badges as the Opportunities boxes, each with "need N/day"
   for the calendar days left. Revenue panel: Closed (`revenueMonth`) +
-  Assigned (sum of Assigned-stage deal values) = Projected — anything
+  Assigned (sum of Assigned-stage deal values whose COE is this month —
+  COE next month or unset doesn't count, Luke Oct 8; the Assigned tile
+  shows how much is "not this month") = Projected — anything
   before Assigned has no fee yet, so it never counts (Luke). Shown as
   equation tiles (Closed + Assigned = Projected), a labelled goal bar with
   goal + pace-today markers, and a column per rep in the rep colour against

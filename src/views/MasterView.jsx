@@ -59,8 +59,14 @@ export default function MasterView() {
   // before Assigned have no fee yet, so they don't count toward revenue.
   const deals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, repId: p.repId })));
   const closed = head.revenueMonth;
-  const assignedDeals = deals.filter((d) => d.stage === 'assigned');
+  // Only Assigned deals with a COE this month count (Luke, Oct 8): a deal
+  // closing next month, or with no COE set, isn't this month's money.
+  const inMonth = (date) => !!date && date.slice(0, 7) === today.slice(0, 7);
+  const allAssigned = deals.filter((d) => d.stage === 'assigned');
+  const assignedDeals = allAssigned.filter((d) => inMonth(d.coe));
   const assigned = assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
+  const laterDeals = allAssigned.filter((d) => !inMonth(d.coe));
+  const later = laterDeals.reduce((a, d) => a + (d.value || 0), 0);
   const projected = closed + assigned;
   const goal = KPI_TARGETS.revenuePerRepMonth * N;
   const scale = Math.max(goal, projected) * 1.04;
@@ -114,7 +120,7 @@ export default function MasterView() {
         <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 mt-3">
           <Tile label="Closed" value={closed} sub={`${head.dealsClosedMonth} deals`} cls="bg-emerald-700 text-white" />
           <span className="text-3xl font-black text-zinc-300">+</span>
-          <Tile label="Assigned" value={assigned} sub={`${assignedDeals.length} waiting to close`} cls="text-emerald-900" style={{ background: STRIPE('#a7f3d0', '#d1fae5') }} />
+          <Tile label="Assigned" value={assigned} sub={`${assignedDeals.length} with COE this month${laterDeals.length ? ` · ${formatCompactCurrency(later)} not this month` : ''}`} cls="text-emerald-900" style={{ background: STRIPE('#a7f3d0', '#d1fae5') }} />
           <span className="text-3xl font-black text-zinc-300">=</span>
           <Tile label="Projected" value={projected} sub={projected >= goal ? 'goal covered 🎯' : `need ${formatCompactCurrency((goal - projected) / left)}/day`} cls={projected >= goal ? 'bg-emerald-50 text-emerald-700 ring-2 ring-emerald-400' : 'bg-amber-50 text-amber-700 ring-2 ring-amber-300'} />
         </div>
