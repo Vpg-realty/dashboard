@@ -144,8 +144,8 @@ Under `src/views/`:
   in the same week). The subtitle compares completed days only (Mon–
   yesterday vs the same days last week), since there's no intraday
   history to compare today fairly. That comparison is a big green ▲ / red ▼
-  badge in the panel header, and each completed day's dot is green (at or
-  above the same day last week) or red (below); today's dot stays blue. State cards
+  badge in the panel header; the chart itself is plain (blue this week,
+  dashed grey last week, legend just those two — Luke, Oct 8). State cards
   at the bottom are sorted by today's outreach, busiest first, so the
   order shifts through the day (Luke, Oct 7). Never more than two rows
   of state cards: columns = ceil(states / 2) at TV width.
