@@ -37,7 +37,7 @@ export default function OpportunitiesView() {
           sublabel={`${KPI_TARGETS.offersPerWeek}/wk per rep × ${REPS.length} reps`}
         />
         <KpiCard
-          pace="week" label="Contracts Accepted (week)"
+          pace="week" label="Contracts (week)"
           actual={contractsCoeWeek(PAIRS)}
           target={KPI_TARGETS.contractsPerWeek * REPS.length}
           sublabel={`only COE this month · ${KPI_TARGETS.contractsPerWeek}/wk per rep`}
@@ -67,7 +67,7 @@ export default function OpportunitiesView() {
         {/* Contracts: week only, COE this month (Luke, Oct 8 — the month
             figure lives on Overview). */}
         <Leaderboard
-          title="Contracts Accepted" period="this wk · COE this mo" valueFn={contractsCoeWeek} target={KPI_TARGETS.contractsPerWeek}
+          title="Contracts Accepted" period="this week" valueFn={contractsCoeWeek} target={KPI_TARGETS.contractsPerWeek}
         />
         {/* Deals Closed has only a monthly target, so it stays month-only
             (Luke, Oct 7). */}
