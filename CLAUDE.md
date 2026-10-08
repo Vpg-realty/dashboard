@@ -234,7 +234,9 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   in `opp-state.json` (`started`): set the first run an opp is seen in the
   contract band (rank 5+, not abandoned/lost), carried forward after that;
   0 = was already in the band when tracking began, so rollout didn't flood
-  the TV. Closed ("closed one!", with value) still fires off `stageSince`.
+  the TV. Closed fires off `stageSince` and takes over the whole screen
+  (Luke, Oct 8): board dimmed, canvas fireworks (`components/Fireworks.jsx`,
+  no library), big centred "🎉 … closed one!" card with the value.
   An event shows when its time is within 45 min and this screen hasn't
   shown it (keys `${id}:start` / `${id}:closed` in localStorage
   `vpg.celebrated`). Any tab, checked every 30s; several queue, 1 min each (Luke, Oct 7).

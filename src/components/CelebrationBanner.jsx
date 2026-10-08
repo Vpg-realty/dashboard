@@ -3,6 +3,7 @@ import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { shortDate } from '../utils/historyRange.js';
+import Fireworks from './Fireworks.jsx';
 
 // Celebration banners on the TV (Luke, Oct 7):
 //   - NEW DEAL — once per deal, the first time it reaches Under Contract
@@ -12,7 +13,9 @@ import { shortDate } from '../utils/historyRange.js';
 //     IP end / COE. Driven by deal.startedAt, which the snapshot keeps in
 //     opp-state.json (server/stickyCounts.js), so it's right even on a
 //     screen that wasn't open when the deal first went under contract.
-//   - CLOSED — "🎉 … closed one!" with the value, when stageSince is fresh.
+//   - CLOSED — when stageSince is fresh: the whole screen dims, fireworks go
+//     off and a big centred card shows "🎉 … closed one!" with the value
+//     (Luke, Oct 8). Same minute on screen as the other banners.
 // An event counts when its time is within FRESH_MS and this screen hasn't
 // shown it (keys in localStorage), so a freshly opened screen doesn't replay
 // the pipeline. Several at once queue and show one after another.
@@ -93,6 +96,30 @@ export default function CelebrationBanner() {
   const look = lookFor(current, first);
   const dates = [current.ipEnd && `IP ends ${shortDate(current.ipEnd)}`, current.coe && `COE ${shortDate(current.coe)}`].filter(Boolean).join(' · ');
 
+  if (closed) {
+    return (
+      <div key={`${current.id}:closed`} className="fixed inset-0 z-50 pointer-events-none animate-dim">
+        <div className="absolute inset-0" style={{ background: "rgba(10, 14, 30, 0.82)" }} />
+        <Fireworks />
+        <div className="absolute inset-0 flex items-center justify-center p-6">
+          <div
+            className="w-[min(1100px,90vw)] rounded-3xl border-4 border-white shadow-2xl text-white text-center px-10 py-10 animate-pop"
+            style={{ background: `linear-gradient(120deg, ${rep?.color || '#2a78d6'}, #10b981)` }}
+          >
+            <div className="text-[min(7rem,12vh)] leading-none">🎉</div>
+            <div className="mt-3 text-xl uppercase tracking-[0.4em] font-bold opacity-90">Deal closed</div>
+            <div className="mt-2 text-[min(4.5rem,8vh)] font-extrabold leading-tight">{look.line}</div>
+            {current.value > 0 && <div className="mt-2 text-[min(6rem,11vh)] font-black tabular-nums leading-none drop-shadow-lg">{formatCompactCurrency(current.value)}</div>}
+            <div className="mt-4 text-2xl font-semibold opacity-95 truncate">
+              {current.address || 'No address'}{market ? ` · ${market.name}` : ''}
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes dim{0%{opacity:0}100%{opacity:1}}.animate-dim{animation:dim .8s ease-out both}@keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.04)}100%{opacity:1;transform:none}}.animate-pop{animation:pop .7s .3s cubic-bezier(.2,.9,.3,1.2) both}`}</style>
+      </div>
+    );
+  }
+
   return (
     <div key={`${current.id}:${current.kind}`} className="absolute inset-x-0 top-24 z-40 flex justify-center pointer-events-none">
       <div className="w-[min(1100px,92vw)] animate-celebrate">
@@ -109,9 +136,8 @@ export default function CelebrationBanner() {
                 {current.address || 'No address'}{market ? ` · ${market.name}` : ''}
               </div>
               {/* Dates sit under the address so the headline keeps the width. */}
-              {!closed && dates && <div className="text-xl font-bold truncate">{dates}</div>}
+              {dates && <div className="text-xl font-bold truncate">{dates}</div>}
             </div>
-            {closed && current.value > 0 && <div className="text-5xl font-extrabold tabular-nums shrink-0">{formatCompactCurrency(current.value)}</div>}
           </div>
         </div>
       </div>
