@@ -179,10 +179,14 @@ Under `src/views/`:
   colours/badges as the Opportunities boxes, each with "need N/day"
   for the calendar days left. Revenue panel: Closed (`revenueMonth`) +
   Assigned (sum of Assigned-stage deal values) = Projected — anything
-  before Assigned has no fee yet, so it never counts (Luke). Goal bar with
-  goal + pace-today markers, the $ still needed per day, and a closed +
-  assigned bar per rep. Latest wins: Closed / Assigned (`stageSince`) and
-  new contracts (`startedAt`) in the last 7 days.
+  before Assigned has no fee yet, so it never counts (Luke). Shown as
+  equation tiles (Closed + Assigned = Projected), a labelled goal bar with
+  goal + pace-today markers, and a column per rep in the rep colour against
+  the $25k per-rep goal (dashed line, ✓ when hit). Solid = closed, striped =
+  assigned everywhere (Luke, Oct 8: "a little bland"). Wins · this month:
+  Closed / Assigned (`stageSince`) and new contracts (`startedAt`) since the
+  1st, newest first; `FitList` hides whatever doesn't fully fit, so the
+  panel keeps as many as fit and drops the oldest.
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals
