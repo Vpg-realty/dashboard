@@ -4,6 +4,7 @@ import { PAIRS, headline, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
+import { contractSplit, splitLabel } from '../utils/contracts.js';
 
 // Overview (view key 'master', first tab) — the sales-floor overview
 // (Luke, Oct 8):
@@ -101,6 +102,7 @@ export default function MasterView() {
         return (
           <SlimCard
             key={c.key} label={c.label} actual={actual} target={c.target} frac={monthFrac}
+            extra={c.key === 'contractsMonth' ? splitLabel(contractSplit(PAIRS, 'month')) : ''}
             note={need <= 0 ? 'target hit' : `need ${rate(need / left)}/day · ${left} days left`}
           />
         );
@@ -210,7 +212,7 @@ function Marker({ at, label, light }) {
 
 // Compact month card: label + pace badge, number / target, a thin bar with
 // the "where we should be" tick, and one line of context.
-function SlimCard({ label, actual, target, frac, note }) {
+function SlimCard({ label, actual, target, frac, note, extra }) {
   const s = target ? kpiStatus(actual, target * frac) : null;
   const badge = s && { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status];
   return (
@@ -222,6 +224,8 @@ function SlimCard({ label, actual, target, frac, note }) {
       <div className="flex items-baseline gap-1.5 mt-1">
         <span className={`text-[min(2.25rem,4vh)] font-bold tabular-nums leading-none ${s ? s.text : 'text-zinc-900'}`}>{formatNumber(actual)}</span>
         {target && <span className="text-sm text-zinc-500 tabular-nums">/ {formatNumber(target)}</span>}
+        {/* e.g. contracts split by COE month (Luke, Oct 8). */}
+        {extra && <span className="ml-auto text-[11px] font-semibold text-zinc-600 whitespace-nowrap">{extra}</span>}
       </div>
       {target ? (
         <div className="relative h-1.5 mt-2 bg-white/70 rounded-full">

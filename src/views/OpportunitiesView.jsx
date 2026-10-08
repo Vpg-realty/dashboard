@@ -2,18 +2,19 @@ import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
 import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
 import { PAIRS, getPair, getPairsForRep, headline } from '../data/source.js';
-import { laToday } from '../utils/historyRange.js';
+import { contractSplit, splitLabel } from '../utils/contracts.js';
 import { marketShade } from '../utils/marketShade.js';
 
 // Layout: four columns, fits one TV viewport (Luke, Oct 7).
 //   1. Team KPIs (4 cards: opps opened, offers, contracts, closed).
-//      Contracts is weekly and counts only contracts with a COE this month
-//      (Luke, Oct 8).
+//      Contracts is weekly; every contract counts, split into COE this
+//      month vs later (Luke, Oct 8).
 //   2. Under each card, a ranked per-rep leaderboard for that same number.
 //   Replaced the per-rep Weekly + Monthly cards, which spilled off the TV
 //   at 9 reps. Every per-rep number is still on the Advanced tab.
 export default function OpportunitiesView() {
   const head = headline();
+  const contractWeek = contractSplit(PAIRS, 'week');
   const totalLost = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.lost ?? 0)).reduce((a, b) => a + b, 0);
   const totalOppsOpened = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.oppsOpenedWeek ?? 0)).reduce((a, b) => a + b, 0);
 
@@ -38,9 +39,9 @@ export default function OpportunitiesView() {
         />
         <KpiCard
           pace="week" label="Contracts (week)"
-          actual={contractsCoeWeek(PAIRS)}
+          actual={contractWeek.total}
           target={KPI_TARGETS.contractsPerWeek * REPS.length}
-          sublabel={`only COE this month · ${KPI_TARGETS.contractsPerWeek}/wk per rep`}
+          sublabel={[splitLabel(contractWeek), `${KPI_TARGETS.contractsPerWeek}/wk per rep`].filter(Boolean).join(' · ')}
         />
         <KpiCard
           pace="month" label="Deals Closed (month)"
@@ -64,10 +65,13 @@ export default function OpportunitiesView() {
           title="Offers Submitted" period="this week" valueKey="offersWeek" target={KPI_TARGETS.offersPerWeek}
           month={{ key: 'offersMonth', target: KPI_TARGETS.offersPerWeek * 4 }}
         />
-        {/* Contracts: week only, COE this month (Luke, Oct 8 — the month
-            figure lives on Overview). */}
+        {/* Contracts: week + month bars like Opps and Offers (Luke, Oct 8:
+            keep the month bars). Every contract counts; on the week bar,
+            solid = COE this month, striped = later. */}
         <Leaderboard
-          title="Contracts Accepted" period="this week" valueFn={contractsCoeWeek} target={KPI_TARGETS.contractsPerWeek}
+          title="Contracts Accepted" period="this week" valueKey="contractsWeek" target={KPI_TARGETS.contractsPerWeek}
+          month={{ key: 'contractsMonth', target: KPI_TARGETS.contractsPerMonth }}
+          partFn={(pairs) => contractSplit(pairs, 'week')}
         />
         {/* Deals Closed has only a monthly target, so it stays month-only
             (Luke, Oct 7). */}
@@ -75,20 +79,6 @@ export default function OpportunitiesView() {
       </div>
     </div>
   );
-}
-
-// Contracts accepted this week whose COE falls in the current month (Luke,
-// Oct 8). `contractIdsWeek` (server/stickyCounts.js) lists the opps behind
-// each pair's weekly contract count; a contract counts when its deal has a
-// COE this month. Data from before that list existed falls back to the
-// plain weekly count.
-function contractsCoeWeek(pairs) {
-  const month = laToday().slice(0, 7);
-  return pairs.reduce((a, p) => {
-    if (!Array.isArray(p.contractIdsWeek)) return a + (p.contractsWeek || 0);
-    const coe = Object.fromEntries((p.deals || []).map((d) => [d.id, d.coe]));
-    return a + p.contractIdsWeek.filter((id) => coe[id]?.slice(0, 7) === month).length;
-  }, 0);
 }
 
 // Ranked bars for one metric: one row per rep, largest first. Numbers turn
@@ -99,11 +89,12 @@ function contractsCoeWeek(pairs) {
 // share of their own target on one shared scale, so the single dashed line
 // is the week target for the thick bar and the month target (weekly × 4)
 // for the thin one. Ranking is by the week, ties broken by the month.
-function Leaderboard({ title, period, valueKey, valueFn, target, month }) {
+function Leaderboard({ title, period, valueKey, target, month, partFn }) {
   const rows = REPS.map((rep) => {
     const pairs = getPairsForRep(rep.id);
     const sum = (k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
-    return { rep, value: valueFn ? valueFn(pairs) : sum(valueKey), monthValue: month ? sum(month.key) : 0 };
+    const split = partFn ? partFn(pairs) : null;
+    return { rep, value: sum(valueKey), monthValue: month ? sum(month.key) : 0, split };
   }).sort((a, b) => b.value - a.value || b.monthValue - a.monthValue || a.rep.name.localeCompare(b.rep.name));
   // Scale in "fractions of target": the dashed line sits where value =
   // target, with 25% headroom after it. Anyone further past target fills
@@ -114,7 +105,7 @@ function Leaderboard({ title, period, valueKey, valueFn, target, month }) {
   return (
     <Panel className="min-h-0 flex flex-col" title={title} subtitle={`${hit}/${rows.length} at target`} accent={`By Rep · ${period}`}>
       <div className="h-full flex flex-col justify-around min-h-0 gap-[2px]">
-        {rows.map(({ rep, value, monthValue }) => (month ? (
+        {rows.map(({ rep, value, monthValue, split }) => (month ? (
           // Week + month: two lines per rep, each number beside its own bar
           // (Luke, Oct 7: stacked numbers in one column overran the row and
           // didn't line up with the bars on the TV).
@@ -125,7 +116,7 @@ function Leaderboard({ title, period, valueKey, valueFn, target, month }) {
           <div key={rep.id} className="flex-1 min-h-0 max-h-20 grid grid-cols-[6rem_1fr_4.25rem] grid-rows-[3fr_2fr] gap-x-2 gap-y-[2px]">
             <span className="row-span-2 self-center text-[min(1.125rem,2vh)] font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
             <div className="relative self-end h-full max-h-6 min-w-0">
-              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: at(value, target), background: rep.color }} />
+              <SplitBar width={at(value, target)} color={rep.color} split={split} />
               <div className="absolute -top-1 -bottom-[3px] border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
             </div>
             <span className={`self-end text-[min(1.5rem,2.2vh)] font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
@@ -141,7 +132,7 @@ function Leaderboard({ title, period, valueKey, valueFn, target, month }) {
           <div key={rep.id} className="flex-1 min-h-0 max-h-20 grid grid-cols-[6rem_1fr_2.5rem] items-center gap-2">
             <span className="text-[min(1.125rem,2vh)] font-bold text-zinc-800 truncate">{rep.name.split(' ')[0]}</span>
             <div className="relative h-[70%] max-h-8 min-w-0">
-              <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width: at(value, target), background: rep.color }} />
+              <SplitBar width={at(value, target)} color={rep.color} split={split} />
               <div className="absolute -inset-y-1 border-l-2 border-dashed border-zinc-500" style={{ left: at(1, 1) }} />
             </div>
             <span className={`text-[min(1.5rem,2.4vh)] font-extrabold tabular-nums text-right leading-none ${value >= target ? 'text-emerald-600' : 'text-zinc-900'}`}>{value}</span>
@@ -154,5 +145,19 @@ function Leaderboard({ title, period, valueKey, valueFn, target, month }) {
         </div>
       </div>
     </Panel>
+  );
+}
+
+// A rep's bar; with a contract split, solid = COE this month and striped =
+// COE later (Luke, Oct 8). Plain bar otherwise.
+function SplitBar({ width, color, split }) {
+  if (!split?.known || split.other <= 0) {
+    return <div className="absolute inset-y-0 left-0 rounded-[4px]" style={{ width, background: color }} />;
+  }
+  return (
+    <div className="absolute inset-y-0 left-0 flex rounded-[4px] overflow-hidden" style={{ width }}>
+      <div style={{ flex: `${split.thisMonth} 1 0`, background: color }} />
+      <div style={{ flex: `${split.other} 1 0`, background: `repeating-linear-gradient(135deg, ${color} 0 6px, ${color}66 6px 12px)` }} />
+    </div>
   );
 }

@@ -168,13 +168,18 @@ Under `src/views/`:
   monthly target (2/mo), so its board is month-only, one bar per rep.
   Ranked by the week, ties by the month. Scale stops at 125% of target; past that
   the bar is full and the number tells. Contracts Accepted (Luke, Oct 8)
-  is weekly only — box and board — and counts only contracts whose deal
-  has a COE in the current month: `pair.contractIdsWeek` (from
-  `stickyCounts.js`) names the opps behind each weekly contract count and
-  the browser keeps those whose `deals[].coe` is this month. The list is
-  extended with each new crossing and, when missing (new week/pair, or the
-  first run of the feature mid-week), seeded with the `contractsWeek` most
-  recently moved in-band opps whose stage changed this week. Rows share the panel height, so
+  is a weekly box and the usual week + month board, and counts EVERY
+  contract (each one is celebrated), split by COE month: box sublabel
+  "2 Oct COE · 1 later", week bars solid = COE this month, striped = later
+  (Luke wants the month bars kept). The Overview
+  Contracts (month) box shows the same split. `src/utils/contracts.js`
+  `contractSplit` does it from `pair.contractIdsWeek` / `contractIdsMonth`
+  (from `stickyCounts.js`: the opps behind each sticky contract count) and
+  `deals[].coe`; "later" also covers no COE set or a deal that has left the
+  pipeline. The id lists grow with each new crossing and, when missing (new
+  period/pair, or the first run mid-period), are seeded with the N most
+  recently moved in-band opps whose stage changed in the period (N = the
+  sticky count). Rows share the panel height, so
   adding reps never overflows. Replaced the per-rep cards (and a short-
   lived week/month split-board version Luke found confusing).
 - **Overview** (`MasterView.jsx`, view key `master`; renamed from Master
