@@ -1,4 +1,4 @@
-// Shared numbers for the Manager views (Luke, Oct 8: Team, Rep, Coaching —
+// Shared numbers for the Manager views (Luke, Oct 8: Team and Rep —
 // click-only, never on the TV). Everything comes from
 // the live pairs + history; nothing is estimated.
 import { REPS, KPI_TARGETS } from '../../data/config.js';

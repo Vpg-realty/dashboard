@@ -241,9 +241,9 @@ Under `src/views/`:
   but still lists the month's closings. Stage reads "Dispo Active" (Luke
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
-- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team, Rep,
-  Coaching (a Revenue & Forecast tab was built and dropped as a duplicate
-  of Overview) — click-only,
+- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team and Rep
+  (a Revenue & Forecast tab was dropped as a duplicate of Overview, and a
+  Coaching tab as a duplicate of Team's funnel columns, Luke Oct 8) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
   opens with a blue "MANAGER VIEW · not shown on the TV rotation" strip
@@ -261,7 +261,7 @@ Under `src/views/`:
   - **Team** — 4 summary tiles (reps on pace, avg score, most common leak,
     needs a 1-on-1 = score < 75) and a table: score, week (opps/offers/
     contracts) and month (opps/offers/contracts/closed/projected $) cells
-    coloured vs pace, funnel cells coloured vs team, biggest leak. Click a
+    coloured vs pace, funnel cells coloured vs team and reading "31% · 4 of 13", biggest leak. Click a
     rep → Rep.
   - **Rep** — picker; score, leak callout, 8 pace tiles (week + month),
     funnel with step rates vs team, and a by-state table. Period picker
@@ -273,10 +273,6 @@ Under `src/views/`:
     `rangeTargets` (finished periods HIT / CLOSE / MISSED, "so far" ones on
     pace), plus "N of M days on file". Untracked (pre-Sept 14 or no
     snapshot) reads "—", never 0.
-  - **Coaching** — conversion per rep vs team (biggest leak ringed),
-    sorted worst leak first. Each cell reads "31% · 4 of 13" (rate, then
-    moved on of started); the separate counts block was dropped as hard to
-    read (Luke, Oct 8).
   The old Advanced tab (per-sub-account drill-down) was removed; its
   past-period picker lives on in Rep.
 

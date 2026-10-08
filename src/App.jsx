@@ -10,7 +10,6 @@ import OpportunitiesView from './views/OpportunitiesView.jsx';
 import MasterView from './views/MasterView.jsx';
 import ManagerTeamView from './views/manager/TeamView.jsx';
 import ManagerRepView from './views/manager/RepView.jsx';
-import ManagerCoachingView from './views/manager/CoachingView.jsx';
 import PipelineView from './views/PipelineView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
 import { useDataUpdates, useDataStatus } from './data/source.js';
@@ -23,7 +22,6 @@ const VIEWS = {
   pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
   'mgr-team':     { label: 'Manager · team',                 component: ManagerTeamView },
   'mgr-rep':      { label: 'Manager · rep',                  component: ManagerRepView },
-  'mgr-coaching': { label: 'Manager · coaching',             component: ManagerCoachingView },
 };
 
 export default function App() {
