@@ -121,6 +121,31 @@ export async function listConversationsCreated(locationId, token, { startMs, max
   return { conversations: out, total };
 }
 
+// --- calls -------------------------------------------------------------
+//
+// Every call message (TYPE_CALL) created since `startMs`, newest first, via
+// the message export (cursor pagination, up to 1000 per page). Capped so a
+// runaway location can't stall the build. See server/calls.js.
+export async function listCallsSince(locationId, token, startMs, { maxPages = 10 } = {}) {
+  const out = [];
+  let cursor;
+  for (let i = 0; i < maxPages; i++) {
+    const params = {
+      locationId,
+      channel: 'Call',
+      startDate: new Date(startMs).toISOString(),
+      endDate: new Date().toISOString(),
+      limit: 1000,
+    };
+    if (cursor) params.cursor = cursor;
+    const data = await ghlFetch('/conversations/messages/export', token, { params });
+    out.push(...(data?.messages || []));
+    cursor = data?.nextCursor;
+    if (!cursor) break;
+  }
+  return out;
+}
+
 // --- contacts (agent counts) --------------------------------------------
 //
 // /contacts/search (POST) supports filter array with `tags` + `dateAdded`
