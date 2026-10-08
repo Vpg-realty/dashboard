@@ -93,6 +93,19 @@ Two PIT sources merged at build time (later wins):
 2. `PIT_<base32(locationId)>` env vars — written by the in-app
    Sub-Accounts panel and passed via `ALL_SECRETS: ${{ toJson(secrets) }}`.
 
+## Calls (Luke, Oct 8)
+
+`pair.calls = { today, week }`, each `{ inbound, outbound, connected,
+talkSec }`: every call through GHL's phone system since Monday (PT), from
+`GET /conversations/messages/export?channel=Call` (`listCallsSince` in
+`server/ghl.js`, summarised by `server/calls.js`). `connected` = call
+status `completed`; `talkSec` sums `meta.call.duration` of those. Calls
+made outside GHL (personal cells, other dialers) aren't counted. Needs the
+PIT's `conversations/message.readonly` scope; if the pull fails the pair
+gets `callsError` (reason) instead of `calls` and nothing else is
+affected. Not in `history.json` yet. Shown in the dashboard-lab's
+Conversations tab first (not on this board yet).
+
 ## Sticky offer/contract counts (Luke, Sept 14)
 
 Luke's requirement: an opportunity counts as an offer ONLY when it

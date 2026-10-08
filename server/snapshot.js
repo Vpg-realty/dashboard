@@ -12,7 +12,9 @@ import {
   countConversationsCreated,
   listConversationsCreated,
   countContactsByAnyTag,
+  listCallsSince,
 } from './ghl.js';
+import { summarizeCalls } from './calls.js';
 
 // Tag variants to tolerate human-typed inconsistencies across sub-accounts.
 // GHL's `contains` operator is case + dash-character sensitive, so we query
@@ -84,6 +86,7 @@ export async function buildSnapshot({ tokens }) {
           tier1, tier2, tier3, tier4,
           tier1Today, tier2Today, tier3Today,
           tier1Week, tier2Week, tier3Week,
+          callMessages,
         ] = await Promise.all([
           getOpportunities(locationId, token),
           getPipelines(locationId, token),
@@ -105,9 +108,12 @@ export async function buildSnapshot({ tokens }) {
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(1), { sinceMs: wkStart }),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(2), { sinceMs: wkStart }),
           countContactsByAnyTag(locationId, token, TIER_VARIANTS(3), { sinceMs: wkStart }),
+          // Calls (Oct 8). Like the custom fields, a failure here (e.g. the
+          // PIT lacks conversations/message.readonly) only drops the calls.
+          listCallsSince(locationId, token, wkStart).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })),
         ]);
 
-        return aggregatePair({
+        const pair = aggregatePair({
           repId,
           marketId,
           opportunities,
@@ -122,6 +128,12 @@ export async function buildSnapshot({ tokens }) {
           agentsAddedWeek:   tier1Week + tier2Week + tier3Week,
           agentTierTotals:   { 1: tier1, 2: tier2, 3: tier3, 4: tier4 },
         });
+        if (Array.isArray(callMessages)) {
+          pair.calls = summarizeCalls(callMessages, { todayStartMs: todayStart, weekStartMs: wkStart });
+        } else {
+          pair.callsError = callMessages?.error || 'unknown error';
+        }
+        return pair;
       } catch (err) {
         errors.push({ repId, marketId, locationId, reason: String(err?.message || err).slice(0, 200) });
         return emptyPair(repId, marketId);
