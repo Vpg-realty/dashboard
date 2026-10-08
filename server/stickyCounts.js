@@ -39,13 +39,6 @@ function weekKey(now) {
   d.setDate(d.getDate() - (day - 1));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// Monday 00:00 (runner's local zone) of the week containing `now`, in ms.
-function weekStartMs(now) {
-  const d = new Date(now);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - ((d.getDay() || 7) - 1));
-  return d.getTime();
-}
 function monthKey(now) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -80,7 +73,6 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
     const bcContractsMonth = p.contractsMonth || 0;
 
     let offersWeek, offersMonth, contractsWeek, contractsMonth;
-    const crossedIds = [];
 
     if (!prev) {
       // Never seen this pair → seed every counter from the breadcrumb.
@@ -95,7 +87,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
       for (const o of curr) {
         const before = prevRanks ? (prevRanks[o.id] ?? -1) : -1;
         if (!inOfferBand(before) && inOfferBand(o.r)) offerCross++;
-        if (!inContractBand(before) && inContractBand(o.r)) { contractCross++; crossedIds.push(o.id); }
+        if (!inContractBand(before) && inContractBand(o.r)) contractCross++;
       }
       offersWeek = weekReset ? bcOffersWeek : (prev.offersWeek || 0) + offerCross;
       offersMonth = monthReset ? bcOffersMonth : (prev.offersMonth || 0) + offerCross;
@@ -131,28 +123,10 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
     }
     const deals = (p.deals || []).map((d) => ({ ...d, startedAt: started[d.id] || null }));
 
-    // Which opps make up this week's contract count (Luke, Oct 8), so the
-    // Opportunities tab can count only contracts whose COE is this month.
-    // New crossings are added as they happen. When there's no list yet (new
-    // week, new pair, or the first run of this feature mid-week) it's seeded
-    // with the contractsWeek most recently moved in-band opps whose stage
-    // changed this week — the closest match to the count we already have.
-    let contractIdsWeek;
-    if (prev && !weekReset && Array.isArray(prev.contractIdsWeek)) {
-      contractIdsWeek = [...new Set([...prev.contractIdsWeek, ...crossedIds])];
-    } else {
-      const ws = weekStartMs(now);
-      contractIdsWeek = curr
-        .filter((o) => inContractBand(o.r) && (stageSinceById[o.id] || 0) >= ws)
-        .sort((a, b) => (stageSinceById[b.id] || 0) - (stageSinceById[a.id] || 0))
-        .slice(0, contractsWeek)
-        .map((o) => o.id);
-    }
-
     // Strip the heavy per-opp rank list — it must never reach the browser.
     const { _oppRanks, ...clean } = p;
-    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, contractIdsWeek });
-    statePairs[key] = { ranks: currMap, started, contractIdsWeek, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth });
+    statePairs[key] = { ranks: currMap, started, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {
