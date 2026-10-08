@@ -17,11 +17,13 @@ import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
 import { applyStickyCounts } from '../server/stickyCounts.js';
+import { keepCallsMonotonic } from '../server/calls.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
 const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
 const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
+const PAGES_DATA_URL = 'https://vpg-realty.github.io/dashboard/data.json';
 
 // Loads the previous run's opp-state so stickyCounts.js can diff. Hardened
 // the same way loadDeployedHistory in append-history.mjs is: retry on
@@ -45,6 +47,29 @@ async function loadPrevOppState() {
         return null;
       }
       await sleep(400 * (attempt + 1));
+    }
+  }
+  return null;
+}
+
+// Previous published data.json, only used to keep call counts from going
+// backwards within a week (server/calls.js keepCallsMonotonic). Best effort:
+// on failure the calls simply come from this run alone.
+async function loadPrevData() {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${PAGES_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`status ${r.status}`);
+      const d = await r.json();
+      if (!Array.isArray(d?.pairs)) throw new Error('malformed data.json');
+      return d;
+    } catch (err) {
+      if (attempt === 2) {
+        console.warn(`[snapshot] previous data.json load failed (${err.message}); calls use this run only.`);
+        return null;
+      }
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
     }
   }
   return null;
@@ -101,6 +126,21 @@ const snapshot = await buildSnapshot({ tokens });
 // period it stays counted even if the deal moves to a later stage OR to
 // Lost / Abandoned — the number never decrements during the week / month.
 // _oppRanks is stripped from every pair before publish (browser never sees).
+// Calls never go backwards within the week (see keepCallsMonotonic). The
+// build runs with TZ=America/Los_Angeles, so these are PT boundaries, the
+// same ones snapshot.js used for the pull.
+{
+  const prev = await loadPrevData();
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const todayStartMs = d0.getTime();
+  const w0 = new Date(d0); w0.setDate(w0.getDate() - ((w0.getDay() || 7) - 1));
+  snapshot.pairs = keepCallsMonotonic(snapshot.pairs, prev?.pairs, {
+    prevGeneratedMs: Date.parse(prev?.generatedAt),
+    todayStartMs,
+    weekStartMs: w0.getTime(),
+  });
+}
+
 const prevOppState = await loadPrevOppState();
 const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date() });
 snapshot.pairs = sticky.pairs;

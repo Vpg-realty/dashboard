@@ -138,7 +138,13 @@ export async function listCallsSince(locationId, token, startMs, { maxPages = 10
       limit: 1000,
     };
     if (cursor) params.cursor = cursor;
-    const data = await ghlFetch('/conversations/messages/export', token, { params });
+    let data = await ghlFetch('/conversations/messages/export', token, { params });
+    // The export sometimes answers an empty first page for a location that
+    // has calls (Oct 8); ask again twice before believing it.
+    for (let retry = 0; i === 0 && !data?.messages?.length && retry < 2; retry++) {
+      await sleep(1500 * (retry + 1));
+      data = await ghlFetch('/conversations/messages/export', token, { params });
+    }
     out.push(...(data?.messages || []));
     cursor = data?.nextCursor;
     if (!cursor) break;
