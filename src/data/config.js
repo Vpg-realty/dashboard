@@ -86,7 +86,7 @@ export const CYCLE_VIEWS = ['master', 'conversations', 'agents', 'opportunities'
 // Tab order in the nav bar: the rotation first, then the click-only tabs.
 // Manager views (Luke, Oct 8): click-only, never in the TV rotation; they
 // replaced the Advanced tab.
-export const MANAGER_VIEWS = ['mgr-team', 'mgr-rep', 'mgr-coaching'];
+export const MANAGER_VIEWS = ['mgr-team', 'mgr-rep'];
 export const NAV_VIEWS = [...CYCLE_VIEWS, ...MANAGER_VIEWS];
 export const CYCLE_INTERVAL_MS = 10000;
 

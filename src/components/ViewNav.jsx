@@ -8,7 +8,6 @@ const LABELS = {
   pipeline: 'Pipeline',
   'mgr-team': 'Team',
   'mgr-rep': 'Rep',
-  'mgr-coaching': 'Coaching',
 };
 
 // Two groups (Luke, Oct 8): the TV tabs, which rotate, then the Manager

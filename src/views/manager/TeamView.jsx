@@ -6,7 +6,7 @@ import { paceFraction } from '../../utils/pace.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { T, first, STEPS, rate, pct, biggestLeak, scoreTone, paceCls, convCls, repRows, teamMetrics } from './metrics.js';
 
-const G = { gridTemplateColumns: '9rem 4rem 0.25rem repeat(3,minmax(0,1fr)) 0.25rem repeat(5,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1fr)) 9rem' };
+const G = { gridTemplateColumns: '9rem 4rem 0.25rem repeat(3,minmax(0,1fr)) 0.25rem repeat(5,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1.8fr)) 8.5rem' };
 const head = 'text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold text-center leading-tight';
 
 function Cell({ v, t, period, money }) {
@@ -71,7 +71,12 @@ export default function TeamView({ onPickRep }) {
             {[team.oppsM, team.offersM, team.contractsM, team.closedM].map((v, i) => <span key={i} className="text-center text-lg font-extrabold tabular-nums">{v}</span>)}
             <span className="text-center text-lg font-extrabold tabular-nums">{formatCompactCurrency(team.projected)}</span>
             <span />
-            {teamRates.map((r, i) => <span key={i} className="rounded-md py-1 text-center text-lg font-extrabold bg-zinc-900 text-white">{pct(r)}</span>)}
+            {STEPS.map((st, i) => (
+              <span key={st.key} className="rounded-md py-1 flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden tabular-nums bg-zinc-900 text-white">
+                <span className="text-[min(1.125rem,2.1vh)] font-extrabold">{pct(teamRates[i])}</span>
+                <span className="text-[min(0.8125rem,1.5vh)] font-semibold opacity-75">{team[st.to]} of {team[st.from]}</span>
+              </span>
+            ))}
             <span />
           </div>
           <div className="flex-1 min-h-0 grid gap-y-1 py-1" style={{ gridTemplateRows: `repeat(${rows.length}, minmax(0, 1fr))` }}>
@@ -89,7 +94,12 @@ export default function TeamView({ onPickRep }) {
                   <Cell v={m.contractsM} t={T.contractsPerMonth} period="month" />
                   <Cell v={m.closedM} t={T.dealsClosedPerMonth} period="month" />
                   <Cell v={m.projected} t={T.revenuePerRepMonth} period="month" money /><span />
-                  {STEPS.map((st, i) => <span key={st.key} className={`h-full max-h-9 rounded-md flex items-center justify-center text-[min(1.05rem,2vh)] font-bold tabular-nums ${convCls(rate(m, st), teamRates[i])}`}>{pct(rate(m, st))}</span>)}
+                  {STEPS.map((st, i) => (
+                    <span key={st.key} className={`h-full max-h-9 rounded-md flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden tabular-nums ${convCls(rate(m, st), teamRates[i])}`}>
+                      <span className="text-[min(1.05rem,2vh)] font-bold">{pct(rate(m, st))}</span>
+                      <span className="text-[min(0.8125rem,1.5vh)] font-semibold opacity-75">{m[st.to]} of {m[st.from]}</span>
+                    </span>
+                  ))}
                   <span className={`text-sm font-bold truncate ${leak ? 'text-orange-700' : 'text-zinc-400'}`}>{leak ? `⚠ ${leak.s.label}` : '—'}</span>
                 </button>
               );
@@ -106,7 +116,7 @@ export default function TeamView({ onPickRep }) {
             <Key cls="bg-zinc-100 border border-zinc-200" label="about team" />
             <Key cls="bg-orange-100" label="below" />
             <Key cls="bg-[#eb6834]" label="well below" />
-            <span className="ml-auto text-zinc-400">sorted by weekly score · Projected $ = closed + assigned with COE this month</span>
+            <span className="ml-auto text-zinc-400">sorted by weekly score · funnel "4 of 13" = 13 started that step, 4 moved on · Projected $ = closed + assigned with COE this month</span>
           </div>
         </div>
       </div>

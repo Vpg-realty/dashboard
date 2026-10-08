@@ -1,10 +1,10 @@
-// Shared numbers for the Manager views (Luke, Oct 8: Team, Rep, Coaching —
+// Shared numbers for the Manager views (Luke, Oct 8: Team and Rep —
 // click-only, never on the TV). Everything comes from
 // the live pairs + history; nothing is estimated.
 import { REPS, KPI_TARGETS } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
-import { laToday, pairConvosMonth } from '../../utils/historyRange.js';
+import { laToday, pairConvosMonth, computeRange, periodTargets } from '../../utils/historyRange.js';
 
 export const T = KPI_TARGETS;
 export const first = (r) => r.name.split(' ')[0];
@@ -31,6 +31,45 @@ export function metrics(pairs) {
     aban: sumP(pairs, 'abandoned'), lost: sumP(pairs, 'lost'),
   };
 }
+// The same numbers for a past period (Rep page period picker, Luke Oct 8),
+// totalled from history.json snapshots (utils/historyRange.js computeRange).
+// Week and month fields both hold the period's total; projected = revenue
+// closed in the period (Assigned deals have no history). `untracked` lists
+// metrics with no snapshot in range that recorded them (pre-Sept 14), which
+// the views show as "—". Returns null when nothing is on file.
+export function rangeMetrics(entries, repId, marketId, range) {
+  const r = computeRange(entries, repId, marketId, range.from, range.to, range.kind === 'month' ? 'month' : 'week');
+  if (!r) return null;
+  const t = r.totals;
+  const na = new Set(Object.keys(r.untracked).filter((k) => r.untracked[k] === r.daysOnFile));
+  const map = { convos: ['convosW', 'convosM'], oppsOpened: ['oppsW', 'oppsM'], offers: ['offersW', 'offersM'], contracts: ['contractsW', 'contractsM'], dealsClosed: ['closedM'], revenue: ['revenueM', 'projected'], abandoned: ['aban'], lost: ['lost'] };
+  const m = { assigned: 0, untracked: new Set(), result: r };
+  for (const [k, keys] of Object.entries(map)) for (const key of keys) { m[key] = t[k] || 0; if (na.has(k)) m.untracked.add(key); }
+  return m;
+}
+export const addMetrics = (list) => {
+  const out = { untracked: new Set() };
+  for (const m of list) {
+    if (!m) continue;
+    for (const [k, v] of Object.entries(m)) if (typeof v === 'number') out[k] = (out[k] || 0) + v;
+    m.untracked?.forEach((k) => out.untracked.add(k));
+  }
+  return out;
+};
+
+// Targets for a period: calendar weeks the weekly targets, calendar months
+// the monthly ones, custom ranges the weekly ones scaled by length (closed
+// deals and revenue scale the monthly target by weeks / 4).
+export function rangeTargets(range, days) {
+  const p = periodTargets(range.kind, days, T);
+  const weeks = range.kind === 'month' ? 4 : range.kind === 'week' ? 1 : days / 7;
+  return {
+    opps: p.oppsOpened, offers: p.offers, contracts: p.contracts,
+    closed: range.kind === 'month' ? T.dealsClosedPerMonth : Math.max(1, Math.round((T.dealsClosedPerMonth * weeks) / 4)),
+    revenue: range.kind === 'month' ? T.revenuePerRepMonth : Math.round((T.revenuePerRepMonth * weeks) / 4),
+  };
+}
+
 export const repPairs = (repId) => PAIRS.filter((p) => p.repId === repId);
 export const teamMetrics = () => metrics(PAIRS);
 
@@ -72,8 +111,9 @@ export const scoreTone = (s) => (s >= 90
   : s >= 75 ? { text: 'text-amber-600', c: '#d97706', label: 'WATCH' } : { text: 'text-rose-600', c: '#dc2626', label: 'RED' });
 
 // Cell colour against pace (target × share of the period gone).
-export function paceCls(actual, target, period) {
-  const want = target * paceFraction(period);
+export const paceCls = (actual, target, period) => paceClsFrac(actual, target, paceFraction(period));
+export function paceClsFrac(actual, target, frac) {
+  const want = target * frac;
   const r = want > 0 ? actual / want : 1;
   return r >= 1 ? 'bg-emerald-100 text-emerald-800' : r >= 0.75 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800';
 }
