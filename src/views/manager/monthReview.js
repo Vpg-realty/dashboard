@@ -10,7 +10,10 @@ export const repName = (id) => REPS.find((r) => r.id === id)?.name || id.charAt(
 export const repColor = (id) => REPS.find((r) => r.id === id)?.color || '#71717a';
 export const firstName = (id) => repName(id).split(' ')[0];
 
-const FIELDS = { opps: 'oppsOpenedMonth', offers: 'offersMonth', contracts: 'contractsMonth', closed: 'dealsClosedMonth', revenue: 'revenueMonth', aban: 'abandoned', lost: 'lost' };
+const FIELDS = { opps: 'oppsOpenedMonth', offers: 'offersMonth', contracts: 'contractsMonth', cancels: 'cancelsMonth', closed: 'dealsClosedMonth', revenue: 'revenueMonth', aban: 'abandoned', lost: 'lost' };
+// Cancelled contracts are counted from Oct 7, 2026 — the first day each
+// deal's time under contract was kept (server/stickyCounts.js `started`).
+export const CANCELS_FROM = '2026-10-07';
 // Before Sept 14, 2026 snapshots only kept closed deals and revenue.
 const LEGACY_HAS = new Set(['closed', 'revenue']);
 const isLegacy = (e) => !e.v && !(e.pairs || []).some((p) => 'convosWeek' in p);
@@ -43,6 +46,7 @@ export function monthTotals(entries, mo, upTo = 31) {
   const team = zero();
   for (const r of Object.values(byRep)) for (const k of Object.keys(FIELDS)) team[k] += r[k];
   const untracked = new Set(legacy ? Object.keys(FIELDS).filter((k) => !LEGACY_HAS.has(k)) : []);
+  if (mo < CANCELS_FROM.slice(0, 7)) untracked.add('cancels');
   // First day the opp/offer/contract counts were kept this month (Sept 14
   // for September); before that they weren't recorded.
   const firstTracked = inMonth.find((e) => !isLegacy(e))?.date || null;

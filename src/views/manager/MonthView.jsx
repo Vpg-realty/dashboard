@@ -11,7 +11,7 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { paceClsFrac } from './metrics.js';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
-  repColor, firstName, whenLabel, dayLabel, monthLabel,
+  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM,
 } from './monthReview.js';
 
 const LOG_URL = `${import.meta.env.BASE_URL || '/'}month-log.json`;
@@ -85,6 +85,9 @@ function Winners({ lead, fmt = (x) => x, unit }) {
   );
 }
 
+// Stage a cancelled deal fell out of (unknown for ones caught by backfill).
+const FROM = { under_contract: 'FROM UC', dispo: 'FROM DISPO', assigned: 'FROM ASSIGNED' };
+
 const TABS = [['contracts', 'Contracts signed'], ['closings', 'Closings'], ['cancels', 'Cancellations']];
 
 export default function MonthView() {
@@ -116,15 +119,16 @@ export default function MonthView() {
   const na = (k) => cur.untracked.has(k);
   const pv = (k) => (prev.empty || prev.untracked.has(k) ? null : prev.team[k]);
   const pmLabel = isCurrent ? `${shortMonth(pm)} 1–${day}` : shortMonth(pm);
+  const cancelsPartial = mo === CANCELS_FROM.slice(0, 7) && CANCELS_FROM > `${mo}-01`;
+  const keptPct = cur.team.contracts ? Math.round((cur.team.cancels / cur.team.contracts) * 100) : 0;
+  const cancelNote = cancelsPartial ? `${keptPct}% of contracts · since ${shortDate(CANCELS_FROM)}` : `${keptPct}% of contracts`;
   const pmNote = prev.empty ? `no ${pmLabel} on file` : `${pmLabel} not recorded`;
 
   const firstContract = ev.contracts[0] || null;
   const biggest = ev.closings.reduce((a, e) => (!a || e.value > a.value ? e : a), null);
-  const cancelsByRep = {};
-  for (const e of ev.cancels) cancelsByRep[e.rep] = (cancelsByRep[e.rep] || 0) + 1;
 
   const rows = Object.entries(cur.byRep)
-    .map(([id, r]) => ({ id, ...r, cancels: cancelsByRep[id] || 0 }))
+    .map(([id, r]) => ({ id, ...r }))
     .sort((a, b) => b.contracts - a.contracts || b.revenue - a.revenue || b.closed - a.closed);
   const lead = { contracts: leaders(cur.byRep, 'contracts'), closed: leaders(cur.byRep, 'closed'), revenue: leaders(cur.byRep, 'revenue'), offers: leaders(cur.byRep, 'offers'), opps: leaders(cur.byRep, 'opps') };
   const isLead = (k, id) => lead[k]?.ids.includes(id);
@@ -149,8 +153,8 @@ export default function MonthView() {
         <div className="grid grid-cols-6 gap-3">
           <Tile label="Contracts signed" v={cur.team.contracts} prev={pv('contracts')} target={tt.contracts} frac={frac} sub={pmLabel} note={pmNote} na={na('contracts')} />
           <Tile
-            label="Cancellations" v={ev.cancels.length} na={logState === 'none'}
-            note={logState === 'full' ? `${cur.team.contracts ? Math.round((ev.cancels.length / cur.team.contracts) * 100) : 0}% of contracts` : since ? `tracked from ${since}` : 'tracking starts next deploy'}
+            label="Cancellations" v={cur.team.cancels} na={na('cancels')} prev={pv('cancels')} sub={pmLabel} lowerIsBetter
+            note={na('cancels') ? `counted from ${shortDate(CANCELS_FROM)}` : cancelNote}
           />
           <Tile label="Deals closed" v={cur.team.closed} prev={pv('closed')} target={tt.closed} frac={frac} sub={pmLabel} note={pmNote} na={na('closed')} />
           <Tile label="Revenue closed" v={cur.team.revenue} prev={pv('revenue')} target={tt.revenue} frac={frac} sub={pmLabel} note={pmNote} fmt={money} na={na('revenue')} />
@@ -194,7 +198,7 @@ export default function MonthView() {
                 <div key={r.id} className="grid grid-cols-[9rem_repeat(6,minmax(0,1fr))] gap-x-2 items-center min-h-0">
                   <span className="flex items-center gap-2 min-w-0"><Dot id={r.id} size="w-3 h-3" /><span className="text-[min(1rem,2vh)] font-bold truncate">{firstName(r.id)}</span></span>
                   <Cell v={r.contracts} t={repTargets.contracts} frac={frac} crown={isLead('contracts', r.id)} na={na('contracts')} />
-                  <span className={`text-center text-[min(1rem,2vh)] font-bold tabular-nums ${r.cancels ? 'text-rose-700' : 'text-zinc-300'}`}>{logState === 'none' ? '—' : r.cancels}</span>
+                  <span className={`text-center text-[min(1rem,2vh)] font-bold tabular-nums ${r.cancels ? 'text-rose-700' : 'text-zinc-300'}`}>{na('cancels') ? '—' : r.cancels}</span>
                   <Cell v={r.closed} t={repTargets.closed} frac={frac} crown={isLead('closed', r.id)} na={na('closed')} />
                   <Cell v={r.revenue} t={repTargets.revenue} frac={frac} crown={isLead('revenue', r.id)} fmt={money} na={na('revenue')} />
                   <Cell v={r.offers} t={repTargets.offers} frac={frac} crown={isLead('offers', r.id)} na={na('offers')} />
@@ -203,7 +207,7 @@ export default function MonthView() {
               ))}
               {!rows.length && <div className="text-zinc-400 text-sm">No snapshots on file for this month.</div>}
             </div>
-            <div className="text-[11px] text-zinc-500 pt-2 border-t border-zinc-200">{coverage || '—'}{logState !== 'full' ? ` · cancels tracked from ${since || 'the next deploy'}` : ''}</div>
+            <div className="text-[11px] text-zinc-500 pt-2 border-t border-zinc-200">{coverage || '—'}{na('cancels') || cancelsPartial ? ` · cancels counted from ${shortDate(CANCELS_FROM)}` : ''}</div>
           </div>
 
           <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
@@ -216,14 +220,14 @@ export default function MonthView() {
             </div>
             <div className="flex-1 min-h-0 overflow-auto mt-2 divide-y divide-zinc-100">
               {list.map((e) => (
-                <div key={e.id} className="grid grid-cols-[6.5rem_8.5rem_1fr_auto] items-center gap-2 py-1.5 text-sm">
-                  <span className="text-zinc-500 tabular-nums whitespace-nowrap">{tab === 'contracts' ? whenLabel(e.at).replace(' · ', ' ') : dayLabel(e.at)}</span>
+                <div key={e.id} className="grid grid-cols-[7.5rem_8rem_1fr_auto] items-center gap-2 py-1.5 text-sm">
+                  <span className="text-zinc-500 tabular-nums whitespace-nowrap">{tab === 'closings' ? dayLabel(e.at) : whenLabel(e.at).replace(' · ', ' ')}</span>
                   <span className="flex items-center gap-1.5 font-semibold min-w-0"><Dot id={e.rep} /><span className="truncate">{firstName(e.rep)} · {e.mkt}</span></span>
                   <span className={`truncate ${e.status === 'cancelled' ? 'line-through text-zinc-400' : ''}`}>{e.addr || 'no address'}</span>
                   <span className="flex items-center gap-1.5 justify-end whitespace-nowrap">
                     {tab === 'contracts' && e.status === 'cancelled' && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-rose-100 text-rose-700">CANCELLED</span>}
                     {tab === 'contracts' && e.status === 'closed' && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-emerald-100 text-emerald-700">CLOSED</span>}
-                    {tab === 'cancels' && <span className="text-[10px] font-semibold text-zinc-500">from {e.from === 'dispo' ? 'Dispo' : e.from === 'assigned' ? 'Assigned' : 'Under Contract'}</span>}
+                    {tab === 'cancels' && FROM[e.from] && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-600">{FROM[e.from]}</span>}
                     {e.value > 0 && <span className="font-bold tabular-nums">{money(e.value)}</span>}
                   </span>
                 </div>
@@ -234,7 +238,7 @@ export default function MonthView() {
               {logState === 'full' ? 'Every contract, closing and cancellation this month, oldest first.'
                 : logState === 'partial' ? `The deal log starts ${since}: earlier ${shortMonth(mo)} contracts are listed only if they were still Under Contract then. Totals on the left are complete.`
                 : `The deal log starts ${since || 'with the next deploy'}, so this month only lists deals that were still open then. Totals on the left are complete.`}
-              {tab === 'cancels' && ' Cancellation = a deal under contract that moved to Abandoned or Lost.'}
+              {tab === 'cancels' && ` Cancellation = a deal placed under contract (Under Contract, Dispo Active or Assigned) that later moved to Abandoned or Lost, dated when it moved. Counted from ${shortDate(CANCELS_FROM)}.`}
             </div>
           </div>
         </div>

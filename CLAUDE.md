@@ -123,6 +123,23 @@ the offer/contract crossings an excluded opp already added this week /
 month (it's still in the previous run's ranks with a `started` time).
 The dashboard never writes to GHL, so the opp should be fixed there too.
 
+## Cancelled contracts (Luke, Oct 9)
+
+A cancel = a deal placed under contract (Under Contract, DISPO Active or
+Assigned) that later moves to Abandoned or Lost — by stage or by status.
+`server/deals.js` `extractLost` lists every opp Abandoned/Lost since the
+start of last month (`_lost` on the pair, internal, stripped like
+`_oppRanks`) with `at` = GHL's last stage/status change. In
+`applyStickyCounts` an opp becomes a cancel when it was in the contract
+band (rank 5–7) on the previous run, is lost by status while its stage is
+still 5–7, or carries a `started` time (kept since Oct 7 — this backfilled
+the first cancels). Closed → Lost doesn't count. Each is logged once in
+opp-state `cancelled` (kept from the start of last month) and published as
+`pair.cancels` [{id, at, from, addr, value}] plus `cancelsWeek` /
+`cancelsMonth`, which go into history.json. Counted from Oct 7, 2026
+(`CANCELS_FROM` in views/manager/monthReview.js). Shown in Month in Review
+for now.
+
 ## Sticky offer/contract counts (Luke, Sept 14)
 
 Luke's requirement: an opportunity counts as an offer ONLY when it
@@ -308,10 +325,10 @@ Under `src/views/`:
     append-history; fetched from Pages with the same abort-don't-wipe
     loader). Each run: contract = deal `startedAt` (or, if 0, an Under
     Contract deal's `stageSince`), logged once per opp (`seen`); closing =
-    Closed-stage deal at `stageSince`; cancel = a deal that was Under
-    Contract / DISPO / Assigned (`open`) and is now Abandoned/Lost (rank 99)
-    — sliding back before UC or vanishing isn't a cancel; sub-accounts
-    whose pull failed are skipped. `since` = the log's first day; months
+    Closed-stage deal at `stageSince`; cancels = each pair's `cancels` (see
+    Cancelled contracts) in the month they happened; sub-accounts whose
+    pull failed are skipped. Cancel counts per rep come from history
+    (`cancelsMonth`), the list from the log. `since` = the log's first day; months
     before it show cancels / first contract as not tracked, and the month
     it started is flagged as partial (October 2026: only 2 of 11 contracts
     have a known date). Keeps 14 months.

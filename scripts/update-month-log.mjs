@@ -1,6 +1,5 @@
 // Maintains public/month-log.json for the Manager · Month in Review tab
-// (server/monthLog.js). Runs after build-snapshot (which writes data.json and
-// opp-state.json). Like append-history, the previous log is fetched from the
+// (server/monthLog.js). Runs after build-snapshot (which writes data.json). Like append-history, the previous log is fetched from the
 // live Pages deploy; only a real 404 starts a fresh log, and any other
 // sustained failure aborts the deploy so the good file on Pages is kept.
 
@@ -35,13 +34,11 @@ async function loadDeployedLog() {
 }
 
 const data = JSON.parse(fs.readFileSync(path.join(PUB, 'data.json'), 'utf8'));
-const state = JSON.parse(fs.readFileSync(path.join(PUB, 'opp-state.json'), 'utf8'));
-// Sub-accounts whose pull failed this run carry no deals / ranks — leave
-// their open deals alone rather than read them as gone.
+// Sub-accounts whose pull failed this run carry no deals — skip them.
 const skip = new Set((data.errors || []).map((e) => `${e.repId}|${e.marketId}`));
 
 const prev = await loadDeployedLog();
-const log = updateMonthLog({ log: prev, pairs: data.pairs || [], ranks: state.pairs || {}, skip, now: Date.now() });
+const log = updateMonthLog({ log: prev, pairs: data.pairs || [], skip, now: Date.now() });
 fs.writeFileSync(OUT, JSON.stringify(log));
 const cur = log.months[Object.keys(log.months).sort().pop()] || {};
-console.log(`[month-log] ${prev ? 'updated' : 'started'} (since ${log.since}) — latest month: ${Object.keys(cur.contracts || {}).length} contracts, ${Object.keys(cur.closings || {}).length} closings, ${Object.keys(cur.cancels || {}).length} cancels; ${Object.keys(log.open).length} open`);
+console.log(`[month-log] ${prev ? 'updated' : 'started'} (since ${log.since}) — latest month: ${Object.keys(cur.contracts || {}).length} contracts, ${Object.keys(cur.closings || {}).length} closings, ${Object.keys(cur.cancels || {}).length} cancels`);

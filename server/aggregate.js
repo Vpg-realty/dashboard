@@ -8,7 +8,7 @@
 //   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
 import { STAGE_ALIASES } from './config.js';
-import { extractDeals, resolveDealFieldIds, DEAL_FIELD_KEYS } from './deals.js';
+import { extractDeals, extractLost, resolveDealFieldIds, DEAL_FIELD_KEYS } from './deals.js';
 
 const startOfWeek = () => {
   const d = new Date();
@@ -156,6 +156,16 @@ export function aggregatePair({
     fieldIds,
     moStart,
   });
+  // Abandoned / Lost since the start of last month — stickyCounts.js picks
+  // out the ones that had been under contract (cancellations). Internal,
+  // stripped before publish like _oppRanks.
+  const lmStart = new Date(moStart); lmStart.setMonth(lmStart.getMonth() - 1);
+  const lostOpps = extractLost({
+    opportunities,
+    stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
+    fieldIds,
+    sinceMs: lmStart.getTime(),
+  });
   // Which custom fields couldn't be resolved for this sub-account, and why —
   // surfaced on the Pipeline tab so a missing field reads as "not set up"
   // rather than silently blank.
@@ -215,6 +225,7 @@ export function aggregatePair({
     dealFieldsError,
     // Stripped from data.json by stickyCounts.js before it reaches the browser.
     _oppRanks: oppRanks,
+    _lost: lostOpps,
   };
 }
 

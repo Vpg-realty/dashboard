@@ -20,7 +20,7 @@ export const SUBACCOUNTS = config.subaccounts;
 // Opportunities to ignore everywhere (Luke, Oct 9: a deal placed in the
 // wrong rep's pipeline). excluded-opps.json at the repo root.
 const EXCLUDED_PATH = path.resolve(here, '..', 'excluded-opps.json');
-let excluded = [];
+let excluded;
 try { excluded = JSON.parse(readFileSync(EXCLUDED_PATH, 'utf8')).opps || []; } catch { excluded = []; }
 export const EXCLUDED_OPP_IDS = new Set(excluded.map((o) => o.id));
 

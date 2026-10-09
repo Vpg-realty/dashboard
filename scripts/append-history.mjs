@@ -91,6 +91,9 @@ const todayEntry = {
     offersMonth: p.offersMonth || 0,
     contractsWeek: p.contractsWeek || 0,
     contractsMonth: p.contractsMonth || 0,
+    // cancelled contracts (Luke, Oct 9 — server/stickyCounts.js)
+    cancelsWeek: p.cancelsWeek || 0,
+    cancelsMonth: p.cancelsMonth || 0,
     dealsClosedWeek: p.dealsClosedWeek || 0,
     dealsClosedMonth: p.dealsClosedMonth || 0,
     abandoned: p.abandoned || 0,
