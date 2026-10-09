@@ -68,9 +68,6 @@ jobs:
       - name: Append today's totals to rolling history
         run: npm run append-history
 
-      - name: Log this month's contracts, closings and cancellations
-        run: npm run month-log
-
       - name: Build static site
         env:
           VITE_BASE: /dashboard/

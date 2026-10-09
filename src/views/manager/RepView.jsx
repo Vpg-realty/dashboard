@@ -37,6 +37,21 @@ function Tile({ label, v, t, frac, money, na }) {
   );
 }
 
+// Cancelled contracts in a past period (no target): red when any.
+function CancelTile({ v, na, contracts }) {
+  const bad = !na && v > 0;
+  return (
+    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${bad ? 'bg-rose-100 border-rose-300' : 'bg-white border-zinc-300/80'}`}>
+      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${bad ? 'text-rose-800' : 'text-zinc-500'} opacity-80`}>Cancels</div>
+      <div className="flex items-baseline gap-1 mt-1">
+        <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums leading-none ${bad ? 'text-rose-800' : na ? 'text-zinc-300' : 'text-zinc-900'}`}>{na ? '—' : v}</span>
+        {!na && contracts > 0 && <span className={`text-sm font-bold ${bad ? 'text-rose-800' : 'text-zinc-400'} opacity-60`}>{Math.round((v / contracts) * 100)}% of contracts</span>}
+      </div>
+      <div className="text-[10px] text-zinc-500 mt-2 truncate">{na ? 'counted from Oct 7' : 'under contract → Abandoned / Lost'}</div>
+    </div>
+  );
+}
+
 // $0, $850, $6.3K, $20K — short enough for the tiles.
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 
@@ -63,7 +78,7 @@ export default function RepView({ repId, onPickRep, onBack }) {
     range = { from, to, kind: 'custom', label: rangeLabel(from, to) };
   }
 
-  const empty = { convosW: 0, convosM: 0, oppsW: 0, offersW: 0, contractsW: 0, oppsM: 0, offersM: 0, contractsM: 0, closedM: 0, revenueM: 0, assigned: 0, projected: 0, aban: 0, lost: 0, untracked: new Set() };
+  const empty = { convosW: 0, convosM: 0, oppsW: 0, offersW: 0, contractsW: 0, oppsM: 0, offersM: 0, contractsM: 0, cancelsW: 0, cancelsM: 0, closedM: 0, revenueM: 0, assigned: 0, projected: 0, aban: 0, lost: 0, untracked: new Set() };
   // Nothing on file for this rep in the range → every number reads "—".
   const none = { ...empty, untracked: new Set(Object.keys(empty).filter((k) => k !== 'untracked')) };
   const m = range ? rangeMetrics(history, rep.id, 'ALL', range) || none : metrics(pairs);
@@ -155,15 +170,21 @@ export default function RepView({ repId, onPickRep, onBack }) {
               ⚠ Leak: {leak.s.label} — {pct(leak.r)} vs team {pct(teamRates[leak.i])}
             </span>
           )}
-          <span className="ml-auto text-sm text-zinc-500 whitespace-nowrap">Aban {show('aban', m.aban)} · Lost {show('lost', m.lost)} {range ? 'in period' : 'this month'}</span>
+          {!range && (
+            <span className={`ml-auto rounded-full px-3 py-1 text-sm font-bold whitespace-nowrap ${m.cancelsM ? 'bg-rose-600 text-white' : 'bg-zinc-100 text-zinc-500'}`} title="Under contract → Abandoned / Lost">
+              ✕ Cancels {m.cancelsW} wk · {m.cancelsM} mo
+            </span>
+          )}
+          <span className={`${range ? 'ml-auto ' : ''}text-sm text-zinc-500 whitespace-nowrap`}>Aban {show('aban', m.aban)} · Lost {show('lost', m.lost)} {range ? 'in period' : 'this month'}</span>
         </div>
         {range ? (
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-6 gap-3">
             <Tile label="Opps opened" v={m.oppsM} t={t.opps} frac={frac} na={na('oppsM')} />
             <Tile label="Offers" v={m.offersM} t={t.offers} frac={frac} na={na('offersM')} />
             <Tile label="Contracts" v={m.contractsM} t={t.contracts} frac={frac} na={na('contractsM')} />
             <Tile label="Closed" v={m.closedM} t={t.closed} frac={frac} na={na('closedM')} />
             <Tile label="Revenue closed" v={m.revenueM} t={t.revenue} frac={frac} money na={na('revenueM')} />
+            <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} />
           </div>
         ) : (
           <div className="grid grid-cols-8 gap-3">
@@ -207,17 +228,18 @@ export default function RepView({ repId, onPickRep, onBack }) {
           <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
             <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">By state · {when}</div>
             <div className="text-lg font-bold mb-1">Which of {first(rep)}'s states are working</div>
-            <div className="grid grid-cols-[10rem_repeat(7,minmax(0,1fr))] gap-x-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold pb-1.5 border-b border-zinc-200 text-right">
-              <span className="text-left">State</span><span>Convos</span><span>Opps</span><span>Offers</span><span>Contracts</span><span>Closed</span><span>{range ? 'Revenue' : 'Projected'}</span><span>Convo→Opp</span>
+            <div className="grid grid-cols-[10rem_repeat(8,minmax(0,1fr))] gap-x-2 text-[10px] uppercase tracking-[0.04em] text-zinc-500 font-semibold pb-1.5 border-b border-zinc-200 text-right">
+              <span className="text-left">State</span><span>Convos</span><span>Opps</span><span>Offers</span><span>Contracts</span><span className="text-rose-700">Cancels</span><span>Closed</span><span>{range ? 'Revenue' : 'Projected'}</span><span>Convo→Opp</span>
             </div>
             <div className="flex-1 min-h-0 flex flex-col justify-around">
               {markets.map(({ id, name, m: mm }) => (
-                <div key={id} className="grid grid-cols-[10rem_repeat(7,minmax(0,1fr))] gap-x-2 items-center text-right tabular-nums">
+                <div key={id} className="grid grid-cols-[10rem_repeat(8,minmax(0,1fr))] gap-x-2 items-center text-right tabular-nums">
                   <span className="flex items-center gap-2 text-left text-base font-bold truncate"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATE_DOT }} />{name}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('convosM') ? '—' : mm.convosM}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('oppsM') ? '—' : mm.oppsM}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('offersM') ? '—' : mm.offersM}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('contractsM') ? '—' : mm.contractsM}</span>
+                  <span className={`text-lg font-bold ${mm.cancelsM ? 'text-rose-700' : 'text-zinc-300'}`}>{mm.untracked?.has('cancelsM') ? '—' : mm.cancelsM || 0}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('closedM') ? '—' : mm.closedM}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('projected') ? '—' : formatCompactCurrency(mm.projected)}</span>
                   <span className={`rounded-md py-1 text-center text-base font-bold ${convCls(rate(mm, STEPS[0]), teamRates[0])}`}>{pct(rate(mm, STEPS[0]))}</span>

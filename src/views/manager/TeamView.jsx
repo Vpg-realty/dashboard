@@ -7,7 +7,7 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { ScorePill, ScoreBar, ScoreHelp } from './Score.jsx';
 import { T, first, SCORE_PARTS, STEPS, rate, pct, biggestLeak, scoreTone, paceCls, convCls, repRows, teamMetrics } from './metrics.js';
 
-const G = { gridTemplateColumns: '8rem 6.5rem 0.25rem repeat(3,minmax(0,1fr)) 0.25rem repeat(5,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1.3fr)) 10rem' };
+const G = { gridTemplateColumns: '7rem 6.25rem 0.25rem repeat(3,minmax(0,1fr)) minmax(0,0.9fr) 0.25rem repeat(3,minmax(0,1fr)) minmax(0,0.9fr) repeat(2,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1.3fr)) 10rem' };
 const head = 'text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold text-center leading-tight';
 
 function Cell({ v, t, period, money }) {
@@ -55,25 +55,28 @@ export default function TeamView({ onPickRep }) {
         <div className="flex-1 min-h-0 rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col">
           <div className="grid gap-x-2 items-end pb-1" style={G}>
             <span /><span /><span />
-            <span className="col-span-3 text-[11px] font-bold tracking-[0.18em] text-emerald-700 border-b-2 border-emerald-300 pb-1">THIS WEEK · vs pace</span>
+            <span className="col-span-4 text-[11px] font-bold tracking-[0.18em] text-emerald-700 border-b-2 border-emerald-300 pb-1">THIS WEEK · vs pace</span>
             <span />
-            <span className="col-span-5 text-[11px] font-bold tracking-[0.18em] text-blue-700 border-b-2 border-blue-300 pb-1">THIS MONTH · vs pace</span>
+            <span className="col-span-6 text-[11px] font-bold tracking-[0.18em] text-blue-700 border-b-2 border-blue-300 pb-1">THIS MONTH · vs pace</span>
             <span />
             <span className="col-span-3 text-[11px] font-bold tracking-[0.18em] text-violet-700 border-b-2 border-violet-300 pb-1">FUNNEL · month, vs team</span>
             <span />
           </div>
           <div className="grid gap-x-2 items-end pb-1.5 border-b border-zinc-200" style={G}>
             <span className={`${head} text-left`}>Rep</span><span className={`${head} text-left`}>Weekly score</span><span />
-            <span className={head}>Opps</span><span className={head}>Offers</span><span className={head}>Contracts</span><span />
-            <span className={head}>Opps</span><span className={head}>Offers</span><span className={head}>Contracts</span><span className={head}>Closed</span><span className={head}>Projected $</span><span />
+            <span className={head}>Opps</span><span className={head}>Offers</span><span className={`${head} !tracking-[0.04em]`}>Contracts</span><span className={`${head} text-rose-700 !tracking-normal`}>Cancels</span><span />
+            <span className={head}>Opps</span><span className={head}>Offers</span><span className={`${head} !tracking-[0.04em]`}>Contracts</span><span className={`${head} text-rose-700 !tracking-normal`}>Cancels</span><span className={head}>Closed</span><span className={head}>Projected $</span><span />
             {STEPS.map((s) => <span key={s.key} className={head}>{s.label}</span>)}
             <span className={`${head} text-left`}>Biggest leak</span>
           </div>
           <div className="grid gap-x-2 items-center py-1 border-b-2 border-zinc-900" style={G}>
             <span className="text-base font-extrabold">Team</span><span /><span />
             {[team.oppsW, team.offersW, team.contractsW].map((v, i) => <span key={i} className="text-center text-lg font-extrabold tabular-nums">{v}</span>)}
+            <span className={`text-center text-lg font-extrabold tabular-nums ${team.cancelsW ? 'text-rose-700' : 'text-zinc-300'}`}>{team.cancelsW}</span>
             <span />
-            {[team.oppsM, team.offersM, team.contractsM, team.closedM].map((v, i) => <span key={i} className="text-center text-lg font-extrabold tabular-nums">{v}</span>)}
+            {[team.oppsM, team.offersM, team.contractsM].map((v, i) => <span key={i} className="text-center text-lg font-extrabold tabular-nums">{v}</span>)}
+            <span className={`text-center text-lg font-extrabold tabular-nums ${team.cancelsM ? 'text-rose-700' : 'text-zinc-300'}`}>{team.cancelsM}</span>
+            <span className="text-center text-lg font-extrabold tabular-nums">{team.closedM}</span>
             <span className="text-center text-lg font-extrabold tabular-nums">{formatCompactCurrency(team.projected)}</span>
             <span />
             {STEPS.map((st, i) => (
@@ -93,10 +96,12 @@ export default function TeamView({ onPickRep }) {
                   <span className="flex flex-col items-start gap-1 min-w-0"><ScorePill score={score} /><span className="w-full max-w-[5.5rem]"><ScoreBar m={m} h="h-1" /></span></span><span />
                   <Cell v={m.oppsW} t={T.oppsOpenedPerWeek} period="week" />
                   <Cell v={m.offersW} t={T.offersPerWeek} period="week" />
-                  <Cell v={m.contractsW} t={T.contractsPerWeek} period="week" /><span />
+                  <Cell v={m.contractsW} t={T.contractsPerWeek} period="week" />
+                  <Cancels v={m.cancelsW} /><span />
                   <Cell v={m.oppsM} t={T.oppsOpenedPerWeek * 4} period="month" />
                   <Cell v={m.offersM} t={T.offersPerWeek * 4} period="month" />
                   <Cell v={m.contractsM} t={T.contractsPerMonth} period="month" />
+                  <Cancels v={m.cancelsM} />
                   <Cell v={m.closedM} t={T.dealsClosedPerMonth} period="month" />
                   <Cell v={m.projected} t={T.revenuePerRepMonth} period="month" money /><span />
                   {STEPS.map((st, i) => (
@@ -117,6 +122,7 @@ export default function TeamView({ onPickRep }) {
             <Key cls="bg-emerald-100 border border-emerald-300" label="on pace" />
             <Key cls="bg-amber-100 border border-amber-300" label="close" />
             <Key cls="bg-rose-100 border border-rose-300" label="behind" />
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-600" />cancels (under contract → Abandoned / Lost)</span>
             <span className="font-semibold ml-3">Score bar:</span>
             {SCORE_PARTS.map((p) => <span key={p.key} className="inline-flex items-center gap-1"><span className="w-3 h-1.5 rounded-sm" style={{ background: p.color }} />{p.label}</span>)}
             <span className="font-semibold ml-3">Funnel vs team:</span>
@@ -133,6 +139,11 @@ export default function TeamView({ onPickRep }) {
     </ManagerFrame>
   );
 }
+
+// Cancelled contracts (no target): red when there are any, grey at 0.
+const Cancels = ({ v }) => (
+  <div className={`h-full max-h-9 rounded-md flex items-center justify-center tabular-nums text-[min(1.05rem,2vh)] font-bold ${v ? 'bg-rose-600 text-white' : 'bg-zinc-50 text-zinc-300'}`}>{v || 0}</div>
+);
 
 const TONE = {
   good: { box: 'bg-emerald-50 border-emerald-200 border-l-emerald-500', text: 'text-emerald-800' },

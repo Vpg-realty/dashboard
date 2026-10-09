@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "snapshot": "node scripts/build-snapshot.mjs",
-    "append-history": "node scripts/append-history.mjs",
+    "append-history": "node scripts/append-history.mjs && node scripts/update-month-log.mjs",
     "month-log": "node scripts/update-month-log.mjs"
   },
   "dependencies": {

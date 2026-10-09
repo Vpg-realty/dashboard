@@ -54,6 +54,7 @@ const METRICS = {
   oppsOpened:  { week: 'oppsOpenedWeek', month: 'oppsOpenedMonth' },
   offers:      { week: 'offersWeek', month: 'offersMonth' },
   contracts:   { week: 'contractsWeek', month: 'contractsMonth' },
+  cancels:     { week: 'cancelsWeek', month: 'cancelsMonth' },
   dealsClosed: { week: 'dealsClosedWeek', month: 'dealsClosedMonth' },
   revenue:     { week: 'revenueWeek', month: 'revenueMonth' },
   abandoned:   { month: 'abandoned' },
