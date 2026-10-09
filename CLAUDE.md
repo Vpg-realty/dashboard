@@ -331,8 +331,10 @@ Under `src/views/`:
     dealsClosedMonth, revenueMonth, offersMonth, oppsOpenedMonth; before
     Sept 14 only closed + revenue exist → "—"). Six tiles vs team month goal
     with ▲/▼ vs last month (a month in progress is compared with the same
-    days of last month), awards (most contracts / closed / revenue, first
-    contract of the month, biggest closing), a rep leaderboard (👑 = top),
+    days of last month), awards — left to right: First contract of the
+    month ($50 prize) and Most contracts ($100 prize), gold cards with the
+    prize badge (Luke, Oct 9), then most closed, top revenue, biggest
+    closing — a rep leaderboard (👑 = top),
     and Contracts signed / Closings / Cancellations lists.
     Deal-level events come from **`month-log.json`** (`server/monthLog.js`,
     written by `scripts/update-month-log.mjs`, chained onto `npm run
