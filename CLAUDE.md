@@ -152,6 +152,24 @@ any) and the Rep page (header chip "Cancels N wk · N mo", a Cancels tile
 for past periods, a Cancels column by state); `metrics()` has cancelsW /
 cancelsM.
 
+## Hand-entered contract dates (Luke, Oct 9)
+
+GHL keeps no stage history and has no contract-date field, so exact contract
+dates were found by hand (read-only: text threads like "signed contract" /
+"ratified", DocuSign notes, stage moves) and stored in
+**`manual-contracts.json`** (`MANUAL_CONTRACTS`, server/config.js). Every
+entry goes into month-log.json at its real time (it wins over a logged
+date), which sets First contract of the month (Oct: Danni, 1456 Nick Davis
+Rd, Oct 1 12:30 AZ; Sept: Daniel, 2804 Maplewood, Sept 2 6:41 PM AZ —
+shown "✓ confirmed in GHL"). `add` field: "sticky" = the live count missed
+it (Rory's 1615 E 8th St Pueblo — CO sub-account added Oct 6);
+`applyStickyCounts` adds it once (`manualAdded` in opp-state) to the week /
+month it falls in. "view" = a closed month whose history missed it (Sept
+1–13, before counting began): Month in Review and Rep past periods add it
+(`addedContracts` / `addedContractsInRange` in monthReview.js). Absent =
+already counted, the entry only fixes the date. An "Under Contract Date"
+opportunity field in GHL would make this automatic.
+
 ## Sticky offer/contract counts (Luke, Sept 14)
 
 Luke's requirement: an opportunity counts as an offer ONLY when it

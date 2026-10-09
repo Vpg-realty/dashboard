@@ -31,6 +31,12 @@ let manual;
 try { manual = JSON.parse(readFileSync(path.resolve(here, '..', 'manual-cancels.json'), 'utf8')).cancels || []; } catch { manual = []; }
 export const MANUAL_CANCELS = manual;
 
+// Contract dates found by hand in GHL (Luke, Oct 9) — manual-contracts.json;
+// see that file's _doc for the `add` field.
+let manualContracts;
+try { manualContracts = JSON.parse(readFileSync(path.resolve(here, '..', 'manual-contracts.json'), 'utf8')).contracts || []; } catch { manualContracts = []; }
+export const MANUAL_CONTRACTS = manualContracts;
+
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
 export const STAGE_ALIASES = {

@@ -40,7 +40,10 @@ const bucket = (log, mo) => (log.months[mo] ||= { contracts: {}, closings: {}, c
 
 // pairs: published data.json pairs (deals carry startedAt, `cancels` the
 // sticky cancellations). skip: set of 'rep|mkt' whose pull failed this run.
-export function updateMonthLog({ log, pairs, skip = new Set(), now = Date.now() }) {
+// manualContracts: manual-contracts.json (dates found by hand in GHL) —
+// they win over a logged date for the same opp. excluded: excluded-opps.json
+// ids, removed from every month.
+export function updateMonthLog({ log, pairs, skip = new Set(), now = Date.now(), manualContracts = [], excluded = new Set() }) {
   const out = log && log.v === 1 ? structuredClone(log) : emptyLog(now);
   delete out.open;   // from the first version of the log
   const nowMs = typeof now === 'number' ? now : now.getTime();
@@ -67,6 +70,19 @@ export function updateMonthLog({ log, pairs, skip = new Set(), now = Date.now() 
       const b = bucket(out, monthOf(c.at));
       b.cancels[c.id] ||= { rep: p.repId, mkt: p.marketId, addr: c.addr || '', at: c.at, value: c.value || 0, from: c.from, ...(c.manual ? { manual: true } : {}) };
     }
+  }
+
+  for (const mc of manualContracts) {
+    const at = Date.parse(mc.at);
+    if (!at) continue;
+    const mo = monthOf(at);
+    if (out.seen[mc.id] && out.seen[mc.id] !== mo) delete out.months[out.seen[mc.id]]?.contracts?.[mc.id];
+    bucket(out, mo).contracts[mc.id] = { rep: mc.rep, mkt: mc.mkt, addr: mc.addr || '', at, value: 0, manual: true, ...(mc.add ? { add: mc.add } : {}) };
+    out.seen[mc.id] = mo;
+  }
+  for (const id of excluded) {
+    for (const b of Object.values(out.months)) { delete b.contracts[id]; delete b.closings[id]; delete b.cancels[id]; }
+    delete out.seen[id];
   }
 
   // Keep ~14 months.

@@ -12,7 +12,7 @@ import { paceFraction } from '../../utils/pace.js';
 import { STATE_DOT } from '../../utils/marketShade.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import useMonthLog from './useMonthLog.js';
-import { cancelsInRange } from './monthReview.js';
+import { cancelsInRange, addedContractsInRange } from './monthReview.js';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, paceTone, convCls } from './metrics.js';
 
@@ -88,6 +88,8 @@ export default function RepView({ repId, onPickRep, onBack }) {
   // from Oct 9; the log has live tracking + the hand-entered GHL check).
   const log = useMonthLog();
   if (range && log && !m.untracked.has('cancelsM')) m.cancelsM = cancelsInRange(log, range.from, range.to, rep.id);
+  // Plus contracts the history missed, found in GHL (Sept 1–13).
+  if (range && log && !m.untracked.has('contractsM')) m.contractsM += addedContractsInRange(log, range.from, range.to, rep.id);
   const team = range ? addMetrics(REPS.map((r) => rangeMetrics(history, r.id, 'ALL', range))) : teamMetrics();
   const teamRates = STEPS.map((s) => rate(team, s));
   // Pre-Sept 14 ranges have no opp counts, so no funnel to judge.
@@ -98,6 +100,7 @@ export default function RepView({ repId, onPickRep, onBack }) {
     m: (() => {
       const mm = range ? rangeMetrics(history, rep.id, id, range) || none : metrics(pairs.filter((p) => p.marketId === id));
       if (range && log && !mm.untracked.has('cancelsM')) mm.cancelsM = cancelsInRange(log, range.from, range.to, rep.id, id);
+      if (range && log && !mm.untracked.has('contractsM')) mm.contractsM += addedContractsInRange(log, range.from, range.to, rep.id, id);
       return mm;
     })(),
   })).sort((a, b) => b.m.convosM - a.m.convosM);

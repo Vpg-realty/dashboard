@@ -12,7 +12,7 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { paceClsFrac } from './metrics.js';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
-  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts,
+  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts, addedContracts,
 } from './monthReview.js';
 
 const money = (v) => (Math.abs(v) >= 100000 ? `$${Math.round(v / 1000)}K` : formatCompactCurrency(v));
@@ -117,6 +117,13 @@ export default function MonthView() {
     cur.team.cancels = cc.team;
     for (const [id, r] of Object.entries(cur.byRep)) r.cancels = cc.byRep[id] || 0;
     prev.team.cancels = pc.team;
+    // Contracts the history missed, found in GHL (e.g. Sept 1–13).
+    const ac = addedContracts(log, mo);
+    if (ac.team && !cur.untracked.has('contracts')) {
+      cur.team.contracts += ac.team;
+      for (const [id, n] of Object.entries(ac.byRep)) (cur.byRep[id] ||= { opps: 0, offers: 0, contracts: 0, cancels: 0, closed: 0, revenue: 0, aban: 0, lost: 0 }).contracts += n;
+      cur.addedFromGhl = ac.team;
+    }
   }
   const pmLabel = isCurrent ? `${shortMonth(pm)} 1–${day}` : shortMonth(pm);
   const cancelsPartial = mo === CANCELS_FROM.slice(0, 7) && CANCELS_FROM > `${mo}-01`;
@@ -136,7 +143,7 @@ export default function MonthView() {
 
   const coverage = [
     cur.asOf && `Totals as of ${shortDate(cur.asOf)}${isCurrent ? ' (month in progress)' : ''}`,
-    cur.firstTracked && cur.firstTracked > `${mo}-01` && `opps, offers & contracts counted from ${shortDate(cur.firstTracked)}`,
+    cur.firstTracked && cur.firstTracked > `${mo}-01` && `opps, offers & contracts counted from ${shortDate(cur.firstTracked)}${cur.addedFromGhl ? ` (+${cur.addedFromGhl} earlier contract${cur.addedFromGhl === 1 ? '' : 's'} found in GHL)` : ''}`,
     cur.untracked.size > 0 && !cur.firstTracked && 'only closings & revenue were recorded this month',
   ].filter(Boolean).join(' · ');
 
@@ -164,11 +171,12 @@ export default function MonthView() {
         </div>
 
         <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr_1fr] gap-3">
-          <Award icon="🥇" title="First contract of the month" prize={50} note={firstContract && !covered ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
+          <Award icon="🥇" title="First contract of the month" prize={50} note={firstContract && !covered && !firstContract.manual ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
             {firstContract ? (
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-[min(1.25rem,2.3vh)] font-extrabold leading-tight"><Dot id={firstContract.rep} />{firstName(firstContract.rep)}</div>
                 <div className="text-sm text-zinc-600 truncate"><span className="font-bold text-zinc-900">{whenLabel(firstContract.at)}</span> · {firstContract.addr || 'no address'}</div>
+                {firstContract.manual && <div className="text-[10px] text-amber-800 mt-0.5">✓ confirmed in GHL</div>}
               </div>
             ) : <NotTracked state={logState} since={since} />}
           </Award>

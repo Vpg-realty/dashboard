@@ -1,6 +1,17 @@
 {
-  "_doc": "Opportunities the dashboard ignores everywhere (counts, pipeline, wins, celebrations). Use for deals put in the wrong sub-account by mistake. The dashboard never writes to GHL, so fix the opp there too if needed. Read by server/config.js.",
+  "_doc": "Opportunities the dashboard ignores everywhere (counts, pipeline, wins, celebrations). Use for deals put in the wrong sub-account by mistake, or old deals that resurface (re-saved) and get counted again. The dashboard never writes to GHL, so fix the opp there too if needed. Read by server/config.js.",
   "opps": [
-    { "id": "hxjmRBPDNF0dPwSew2DO", "name": "Linda Booker", "subaccount": "daniel / AZ", "why": "Placed in Daniel's pipeline by mistake (Luke, Oct 9)" }
+    {
+      "id": "hxjmRBPDNF0dPwSew2DO",
+      "name": "Linda Booker",
+      "subaccount": "daniel / AZ",
+      "why": "Placed in Daniel's pipeline by mistake (Luke, Oct 9)"
+    },
+    {
+      "id": "erzNFRofcL9xC2R8QH7e",
+      "name": "6271 E 25th St",
+      "subaccount": "anthony / AZ",
+      "why": "Closed ~2 months ago; showed up as an October closing after being re-saved (Luke, Oct 9)"
+    }
   ]
 }
