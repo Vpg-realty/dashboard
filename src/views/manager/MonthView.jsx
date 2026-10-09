@@ -1,7 +1,8 @@
 // Manager · Month in Review (Luke, Oct 9): the first-Friday look back at a
 // month — contracts, cancellations, closings, revenue, who led each, and who
 // signed the month's first contract. Pick any month on file.
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import useMonthLog from './useMonthLog.js';
 import { REPS } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { formatCompactCurrency } from '../../utils/format.js';
@@ -11,26 +12,11 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { paceClsFrac } from './metrics.js';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
-  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM,
+  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts,
 } from './monthReview.js';
 
-const LOG_URL = `${import.meta.env.BASE_URL || '/'}month-log.json`;
-// $26.5K under $100K, $225K above (keeps tiles on one line).
 const money = (v) => (Math.abs(v) >= 100000 ? `$${Math.round(v / 1000)}K` : formatCompactCurrency(v));
 const shortMonth = (mo) => monthLabel(`${mo}-01`).split(' ')[0].slice(0, 3);
-
-function useMonthLog() {
-  const [log, setLog] = useState(null);
-  useEffect(() => {
-    let live = true;
-    fetch(`${LOG_URL}?t=${Date.now()}`, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (live) setLog(d && d.v === 1 ? d : null); })
-      .catch(() => {});
-    return () => { live = false; };
-  }, []);
-  return log;
-}
 
 const Dot = ({ id, size = 'w-2.5 h-2.5' }) => <span className={`${size} rounded-full shrink-0 inline-block`} style={{ background: repColor(id) }} />;
 
@@ -118,10 +104,20 @@ export default function MonthView() {
   const since = log ? shortDate(log.since) : null;
   const na = (k) => cur.untracked.has(k);
   const pv = (k) => (prev.empty || prev.untracked.has(k) ? null : prev.team[k]);
+  // Cancels come from the month log (live tracking + the hand-entered GHL
+  // check), not history — history only has them from Oct 9.
+  if (log) {
+    const cc = cancelCounts(log, mo);
+    const pc = cancelCounts(log, pm, isCurrent ? day : 31);
+    cur.team.cancels = cc.team;
+    for (const [id, r] of Object.entries(cur.byRep)) r.cancels = cc.byRep[id] || 0;
+    prev.team.cancels = pc.team;
+  }
   const pmLabel = isCurrent ? `${shortMonth(pm)} 1–${day}` : shortMonth(pm);
   const cancelsPartial = mo === CANCELS_FROM.slice(0, 7) && CANCELS_FROM > `${mo}-01`;
-  const keptPct = cur.team.contracts ? Math.round((cur.team.cancels / cur.team.contracts) * 100) : 0;
-  const cancelNote = cancelsPartial ? `${keptPct}% of contracts · since ${shortDate(CANCELS_FROM)}` : `${keptPct}% of contracts`;
+  // Not a % of contracts: a cancel this month is often a contract from an
+  // earlier month.
+  const cancelNote = `vs ${cur.team.contracts} contracts signed`;
   const pmNote = prev.empty ? `no ${pmLabel} on file` : `${pmLabel} not recorded`;
 
   const firstContract = ev.contracts[0] || null;
@@ -228,6 +224,7 @@ export default function MonthView() {
                     {tab === 'contracts' && e.status === 'cancelled' && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-rose-100 text-rose-700">CANCELLED</span>}
                     {tab === 'contracts' && e.status === 'closed' && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-emerald-100 text-emerald-700">CLOSED</span>}
                     {tab === 'cancels' && FROM[e.from] && <span className="text-[10px] font-extrabold rounded px-1.5 py-0.5 bg-zinc-100 text-zinc-600">{FROM[e.from]}</span>}
+                    {tab === 'cancels' && e.manual && <span className="text-[10px] font-semibold text-zinc-400" title="Entered by hand from a GHL check (tag + IP/COE dates); dated when marked lost">from GHL check</span>}
                     {e.value > 0 && <span className="font-bold tabular-nums">{money(e.value)}</span>}
                   </span>
                 </div>
@@ -235,10 +232,11 @@ export default function MonthView() {
               {!list.length && <div className="text-sm text-zinc-400 py-3">{log ? `No ${TABS.find(([k]) => k === tab)[1].toLowerCase()} on record for ${monthLabel(`${mo}-01`)}.` : 'The deal log starts with the next deploy.'}</div>}
             </div>
             <div className="text-[11px] text-zinc-500 pt-2 border-t border-zinc-200">
-              {logState === 'full' ? 'Every contract, closing and cancellation this month, oldest first.'
-                : logState === 'partial' ? `The deal log starts ${since}: earlier ${shortMonth(mo)} contracts are listed only if they were still Under Contract then. Totals on the left are complete.`
-                : `The deal log starts ${since || 'with the next deploy'}, so this month only lists deals that were still open then. Totals on the left are complete.`}
-              {tab === 'cancels' && ` Cancellation = a deal placed under contract (Under Contract, Dispo Active or Assigned) that later moved to Abandoned or Lost, dated when it moved. Counted from ${shortDate(CANCELS_FROM)}.`}
+              {tab === 'cancels'
+                ? 'Cancel = was Under Contract, Dispo or Assigned, then Abandoned / Lost; dated when it moved. "From GHL check" = found by hand (before Oct 7), dated when marked lost.'
+                : logState === 'full' ? 'Every contract, closing and cancellation this month, oldest first.'
+                  : logState === 'partial' ? `Log starts ${since}: earlier ${shortMonth(mo)} contracts show only if still Under Contract then. Totals on the left are complete.`
+                    : `Log starts ${since || 'with the next deploy'}: only deals still open then are listed. Totals on the left are complete.`}
             </div>
           </div>
         </div>

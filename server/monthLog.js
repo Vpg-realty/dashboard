@@ -65,7 +65,7 @@ export function updateMonthLog({ log, pairs, skip = new Set(), now = Date.now() 
     }
     for (const c of p.cancels || []) {
       const b = bucket(out, monthOf(c.at));
-      b.cancels[c.id] ||= { rep: p.repId, mkt: p.marketId, addr: c.addr || '', at: c.at, value: c.value || 0, from: c.from };
+      b.cancels[c.id] ||= { rep: p.repId, mkt: p.marketId, addr: c.addr || '', at: c.at, value: c.value || 0, from: c.from, ...(c.manual ? { manual: true } : {}) };
     }
   }
 

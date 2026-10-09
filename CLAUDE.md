@@ -136,7 +136,16 @@ still 5–7, or carries a `started` time (kept since Oct 7 — this backfilled
 the first cancels). Closed → Lost doesn't count. Each is logged once in
 opp-state `cancelled` (kept from the start of last month) and published as
 `pair.cancels` [{id, at, from, addr, value}] plus `cancelsWeek` /
-`cancelsMonth`, which go into history.json. Counted from Oct 7, 2026
+`cancelsMonth`, which go into history.json.
+Before Oct 7 they weren't tracked; 31 were found by a read-only GHL check
+(lost/abandoned Sept 1 – Oct 9 with the `agent - contracted deal` tag and/or
+IP end + COE filled) and loaded from **`manual-cancels.json`** (repo root,
+`MANUAL_CANCELS` in server/config.js): `applyStickyCounts` adds them like
+any other cancel (once, while inside the kept window, `manual: true`), so
+they reach the pairs, history and month-log.json. Their date is when they
+were marked lost (10 were in an Oct 5 cleanup). Month in Review and Rep
+past periods count cancels from month-log.json (history has them only from
+Oct 9); `CANCELS_FROM` = 2026-09-01. Live from Oct 7, 2026; on record from Sept 1
 (`CANCELS_FROM` in views/manager/monthReview.js). Shown in Month in Review,
 the Team table (a Cancels column in the week and month groups, red when
 any) and the Rep page (header chip "Cancels N wk · N mo", a Cancels tile

@@ -11,9 +11,28 @@ export const repColor = (id) => REPS.find((r) => r.id === id)?.color || '#71717a
 export const firstName = (id) => repName(id).split(' ')[0];
 
 const FIELDS = { opps: 'oppsOpenedMonth', offers: 'offersMonth', contracts: 'contractsMonth', cancels: 'cancelsMonth', closed: 'dealsClosedMonth', revenue: 'revenueMonth', aban: 'abandoned', lost: 'lost' };
-// Cancelled contracts are counted from Oct 7, 2026 — the first day each
-// deal's time under contract was kept (server/stickyCounts.js `started`).
-export const CANCELS_FROM = '2026-10-07';
+// Cancelled contracts are on record from Sept 1, 2026: tracked live since
+// Oct 7 (server/stickyCounts.js) and entered by hand before that from a GHL
+// check (manual-cancels.json). Counts come from month-log.json.
+export const CANCELS_FROM = '2026-09-01';
+const laDay = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(ms));
+const allCancels = (log) => Object.values(log?.months || {}).flatMap((b) => Object.values(b.cancels || {}));
+
+// Cancels per rep (and team) in a month from the log; `upTo` = last day.
+export function cancelCounts(log, mo, upTo = 31) {
+  const byRep = {};
+  let team = 0;
+  for (const c of Object.values(log?.months?.[mo]?.cancels || {})) {
+    if (+laDay(c.at).slice(8, 10) > upTo) continue;
+    byRep[c.rep] = (byRep[c.rep] || 0) + 1;
+    team++;
+  }
+  return { team, byRep };
+}
+
+// Cancels for a rep (optionally one state) between two Pacific dates.
+export const cancelsInRange = (log, from, to, rep, mkt) => allCancels(log)
+  .filter((c) => c.rep === rep && (!mkt || c.mkt === mkt) && laDay(c.at) >= from && laDay(c.at) <= to).length;
 // Before Sept 14, 2026 snapshots only kept closed deals and revenue.
 const LEGACY_HAS = new Set(['closed', 'revenue']);
 const isLegacy = (e) => !e.v && !(e.pairs || []).some((p) => 'convosWeek' in p);
