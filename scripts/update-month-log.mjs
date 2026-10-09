@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { updateMonthLog } from '../server/monthLog.js';
+import { MANUAL_CONTRACTS, EXCLUDED_OPP_IDS } from '../server/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.resolve(__dirname, '..', 'public');
@@ -38,7 +39,7 @@ const data = JSON.parse(fs.readFileSync(path.join(PUB, 'data.json'), 'utf8'));
 const skip = new Set((data.errors || []).map((e) => `${e.repId}|${e.marketId}`));
 
 const prev = await loadDeployedLog();
-const log = updateMonthLog({ log: prev, pairs: data.pairs || [], skip, now: Date.now() });
+const log = updateMonthLog({ log: prev, pairs: data.pairs || [], skip, now: Date.now(), manualContracts: MANUAL_CONTRACTS, excluded: EXCLUDED_OPP_IDS });
 fs.writeFileSync(OUT, JSON.stringify(log));
 const cur = log.months[Object.keys(log.months).sort().pop()] || {};
 console.log(`[month-log] ${prev ? 'updated' : 'started'} (since ${log.since}) — latest month: ${Object.keys(cur.contracts || {}).length} contracts, ${Object.keys(cur.closings || {}).length} closings, ${Object.keys(cur.cancels || {}).length} cancels`);

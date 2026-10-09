@@ -63,7 +63,7 @@ function periodStartsMs(now) {
 // this week / month are taken back once (it reached the contract band at
 // `started`, so that crossing — and the offer one, which happens at or
 // before it — counted in any period that began before then).
-export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [] }) {
+export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [], manualContracts = [] }) {
   const { weekMs, monthMs } = periodStartsMs(now);
   // Cancellations are kept from the start of last month.
   const lm = new Date(monthMs); lm.setMonth(lm.getMonth() - 1);
@@ -124,6 +124,21 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       contractsWeek = weekReset ? bcContractsWeek : Math.max(0, (prev.contractsWeek || 0) - undoContractsWeek) + contractCross;
       contractsMonth = monthReset ? bcContractsMonth : Math.max(0, (prev.contractsMonth || 0) - undoContractsMonth) + contractCross;
     }
+
+    // Contracts the live count missed, found by hand in GHL
+    // (manual-contracts.json, add: "sticky" — e.g. a deal contracted before
+    // its sub-account was added). Added once (kept in `manualAdded`) to the
+    // week / month they fall in.
+    const manualAdded = { ...(prev?.manualAdded || {}) };
+    for (const mc of manualContracts) {
+      if (mc.add !== 'sticky' || `${mc.rep}|${mc.mkt}` !== key || manualAdded[mc.id]) continue;
+      const at = Date.parse(mc.at);
+      if (!(at >= monthMs)) continue;
+      contractsMonth += 1;
+      if (at >= weekMs) contractsWeek += 1;
+      manualAdded[mc.id] = true;
+    }
+    for (const id of Object.keys(manualAdded)) if (!manualContracts.some((mc) => mc.id === id && Date.parse(mc.at) >= monthMs)) delete manualAdded[id];
 
     // Floor: never read below the live breadcrumb (e.g. a burst of offers that
     // landed and then left the band between two runs).
@@ -192,7 +207,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // eslint-disable-next-line no-unused-vars
     const { _oppRanks, _lost, ...clean } = p;
     newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
-    statePairs[key] = { ranks: currMap, started, cancelled, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    statePairs[key] = { ranks: currMap, started, cancelled, manualAdded, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {

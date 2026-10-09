@@ -30,6 +30,22 @@ export function cancelCounts(log, mo, upTo = 31) {
   return { team, byRep };
 }
 
+// Contracts found by hand in GHL for a closed month the history doesn't
+// count (manual-contracts.json, add: "view"), per rep and team.
+export function addedContracts(log, mo, upTo = 31) {
+  const byRep = {};
+  let team = 0;
+  for (const c of Object.values(log?.months?.[mo]?.contracts || {})) {
+    if (c.add !== 'view' || +laDay(c.at).slice(8, 10) > upTo) continue;
+    byRep[c.rep] = (byRep[c.rep] || 0) + 1;
+    team++;
+  }
+  return { team, byRep };
+}
+export const addedContractsInRange = (log, from, to, rep, mkt) => Object.values(log?.months || {})
+  .flatMap((b) => Object.values(b.contracts || {}))
+  .filter((c) => c.add === 'view' && c.rep === rep && (!mkt || c.mkt === mkt) && laDay(c.at) >= from && laDay(c.at) <= to).length;
+
 // Cancels for a rep (optionally one state) between two Pacific dates.
 export const cancelsInRange = (log, from, to, rep, mkt) => allCancels(log)
   .filter((c) => c.rep === rep && (!mkt || c.mkt === mkt) && laDay(c.at) >= from && laDay(c.at) <= to).length;

@@ -1,0 +1,82 @@
+{
+ "_doc": "Contract dates found by hand in GHL (Luke, Oct 9) \u2014 GHL keeps no stage history, so these come from text threads (\"signed contract\", \"ratified\"), DocuSign notes and stage moves, read-only. `at` = when the deal went under contract (ISO, UTC). `add` says whether the dashboard's own count is missing it: \"sticky\" = add it to this month's live contract count (server/stickyCounts.js, once), \"view\" = a past month whose history is closed, so Month in Review / Rep past periods add it when showing that month; absent = already counted, this entry only gives the exact date (for the contract list and First contract of the month). All entries go into month-log.json (server/monthLog.js).",
+ "contracts": [
+  {
+   "id": "nbOxbzcKZ1qX0xWHO8Vm",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "1456 Nick Davis Rd, Harvest, AL",
+   "at": "2026-10-01T19:30:00Z",
+   "evidence": "agent texted 'Signed contract!' 12:26 and 'Ratified and shared back' 12:30 AZ"
+  },
+  {
+   "id": "k6SF5gOzaZoOUYFyNqsX",
+   "rep": "prince_pharrams",
+   "mkt": "GA",
+   "addr": "1316 E 57th St, Savannah, GA",
+   "at": "2026-10-02T00:52:00Z",
+   "evidence": "rep asked 'are we uc?' 3:45pm, agent 'Yes sir' 5:52pm AZ; moved to Dispo 6:03pm"
+  },
+  {
+   "id": "6ZSyLJOqUiBy4A3ZUQCn",
+   "rep": "anthony",
+   "mkt": "NC",
+   "addr": "104 Warren St, Vanceboro, NC",
+   "at": "2026-10-02T14:39:00Z",
+   "evidence": "moved to Dispo 7:39am AZ"
+  },
+  {
+   "id": "hfJxUi8jY63fnxbSEZWQ",
+   "rep": "axel",
+   "mkt": "AL",
+   "addr": "10869 Waltman Dr S, Wilmer, AL",
+   "at": "2026-10-02T17:39:00Z",
+   "evidence": "moved to Dispo 10:39am AZ; IP end 10/9 fits a 7-day IP"
+  },
+  {
+   "id": "IKhk3C6p39DqZn16XIFU",
+   "rep": "prince_pharrams",
+   "mkt": "CO",
+   "addr": "1615 E 8th St, Pueblo, CO",
+   "at": "2026-10-06T19:24:00Z",
+   "add": "sticky",
+   "evidence": "under contract between creation 10/2 1:42pm and Dispo 10/6 12:24pm AZ (dated at the latter); missed because the CO sub-account was added Oct 6"
+  },
+  {
+   "id": "83wmVtSelZmv07GDcckU",
+   "rep": "daniel",
+   "mkt": "TX",
+   "addr": "2804 Maplewood, Granbury, TX",
+   "at": "2026-09-03T01:41:00Z",
+   "add": "view",
+   "evidence": "agent texted 'He signed 10 minutes ago' 6:51pm AZ Sep 2; executed copy 7:15pm; later cancelled"
+  },
+  {
+   "id": "MVBeW5TSBJWHpbqVWsHg",
+   "rep": "patrick",
+   "mkt": "GA",
+   "addr": "590 Spalding Dr, Sandy Springs, GA",
+   "at": "2026-09-04T17:01:00Z",
+   "add": "view",
+   "evidence": "seller-signed copy 7:40am, our DocuSign 10:01am AZ Sep 4"
+  },
+  {
+   "id": "DILyLo2bDFkmnnspzVcG",
+   "rep": "axel",
+   "mkt": "AL",
+   "addr": "7100 1st Ave S, Birmingham, AL",
+   "at": "2026-09-07T19:40:00Z",
+   "add": "view",
+   "evidence": "agent texted 'finalized contract signed by all parties' 12:40pm AZ Sep 7; later cancelled"
+  },
+  {
+   "id": "kRfPhU8Djanb1nwuqFXt",
+   "rep": "prince_pharrams",
+   "mkt": "OH",
+   "addr": "900 N Limestone St, Springfield, OH",
+   "at": "2026-09-10T17:45:00Z",
+   "add": "view",
+   "evidence": "we signed 10:45am AZ Sep 10, seller by Sep 14; later cancelled"
+  }
+ ]
+}
