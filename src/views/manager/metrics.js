@@ -5,6 +5,7 @@ import { REPS, KPI_TARGETS } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { laToday, pairConvosMonth, computeRange, periodTargets } from '../../utils/historyRange.js';
+import { CANCELS_FROM } from './monthReview.js';
 
 export const T = KPI_TARGETS;
 export const first = (r) => r.name.split(' ')[0];
@@ -27,6 +28,8 @@ export function metrics(pairs) {
     convosM: pairs.reduce((a, p) => a + (convoHist.get(`${p.repId}__${p.marketId}`) || 0) + (p.convosToday || 0), 0),
     oppsW: sumP(pairs, 'oppsOpenedWeek'), offersW: sumP(pairs, 'offersWeek'), contractsW: sumP(pairs, 'contractsWeek'),
     oppsM: sumP(pairs, 'oppsOpenedMonth'), offersM: sumP(pairs, 'offersMonth'), contractsM: sumP(pairs, 'contractsMonth'),
+    // Cancelled contracts (under contract → Abandoned / Lost; stickyCounts.js).
+    cancelsW: sumP(pairs, 'cancelsWeek'), cancelsM: sumP(pairs, 'cancelsMonth'),
     closedM: sumP(pairs, 'dealsClosedMonth'), revenueM, assigned, projected: revenueM + assigned,
     aban: sumP(pairs, 'abandoned'), lost: sumP(pairs, 'lost'),
   };
@@ -42,8 +45,11 @@ export function rangeMetrics(entries, repId, marketId, range) {
   if (!r) return null;
   const t = r.totals;
   const na = new Set(Object.keys(r.untracked).filter((k) => r.untracked[k] === r.daysOnFile));
-  const map = { convos: ['convosW', 'convosM'], oppsOpened: ['oppsW', 'oppsM'], offers: ['offersW', 'offersM'], contracts: ['contractsW', 'contractsM'], dealsClosed: ['closedM'], revenue: ['revenueM', 'projected'], abandoned: ['aban'], lost: ['lost'] };
+  const map = { cancels: ['cancelsW', 'cancelsM'], convos: ['convosW', 'convosM'], oppsOpened: ['oppsW', 'oppsM'], offers: ['offersW', 'offersM'], contracts: ['contractsW', 'contractsM'], dealsClosed: ['closedM'], revenue: ['revenueM', 'projected'], abandoned: ['aban'], lost: ['lost'] };
   const m = { assigned: 0, untracked: new Set(), result: r };
+  // Cancels are counted from Oct 7, 2026; a range that ends before then
+  // has none on record.
+  if (range.to < CANCELS_FROM) na.add('cancels');
   for (const [k, keys] of Object.entries(map)) for (const key of keys) { m[key] = t[k] || 0; if (na.has(k)) m.untracked.add(key); }
   return m;
 }

@@ -137,8 +137,11 @@ the first cancels). Closed → Lost doesn't count. Each is logged once in
 opp-state `cancelled` (kept from the start of last month) and published as
 `pair.cancels` [{id, at, from, addr, value}] plus `cancelsWeek` /
 `cancelsMonth`, which go into history.json. Counted from Oct 7, 2026
-(`CANCELS_FROM` in views/manager/monthReview.js). Shown in Month in Review
-for now.
+(`CANCELS_FROM` in views/manager/monthReview.js). Shown in Month in Review,
+the Team table (a Cancels column in the week and month groups, red when
+any) and the Rep page (header chip "Cancels N wk · N mo", a Cancels tile
+for past periods, a Cancels column by state); `metrics()` has cancelsW /
+cancelsM.
 
 ## Sticky offer/contract counts (Luke, Sept 14)
 
@@ -323,8 +326,11 @@ Under `src/views/`:
     contract of the month, biggest closing), a rep leaderboard (👑 = top),
     and Contracts signed / Closings / Cancellations lists.
     Deal-level events come from **`month-log.json`** (`server/monthLog.js`,
-    written by `scripts/update-month-log.mjs`, a deploy.yml step after
-    append-history; fetched from Pages with the same abort-don't-wipe
+    written by `scripts/update-month-log.mjs`, chained onto `npm run
+    append-history` in package.json — NOT its own deploy.yml step: editing
+    deploy.yml (Oct 9) put every Deploy run, pinger ones included, into
+    `action_required` until an admin approved, so the workflow file was put
+    back unchanged; fetched from Pages with the same abort-don't-wipe
     loader). Each run: contract = deal `startedAt` (or, if 0, an Under
     Contract deal's `stageSince`), logged once per opp (`seen`); closing =
     Closed-stage deal at `stageSince`; cancels = each pair's `cancels` (see
@@ -413,6 +419,11 @@ must be shared (Editor) with the service account. Pure logic lives in
   loader. Do not delete them from `public/` between deploys.
 
 ## Common failure modes
+
+**Avoid editing `.github/workflows/*.yml`.** The Oct 9 change to deploy.yml
+(adding a step) sent every Deploy run into `action_required` with 0 jobs,
+the pinger's included. Chain new build steps onto existing npm scripts
+instead.
 
 **"No new data on the dashboard for a day+"**
 Almost always: workflow runs are stuck in `action_required` state.
