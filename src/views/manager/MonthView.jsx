@@ -49,10 +49,15 @@ function Tile({ label, v, prev, target, frac, fmt = (x) => x, sub, na, lowerIsBe
   );
 }
 
-function Award({ icon, title, children, note }) {
+// `prize` = the cash award for that title (Luke, Oct 9: first contract of the
+// month $50, most contracts $100) — those cards get a gold border and badge.
+function Award({ icon, title, children, note, prize }) {
   return (
-    <div className="rounded-xl bg-white border border-zinc-300/80 px-3 py-2.5 min-w-0 flex flex-col">
-      <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold whitespace-nowrap">{icon} {title}</div>
+    <div className={`rounded-xl px-3 py-2.5 min-w-0 flex flex-col ${prize ? 'bg-amber-50 border-2 border-amber-400' : 'bg-white border border-zinc-300/80'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-[10px] uppercase font-semibold whitespace-nowrap truncate ${prize ? 'tracking-[0.04em] text-amber-800' : 'tracking-[0.12em] text-zinc-500'}`}>{icon} {title}</span>
+        {prize && <span className="shrink-0 rounded-md bg-amber-400 text-amber-950 text-xs font-extrabold px-1.5 py-0.5">${prize}</span>}
+      </div>
       <div className="mt-1 min-w-0 flex-1">{children}</div>
       {note && <div className="text-[10px] text-orange-700 leading-tight mt-1">{note}</div>}
     </div>
@@ -158,11 +163,8 @@ export default function MonthView() {
           <Tile label="Opps opened" v={cur.team.opps} prev={pv('opps')} target={tt.opps} frac={frac} sub={pmLabel} note={pmNote} na={na('opps')} />
         </div>
 
-        <div className="grid grid-cols-5 gap-3">
-          <Award icon="🏆" title="Most contracts"><Winners lead={lead.contracts} unit="contracts" /></Award>
-          <Award icon="🔑" title="Most deals closed"><Winners lead={lead.closed} unit="closed" /></Award>
-          <Award icon="💰" title="Top revenue"><Winners lead={lead.revenue} fmt={money} unit="closed" /></Award>
-          <Award icon="🥇" title="First contract of the month" note={firstContract && !covered ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
+        <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr_1fr] gap-3">
+          <Award icon="🥇" title="First contract of the month" prize={50} note={firstContract && !covered ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
             {firstContract ? (
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-[min(1.25rem,2.3vh)] font-extrabold leading-tight"><Dot id={firstContract.rep} />{firstName(firstContract.rep)}</div>
@@ -170,6 +172,9 @@ export default function MonthView() {
               </div>
             ) : <NotTracked state={logState} since={since} />}
           </Award>
+          <Award icon="🏆" title="Most contracts" prize={100}><Winners lead={lead.contracts} unit="contracts" /></Award>
+          <Award icon="🔑" title="Most deals closed"><Winners lead={lead.closed} unit="closed" /></Award>
+          <Award icon="💰" title="Top revenue"><Winners lead={lead.revenue} fmt={money} unit="closed" /></Award>
           <Award icon="💎" title="Biggest closing">
             {biggest && biggest.value > 0 ? (
               <div className="min-w-0">
