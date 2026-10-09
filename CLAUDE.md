@@ -112,6 +112,17 @@ for `today`) every call field keeps the higher of this run and the last
 one. Not in `history.json` yet. Shown in the dashboard-lab's
 Conversations tab first (not on this board yet).
 
+## Excluded opportunities (Luke, Oct 9)
+
+`excluded-opps.json` at repo root lists opp ids the dashboard ignores
+everywhere — deals put in the wrong rep's pipeline by mistake (first:
+"Linda Booker", Closed in Daniel / AZ). `server/snapshot.js` drops them
+before `aggregatePair`, so they never reach any count, the Pipeline, Wins
+or celebrations. `applyStickyCounts` (`excluded` arg) takes back, once,
+the offer/contract crossings an excluded opp already added this week /
+month (it's still in the previous run's ranks with a `started` time).
+The dashboard never writes to GHL, so the opp should be fixed there too.
+
 ## Sticky offer/contract counts (Luke, Sept 14)
 
 Luke's requirement: an opportunity counts as an offer ONLY when it
