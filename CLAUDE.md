@@ -282,7 +282,7 @@ Under `src/views/`:
     1-on-1s 0 / 1–2 / 3+) — reps on pace, avg score, most common leak,
     needs a 1-on-1 = score < 75 — and a table: score, week (opps/offers/
     contracts) and month (opps/offers/contracts/closed/projected $) cells
-    coloured vs pace, funnel cells coloured vs team and reading "31% · 4 of 13", biggest leak. Click a
+    coloured vs pace, funnel cells coloured vs team, % on top and "4 of 13" under it, biggest leak ringed dark orange (Luke, Oct 9), biggest leak. Click a
     rep → Rep.
   - **Rep** — picker; score, leak callout, 8 pace tiles (week + month),
     funnel with step rates vs team, and a by-state table. Period picker

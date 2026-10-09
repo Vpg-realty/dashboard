@@ -7,7 +7,7 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { ScorePill, ScoreBar, ScoreHelp } from './Score.jsx';
 import { T, first, SCORE_PARTS, STEPS, rate, pct, biggestLeak, scoreTone, paceCls, convCls, repRows, teamMetrics } from './metrics.js';
 
-const G = { gridTemplateColumns: '8rem 6.5rem 0.25rem repeat(3,minmax(0,1fr)) 0.25rem repeat(5,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1.8fr)) 8.5rem' };
+const G = { gridTemplateColumns: '8rem 6.5rem 0.25rem repeat(3,minmax(0,1fr)) 0.25rem repeat(5,minmax(0,1fr)) 0.25rem repeat(3,minmax(0,1.3fr)) 10rem' };
 const head = 'text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold text-center leading-tight';
 
 function Cell({ v, t, period, money }) {
@@ -77,9 +77,9 @@ export default function TeamView({ onPickRep }) {
             <span className="text-center text-lg font-extrabold tabular-nums">{formatCompactCurrency(team.projected)}</span>
             <span />
             {STEPS.map((st, i) => (
-              <span key={st.key} className="rounded-md py-1 flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden tabular-nums bg-zinc-900 text-white">
-                <span className="text-[min(1.05rem,2vh)] font-extrabold">{pct(teamRates[i])}</span>
-                <span className="text-[min(0.8125rem,1.5vh)] font-semibold opacity-75">{team[st.to]} of {team[st.from]}</span>
+              <span key={st.key} className="rounded-md py-1 flex flex-col items-center justify-center leading-none gap-0.5 whitespace-nowrap overflow-hidden tabular-nums bg-zinc-900 text-white">
+                <span className="text-[min(1.125rem,2.1vh)] font-extrabold">{pct(teamRates[i])}</span>
+                <span className="text-[min(0.75rem,1.4vh)] font-semibold opacity-75">{team[st.to]} of {team[st.from]}</span>
               </span>
             ))}
             <span />
@@ -100,9 +100,11 @@ export default function TeamView({ onPickRep }) {
                   <Cell v={m.closedM} t={T.dealsClosedPerMonth} period="month" />
                   <Cell v={m.projected} t={T.revenuePerRepMonth} period="month" money /><span />
                   {STEPS.map((st, i) => (
-                    <span key={st.key} className={`h-full max-h-9 rounded-md flex items-center justify-center gap-1.5 whitespace-nowrap overflow-hidden tabular-nums ${convCls(rate(m, st), teamRates[i])}`}>
-                      <span className="text-[min(1.05rem,2vh)] font-bold">{pct(rate(m, st))}</span>
-                      <span className="text-[min(0.8125rem,1.5vh)] font-semibold opacity-75">{m[st.to]} of {m[st.from]}</span>
+                    // % on top, counts under it; the biggest leak gets a thick
+                    // dark-orange ring (Luke, Oct 9).
+                    <span key={st.key} className={`h-full max-h-11 rounded-md flex flex-col items-center justify-center leading-none gap-0.5 whitespace-nowrap overflow-hidden tabular-nums ${convCls(rate(m, st), teamRates[i])} ${leak?.s.key === st.key ? 'ring-[3px] ring-inset ring-[#7c2d12]' : ''}`}>
+                      <span className="text-[min(1.125rem,2.1vh)] font-bold">{pct(rate(m, st))}</span>
+                      <span className="text-[min(0.75rem,1.4vh)] font-semibold opacity-75">{m[st.to]} of {m[st.from]}</span>
                     </span>
                   ))}
                   <span className={`text-sm font-bold truncate ${leak ? 'text-orange-700' : 'text-zinc-400'}`}>{leak ? `⚠ ${leak.s.label}` : '—'}</span>
@@ -123,6 +125,7 @@ export default function TeamView({ onPickRep }) {
             <Key cls="bg-zinc-100 border border-zinc-200" label="about team" />
             <Key cls="bg-orange-100" label="below" />
             <Key cls="bg-[#eb6834]" label="well below" />
+            <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm ring-2 ring-[#7c2d12]" />biggest leak</span>
             <span className="ml-auto text-zinc-400">sorted by weekly score · funnel "4 of 13" = 13 started that step, 4 moved on · Projected $ = closed + assigned with COE this month</span>
           </div>
         </div>
