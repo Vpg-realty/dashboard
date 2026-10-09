@@ -1,0 +1,253 @@
+{
+ "_doc": "Cancelled contracts from before the dashboard tracked them (Luke, Oct 9). Found by a read-only check of every sub-account: deals lost/abandoned Sept 1 - Oct 9, 2026 with the 'agent - contracted deal' contact tag and/or IP end + COE dates (and usually a title company) filled. `at` = when the deal was marked lost/abandoned in GHL (not necessarily when it fell through \u2014 e.g. the Oct 5 cleanup). Read by server/config.js; server/stickyCounts.js adds them like any other cancel (counted once, kept from the start of last month) and they reach month-log.json.",
+ "cancels": [
+  {
+   "id": "tRERSc2yTLZakpN9AfI2",
+   "rep": "patrick",
+   "mkt": "GA",
+   "addr": "1885 Broad Ave, East Point",
+   "at": "2026-10-05T16:55:10Z",
+   "status": "lost"
+  },
+  {
+   "id": "e0wwDOC4aqMGnKtZKQQk",
+   "rep": "patrick",
+   "mkt": "GA",
+   "addr": "2467 Adger Rd, Macon",
+   "at": "2026-10-08T15:24:38Z",
+   "status": "lost"
+  },
+  {
+   "id": "zGtvS1Lp7IQqD3VAGERN",
+   "rep": "patrick",
+   "mkt": "GA",
+   "addr": "2354 Randall Ave, Lithonia",
+   "at": "2026-10-07T19:54:44Z",
+   "status": "lost"
+  },
+  {
+   "id": "EhomU4vfnBb4vtl7Qj2l",
+   "rep": "sam_mackenzie",
+   "mkt": "FL",
+   "addr": "1643 Rivers Edge Dr, Orlando",
+   "at": "2026-10-08T16:45:51Z",
+   "status": "lost"
+  },
+  {
+   "id": "yddhHXJTgbrhTeOdEDU9",
+   "rep": "anthony",
+   "mkt": "NC",
+   "addr": "3-house package (810 Arlington Ave, 624 & 628 Morris St)",
+   "at": "2026-09-08T15:48:33Z",
+   "status": "lost"
+  },
+  {
+   "id": "83wmVtSelZmv07GDcckU",
+   "rep": "daniel",
+   "mkt": "TX",
+   "addr": "2804 Maplewood, Granbury",
+   "at": "2026-10-05T16:32:03Z",
+   "status": "lost"
+  },
+  {
+   "id": "T0Ohlc33DsuPGw4E2Gz0",
+   "rep": "daniel",
+   "mkt": "TX",
+   "addr": "13 Presidio Rd, Wimberley",
+   "at": "2026-10-05T16:32:06Z",
+   "status": "lost"
+  },
+  {
+   "id": "3ebxpPV3e6gsSxPozN2U",
+   "rep": "daniel",
+   "mkt": "TX",
+   "addr": "7011 Hammond Ave, Dallas",
+   "at": "2026-10-05T16:32:10Z",
+   "status": "lost"
+  },
+  {
+   "id": "PMksjhWMyeUchOjXA9fu",
+   "rep": "axel",
+   "mkt": "AZ",
+   "addr": "4530 E Rancho Laredo Dr, Cave Creek",
+   "at": "2026-09-08T23:02:41Z",
+   "status": "lost"
+  },
+  {
+   "id": "teGf1EwL5peLfqYZVoX7",
+   "rep": "axel",
+   "mkt": "AZ",
+   "addr": "2550 N Tomahawk Trl, Tucson",
+   "at": "2026-09-28T15:49:39Z",
+   "status": "lost"
+  },
+  {
+   "id": "Yeucn1n8RHEJl4Gm5It4",
+   "rep": "daniel",
+   "mkt": "MO",
+   "addr": "10124 Baron Dr, Saint Louis",
+   "at": "2026-10-05T16:31:35Z",
+   "status": "lost"
+  },
+  {
+   "id": "NdlkaOvSc5lxslKqjFry",
+   "rep": "daniel",
+   "mkt": "MO",
+   "addr": "10154 Mayfair Dr, Saint Louis",
+   "at": "2026-10-05T16:31:34Z",
+   "status": "lost"
+  },
+  {
+   "id": "bawrAlM1xIPHAQdaai1N",
+   "rep": "cayden_sicz",
+   "mkt": "OK",
+   "addr": "824 NW 21st St (OKC)",
+   "at": "2026-09-29T23:00:07Z",
+   "status": "lost"
+  },
+  {
+   "id": "Q6ySHzhVMCTamaOMsfJj",
+   "rep": "sam_mackenzie",
+   "mkt": "WA",
+   "addr": "100 Big Creek Rd, Ashford",
+   "at": "2026-10-02T15:44:57Z",
+   "status": "lost"
+  },
+  {
+   "id": "gf0RSey8ZBJtXEFpIV6x",
+   "rep": "sam_mackenzie",
+   "mkt": "WA",
+   "addr": "19054 18th Avenue NE, Shoreline",
+   "at": "2026-09-03T15:09:58Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "ELRIS381QEpIafcv5lBC",
+   "rep": "sam_mackenzie",
+   "mkt": "WA",
+   "addr": "2610 159th Street Ct E, Tacoma",
+   "at": "2026-09-08T13:49:20Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "3DAvmv5DcyQxj5OslzwC",
+   "rep": "prince_pharrams",
+   "mkt": "GA",
+   "addr": "1120 E 33rd Street, Savannah",
+   "at": "2026-09-11T18:34:25Z",
+   "status": "lost"
+  },
+  {
+   "id": "K9PPw2sDResSgB5WRvyj",
+   "rep": "prince_pharrams",
+   "mkt": "GA",
+   "addr": "513 Dyches Drive, Savannah",
+   "at": "2026-10-02T21:44:46Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "pLzYid6jkhpsv5gTboXs",
+   "rep": "prince_pharrams",
+   "mkt": "GA",
+   "addr": "1502 E 32nd St, Savannah",
+   "at": "2026-09-25T16:54:04Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "kRfPhU8Djanb1nwuqFXt",
+   "rep": "prince_pharrams",
+   "mkt": "OH",
+   "addr": "900 N Limestone St, Springfield",
+   "at": "2026-10-05T16:56:46Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "mMVTA7GrEeugIBLTQ1eM",
+   "rep": "prince_pharrams",
+   "mkt": "OH",
+   "addr": "6984 W 3rd St, Dayton",
+   "at": "2026-10-05T16:56:52Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "jOSiiMmrOANEawg1T7Ff",
+   "rep": "prince_pharrams",
+   "mkt": "OH",
+   "addr": "723 E Sycamore St, Miamisburg",
+   "at": "2026-09-08T22:49:05Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "3zyMMiX5xz1kEcH8OpBW",
+   "rep": "spencer_brown",
+   "mkt": "OK",
+   "addr": "1823 W Rose Oak Dr, Mustang",
+   "at": "2026-09-28T18:56:50Z",
+   "status": "lost"
+  },
+  {
+   "id": "lI93POr9K9qokc1S3jQI",
+   "rep": "sam_mackenzie",
+   "mkt": "TN",
+   "addr": "9219 Beaver Valley Ln, Cordova",
+   "at": "2026-10-05T19:10:03Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "X6jeIiFc1k4TVsGQLPRd",
+   "rep": "sam_mackenzie",
+   "mkt": "TN",
+   "addr": "2405 Parkway Pl, Memphis",
+   "at": "2026-09-18T14:26:16Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "DILyLo2bDFkmnnspzVcG",
+   "rep": "axel",
+   "mkt": "AL",
+   "addr": "7100 1st Ave S, Birmingham",
+   "at": "2026-10-05T15:29:24Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "0SuHrkuBCvLfpFKC15GQ",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "2215 Linde St NW, Huntsville",
+   "at": "2026-09-30T14:54:28Z",
+   "status": "lost"
+  },
+  {
+   "id": "puZVWNjv8376KVRPBMeU",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "6307 Sioux Ln, Birmingham",
+   "at": "2026-10-01T20:03:14Z",
+   "status": "lost"
+  },
+  {
+   "id": "zspLCGiXjGKx8PMBB4au",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "804 Oak Dr NE, Cullman",
+   "at": "2026-10-08T14:11:28Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "kQuXlSAiDZ59KfCYB8Ee",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "1111 1st Ave N, Bessemer",
+   "at": "2026-09-17T14:26:48Z",
+   "status": "abandoned"
+  },
+  {
+   "id": "nKPMhK5kH0Z2RDKi2qmk",
+   "rep": "danni_brown",
+   "mkt": "AL",
+   "addr": "472 Talon Ct, Birmingham",
+   "at": "2026-09-23T15:45:07Z",
+   "status": "abandoned"
+  }
+ ]
+}

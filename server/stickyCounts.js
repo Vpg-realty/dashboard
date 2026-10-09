@@ -63,7 +63,7 @@ function periodStartsMs(now) {
 // this week / month are taken back once (it reached the contract band at
 // `started`, so that crossing — and the offer one, which happens at or
 // before it — counted in any period that began before then).
-export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set() }) {
+export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [] }) {
   const { weekMs, monthMs } = periodStartsMs(now);
   // Cancellations are kept from the start of last month.
   const lm = new Date(monthMs); lm.setMonth(lm.getMonth() - 1);
@@ -175,6 +175,14 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       const at = l.at || now.getTime();
       if (at < keepFromMs) continue;
       cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0 };
+    }
+    // Cancels entered by hand from the GHL check (manual-cancels.json):
+    // added like any other, once, if they're in the kept window.
+    for (const mc of manualCancels) {
+      if (`${mc.rep}|${mc.mkt}` !== key || cancelled[mc.id] || prevCancelled[mc.id]) continue;
+      const at = Date.parse(mc.at);
+      if (!(at >= keepFromMs)) continue;
+      cancelled[mc.id] = { at, from: 'contract', addr: mc.addr || '', value: 0, manual: true };
     }
     const cancelList = Object.entries(cancelled).map(([id, c]) => ({ id, ...c })).sort((a, b) => a.at - b.at);
     const cancelsWeek = cancelList.filter((c) => c.at >= weekMs).length;

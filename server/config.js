@@ -24,6 +24,13 @@ let excluded;
 try { excluded = JSON.parse(readFileSync(EXCLUDED_PATH, 'utf8')).opps || []; } catch { excluded = []; }
 export const EXCLUDED_OPP_IDS = new Set(excluded.map((o) => o.id));
 
+// Cancelled contracts entered by hand from a GHL check (Luke, Oct 9:
+// "load the 31 cancels") — before the dashboard tracked cancels itself.
+// manual-cancels.json at the repo root; see server/stickyCounts.js.
+let manual;
+try { manual = JSON.parse(readFileSync(path.resolve(here, '..', 'manual-cancels.json'), 'utf8')).cancels || []; } catch { manual = []; }
+export const MANUAL_CANCELS = manual;
+
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
 export const STAGE_ALIASES = {
