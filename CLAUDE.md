@@ -41,7 +41,7 @@ GHL API ──> server/snapshot.js + server/aggregate.js
 ```
 
 The site has NO backend. Every state file it needs
-(`data.json`, `history.json`, `opp-state.json`) is fetched from the
+(`data.json`, `history.json`, `opp-state.json`, `month-log.json`) is fetched from the
 previous Pages deploy, mutated, and re-published. That's how the
 sticky counts and ~13-month (400-day) history survive without a database.
 
@@ -252,8 +252,8 @@ Under `src/views/`:
   but still lists the month's closings. Stage reads "Dispo Active" (Luke
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
-- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team and Rep
-  (a Revenue & Forecast tab was dropped as a duplicate of Overview, and a
+- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team, Rep and
+  Month in Review (a Revenue & Forecast tab was dropped as a duplicate of Overview, and a
   Coaching tab as a duplicate of Team's funnel columns, Luke Oct 8) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
@@ -294,6 +294,27 @@ Under `src/views/`:
     `rangeTargets` (finished periods HIT / CLOSE / MISSED, "so far" ones on
     pace), plus "N of M days on file". Untracked (pre-Sept 14 or no
     snapshot) reads "—", never 0.
+  - **Month in Review** (`MonthView.jsx`, `monthReview.js`; Luke, Oct 9 —
+    the first-Friday recap). Month picker (opens on last month). Totals per
+    rep from the month's last `history.json` snapshot (contractsMonth,
+    dealsClosedMonth, revenueMonth, offersMonth, oppsOpenedMonth; before
+    Sept 14 only closed + revenue exist → "—"). Six tiles vs team month goal
+    with ▲/▼ vs last month (a month in progress is compared with the same
+    days of last month), awards (most contracts / closed / revenue, first
+    contract of the month, biggest closing), a rep leaderboard (👑 = top),
+    and Contracts signed / Closings / Cancellations lists.
+    Deal-level events come from **`month-log.json`** (`server/monthLog.js`,
+    written by `scripts/update-month-log.mjs`, a deploy.yml step after
+    append-history; fetched from Pages with the same abort-don't-wipe
+    loader). Each run: contract = deal `startedAt` (or, if 0, an Under
+    Contract deal's `stageSince`), logged once per opp (`seen`); closing =
+    Closed-stage deal at `stageSince`; cancel = a deal that was Under
+    Contract / DISPO / Assigned (`open`) and is now Abandoned/Lost (rank 99)
+    — sliding back before UC or vanishing isn't a cancel; sub-accounts
+    whose pull failed are skipped. `since` = the log's first day; months
+    before it show cancels / first contract as not tracked, and the month
+    it started is flagged as partial (October 2026: only 2 of 11 contracts
+    have a known date). Keeps 14 months.
   The old Advanced tab (per-sub-account drill-down) was removed; its
   past-period picker lives on in Rep.
 
