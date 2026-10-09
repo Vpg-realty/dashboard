@@ -12,29 +12,33 @@ import { paceFraction } from '../../utils/pace.js';
 import { STATE_DOT } from '../../utils/marketShade.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
-import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, paceClsFrac, convCls } from './metrics.js';
+import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
 // not recorded for the period (pre-Sept 14 history).
 function Tile({ label, v, t, frac, money, na }) {
   const want = t * frac;
+  // Whole tile in the pace colour, like the Team table cells.
+  const tone = na ? null : paceTone(v, t, frac);
+  const word = !tone ? null : tone.key === 'good' ? (frac < 1 ? 'ON PACE' : 'HIT') : tone.key === 'close' ? 'CLOSE' : (frac < 1 ? 'BEHIND' : 'MISSED');
   return (
-    <div className="rounded-xl bg-white border border-zinc-300/80 px-3 py-2.5 min-w-0">
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold whitespace-nowrap">{label}</span>
-        {!na && <span className={`text-[9px] font-extrabold px-1 py-0.5 rounded shrink-0 ${paceClsFrac(v, t, frac)}`}>{v >= want ? (frac < 1 ? 'ON PACE' : 'HIT') : v >= want * 0.75 ? 'CLOSE' : (frac < 1 ? 'BEHIND' : 'MISSED')}</span>}
+    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${tone ? tone.box : 'bg-white border-zinc-300/80'}`}>
+      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${tone ? tone.text : 'text-zinc-500'} opacity-80`}>{label}{money ? ` / ${kMoney(t).slice(1)}` : ''}</div>
+      <div className="flex items-baseline gap-1 mt-1 min-w-0">
+        <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums whitespace-nowrap leading-none ${tone ? tone.text : 'text-zinc-300'}`}>{na ? '—' : money ? kMoney(v) : v}</span>
+        {!money && <span className={`text-sm font-bold whitespace-nowrap ${tone ? tone.text : 'text-zinc-400'} opacity-60`}>/ {t}</span>}
+        {word && <span className={`ml-auto self-center text-[8.5px] font-extrabold px-1 py-0.5 rounded shrink-0 ${tone.badge}`}>{word}</span>}
       </div>
-      <div className="flex items-baseline gap-1.5 mt-1">
-        <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums whitespace-nowrap ${na ? 'text-zinc-300' : ''}`}>{na ? '—' : money ? formatCompactCurrency(v) : v}</span>
-        <span className="text-sm font-bold text-zinc-400 whitespace-nowrap">/ {money ? `${Math.round(t / 1000)}K` : t}</span>
-      </div>
-      <div className="relative h-1.5 rounded-full bg-zinc-100 mt-2">
-        {!na && <div className="absolute inset-y-0 left-0 rounded-full bg-zinc-800" style={{ width: `${Math.min(100, (v / t) * 100)}%` }} />}
-        {frac < 1 && <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-blue-500" style={{ left: `${Math.min(100, (want / t) * 100)}%` }} />}
+      <div className="relative h-1.5 rounded-full bg-white/70 mt-2">
+        {tone && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (v / t) * 100)}%`, background: tone.bar }} />}
+        {frac < 1 && <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, (want / t) * 100)}% - 1px)` }} />}
       </div>
     </div>
   );
 }
+
+// $0, $850, $6.3K, $20K — short enough for the tiles.
+const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 
 const pickCls = 'rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold';
 

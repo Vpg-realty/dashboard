@@ -301,7 +301,9 @@ Under `src/views/`:
     contracts) and month (opps/offers/contracts/closed/projected $) cells
     coloured vs pace, funnel cells coloured vs team, % on top and "4 of 13" under it, biggest leak ringed dark orange (Luke, Oct 9), biggest leak. Click a
     rep → Rep.
-  - **Rep** — picker; score, leak callout, 8 pace tiles (week + month),
+  - **Rep** — picker; score, leak callout, 8 pace tiles (week + month; the
+    whole tile tinted green / amber / red vs pace with the same thresholds
+    as the Team cells — `paceTone` in metrics.js, Luke Oct 9),
     funnel with step rates vs team, and a by-state table. Period picker
     (Luke, Oct 8; from the old Advanced tab): Current, Custom range, every
     Mon–Sun week and calendar month on file. A past period is totalled from
