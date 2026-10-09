@@ -36,7 +36,7 @@ export function resolveDealFieldIds(customFields) {
 
 // A custom field value on an opportunity. GHL uses type-specific keys
 // (fieldValueString, fieldValueDate, …) or a plain fieldValue/value.
-function customValue(opp, fieldId) {
+export function customValue(opp, fieldId) {
   if (!fieldId) return null;
   const f = (opp.customFields || []).find((c) => c.id === fieldId);
   if (!f) return null;
@@ -88,4 +88,29 @@ export function extractDeals({ opportunities, stageOf, fieldIds, moStart }) {
     });
   }
   return deals;
+}
+
+// Opportunities that are Abandoned or Lost now — by stage (VPG has real
+// Abandoned / Lost stages) or by status — and got there since `sinceMs`.
+// server/stickyCounts.js turns the ones that had been under contract into
+// cancellations (Luke, Oct 9). `at` = when they moved (GHL's last stage /
+// status change, whichever is later).
+export function extractLost({ opportunities, stageOf, fieldIds, sinceMs }) {
+  const ts = (v) => (v ? new Date(v).getTime() : 0);
+  const out = [];
+  for (const o of opportunities || []) {
+    const stage = stageOf(o);
+    const lost = stage === 'abandoned' || stage === 'lost' || o.status === 'abandoned' || o.status === 'lost';
+    if (!lost || !o.id) continue;
+    const at = Math.max(ts(o.lastStatusChangeAt), ts(o.lastStageChangeAt));
+    if (at && at < sinceMs) continue;
+    out.push({
+      id: o.id,
+      stage,
+      address: customValue(o, fieldIds.address) || o.name || '',
+      value: Number(o.monetaryValue || 0),
+      at: at || null,
+    });
+  }
+  return out;
 }

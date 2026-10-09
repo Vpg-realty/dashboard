@@ -25,6 +25,8 @@
 
 const OFFER_RANK = 3; // offer_submitted — see STAGE_RANK in aggregate.js
 const UC_RANK = 5;    // under_contract
+const CLOSED_RANK = 8;
+const STAGE_OF_RANK = { 5: 'under_contract', 6: 'dispo', 7: 'assigned' };
 const BAND_MAX = 99;  // abandoned / lost sentinel — outside every band
 
 const inOfferBand = (r) => r >= OFFER_RANK && r < BAND_MAX;
@@ -63,6 +65,9 @@ function periodStartsMs(now) {
 // before it — counted in any period that began before then).
 export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set() }) {
   const { weekMs, monthMs } = periodStartsMs(now);
+  // Cancellations are kept from the start of last month.
+  const lm = new Date(monthMs); lm.setMonth(lm.getMonth() - 1);
+  const keepFromMs = lm.getTime();
   const wk = weekKey(now);
   const mo = monthKey(now);
   const weekReset = !prevState || prevState.weekKey !== wk;
@@ -148,10 +153,38 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     }
     const deals = (p.deals || []).map((d) => ({ ...d, startedAt: started[d.id] || null }));
 
-    // Strip the heavy per-opp rank list — it must never reach the browser.
-    const { _oppRanks, ...clean } = p;
-    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth });
-    statePairs[key] = { ranks: currMap, started, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    // Cancelled contracts (Luke, Oct 9): a deal that was placed under
+    // contract — Under Contract, DISPO Active or Assigned — and later moved
+    // to Abandoned or Lost (stage or status). Dated when it moved in GHL,
+    // counted once per opp. "Was under contract" = in that band on the
+    // previous run, or carrying a contract start time (`started`, kept
+    // since Oct 7) — the latter also backfills cancels that happened before
+    // this was added. A deal that had already Closed doesn't count.
+    const prevCancelled = prev?.cancelled || {};
+    const cancelled = {};
+    for (const [id, c] of Object.entries(prevCancelled)) if (c.at >= keepFromMs) cancelled[id] = c;
+    for (const l of p._lost || []) {
+      if (prevCancelled[l.id] || cancelled[l.id]) continue;
+      const before = prevRanks ? prevRanks[l.id] : undefined;
+      const nowRank = currMap[l.id];
+      const fromRank = before >= UC_RANK && before < CLOSED_RANK ? before
+        : nowRank >= UC_RANK && nowRank < CLOSED_RANK ? nowRank   // lost by status, stage unchanged
+          : null;
+      const wasStarted = prevStarted && prevStarted[l.id] != null && before !== CLOSED_RANK;
+      if (fromRank == null && !wasStarted) continue;
+      const at = l.at || now.getTime();
+      if (at < keepFromMs) continue;
+      cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0 };
+    }
+    const cancelList = Object.entries(cancelled).map(([id, c]) => ({ id, ...c })).sort((a, b) => a.at - b.at);
+    const cancelsWeek = cancelList.filter((c) => c.at >= weekMs).length;
+    const cancelsMonth = cancelList.filter((c) => c.at >= monthMs).length;
+
+    // Strip the internal per-opp lists — they must never reach the browser.
+    // eslint-disable-next-line no-unused-vars
+    const { _oppRanks, _lost, ...clean } = p;
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
+    statePairs[key] = { ranks: currMap, started, cancelled, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {
