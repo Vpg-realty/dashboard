@@ -258,8 +258,18 @@ Under `src/views/`:
   month's counts stage to stage (Convo→Opp, Opp→Offer, Offer→Contract; no
   Contract→Close — closings come from earlier months); "biggest leak" =
   the step furthest below the team rate, flagged when 20%+ below.
-  - **Team** — 4 summary tiles (reps on pace, avg score, most common leak,
-    needs a 1-on-1 = score < 75) and a table: score, week (opps/offers/
+  - **Score display** (Luke, Oct 9: "make it clear", `views/manager/Score.jsx`):
+    score = coloured pill with band name (Strong 90+, Watch 75–89, Behind
+    under 75 = needs a 1-on-1; `SCORE_BANDS`), a segment bar per part
+    (`SCORE_PARTS`: contracts blue 47, projected teal 20, offers violet 20,
+    opps amber 13 — out of 100; width = weight, fill = earned), an
+    "ⓘ How the score works" panel (Team + Rep header), and on Rep a
+    click-open breakdown (actual of target, points; rounded so they sum to
+    the total, a met target always shows full points).
+  - **Team** — 4 summary tiles coloured green / amber / red (on pace ≥75% /
+    ≥50% of reps; avg score by band; leak none / under half / half+ of reps;
+    1-on-1s 0 / 1–2 / 3+) — reps on pace, avg score, most common leak,
+    needs a 1-on-1 = score < 75 — and a table: score, week (opps/offers/
     contracts) and month (opps/offers/contracts/closed/projected $) cells
     coloured vs pace, funnel cells coloured vs team and reading "31% · 4 of 13", biggest leak. Click a
     rep → Rep.

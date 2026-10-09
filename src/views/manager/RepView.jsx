@@ -11,7 +11,8 @@ import { formatCompactCurrency } from '../../utils/format.js';
 import { paceFraction } from '../../utils/pace.js';
 import { STATE_DOT } from '../../utils/marketShade.js';
 import ManagerFrame from './ManagerFrame.jsx';
-import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, scoreTone, paceClsFrac, convCls } from './metrics.js';
+import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
+import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, paceClsFrac, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
 // not recorded for the period (pre-Sept 14 history).
@@ -47,6 +48,7 @@ export default function RepView({ repId, onPickRep, onBack }) {
   const [period, setPeriod] = useState('now');
   const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
   const [customTo, setCustomTo] = useState(today);
+  const [showScore, setShowScore] = useState(false);
 
   // Anything but "Current" is a date range totalled from history.
   let range = null;
@@ -98,6 +100,7 @@ export default function RepView({ repId, onPickRep, onBack }) {
       <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
         {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
+      {!range && <ScoreHelp light />}
       <select className={pickCls} value={period} onChange={(e) => setPeriod(e.target.value)}>
         <option value="now">Current</option>
         <option value="custom">Custom range…</option>
@@ -126,8 +129,21 @@ export default function RepView({ repId, onPickRep, onBack }) {
             <span className={`ml-4 rounded-full px-3 py-1 text-sm font-semibold ${warn ? 'bg-orange-50 text-orange-700' : 'bg-zinc-100 text-zinc-600'}`}>{note}</span>
           ) : (
             <>
-              <span className={`ml-4 text-3xl font-extrabold tabular-nums ${scoreTone(score).text}`}>{score}</span>
-              <span className="text-xs text-zinc-500">weekly score</span>
+              <span className="relative ml-4">
+                <button onClick={() => setShowScore((v) => !v)} className="flex items-center gap-3 rounded-lg hover:bg-zinc-50 px-1 py-0.5 text-left" title="Show how this score adds up">
+                  <ScorePill score={score} big />
+                  <span className="flex flex-col gap-1 w-40">
+                    <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">Weekly score {showScore ? '▴' : '▾'}</span>
+                    <ScoreBar m={m} h="h-2" title={false} />
+                  </span>
+                </button>
+                {showScore && (
+                  <div className="absolute left-0 top-full mt-2 z-40 w-[34rem] rounded-xl bg-white border border-zinc-300 shadow-xl p-4">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">How {first(rep)}'s {score} adds up · this week</div>
+                    <ScoreBreakdown m={m} />
+                  </div>
+                )}
+              </span>
             </>
           )}
           {leak && (

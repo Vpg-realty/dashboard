@@ -98,17 +98,33 @@ export function biggestLeak(m, teamRates) {
 // people, so it's left out and the rest is scaled to 100. No contract this
 // week caps the score at 89, like the sheet. Projected is judged against
 // the share of the $25k month that's due by this week of the month.
-export function weeklyScore(m) {
-  const weekOfMonth = Math.min(4, Math.ceil(+laToday().slice(8, 10) / 7));
-  const s = Math.round(((Math.min(1, m.contractsW / T.contractsPerWeek) * 35
-    + Math.min(1, m.projected / ((T.revenuePerRepMonth / 4) * weekOfMonth)) * 15
-    + Math.min(1, m.offersW / T.offersPerWeek) * 15
-    + Math.min(1, m.oppsW / T.oppsOpenedPerWeek) * 10) / 75) * 100);
-  return m.contractsW === 0 ? Math.min(89, s) : s;
+// scoreParts gives each piece (points earned of its weight) so the views
+// can show where a score comes from (Luke, Oct 9: "make it clear").
+export const SCORE_PARTS = [
+  { key: 'contracts', label: 'Contracts', weight: 35, color: '#1d4ed8' },
+  { key: 'projected', label: 'Projected $', weight: 15, color: '#0d9488' },
+  { key: 'offers', label: 'Offers', weight: 15, color: '#7c3aed' },
+  { key: 'opps', label: 'Opps opened', short: 'Opps', weight: 10, color: '#d97706' },
+];
+export const weekOfMonth = () => Math.min(4, Math.ceil(+laToday().slice(8, 10) / 7));
+export function scoreParts(m) {
+  const want = { contracts: T.contractsPerWeek, projected: (T.revenuePerRepMonth / 4) * weekOfMonth(), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
+  const have = { contracts: m.contractsW, projected: m.projected, offers: m.offersW, opps: m.oppsW };
+  const parts = SCORE_PARTS.map((p) => {
+    const share = Math.min(1, (have[p.key] || 0) / want[p.key]);
+    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * p.weight };
+  });
+  const raw = Math.round((parts.reduce((a, p) => a + p.pts, 0) / 75) * 100);
+  const capped = m.contractsW === 0 && raw > 89;
+  return { parts, raw, capped, score: capped ? 89 : raw };
 }
-export const scoreTone = (s) => (s >= 90
-  ? { text: 'text-emerald-600', c: '#059669', label: 'STRONG' }
-  : s >= 75 ? { text: 'text-amber-600', c: '#d97706', label: 'WATCH' } : { text: 'text-rose-600', c: '#dc2626', label: 'RED' });
+export const weeklyScore = (m) => scoreParts(m).score;
+export const SCORE_BANDS = [
+  { min: 90, label: 'Strong', text: 'text-emerald-700', bg: 'bg-emerald-100', c: '#059669', note: 'on track for the week' },
+  { min: 75, label: 'Watch', text: 'text-amber-700', bg: 'bg-amber-100', c: '#d97706', note: 'slipping on one or two targets' },
+  { min: 0, label: 'Behind', text: 'text-rose-700', bg: 'bg-rose-100', c: '#dc2626', note: 'missing targets — worth a 1-on-1' },
+];
+export const scoreTone = (s) => SCORE_BANDS.find((b) => s >= b.min);
 
 // Cell colour against pace (target × share of the period gone).
 export const paceCls = (actual, target, period) => paceClsFrac(actual, target, paceFraction(period));
