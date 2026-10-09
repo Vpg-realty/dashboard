@@ -17,6 +17,13 @@ const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
 // merge logic).
 export const SUBACCOUNTS = config.subaccounts;
 
+// Opportunities to ignore everywhere (Luke, Oct 9: a deal placed in the
+// wrong rep's pipeline). excluded-opps.json at the repo root.
+const EXCLUDED_PATH = path.resolve(here, '..', 'excluded-opps.json');
+let excluded = [];
+try { excluded = JSON.parse(readFileSync(EXCLUDED_PATH, 'utf8')).opps || []; } catch { excluded = []; }
+export const EXCLUDED_OPP_IDS = new Set(excluded.map((o) => o.id));
+
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
 export const STAGE_ALIASES = {

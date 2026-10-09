@@ -48,7 +48,21 @@ const pairKey = (p) => `${p.repId}|${p.marketId}`;
 // Pure. Takes the fresh snapshot pairs (each carrying _oppRanks), the previous
 // run's persisted state, and now; returns { pairs (sticky, _oppRanks stripped),
 // state (to persist for the next run) }.
-export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
+// Start of this week / month in the runner's zone, as ms (for undoing an
+// excluded opp's crossings, below).
+function periodStartsMs(now) {
+  const w = new Date(now); w.setHours(0, 0, 0, 0); w.setDate(w.getDate() - ((w.getDay() || 7) - 1));
+  const m = new Date(now); m.setHours(0, 0, 0, 0); m.setDate(1);
+  return { weekMs: w.getTime(), monthMs: m.getTime() };
+}
+
+// `excluded` = opp ids from excluded-opps.json. They're already filtered out
+// of the snapshot; if the previous run still has one, the crossings it added
+// this week / month are taken back once (it reached the contract band at
+// `started`, so that crossing — and the offer one, which happens at or
+// before it — counted in any period that began before then).
+export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set() }) {
+  const { weekMs, monthMs } = periodStartsMs(now);
   const wk = weekKey(now);
   const mo = monthKey(now);
   const weekReset = !prevState || prevState.weekKey !== wk;
@@ -81,6 +95,17 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
       contractsWeek = bcContractsWeek;
       contractsMonth = bcContractsMonth;
     } else {
+      // Take back what an excluded opp added (once — it's gone from the
+      // ranks after this run).
+      let undoOffersWeek = 0, undoOffersMonth = 0, undoContractsWeek = 0, undoContractsMonth = 0;
+      for (const id of excluded) {
+        const r = prevRanks?.[id];
+        if (r == null) continue;
+        const st = prev.started?.[id];
+        if (!st || !inContractBand(r)) continue;
+        if (st >= weekMs) { undoContractsWeek++; if (inOfferBand(r)) undoOffersWeek++; }
+        if (st >= monthMs) { undoContractsMonth++; if (inOfferBand(r)) undoOffersMonth++; }
+      }
       // Count upward band crossings since the previous run.
       let offerCross = 0;
       let contractCross = 0;
@@ -89,10 +114,10 @@ export function applyStickyCounts({ pairs, prevState, now = new Date() }) {
         if (!inOfferBand(before) && inOfferBand(o.r)) offerCross++;
         if (!inContractBand(before) && inContractBand(o.r)) contractCross++;
       }
-      offersWeek = weekReset ? bcOffersWeek : (prev.offersWeek || 0) + offerCross;
-      offersMonth = monthReset ? bcOffersMonth : (prev.offersMonth || 0) + offerCross;
-      contractsWeek = weekReset ? bcContractsWeek : (prev.contractsWeek || 0) + contractCross;
-      contractsMonth = monthReset ? bcContractsMonth : (prev.contractsMonth || 0) + contractCross;
+      offersWeek = weekReset ? bcOffersWeek : Math.max(0, (prev.offersWeek || 0) - undoOffersWeek) + offerCross;
+      offersMonth = monthReset ? bcOffersMonth : Math.max(0, (prev.offersMonth || 0) - undoOffersMonth) + offerCross;
+      contractsWeek = weekReset ? bcContractsWeek : Math.max(0, (prev.contractsWeek || 0) - undoContractsWeek) + contractCross;
+      contractsMonth = monthReset ? bcContractsMonth : Math.max(0, (prev.contractsMonth || 0) - undoContractsMonth) + contractCross;
     }
 
     // Floor: never read below the live breadcrumb (e.g. a burst of offers that

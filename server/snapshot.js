@@ -4,7 +4,7 @@
 //
 // Result shape: { generatedAt, pairs: [...], errors: [...] }
 
-import { SUBACCOUNTS } from './config.js';
+import { SUBACCOUNTS, EXCLUDED_OPP_IDS } from './config.js';
 import {
   getOpportunities,
   getPipelines,
@@ -116,7 +116,8 @@ export async function buildSnapshot({ tokens }) {
         const pair = aggregatePair({
           repId,
           marketId,
-          opportunities,
+          // Mistakenly placed deals (excluded-opps.json) never reach any count.
+          opportunities: (opportunities || []).filter((o) => !EXCLUDED_OPP_IDS.has(o.id)),
           pipelines,
           oppCustomFields,
           convosNewToday,
