@@ -407,8 +407,17 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 
 ## Weekly scorecard export (Luke, Oct 7)
 
-`.github/workflows/scorecard.yml` runs every Friday 19:00 UTC (= 12:00
-Arizona, which has no DST) and `scripts/weekly-scorecard.mjs`:
+**Trigger (Luke, Oct 9):** GitHub's cron in `scorecard.yml` (Fridays 19:00
+UTC = 12:00 Arizona) is best-effort and on Oct 9 never fired, so the real
+trigger is `scripts/auto-scorecard.mjs`, chained after build-snapshot in
+`npm run snapshot` (that deploy step has `ALL_SECRETS`, so no workflow
+edit): every deploy (~15 min) on a Friday from 12:00 Arizona it runs
+weekly-scorecard.mjs on the freshly built `public/data.json`
+(`SCORECARD_DATA_FILE`) with `SCORECARD_SKIP_IF_EXISTS=1`, so the week's
+tab is written once and then left alone. It never fails the deploy. The
+cron and manual "Run workflow" still work (they update the tab in place).
+
+`scripts/weekly-scorecard.mjs`:
 reads the deployed `data.json`, duplicates the "TEMPLATE (copy me)" tab
 of the "VPG - Weekly Score Card" Google Sheet as "Week of <Mon> <D>"
 (inserted right after the template), and writes B3 (week-of label),

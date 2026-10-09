@@ -80,7 +80,11 @@ async function main() {
   const tab = test ? 'TEST – delete me' : info.tabName;
   console.log(`[scorecard] week ${info.monday} → ${info.friday} · week ${info.weekOfMonth} of month · tab "${tab}"`);
 
-  const data = await fetchJson(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+  // SCORECARD_DATA_FILE: read a local data.json (the deploy's freshly built
+  // one, scripts/auto-scorecard.mjs) instead of the published copy.
+  const data = process.env.SCORECARD_DATA_FILE
+    ? JSON.parse(fs.readFileSync(process.env.SCORECARD_DATA_FILE, 'utf8'))
+    : await fetchJson(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
   if (!Array.isArray(data?.pairs)) fail('data.json is malformed.');
   console.log(`[scorecard] data.json generated ${data.generatedAt}`);
   const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'subaccounts.json'), 'utf8'));
@@ -97,6 +101,11 @@ async function main() {
   const template = sheets.find((s) => s.title === TEMPLATE_TAB);
   if (!template) fail(`No "${TEMPLATE_TAB}" tab in the sheet.`);
 
+  if (sheets.some((s) => s.title === tab) && process.env.SCORECARD_SKIP_IF_EXISTS === '1') {
+    // The auto run (scripts/auto-scorecard.mjs) fills each week's tab once.
+    console.log(`[scorecard] "${tab}" already exists — nothing to do`);
+    return;
+  }
   if (sheets.some((s) => s.title === tab)) {
     console.log(`[scorecard] "${tab}" already exists — updating it in place`);
   } else {
