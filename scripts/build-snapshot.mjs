@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
 import { applyStickyCounts } from '../server/stickyCounts.js';
+import { EXCLUDED_OPP_IDS } from '../server/config.js';
 import { keepCallsMonotonic } from '../server/calls.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -142,7 +143,7 @@ const snapshot = await buildSnapshot({ tokens });
 }
 
 const prevOppState = await loadPrevOppState();
-const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date() });
+const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date(), excluded: EXCLUDED_OPP_IDS });
 snapshot.pairs = sticky.pairs;
 fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
 fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));

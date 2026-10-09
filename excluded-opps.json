@@ -1,0 +1,6 @@
+{
+  "_doc": "Opportunities the dashboard ignores everywhere (counts, pipeline, wins, celebrations). Use for deals put in the wrong sub-account by mistake. The dashboard never writes to GHL, so fix the opp there too if needed. Read by server/config.js.",
+  "opps": [
+    { "id": "hxjmRBPDNF0dPwSew2DO", "name": "Linda Booker", "subaccount": "daniel / AZ", "why": "Placed in Daniel's pipeline by mistake (Luke, Oct 9)" }
+  ]
+}
