@@ -128,6 +128,16 @@ export const scoreTone = (s) => SCORE_BANDS.find((b) => s >= b.min);
 
 // Cell colour against pace (target × share of the period gone).
 export const paceCls = (actual, target, period) => paceClsFrac(actual, target, paceFraction(period));
+// Full colour set for a whole tile graded against pace — same thresholds and
+// colours as the Team table cells (Luke, Oct 9: Rep tiles "the whole thing
+// should be in the same color").
+export function paceTone(actual, target, frac) {
+  const want = target * frac;
+  const r = want > 0 ? actual / want : 1;
+  if (r >= 1) return { key: 'good', box: 'bg-emerald-100 border-emerald-300', text: 'text-emerald-800', badge: 'bg-emerald-600 text-white', bar: '#059669' };
+  if (r >= 0.75) return { key: 'close', box: 'bg-amber-100 border-amber-300', text: 'text-amber-900', badge: 'bg-amber-500 text-white', bar: '#d97706' };
+  return { key: 'bad', box: 'bg-rose-100 border-rose-300', text: 'text-rose-800', badge: 'bg-rose-600 text-white', bar: '#e11d48' };
+}
 export function paceClsFrac(actual, target, frac) {
   const want = target * frac;
   const r = want > 0 ? actual / want : 1;
