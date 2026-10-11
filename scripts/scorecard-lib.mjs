@@ -86,3 +86,77 @@ export function cellUpdates(tab, columnA, info, numbers) {
   }
   return { data, missing };
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard scorecard (Luke, Oct 11: the Team tab replaces the Google Sheet).
+// Shared by the browser (views/manager/ScorecardView.jsx) and the Friday
+// freeze (scripts/update-scorecards.mjs).
+
+// Pods as on the sheet. Pod leads are scored but kept out of pod totals;
+// anyone not listed (Patrick) is shown under "No pod".
+export const PODS = [
+  { id: 'A', title: 'Pod A', lead: 'anthony', reps: ['spencer_brown', 'axel', 'cayden_sicz'] },
+  { id: 'B', title: 'Pod B', lead: 'sam_mackenzie', reps: ['danni_brown', 'daniel', 'prince_pharrams'] },
+];
+export const POD_LEADS = ['anthony', 'sam_mackenzie'];
+
+// The sheet's 5-item CRM checklist, 0 / 1 / 2 points each (Luke: 2 = all
+// good, 1 = 60%+, 0 = below that).
+export const CRM_ITEMS = [
+  { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Every lead in the correct stage; nothing past its IP end / COE; no deal untouched 14+ days.' },
+  { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each lead in the pipeline has a note made while it has been in the pipeline.' },
+  { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Texts follow the VPG Texting Standard: answer within 15 min, every text ends in a question, nothing from Never send, professional, right questions on a lead.' },
+  { key: 'dispo', label: 'Clean dispo handoffs', short: 'Dispo', help: 'Every deal that went under contract this week has every non-optional field filled.' },
+  { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'Every lead in the pipeline has had a check-in with the agent within the last 3 days.' },
+];
+export const REVIEWERS = ['Jack', 'Luke', 'Anthony', 'Sam'];
+
+// The sheet's weekly score, 0–100: contracts 35, projected $ 15 (vs $6,250 ×
+// week of month, capped at $25K), offers 15, opps opened 10, CRM 25; zero
+// contracts caps the score at 89. Without CRM grades yet the other 75 points
+// are scaled to 100 and the result is marked `estimate`.
+export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 0 }, crm, weekOfMonth) {
+  const cap = (x) => Math.max(0, Math.min(1, x));
+  const pace = 6250 * Math.min(4, Math.max(1, weekOfMonth || 1));
+  const parts = {
+    contracts: cap(contractsW / 1) * 35,
+    projected: cap(projected / pace) * 15,
+    offers: cap(offersW / 5) * 15,
+    opps: cap(oppsW / 10) * 10,
+  };
+  const base = parts.contracts + parts.projected + parts.offers + parts.opps;
+  const has = Array.isArray(crm) && crm.every((v) => v === 0 || v === 1 || v === 2);
+  const crmPts = has ? crm.reduce((a, b) => a + b, 0) : null;
+  let score = has ? base + (crmPts / 10) * 25 : (base / 75) * 100;
+  score = Math.round(score);
+  if (!contractsW) score = Math.min(89, score);
+  return { score, estimate: !has, crm: crmPts, parts, projectedPace: pace };
+}
+export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Attention' : 'Red Week');
+
+// One frozen week's numbers per rep from a data.json (repId-keyed).
+export function freezeNumbers(data, reps, month) {
+  const out = {};
+  for (const rep of reps) {
+    const pairs = (data.pairs || []).filter((p) => p.repId === rep.id);
+    const sum = (k) => pairs.reduce((a, p) => a + (Number(p[k]) || 0), 0);
+    const assigned = pairs
+      .flatMap((p) => p.deals || [])
+      .filter((d) => d.stage === 'assigned' && typeof d.coe === 'string' && d.coe.slice(0, 7) === month)
+      .reduce((a, d) => a + (Number(d.value) || 0), 0);
+    out[rep.id] = {
+      contractsW: sum('contractsWeek'), offersW: sum('offersWeek'), oppsW: sum('oppsOpenedWeek'), cancelsW: sum('cancelsWeek'),
+      contractsM: sum('contractsMonth'), offersM: sum('offersMonth'), oppsM: sum('oppsOpenedMonth'), cancelsM: sum('cancelsMonth'),
+      projected: Math.round(sum('revenueMonth') + assigned),
+    };
+  }
+  return out;
+}
+
+// Is it past the weekly freeze (Friday 12:00 Arizona) for the week holding
+// `now`? Saturday and Sunday belong to the week just finished (weekInfo).
+export function pastFreeze(now = new Date()) {
+  const az = new Date(now.getTime() - 7 * 3600_000);
+  const dow = az.getUTCDay();
+  return dow === 6 || dow === 0 || (dow === 5 && az.getUTCHours() >= 12);
+}

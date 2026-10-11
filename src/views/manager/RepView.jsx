@@ -14,7 +14,8 @@ import ManagerFrame from './ManagerFrame.jsx';
 import useMonthLog from './useMonthLog.js';
 import { cancelsInRange, addedContractsInRange } from './monthReview.js';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
-import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, weeklyScore, paceTone, convCls } from './metrics.js';
+import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
+import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
 // not recorded for the period (pre-Sept 14 history).
@@ -94,7 +95,10 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   const teamRates = STEPS.map((s) => rate(team, s));
   // Pre-Sept 14 ranges have no opp counts, so no funnel to judge.
   const leak = m.untracked?.size ? null : biggestLeak(m, teamRates);
-  const score = weeklyScore(m);
+  // This week's CRM grades from the scorecard (Team tab), if given yet.
+  const sc = useScorecards();
+  const crm = reviewFor(sc, currentWeek().monday, rep.id).crm;
+  const { score, estimate } = scoreParts(m, crm);
   const markets = rep.markets.map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,
     m: (() => {
@@ -166,14 +170,14 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
                 <button onClick={() => setShowScore((v) => !v)} className="flex items-center gap-3 rounded-lg hover:bg-zinc-50 px-1 py-0.5 text-left" title="Show how this score adds up">
                   <ScorePill score={score} big />
                   <span className="flex flex-col gap-1 w-40">
-                    <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">Weekly score {showScore ? '▴' : '▾'}</span>
-                    <ScoreBar m={m} h="h-2" title={false} />
+                    <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">Weekly score{estimate ? ' · est.' : ''} {showScore ? '▴' : '▾'}</span>
+                    <ScoreBar m={m} crm={crm} h="h-2" title={false} />
                   </span>
                 </button>
                 {showScore && (
                   <div className="absolute left-0 top-full mt-2 z-40 w-[34rem] rounded-xl bg-white border border-zinc-300 shadow-xl p-4">
                     <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">How {first(rep)}'s {score} adds up · this week</div>
-                    <ScoreBreakdown m={m} />
+                    <ScoreBreakdown m={m} crm={crm} />
                   </div>
                 )}
               </span>
