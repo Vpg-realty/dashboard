@@ -291,7 +291,9 @@ Under `src/views/`:
   red "N late" count pinned at its foot; those deals also stay in their
   stage columns). Each stage runs off one key date (`KEY_DATE`): IP end
   for Under Contract and Dispo, COE for Assigned. Only that date gets the
-  deadline colours and turns solid red "late Nd" once passed; the other
+  deadline colours and turns near-black maroon "late Nd" once passed
+  (`LATE`, #4c0519 — Luke, Oct 11: late and day-of reds were too close; day-of
+  is bright red-600, and the "N late" chips / footer use the same maroon); the other
   date is a grey reference chip (hidden below 2xl width). Late deals sort
   to the top, then soonest key date. Cards are two lines (address + value;
   rep · state + date chips), so ~11 fit per column. Headers: count, $ only

@@ -34,12 +34,17 @@ const KEY_DATE = { under_contract: 'ip', dispo: 'ip', assigned: 'coe' };
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // Deadline colours (Luke, Sept 29): 3 days out light blue, 2 days light
-// yellow, 1 day light red, day-of dark red. Further out stays plain; dates
-// already behind us are greyed.
+// yellow, 1 day light red, day-of bright red. Further out stays plain; dates
+// already behind us are greyed. Late (key date passed) is a near-black
+// maroon, `LATE`, so it can't be mistaken for day-of (Luke, Oct 11: "the late
+// and day of reds are too close").
+const LATE = 'border-[#2a0509] bg-[#4c0519] text-white';
+const LATE_BG = '#4c0519';
+
 function deadlineTone(daysOut) {
   if (daysOut == null) return { box: 'border-zinc-200 bg-white text-zinc-400', label: 'text-zinc-400', rel: null };
   if (daysOut < 0) return { box: 'border-zinc-200 bg-zinc-50 text-zinc-400', label: 'text-zinc-400', rel: 'passed' };
-  if (daysOut === 0) return { box: 'border-red-800 bg-red-700 text-white', label: 'text-red-100', rel: 'today' };
+  if (daysOut === 0) return { box: 'border-red-700 bg-red-600 text-white', label: 'text-red-100', rel: 'today' };
   if (daysOut === 1) return { box: 'border-red-300 bg-red-100 text-red-800', label: 'text-red-600', rel: 'tmrw' };
   if (daysOut === 2) return { box: 'border-yellow-300 bg-yellow-100 text-yellow-900', label: 'text-yellow-700', rel: '2d' };
   if (daysOut === 3) return { box: 'border-sky-300 bg-sky-100 text-sky-900', label: 'text-sky-700', rel: '3d' };
@@ -87,8 +92,8 @@ export default function PipelineView() {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-zinc-600 shrink-0">
-        <Key className="border-rose-700 bg-rose-600" label="Late" />
-        <Key className="border-red-800 bg-red-700" label="Day of" />
+        <Key className={LATE} label="Late" />
+        <Key className="border-red-700 bg-red-600" label="Day of" />
         <Key className="border-red-300 bg-red-100" label="1 day out" />
         <Key className="border-yellow-300 bg-yellow-100" label="2 days out" />
         <Key className="border-sky-300 bg-sky-100" label="3 days out" />
@@ -149,7 +154,7 @@ function DueNowColumn({ deals, today }) {
         ))}
       </AutoScroll>
       {late > 0 && (
-        <div className="shrink-0 m-2 mt-0 rounded-lg bg-rose-600 text-white px-3 py-2">
+        <div className="shrink-0 m-2 mt-0 rounded-lg text-white px-3 py-2" style={{ background: LATE_BG }}>
           <div className="text-base font-extrabold">{late} late</div>
           <div className="text-xs opacity-90">IP end or COE passed · shown in red at the top of each column</div>
         </div>
@@ -202,7 +207,7 @@ function StageColumn({ col, deals, today }) {
         <div className="flex items-center gap-2 mt-1 min-h-[1.5rem] text-sm">
           {total > 0 && <span className="font-bold text-emerald-700 tabular-nums">{formatCurrency(total)}</span>}
           {closed && <span className="text-zinc-500">resets on the 1st</span>}
-          {late > 0 && <span className="rounded-full bg-rose-600 text-white text-xs font-bold px-2 py-0.5">{late} late</span>}
+          {late > 0 && <span className="rounded-full text-white text-xs font-bold px-2 py-0.5" style={{ background: LATE_BG }}>{late} late</span>}
           {soon > 0 && <span className="rounded-full bg-amber-400 text-amber-950 text-xs font-bold px-2 py-0.5">{soon} due today / tmrw</span>}
         </div>
       </div>
@@ -218,7 +223,7 @@ function DealCard({ deal, closed }) {
   const key = KEY_DATE[deal.stage];
   return (
     <div
-      className={`rounded-lg border px-3 py-2 shrink-0 ${deal.late ? 'border-rose-300 bg-rose-50' : 'border-zinc-200 bg-zinc-50/60'}`}
+      className={`rounded-lg border px-3 py-2 shrink-0 ${deal.late ? 'border-[#4c0519]/40 bg-[#4c0519]/[0.06]' : 'border-zinc-200 bg-zinc-50/60'}`}
       style={{ borderLeft: `4px solid ${deal.rep?.color || '#a1a1aa'}` }}
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -252,7 +257,7 @@ function DateChip({ label, date, daysOut, isKey }) {
   let rel = null;
   if (isKey && date) {
     if (daysOut < 0) {
-      box = 'border-rose-700 bg-rose-600 text-white';
+      box = LATE;
       rel = `late ${-daysOut}d`;
     } else {
       const t = deadlineTone(daysOut);
