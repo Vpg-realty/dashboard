@@ -7,7 +7,7 @@ const LABELS = {
   master: 'Overview',
   pipeline: 'Pipeline',
   'mgr-team': 'Team',
-  'mgr-rep': 'Rep',
+  'mgr-coaching': 'Coaching',
   'mgr-month': 'Month in Review',
 };
 

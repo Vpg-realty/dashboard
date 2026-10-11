@@ -71,14 +71,14 @@ function repScore(id) {
 }
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-function Row({ id }) {
+function Row({ id, onPickRep }) {
   const rep = repOf(id);
   const { m, items: crmItems, crm, score } = repScore(id);
   const tone = scoreTone(score);
   const projT = (T.revenuePerRepMonth / 4) * weekOfMonth();
   return (
     <div className="grid gap-x-1.5 items-stretch min-h-[2.9rem] h-full py-0.5" style={G}>
-      <span className="flex items-center gap-2 min-w-0"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} /><span className="text-[min(1rem,1.9vh)] font-bold truncate">{first(id)}</span></span>
+      <button onClick={() => onPickRep?.(id)} className="flex items-center gap-2 min-w-0 text-left hover:text-blue-700" title="Open this rep"><span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} /><span className="text-[min(1rem,1.9vh)] font-bold truncate underline-offset-2 hover:underline">{first(id)}</span></button>
       <span className="flex items-center">
         <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ${tone.bg} ${tone.text}`}>
           <span className="text-[min(1.2rem,2.2vh)] font-extrabold tabular-nums">{score}</span>
@@ -109,7 +109,7 @@ function Row({ id }) {
   );
 }
 
-function PodBlock({ pod }) {
+function PodBlock({ pod, onPickRep }) {
   const ms = pod.reps.map((id) => metrics(repPairs(id)));
   const sum = (k) => ms.reduce((a, m) => a + (m[k] || 0), 0);
   const n = pod.reps.length;
@@ -124,15 +124,19 @@ function PodBlock({ pod }) {
         )}
       </div>
       <div className="flex-1 grid" style={{ gridTemplateRows: `repeat(${n}, minmax(2.9rem,1fr))` }}>
-        {pod.reps.map((id) => <Row key={id} id={id} />)}
+        {pod.reps.map((id) => <Row key={id} id={id} onPickRep={onPickRep} />)}
       </div>
     </div>
   );
 }
 
-export default function ScorecardView() {
+export default function ScorecardView({ onPickRep }) {
   const right = (
     <>
+      <select className="rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold" value="__team" onChange={(e) => onPickRep?.(e.target.value === '__team' ? null : e.target.value)}>
+        <option value="__team">Full team (scorecard)</option>
+        {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+      </select>
       <select className="rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold"><option>Week of Oct 5 (this week · live)</option><option>Week of Sep 28</option><option>Week of Sep 21</option></select>
       <span className="rounded-md bg-white/15 px-2 py-1 text-xs font-semibold text-white">Freezes Fri 12:00 AZ · Reviewed by: —</span>
     </>
@@ -182,7 +186,7 @@ export default function ScorecardView() {
             <span className={`${head} text-left`}>Notes</span>
           </div>
           <div className="flex-1 min-h-0 flex flex-col gap-1.5 pt-1 overflow-y-auto">
-            {PODS.map((p) => <PodBlock key={p.title} pod={p} />)}
+            {PODS.map((p) => <PodBlock key={p.title} pod={p} onPickRep={onPickRep} />)}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-zinc-600 pt-1.5 border-t border-zinc-200 shrink-0">
             <span><b>Cells:</b> big number = this week vs weekly pace · bar = this month</span>

@@ -59,7 +59,7 @@ const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 
 
 const pickCls = 'rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold';
 
-export default function RepView({ repId, onPickRep, onBack }) {
+export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   const rep = REPS.find((r) => r.id === repId) || REPS[0];
   const pairs = repPairs(rep.id);
   const history = historyEntries();
@@ -130,6 +130,7 @@ export default function RepView({ repId, onPickRep, onBack }) {
   const picker = (
     <>
       <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
+        {withTeam && <option value="__team">Full team (scorecard)</option>}
         {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
       {!range && <ScoreHelp light />}
