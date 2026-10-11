@@ -23,7 +23,7 @@ const HATCH = 'repeating-linear-gradient(135deg, #e4e4e7 0 3px, #f4f4f5 3px 6px)
 export function ScoreBar({ m, crm = null, h = 'h-1.5', title = true }) {
   const { parts } = scoreParts(m, crm);
   return (
-    <span className={`flex gap-[2px] w-full ${h}`} title={title ? parts.map((p) => (p.pending ? `${p.label} not graded yet` : `${p.label} ${Math.round(p.pts)}/${p.weight}`)).join(' · ') : undefined}>
+    <span className={`flex gap-[2px] w-full ${h}`} title={title ? parts.map((p) => (p.pending ? `${p.label} not graded yet` : `${p.label} ${Math.round(p.pts)}/${p.max}`)).join(' · ') : undefined}>
       {parts.map((p) => (
         <span key={p.key} className="relative h-full rounded-sm bg-zinc-200 overflow-hidden" style={{ flex: p.weight, ...(p.pending ? { background: HATCH } : {}) }}>
           {!p.pending && <span className="absolute inset-y-0 left-0" style={{ width: `${p.share * 100}%`, background: p.color }} />}
@@ -35,12 +35,11 @@ export function ScoreBar({ m, crm = null, h = 'h-1.5', title = true }) {
 
 // Full breakdown for one rep: each part's actual vs target and points.
 export function ScoreBreakdown({ m, crm = null }) {
-  const { parts, raw, capped, score, estimate } = scoreParts(m, crm);
+  const { parts, raw, capped, score, estimate, scale: k } = scoreParts(m, crm);
   // Points out of 100, rounded so they add up to the total. A part at its
   // target always shows its full points; the rounding goes on the others.
-  // Until CRM is graded the other four parts are scaled up to 100.
-  const k = estimate ? 100 / 75 : 1;
-  const full = (p) => (p.pending ? 0 : Math.round(p.weight * k));
+  // Until all of CRM is graded the graded parts are scaled up to 100.
+  const full = (p) => (p.pending ? 0 : Math.round(p.max * k));
   const exact = parts.map((p) => (p.pending ? 0 : p.pts * k));
   const shown = parts.map((p, i) => (p.share >= 1 ? full(p) : Math.floor(exact[i])));
   const open = parts.map((p, i) => [exact[i] - Math.floor(exact[i]), i]).filter(([, i]) => parts[i].share < 1 && !parts[i].pending).sort((a, b) => b[0] - a[0]);
@@ -57,13 +56,13 @@ export function ScoreBreakdown({ m, crm = null }) {
         <div key={p.key} className="grid grid-cols-[9.5rem_1fr_8.5rem_3.5rem] items-center gap-2 text-sm">
           <span className="flex items-center gap-1.5 font-semibold whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.color }} />{p.label}</span>
           <span className="h-2 rounded-sm bg-zinc-200 overflow-hidden" style={p.pending ? { background: HATCH } : undefined}>{!p.pending && <span className="block h-full" style={{ width: `${p.share * 100}%`, background: p.color }} />}</span>
-          <span className="text-zinc-500 tabular-nums text-right whitespace-nowrap">{p.pending ? 'not graded yet' : `${fmt(p, p.have)} of ${fmt(p, p.want)}`}</span>
+          <span className="text-zinc-500 tabular-nums text-right whitespace-nowrap">{p.pending ? 'not graded yet' : `${fmt(p, p.have)} of ${fmt(p, p.want)}${p.partial ? ` · ${p.known} of 5 items` : ''}`}</span>
           <span className="font-bold tabular-nums text-right">{p.pending ? '—' : shown[i]}<span className="text-zinc-400 font-semibold">/{p.pending ? p.weight : full(p)}</span></span>
         </div>
       ))}
       <div className="text-xs text-zinc-500 pt-1 border-t border-zinc-200">
         Total {raw} / 100{capped ? ` → capped at ${score}: no contract this week` : ''}
-        {estimate ? ' · estimate: CRM not graded yet, the other parts are scaled up to 100' : ''}
+        {estimate ? ' · estimate: not all CRM items graded yet, the graded parts are scaled up to 100' : ''}
       </div>
     </div>
   );
@@ -123,7 +122,7 @@ export function ScoreHelp({ light }) {
             <ul className="mt-3 text-sm text-zinc-600 space-y-1 list-disc pl-5">
               <li>Each part pays in proportion: 3 of 5 offers = 60% of the offer points. Going over the target doesn't add more.</li>
               <li>No contract this week → the score can't go above 89.</li>
-              <li>CRM cleanliness is graded on the Team tab's scorecard (pipeline, notes, messaging, dispo, follow-ups). Until a rep is graded the score is an estimate: the other four parts are scaled up to 100.</li>
+              <li>CRM cleanliness: five items, 0–2 each (2 = all good, 1 = 60%+, 0 = below). Pipeline, notes, dispo and follow-ups are graded automatically from GHL every hour; messaging is graded by a manager on the Team tab, and a manager can override any item. Until all five are in, the score is an estimate: the graded parts are scaled up to 100.</li>
               <li>The week freezes Friday at 12:00 Arizona; the frozen numbers are what the week is scored on.</li>
               <li>Weekly counts restart Monday, so scores start low and build through the week. Thursday–Friday is when they mean the most.</li>
             </ul>

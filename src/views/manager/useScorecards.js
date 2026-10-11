@@ -5,7 +5,7 @@
 // and shared; `save` merges a draft into the edits file.
 import { useEffect, useState } from 'react';
 import { readScorecardEdits, writeScorecardEdits } from '../../utils/githubApi.js';
-import { azDate, weekInfo } from '../../../scripts/scorecard-lib.mjs';
+import { azDate, weekInfo, mergeCrm } from '../../../scripts/scorecard-lib.mjs';
 
 const URL = `${import.meta.env.BASE_URL || '/'}scorecards.json`;
 let cache = null;          // { weeks, edits, sha }
@@ -36,13 +36,16 @@ export function useScorecards() {
 export const currentWeek = () => weekInfo(azDate());
 
 // A rep's CRM grades / note for a week: unsaved draft, then dashboard edits,
-// then what came from the sheet.
-export function reviewFor(state, week, id, draft) {
+// then what came from the sheet. `manual` = the managers' grades only;
+// `crm` = those over the automatic ones (`auto` from autoCrm / the freeze).
+export function reviewFor(state, week, id, draft, auto = null) {
   const d = draft?.reps?.[id] || {};
   const e = state.edits?.weeks?.[week]?.reps?.[id] || {};
   const s = state.weeks?.[week]?.review?.reps?.[id] || {};
+  const manual = d.crm !== undefined ? d.crm : e.crm !== undefined ? e.crm : s.crm ?? null;
   return {
-    crm: d.crm !== undefined ? d.crm : e.crm !== undefined ? e.crm : s.crm ?? null,
+    manual,
+    crm: mergeCrm(manual, auto),
     note: d.note !== undefined ? d.note : e.note !== undefined ? e.note : s.note ?? '',
   };
 }

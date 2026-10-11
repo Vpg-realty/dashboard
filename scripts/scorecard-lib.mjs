@@ -103,18 +103,19 @@ export const POD_LEADS = ['anthony', 'sam_mackenzie'];
 // The sheet's 5-item CRM checklist, 0 / 1 / 2 points each (Luke: 2 = all
 // good, 1 = 60%+, 0 = below that).
 export const CRM_ITEMS = [
-  { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Every lead in the correct stage; nothing past its IP end / COE; no deal untouched 14+ days.' },
-  { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each lead in the pipeline has a note made while it has been in the pipeline.' },
+  { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Nothing past its IP end (Under Contract / Dispo) or COE (Assigned); no open deal untouched 14+ days (stage move, note, text or call).' },
+  { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each open deal has a note written by a person (not a workflow template) since it was opened.' },
   { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Texts follow the VPG Texting Standard: answer within 15 min, every text ends in a question, nothing from Never send, professional, right questions on a lead.' },
-  { key: 'dispo', label: 'Clean dispo handoffs', short: 'Dispo', help: 'Every deal that went under contract this week has every non-optional field filled.' },
-  { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'Every lead in the pipeline has had a check-in with the agent within the last 3 days.' },
+  { key: 'dispo', label: 'Clean dispo handoffs', short: 'Dispo', help: 'Every deal that went under contract this week has every field filled except the "(If Applicable)" ones.' },
+  { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'This week, every open deal\'s agent got a text or call from the rep at least every 3 business days.' },
 ];
 export const REVIEWERS = ['Jack', 'Luke', 'Anthony', 'Sam'];
 
 // The sheet's weekly score, 0–100: contracts 35, projected $ 15 (vs $6,250 ×
-// week of month, capped at $25K), offers 15, opps opened 10, CRM 25; zero
-// contracts caps the score at 89. Without CRM grades yet the other 75 points
-// are scaled to 100 and the result is marked `estimate`.
+// week of month, capped at $25K), offers 15, opps opened 10, CRM 25 (five
+// items, 0–2 each, 5 points per item); zero contracts caps the score at 89.
+// While some CRM items aren't graded yet the graded points are scaled to 100
+// and the result is marked `estimate` (none graded = the other 75 scaled up).
 export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 0 }, crm, weekOfMonth) {
   const cap = (x) => Math.max(0, Math.min(1, x));
   const pace = 6250 * Math.min(4, Math.max(1, weekOfMonth || 1));
@@ -125,17 +126,54 @@ export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 
     opps: cap(oppsW / 10) * 10,
   };
   const base = parts.contracts + parts.projected + parts.offers + parts.opps;
-  const has = Array.isArray(crm) && crm.every((v) => v === 0 || v === 1 || v === 2);
-  const crmPts = has ? crm.reduce((a, b) => a + b, 0) : null;
-  let score = has ? base + (crmPts / 10) * 25 : (base / 75) * 100;
+  const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
+  const crmPts = known.length === 5 ? known.reduce((a, b) => a + b, 0) : null;
+  let score = ((base + known.reduce((a, b) => a + b, 0) * 2.5) / (75 + 5 * known.length)) * 100;
   score = Math.round(score);
   if (!contractsW) score = Math.min(89, score);
-  return { score, estimate: !has, crm: crmPts, parts, projectedPace: pace };
+  return { score, estimate: known.length < 5, crm: crmPts, crmKnown: known.length, parts, projectedPace: pace };
 }
 export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Attention' : 'Red Week');
 
 // One frozen week's numbers per rep from a data.json (repId-keyed).
-export function freezeNumbers(data, reps, month) {
+// --- automatic CRM grades (Luke, Oct 11) -----------------------------------
+// From each pair's `crm` checks (server/crm.js) and deals' `missing` dispo
+// fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
+// Messaging (item 3) isn't automatic yet → null.
+export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= 0.6 ? 1 : 0);
+// Monday 00:00 Arizona (UTC-7) of the week whose Monday is `monday`.
+export const weekStartMs = (monday) => Date.parse(`${monday}T07:00:00Z`);
+
+export function autoCrm(pairs, monday) {
+  const start = weekStartMs(monday);
+  const end = start + 7 * 86400000;
+  const detail = {};
+  for (const key of ['pipeline', 'notes', 'followups']) {
+    const have = pairs.map((p) => p.crm?.[key]).filter(Boolean);
+    if (!have.length) continue;
+    const total = have.reduce((a, c) => a + c.total, 0);
+    const bad = have.reduce((a, c) => a + (c.badN ?? c.bad.length), 0);
+    detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, 12) };
+  }
+  // Dispo: deals that went under contract this week.
+  if (pairs.some((p) => p.crm)) {
+    const fresh = pairs.flatMap((p) => p.deals || []).filter((d) => d.startedAt >= start && d.startedAt < end && Array.isArray(d.missing));
+    const bad = fresh.filter((d) => d.missing.length);
+    detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, bad: bad.slice(0, 12).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}` })) };
+  }
+  const grades = CRM_ITEMS.map((it) => (detail[it.key] ? gradeShare(detail[it.key].ok, detail[it.key].total) : null));
+  return grades.some((g) => g != null) ? { grades, detail } : null;
+}
+
+// Grades in use: a manager's grade wins, otherwise the automatic one.
+export const mergeCrm = (manual, auto) => {
+  const m = Array.isArray(manual) ? manual : [];
+  const a = auto?.grades || [];
+  const out = CRM_ITEMS.map((_, i) => (m[i] ?? a[i] ?? null));
+  return out.every((v) => v == null) ? null : out;
+};
+
+export function freezeNumbers(data, reps, month, monday) {
   const out = {};
   for (const rep of reps) {
     const pairs = (data.pairs || []).filter((p) => p.repId === rep.id);
@@ -148,6 +186,7 @@ export function freezeNumbers(data, reps, month) {
       contractsW: sum('contractsWeek'), offersW: sum('offersWeek'), oppsW: sum('oppsOpenedWeek'), cancelsW: sum('cancelsWeek'),
       contractsM: sum('contractsMonth'), offersM: sum('offersMonth'), oppsM: sum('oppsOpenedMonth'), cancelsM: sum('cancelsMonth'),
       projected: Math.round(sum('revenueMonth') + assigned),
+      ...(monday ? { crmAuto: autoCrm(pairs, monday) } : {}),
     };
   }
   return out;

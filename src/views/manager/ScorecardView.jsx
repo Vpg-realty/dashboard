@@ -16,7 +16,7 @@ import { hasPAT } from '../../utils/githubApi.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { ScoreHelp } from './Score.jsx';
 import { T, metrics, repPairs, scoreTone, paceTone } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf } from '../../../scripts/scorecard-lib.mjs';
+import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf, autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
@@ -61,8 +61,15 @@ function Stack({ wk, wkT, mo, moT, frac }) {
   );
 }
 
+// What an automatic grade is based on, for the chip tooltip / issue list.
+function autoLine(d) {
+  if (!d) return null;
+  return d.total ? `${d.ok} of ${d.total} OK` : 'nothing to check this week';
+}
+
 function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
-  const { id, n, crm, note, s } = row;
+  const { id, n, crm, manual, auto, note, s } = row;
+  const [issues, setIssues] = useState(false);
   const rep = repOf(id);
   const tone = scoreTone(s.score);
   const projT = s.projectedPace;
@@ -75,7 +82,7 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
         <span className="text-[min(1rem,1.9vh)] font-bold truncate hover:underline underline-offset-2">{first(id)}</span>
       </button>
       <span className="flex items-center">
-        <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ${tone.bg} ${tone.text}`} title={s.estimate ? 'Estimate: CRM not graded yet (other 75 points scaled to 100)' : ratingOf(s.score)}>
+        <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of 5 CRM items graded (graded parts scaled to 100)` : ratingOf(s.score)}>
           <span className="text-[min(1.2rem,2.2vh)] font-extrabold tabular-nums">{s.score}</span>
           {s.estimate && <span className="text-[9px] font-bold">est.</span>}
         </span>
@@ -92,20 +99,52 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
         {n.cancelsM != null && <span className={`text-[10px] font-semibold mt-1 ${n.cancelsW ? 'text-rose-600' : 'text-zinc-400'}`}>{n.cancelsM} mo</span>}
       </div>
       <span />
-      {CRM_ITEMS.map((it, i) => (
-        <button
-          key={it.key}
-          disabled={!canEdit}
-          onClick={() => onCrm(id, i)}
-          title={`${it.label} — ${it.help}${canEdit ? '\nClick to change: 2 → 1 → 0 → blank' : ''}`}
-          className={`rounded-md h-full max-h-10 self-center flex items-center justify-center text-[min(1.05rem,2vh)] font-extrabold ${chip(crm?.[i] ?? null)} ${canEdit ? 'hover:ring-2 hover:ring-blue-400 cursor-pointer' : 'cursor-default'}`}
-        >
-          {crm?.[i] ?? '–'}
+      {CRM_ITEMS.map((it, i) => {
+        const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
+        const d = auto?.detail?.[it.key];
+        const why = d ? `\nAutomatic: ${autoLine(d)}${d.bad?.length ? `\n${d.bad.slice(0, 6).map((b) => `• ${b.addr} — ${b.why}`).join('\n')}` : ''}` : '';
+        return (
+          <button
+            key={it.key}
+            disabled={!canEdit}
+            onClick={() => onCrm(id, i)}
+            title={`${it.label} — ${it.help}${isAuto ? why : manual?.[i] != null ? `\nSet by a manager${d ? ` (automatic: ${auto.grades[i]} — ${autoLine(d)})` : ''}` : ''}${canEdit ? '\nClick to change: 2 → 1 → 0 → back to automatic' : ''}`}
+            className={`relative rounded-md h-full max-h-10 self-center flex items-center justify-center text-[min(1.05rem,2vh)] font-extrabold ${chip(crm?.[i] ?? null)} ${canEdit ? 'hover:ring-2 hover:ring-blue-400 cursor-pointer' : 'cursor-default'}`}
+          >
+            {crm?.[i] ?? '–'}
+            {isAuto && <span className="absolute top-0 right-0.5 text-[8px] font-bold opacity-80">A</span>}
+          </button>
+        );
+      })}
+      <span className="relative flex">
+        <button onClick={() => setIssues((v) => !v)} disabled={!auto} className={`flex-1 flex flex-col items-center justify-center leading-none rounded ${auto ? 'hover:bg-zinc-100' : ''}`} title={auto ? 'Show what the automatic checks found' : undefined}>
+          <span className={`text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${!s.crmKnown ? 'text-zinc-300' : s.crm == null ? 'text-zinc-500' : 'text-zinc-900'}`}>{s.crmKnown ? crm.reduce((a, v) => a + (v ?? 0), 0) : '–'}</span>
+          <span className="text-[9px] text-zinc-400">/{s.crmKnown && s.crmKnown < 5 ? 2 * s.crmKnown : 10}</span>
         </button>
-      ))}
-      <span className="flex flex-col items-center justify-center leading-none">
-        <span className={`text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${s.crm == null ? 'text-zinc-300' : 'text-zinc-900'}`}>{s.crm ?? '–'}</span>
-        <span className="text-[9px] text-zinc-400">/10</span>
+        {issues && auto && (
+          <div className="absolute right-0 top-full mt-1 z-40 w-[30rem] max-h-[60vh] overflow-auto rounded-xl bg-white border border-zinc-300 shadow-xl p-3 text-left" onMouseLeave={() => setIssues(false)}>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 font-semibold mb-1">{first(id)} · automatic CRM checks</div>
+            {CRM_ITEMS.map((it, i) => {
+              const d = auto.detail?.[it.key];
+              return (
+                <div key={it.key} className="py-1 border-t border-zinc-100 first:border-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={`w-5 h-5 rounded text-[11px] font-extrabold flex items-center justify-center ${chip(auto.grades[i])}`}>{auto.grades[i] ?? '–'}</span>
+                    <span className="font-semibold">{it.short}</span>
+                    <span className="text-zinc-500 text-xs">{d ? autoLine(d) : it.key === 'messaging' ? 'graded by a manager' : 'not available'}</span>
+                    {manual?.[i] != null && <span className="ml-auto text-[11px] text-blue-700 font-semibold">manager: {manual[i]}</span>}
+                  </div>
+                  {d?.bad?.length > 0 && (
+                    <ul className="mt-0.5 ml-7 text-xs text-zinc-600 space-y-0.5">
+                      {d.bad.map((b) => <li key={b.id + b.why} className="truncate">• {b.addr} — <span className="text-rose-700">{b.why}</span></li>)}
+                      {d.total - d.ok > d.bad.length && <li className="text-zinc-400">… and {d.total - d.ok - d.bad.length} more</li>}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </span>
       {editing ? (
         <textarea
@@ -162,8 +201,9 @@ export default function ScorecardView({ onPickRep }) {
       n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, cancelsW: m.cancelsW, contractsM: m.contractsM, offersM: m.offersM, oppsM: m.oppsM, cancelsM: m.cancelsM, projected: m.projected };
     }
     if (!n) return null;
-    const { crm, note } = reviewFor(sc, week, id, draft);
-    return { id, n, crm, note, s: scoreWeek(n, crm, wom) };
+    const auto = frozen ? n.crmAuto || null : isLive ? autoCrm(repPairs(id), week) : null;
+    const { crm, manual, note } = reviewFor(sc, week, id, draft, auto);
+    return { id, n, crm, manual, auto, note, s: scoreWeek(n, crm, wom) };
   };
   const gs = groups().map((g) => ({ ...g, rows: g.reps.map(rowOf).filter(Boolean) })).filter((g) => g.rows.length);
   const allRows = gs.flatMap((g) => g.rows);
@@ -178,7 +218,7 @@ export default function ScorecardView({ onPickRep }) {
     return { ...d, [week]: w };
   });
   const onCrm = (id, i) => edit((w) => {
-    const curCrm = reviewFor(sc, week, id, w).crm;
+    const curCrm = reviewFor(sc, week, id, w).manual;
     const next = Array.isArray(curCrm) ? [...curCrm] : [null, null, null, null, null];
     next[i] = NEXT[String(next[i] ?? null)];
     (w.reps[id] ||= {}).crm = next.every((v) => v == null) ? null : next;
@@ -200,13 +240,14 @@ export default function ScorecardView({ onPickRep }) {
   const pods = gs.filter((g) => g.total);
   const teamAvg = avg(allRows.map((r) => r.s.score));
   const tiles = [
-    ['Team score', teamAvg == null ? '—' : `${Math.round(teamAvg)} · ${ratingOf(Math.round(teamAvg))}`, `avg of ${allRows.length} reps${graded < allRows.length ? ` · ${allRows.length - graded} without CRM yet` : ' · CRM included'}`, tone(teamAvg)],
+    ['Team score', teamAvg == null ? '—' : `${Math.round(teamAvg)} · ${ratingOf(Math.round(teamAvg))}`, `avg of ${allRows.length} reps${graded < allRows.length ? ` · ${allRows.length - graded} with CRM not complete` : ' · CRM included'}`, tone(teamAvg)],
     ...pods.map((g) => {
       const ps = podScore(g);
-      const crms = g.rows.filter((r) => r.s.crm != null).map((r) => r.s.crm);
+      // CRM out of 10 over the items graded so far.
+      const crms = g.rows.filter((r) => r.s.crmKnown).map((r) => (r.crm.reduce((a, v) => a + (v ?? 0), 0) / (2 * r.s.crmKnown)) * 10);
       return [g.title.replace(/^POD (\w) · (\w+).*/, 'Pod $1 · $2'), ps == null ? '—' : `${Math.round(ps)} · ${ratingOf(Math.round(ps))}`, `contracts ${g.rows.reduce((a, r) => a + (r.n.contractsW || 0), 0)}/${g.rows.length} · CRM avg ${crms.length ? avg(crms).toFixed(1) : '—'}`, tone(ps)];
     }),
-    ['Review', reviewedBy ? `Reviewed by ${reviewedBy}` : 'Not reviewed yet', `${graded} of ${allRows.length} reps graded${reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`, reviewedBy && graded === allRows.length ? 'good' : 'watch'],
+    ['Review', reviewedBy ? `Reviewed by ${reviewedBy}` : 'Not reviewed yet', `${graded} of ${allRows.length} reps fully graded${reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`, reviewedBy && graded === allRows.length ? 'good' : 'watch'],
   ];
 
   const right = (
@@ -296,7 +337,7 @@ export default function ScorecardView({ onPickRep }) {
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500" />2 all good</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-400" />1 = 60%+</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-600" />0 below 60%</span>
-            <span>· hover a CRM heading for what it checks · est. = CRM not graded yet · Score: contracts 35 · CRM 25 · projected 15 · offers 15 · opps 10 · no contract caps at 89</span>
+            <span>· A = graded automatically from GHL (hover for why, click CRM total for the list) · est. = not all CRM items graded · Score: contracts 35 · CRM 25 · projected 15 · offers 15 · opps 10 · no contract caps at 89</span>
           </div>
         </div>
       </div>

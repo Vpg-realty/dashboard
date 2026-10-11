@@ -117,7 +117,10 @@ const configured = countConfigured(tokens);
 
 console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Object.keys(legacyTokens).length}, dynamic PIT_*: ${dynamicCount})`);
 
-const snapshot = await buildSnapshot({ tokens });
+// Previous published data.json: calls never go backwards within the week,
+// and the hourly CRM checks are carried between runs (server/snapshot.js).
+const prev = await loadPrevData();
+const snapshot = await buildSnapshot({ tokens, prevPairs: prev?.pairs || [] });
 
 // Sticky offer / contract counters (Luke, Sept 14). aggregate.js emits a
 // strict current-stage-only baseline for each metric, plus per-opp stage
@@ -131,7 +134,6 @@ const snapshot = await buildSnapshot({ tokens });
 // build runs with TZ=America/Los_Angeles, so these are PT boundaries, the
 // same ones snapshot.js used for the pull.
 {
-  const prev = await loadPrevData();
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
   const todayStartMs = d0.getTime();
   const w0 = new Date(d0); w0.setDate(w0.getDate() - ((w0.getDay() || 7) - 1));

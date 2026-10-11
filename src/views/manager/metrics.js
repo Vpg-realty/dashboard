@@ -117,16 +117,19 @@ export const SCORE_PARTS = [
 ];
 export const weekOfMonth = () => weekInfo(azDate()).weekOfMonth;
 export function scoreParts(m, crm = null, wom = weekOfMonth()) {
-  const crmTotal = Array.isArray(crm) && crm.every((v) => v === 0 || v === 1 || v === 2) ? crm.reduce((a, b) => a + b, 0) : null;
-  const want = { contracts: T.contractsPerWeek, crm: 10, projected: 6250 * Math.min(4, Math.max(1, wom)), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
-  const have = { contracts: m.contractsW, crm: crmTotal ?? 0, projected: m.projected, offers: m.offersW, opps: m.oppsW };
+  const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
+  const want = { contracts: T.contractsPerWeek, crm: 2 * known.length, projected: 6250 * Math.min(4, Math.max(1, wom)), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
+  const have = { contracts: m.contractsW, crm: known.reduce((a, b) => a + b, 0), projected: m.projected, offers: m.offersW, opps: m.oppsW };
   const parts = SCORE_PARTS.map((p) => {
-    const share = Math.min(1, (have[p.key] || 0) / want[p.key]);
-    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * p.weight, pending: p.key === 'crm' && crmTotal == null };
+    const share = want[p.key] ? Math.min(1, (have[p.key] || 0) / want[p.key]) : 0;
+    // CRM counts 5 points per graded item; ungraded items are left out.
+    const weight = p.key === 'crm' ? 5 * known.length : p.weight;
+    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * weight, max: weight, pending: p.key === 'crm' && !known.length, partial: p.key === 'crm' && known.length > 0 && known.length < 5, known: known.length };
   });
   const s = scoreWeek({ contractsW: m.contractsW, projected: m.projected, offersW: m.offersW, oppsW: m.oppsW }, crm, wom);
-  const raw = s.estimate ? Math.round((parts.reduce((a, p) => a + p.pts, 0) / 75) * 100) : Math.round(parts.reduce((a, p) => a + p.pts, 0));
-  return { parts, raw, capped: s.score < raw, score: s.score, estimate: s.estimate };
+  const scale = 100 / (75 + 5 * known.length);
+  const raw = Math.round(parts.reduce((a, p) => a + p.pts, 0) * scale);
+  return { parts, raw, capped: s.score < raw, score: s.score, estimate: s.estimate, scale };
 }
 export const weeklyScore = (m, crm = null) => scoreParts(m, crm).score;
 export const SCORE_BANDS = [

@@ -69,6 +69,15 @@ const STAGE_RANK = {
   lost: 99,
 };
 
+// Stage key and funnel rank of an opportunity, for code outside this file
+// (server/crm.js via snapshot.js).
+export function stageResolver(pipelines) {
+  const stageById = {};
+  for (const p of pipelines || []) for (const s of p.stages || []) stageById[s.id] = s.name;
+  const keyOf = (o) => stageKey(stageById[o.pipelineStageId] || o.stage || '');
+  return { keyOf, rankOf: (o) => STAGE_RANK[keyOf(o)] || 0 };
+}
+
 export function aggregatePair({
   repId, marketId,
   opportunities, pipelines, oppCustomFields = null,

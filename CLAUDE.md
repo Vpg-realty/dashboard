@@ -359,12 +359,29 @@ Under `src/views/`:
       and retries once on a sha conflict). No token = read-only (reads the
       branch from raw.githubusercontent). Save needs a "Reviewed by" (Jack,
       Luke, Anthony, Sam — `REVIEWERS`).
-    - Planned: CRM items 1, 2, 4, 5 graded automatically from GHL
-      (pipeline: past IP end / COE or untouched 14+ days; notes on pipeline
-      opps; dispo required fields filled for the week's contracts;
-      follow-ups at most every 3 days), item 3 (messaging) by rules + AI
-      against the "VPG Texting Standard for Acquisitions" doc (needs the
-      ANTHROPIC_API_KEY secret). Managers can still override.
+    - **Automatic CRM grades** (Luke, Oct 11; `server/crm.js`): items 1, 2,
+      4, 5 come from GHL, hourly (snapshot.js reuses the previous
+      data.json's `pair.crm` for 55 min — the check reads each open deal's
+      texts). Open deal = status open, New Lead … Assigned.
+      1 Pipeline: past its key date (IP end for Under Contract / Dispo, COE
+      for Assigned) or untouched 14+ days (stage move, a person's note, a
+      rep text, a connected call). 2 Notes: a note by a person (has a
+      userId — workflow templates don't) since the deal opened (deals under
+      a day old skipped); notes come from `/opportunities/search?getNotes`,
+      and if the token can't read them the item is left out (`notesError`).
+      4 Dispo: deals that went under contract this week (`startedAt`) with
+      every opportunity field filled except "(If Applicable)" / "optional"
+      ones (`deal.missing`). 5 Follow-ups: this week (from Monday or when
+      the deal opened) no gap over 3 business days (Mon–Fri, AZ) without a
+      rep text (outbound with a userId) or a connected call, from
+      `/conversations/messages/export?contactId` (21 days back, emails not
+      included). Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
+      1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
+      (`mergeCrm`); chips graded automatically show a small "A", hover for
+      why, click the CRM total for the list. The freeze stores `crmAuto` per
+      rep. Messaging (item 3) is still by hand until the AI review
+      (needs the ANTHROPIC_API_KEY secret). Scores: CRM items count 5 points
+      each; with some ungraded, the graded points are scaled to 100 ("est.").
   - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
     biggest leak ringed dark orange, plus this month's counts.

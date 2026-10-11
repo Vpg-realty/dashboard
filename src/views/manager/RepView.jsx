@@ -15,6 +15,7 @@ import useMonthLog from './useMonthLog.js';
 import { cancelsInRange, addedContractsInRange } from './monthReview.js';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
+import { autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
@@ -97,7 +98,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   const leak = m.untracked?.size ? null : biggestLeak(m, teamRates);
   // This week's CRM grades from the scorecard (Team tab), if given yet.
   const sc = useScorecards();
-  const crm = reviewFor(sc, currentWeek().monday, rep.id).crm;
+  const wk = currentWeek().monday;
+  const crm = reviewFor(sc, wk, rep.id, null, sc.weeks[wk] ? sc.weeks[wk].reps?.[rep.id]?.crmAuto : autoCrm(pairs, wk)).crm;
   const { score, estimate } = scoreParts(m, crm);
   const markets = rep.markets.map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,

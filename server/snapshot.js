@@ -13,14 +13,17 @@ import {
   listConversationsCreated,
   countContactsByAnyTag,
   listCallsSince,
+  listContactMessagesSince,
 } from './ghl.js';
+import { crmChecks, requiredDispoFields, missingFields, MESSAGE_LOOKBACK_DAYS } from './crm.js';
+import { resolveDealFieldIds } from './deals.js';
 import { summarizeCalls } from './calls.js';
 
 // Tag variants to tolerate human-typed inconsistencies across sub-accounts.
 // GHL's `contains` operator is case + dash-character sensitive, so we query
 // every plausible variant and sum the totals.
 const TIER_VARIANTS = (n) => [`tier ${n}`, `Tier ${n}`, `TIER ${n}`, `tier-${n}`, `Tier-${n}`, `tier${n}`];
-import { aggregatePair, emptyPair } from './aggregate.js';
+import { aggregatePair, emptyPair, stageResolver } from './aggregate.js';
 
 export const VERSION = '0.2.0';
 
@@ -53,7 +56,43 @@ const startOfMonthMs = () => {
   return d.getTime();
 };
 
-export async function buildSnapshot({ tokens }) {
+// Opportunities with their notes (for the CRM checks); a plain pull if the
+// notes can't be read, so the rest of the board never depends on them.
+async function opportunitiesWithNotes(locationId, token) {
+  try {
+    const opps = await getOpportunities(locationId, token, { getNotes: true });
+    // A token without the notes scope may answer without any notes field
+    // instead of failing; then the notes check is left out.
+    const notes = !opps.length || opps.some((o) => o.notes !== undefined);
+    return { opps, notes, ...(notes ? {} : { notesError: 'no notes returned (check the token\'s notes scope)' }) };
+  } catch (err) {
+    return { opps: await getOpportunities(locationId, token), notes: false, notesError: String(err?.message || err).slice(0, 200) };
+  }
+}
+
+// Texts / calls for each open deal's contact, a few at a time. A contact
+// that can't be read just counts as no messages; if none can be read (e.g.
+// the token lacks the messages scope) → { error } and the follow-up check
+// is left out for this sub-account.
+async function messagesFor(locationId, token, contactIds, startMs) {
+  const out = {};
+  const ids = [...new Set(contactIds.filter(Boolean))];
+  let failed = 0;
+  let lastErr = null;
+  for (let i = 0; i < ids.length; i += 5) {
+    const batch = ids.slice(i, i + 5);
+    const res = await Promise.all(batch.map((c) => listContactMessagesSince(locationId, token, c, startMs).catch((err) => { failed++; lastErr = err; return []; })));
+    batch.forEach((c, j) => { out[c] = res[j]; });
+  }
+  if (ids.length && failed === ids.length) return { error: String(lastErr?.message || lastErr).slice(0, 200) };
+  return out;
+}
+
+// CRM checks run at most hourly (they read every open deal's messages);
+// in between, each pair keeps the last result from the previous data.json.
+const CRM_EVERY_MS = 55 * 60 * 1000;
+
+export async function buildSnapshot({ tokens, prevPairs = [] }) {
   const errors = [];
   const todayStart = startOfDayMs(0);
   const wkStart = startOfWeekMs();
@@ -76,7 +115,7 @@ export async function buildSnapshot({ tokens }) {
         // matches GHL exactly: "contacts created in [window] AND tagged
         // Tier 1, 2, or 3".
         const [
-          opportunities,
+          oppPull,
           pipelines,
           oppCustomFields,
           convosNewToday,
@@ -88,7 +127,7 @@ export async function buildSnapshot({ tokens }) {
           tier1Week, tier2Week, tier3Week,
           callMessages,
         ] = await Promise.all([
-          getOpportunities(locationId, token),
+          opportunitiesWithNotes(locationId, token),
           getPipelines(locationId, token),
           // Pipeline-tab fields (address / COE / IP end). A failure here
           // (e.g. PIT missing the custom-fields scope) must not blank the
@@ -113,6 +152,7 @@ export async function buildSnapshot({ tokens }) {
           listCallsSince(locationId, token, wkStart).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })),
         ]);
 
+        const opportunities = oppPull.opps;
         const pair = aggregatePair({
           repId,
           marketId,
@@ -133,6 +173,43 @@ export async function buildSnapshot({ tokens }) {
           pair.calls = summarizeCalls(callMessages, { todayStartMs: todayStart, weekStartMs: wkStart });
         } else {
           pair.callsError = callMessages?.error || 'unknown error';
+        }
+
+        // Never let the CRM checks blank a sub-account.
+        try {
+          // Scorecard CRM checks (server/crm.js). Dispo: which required
+          // fields each deal is missing (graded for the week's new contracts).
+          const kept = (opportunities || []).filter((o) => !EXCLUDED_OPP_IDS.has(o.id));
+          if (Array.isArray(oppCustomFields)) {
+            const required = requiredDispoFields(oppCustomFields);
+            const byId = new Map(kept.map((o) => [o.id, o]));
+            for (const d of pair.deals || []) {
+              const o = byId.get(d.id);
+              if (o && d.stage !== 'closed') d.missing = missingFields(o, required);
+            }
+          }
+          const prevCrm = prevPairs.find((p) => p.repId === repId && p.marketId === marketId)?.crm;
+          if (prevCrm?.at && Date.now() - prevCrm.at < CRM_EVERY_MS && prevCrm.notesOk === oppPull.notes) {
+            pair.crm = prevCrm;
+          } else {
+            const { keyOf, rankOf } = stageResolver(pipelines);
+            const open = kept.filter((o) => (!o.status || o.status === 'open') && rankOf(o) >= 1 && rankOf(o) <= 7);
+            const msgs = await messagesFor(locationId, token, open.map((o) => o.contactId), Date.now() - MESSAGE_LOOKBACK_DAYS * 86400000);
+            pair.crm = crmChecks({
+              opportunities: kept,
+              rankOf,
+              keyOf,
+              fieldIds: Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields) : {},
+              messages: msgs.error ? null : msgs,
+              now: Date.now(),
+              weekStartMs: wkStart,
+            });
+            pair.crm.notesOk = oppPull.notes;
+            if (!oppPull.notes) { pair.crm.notes = null; pair.crm.notesError = oppPull.notesError; }
+            if (msgs.error) pair.crm.messagesError = msgs.error;
+          }
+        } catch (err) {
+          pair.crmError = String(err?.message || err).slice(0, 200);
         }
         return pair;
       } catch (err) {
