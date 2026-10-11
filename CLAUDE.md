@@ -301,9 +301,9 @@ Under `src/views/`:
   but still lists the month's closings. Stage reads "Dispo Active" (Luke
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
-- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab) — Team, Rep and
-  Month in Review (a Revenue & Forecast tab was dropped as a duplicate of Overview, and a
-  Coaching tab as a duplicate of Team's funnel columns, Luke Oct 8) — click-only,
+- **Manager tabs** (Luke, Oct 8; replaced the Advanced tab; reworked Oct 11)
+  — Team (scorecard + each rep), Coaching and Month in Review (a Revenue &
+  Forecast tab was dropped as a duplicate of Overview) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
   opens with a blue "MANAGER VIEW · not shown on the TV rotation" strip
@@ -311,29 +311,65 @@ Under `src/views/`:
   `views/manager/metrics.js`: month-to-date per rep/state/team from the
   pairs; conversations this month per pair from history
   (`pairConvosMonth`) + today; projected = closed + Assigned deals with a
-  COE this month (same as Overview/scorecard). Weekly score = Friday
-  scorecard weights (contracts 35, projected $ 15, offers 15, opps 10;
-  CRM's 25 is manual, so the rest is scaled to 100; no contract caps at 89;
-  projected judged vs $25k/4 × week-of-month). Funnel steps are this
+  COE this month (same as Overview/scorecard). Weekly score = the Friday
+  scorecard, 100 points: contracts 35, CRM cleanliness 25, projected $ 15,
+  offers 15, opps 10; no contract caps at 89; projected judged vs $6,250 ×
+  week-of-month (ceil(Friday's day / 7), max 4). The number comes from
+  `scoreWeek` in scripts/scorecard-lib.mjs (shared by browser, freeze and
+  sheet export). Until a rep's five CRM grades are in, the other 75 points
+  are scaled to 100 and the score shows "est.". Funnel steps are this
   month's counts stage to stage (Convo→Opp, Opp→Offer, Offer→Contract; no
   Contract→Close — closings come from earlier months); "biggest leak" =
   the step furthest below the team rate, flagged when 20%+ below.
   - **Score display** (Luke, Oct 9: "make it clear", `views/manager/Score.jsx`):
     score = coloured pill with band name (Strong 90+, Watch 75–89, Behind
     under 75 = needs a 1-on-1; `SCORE_BANDS`), a segment bar per part
-    (`SCORE_PARTS`: contracts blue 47, projected teal 20, offers violet 20,
-    opps amber 13 — out of 100; width = weight, fill = earned), an
-    "ⓘ How the score works" panel (Team + Rep header), and on Rep a
+    (`SCORE_PARTS`: contracts blue 35, CRM slate 25 — hatched until graded,
+    projected teal 15, offers violet 15, opps amber 10; width = weight,
+    fill = earned), an "ⓘ How the score works" panel, and on Rep a
     click-open breakdown (actual of target, points; rounded so they sum to
     the total, a met target always shows full points).
-  - **Team** — 4 summary tiles coloured green / amber / red (on pace ≥75% /
-    ≥50% of reps; avg score by band; leak none / under half / half+ of reps;
-    1-on-1s 0 / 1–2 / 3+) — reps on pace, avg score, most common leak,
-    needs a 1-on-1 = score < 75 — and a table: score, week (opps/offers/
-    contracts) and month (opps/offers/contracts/closed/projected $) cells
-    coloured vs pace, funnel cells coloured vs team, % on top and "4 of 13" under it, biggest leak ringed dark orange (Luke, Oct 9), biggest leak. Click a
-    rep → Rep.
-  - **Rep** — picker; score, leak callout, 8 pace tiles (week + month; the
+  - **Team = Weekly Scorecard** (Luke, Oct 11 — replaces the "VPG - Weekly
+    Score Card" sheet; run side-by-side with it for 1–2 Fridays, then the
+    sheet retires). `views/manager/TeamHub.jsx`: the picker shows "Full
+    team (scorecard)" (`ScorecardView.jsx`) or one rep (the Rep view below;
+    Rep and Team are one tab). Grouped like the sheet (`PODS` /
+    `POD_LEADS` in scorecard-lib): Pod A (lead Anthony: Spencer, Axel,
+    Cayden), Pod B (lead Sam: Danni, Daniel, Rory), Pod Leads (Anthony,
+    Sam — not in pod totals), No pod (Patrick, and any rep not listed).
+    Per rep: score, contracts / offers / opps cells (week number vs weekly
+    pace on top, month bar under it), projected $ MTD vs week pace,
+    cancels (wk / mo), five CRM chips (`CRM_ITEMS`: pipeline, notes,
+    messaging, dispo, follow-ups; 2 = all good, 1 = ~60%, 0 = below),
+    CRM /10 and a note. Tiles: team score, Pod A / Pod B, review status.
+    Week picker: this week (live until the freeze) and every week in
+    scorecards.json ("from sheet" = imported).
+    - **Freeze**: Friday 12:00 Arizona `scripts/update-scorecards.mjs`
+      (chained onto `npm run append-history`) copies the week's numbers
+      (`freezeNumbers`) into `public/scorecards.json` once
+      (`source: 'dashboard'`, `frozenAt`); later runs leave it alone. Weeks
+      Sept 21 – Oct 5 came from the sheet (`scorecard-seed.json`, numbers +
+      grades + notes + reviewed by). Keeps 60 weeks; loaded from Pages with
+      the abort-don't-wipe loader like history.json.
+    - **Grades / notes / Reviewed by** are saved from the browser to
+      `scorecard-edits.json` on the **`scorecard-data` branch** (never main,
+      so a save never deploys) with the same GitHub token as the
+      Sub-Accounts panel (`readScorecardEdits` / `writeScorecardEdits` in
+      utils/githubApi.js; `useScorecards.js` merges draft > edits > sheet,
+      and retries once on a sha conflict). No token = read-only (reads the
+      branch from raw.githubusercontent). Save needs a "Reviewed by" (Jack,
+      Luke, Anthony, Sam — `REVIEWERS`).
+    - Planned: CRM items 1, 2, 4, 5 graded automatically from GHL
+      (pipeline: past IP end / COE or untouched 14+ days; notes on pipeline
+      opps; dispo required fields filled for the week's contracts;
+      follow-ups at most every 3 days), item 3 (messaging) by rules + AI
+      against the "VPG Texting Standard for Acquisitions" doc (needs the
+      ANTHROPIC_API_KEY secret). Managers can still override.
+  - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
+    team: % on top, "4 of 13" under it, cells coloured vs team rate,
+    biggest leak ringed dark orange, plus this month's counts.
+  - **Rep** (Team tab, a rep picked) — picker; score (with this week's CRM
+    grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
     as the Team cells — `paceTone` in metrics.js, Luke Oct 9),
     funnel with step rates vs team, and a by-state table. Period picker
@@ -408,6 +444,9 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   badge ON PACE / NEAR PACE / BEHIND PACE, black tick on the bar.
 
 ## Weekly scorecard export (Luke, Oct 7)
+
+The Team tab's Weekly Scorecard (above) is replacing the sheet; this export
+keeps running until the sheet is retired.
 
 **Trigger (Luke, Oct 9):** GitHub's cron in `scorecard.yml` (Fridays 19:00
 UTC = 12:00 Arizona) is best-effort and on Oct 9 never fired, so the real

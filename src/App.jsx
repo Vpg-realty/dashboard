@@ -8,8 +8,8 @@ import ConversationsView from './views/ConversationsView.jsx';
 import AgentsView from './views/AgentsView.jsx';
 import OpportunitiesView from './views/OpportunitiesView.jsx';
 import MasterView from './views/MasterView.jsx';
-import ManagerTeamView from './views/manager/TeamView.jsx';
-import ManagerRepView from './views/manager/RepView.jsx';
+import ManagerTeamView from './views/manager/TeamHub.jsx';
+import ManagerCoachingView from './views/manager/CoachingView.jsx';
 import ManagerMonthView from './views/manager/MonthView.jsx';
 import PipelineView from './views/PipelineView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
@@ -22,7 +22,7 @@ const VIEWS = {
   master:        { label: 'Overview · this month',          component: MasterView },
   pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
   'mgr-team':     { label: 'Manager · team',                 component: ManagerTeamView },
-  'mgr-rep':      { label: 'Manager · rep',                  component: ManagerRepView },
+  'mgr-coaching': { label: 'Manager · coaching',             component: ManagerCoachingView },
   'mgr-month':    { label: 'Manager · month in review',      component: ManagerMonthView },
 };
 
@@ -126,8 +126,8 @@ export default function App() {
         <div className="h-full animate-fadein">
           <ActiveView
             repId={mgrRep}
-            onPickRep={(id) => { setMgrRep(id); handleViewChange('mgr-rep'); }}
-            onBack={() => handleViewChange('mgr-team')}
+            onPickRep={(id) => { setMgrRep(id); handleViewChange('mgr-team'); }}
+            onBack={() => { setMgrRep(null); handleViewChange('mgr-team'); }}
           />
         </div>
       </main>

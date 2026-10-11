@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "snapshot": "node scripts/build-snapshot.mjs && node scripts/auto-scorecard.mjs",
-    "append-history": "node scripts/append-history.mjs && node scripts/update-month-log.mjs",
+    "append-history": "node scripts/append-history.mjs && node scripts/update-month-log.mjs && node scripts/update-scorecards.mjs",
     "month-log": "node scripts/update-month-log.mjs"
   },
   "dependencies": {

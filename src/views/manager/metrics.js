@@ -5,6 +5,7 @@ import { REPS, KPI_TARGETS } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { laToday, pairConvosMonth, computeRange, periodTargets } from '../../utils/historyRange.js';
+import { scoreWeek, weekInfo, azDate } from '../../../scripts/scorecard-lib.mjs';
 import { CANCELS_FROM } from './monthReview.js';
 
 export const T = KPI_TARGETS;
@@ -99,32 +100,35 @@ export function biggestLeak(m, teamRates) {
   return gaps[0].rel < 0.8 ? gaps[0] : null;
 }
 
-// Weekly score with the Friday scorecard's weights: contracts 35, projected
-// $ 15, offers 15, opps 10. The sheet's CRM checklist (25) is filled in by
-// people, so it's left out and the rest is scaled to 100. No contract this
-// week caps the score at 89, like the sheet. Projected is judged against
-// the share of the $25k month that's due by this week of the month.
-// scoreParts gives each piece (points earned of its weight) so the views
-// can show where a score comes from (Luke, Oct 9: "make it clear").
+// Weekly score = the Friday scorecard (Luke, Oct 11: the Team tab replaces
+// the sheet): contracts 35, CRM 25, projected $ 15, offers 15, opps 10 — 100
+// points. Projected is judged against $6,250 × the week of the month (that
+// week's Friday, as on the sheet). Zero contracts caps the score at 89. Until
+// a rep's CRM checklist is graded the other 75 points are scaled to 100 and
+// the score is an estimate. The number itself comes from scoreWeek in
+// scripts/scorecard-lib.mjs, shared with the scorecard and the Friday freeze;
+// scoreParts adds each piece (points earned of its weight) for the views.
 export const SCORE_PARTS = [
   { key: 'contracts', label: 'Contracts', weight: 35, color: '#1d4ed8' },
+  { key: 'crm', label: 'CRM cleanliness', short: 'CRM', weight: 25, color: '#475569' },
   { key: 'projected', label: 'Projected $', weight: 15, color: '#0d9488' },
   { key: 'offers', label: 'Offers', weight: 15, color: '#7c3aed' },
   { key: 'opps', label: 'Opps opened', short: 'Opps', weight: 10, color: '#d97706' },
 ];
-export const weekOfMonth = () => Math.min(4, Math.ceil(+laToday().slice(8, 10) / 7));
-export function scoreParts(m) {
-  const want = { contracts: T.contractsPerWeek, projected: (T.revenuePerRepMonth / 4) * weekOfMonth(), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
-  const have = { contracts: m.contractsW, projected: m.projected, offers: m.offersW, opps: m.oppsW };
+export const weekOfMonth = () => weekInfo(azDate()).weekOfMonth;
+export function scoreParts(m, crm = null, wom = weekOfMonth()) {
+  const crmTotal = Array.isArray(crm) && crm.every((v) => v === 0 || v === 1 || v === 2) ? crm.reduce((a, b) => a + b, 0) : null;
+  const want = { contracts: T.contractsPerWeek, crm: 10, projected: 6250 * Math.min(4, Math.max(1, wom)), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
+  const have = { contracts: m.contractsW, crm: crmTotal ?? 0, projected: m.projected, offers: m.offersW, opps: m.oppsW };
   const parts = SCORE_PARTS.map((p) => {
     const share = Math.min(1, (have[p.key] || 0) / want[p.key]);
-    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * p.weight };
+    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * p.weight, pending: p.key === 'crm' && crmTotal == null };
   });
-  const raw = Math.round((parts.reduce((a, p) => a + p.pts, 0) / 75) * 100);
-  const capped = m.contractsW === 0 && raw > 89;
-  return { parts, raw, capped, score: capped ? 89 : raw };
+  const s = scoreWeek({ contractsW: m.contractsW, projected: m.projected, offersW: m.offersW, oppsW: m.oppsW }, crm, wom);
+  const raw = s.estimate ? Math.round((parts.reduce((a, p) => a + p.pts, 0) / 75) * 100) : Math.round(parts.reduce((a, p) => a + p.pts, 0));
+  return { parts, raw, capped: s.score < raw, score: s.score, estimate: s.estimate };
 }
-export const weeklyScore = (m) => scoreParts(m).score;
+export const weeklyScore = (m, crm = null) => scoreParts(m, crm).score;
 export const SCORE_BANDS = [
   { min: 90, label: 'Strong', text: 'text-emerald-700', bg: 'bg-emerald-100', c: '#059669', note: 'on track for the week' },
   { min: 75, label: 'Watch', text: 'text-amber-700', bg: 'bg-amber-100', c: '#d97706', note: 'slipping on one or two targets' },
