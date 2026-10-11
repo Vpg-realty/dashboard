@@ -8,7 +8,7 @@ import ConversationsView from './views/ConversationsView.jsx';
 import AgentsView from './views/AgentsView.jsx';
 import OpportunitiesView from './views/OpportunitiesView.jsx';
 import MasterView from './views/MasterView.jsx';
-import ManagerTeamView from './views/manager/TeamView.jsx';
+import ManagerTeamView from './views/manager/ScorecardView.jsx';
 import ManagerRepView from './views/manager/RepView.jsx';
 import ManagerMonthView from './views/manager/MonthView.jsx';
 import PipelineView from './views/PipelineView.jsx';
