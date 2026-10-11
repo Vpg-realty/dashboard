@@ -128,13 +128,13 @@ export async function listConversationsCreated(locationId, token, { startMs, max
 // Every call message (TYPE_CALL) created since `startMs`, newest first, via
 // the message export (cursor pagination, up to 1000 per page). Capped so a
 // runaway location can't stall the build. See server/calls.js.
-export async function listCallsSince(locationId, token, startMs, { maxPages = 10 } = {}) {
+export async function listCallsSince(locationId, token, startMs, { maxPages = 10, channel = 'Call' } = {}) {
   const out = [];
   let cursor;
   for (let i = 0; i < maxPages; i++) {
     const params = {
       locationId,
-      channel: 'Call',
+      channel,
       startDate: new Date(startMs).toISOString(),
       endDate: new Date().toISOString(),
       limit: 1000,
@@ -153,6 +153,10 @@ export async function listCallsSince(locationId, token, startMs, { maxPages = 10
   }
   return out;
 }
+
+// Every text (SMS) in the location since `startMs`, for the messaging check
+// (server/messaging.js). Same export and retries as the calls.
+export const listTextsSince = (locationId, token, startMs) => listCallsSince(locationId, token, startMs, { channel: 'SMS', maxPages: 15 });
 
 // Texts and calls with one contact since `startMs` (newest first, up to
 // 100), for the follow-up / staleness checks (server/crm.js).

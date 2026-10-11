@@ -23,6 +23,7 @@ import { keepCallsMonotonic } from '../server/calls.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
 const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
+const THREADS_DIR = path.resolve(__dirname, '..', '.cache');
 const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
 const PAGES_DATA_URL = 'https://vpg-realty.github.io/dashboard/data.json';
 
@@ -121,6 +122,18 @@ console.log(`[snapshot] ${configured} sub-account(s) configured (legacy: ${Objec
 // and the hourly CRM checks are carried between runs (server/snapshot.js).
 const prev = await loadPrevData();
 const snapshot = await buildSnapshot({ tokens, prevPairs: prev?.pairs || [] });
+
+// Conversations for the messaging AI review never reach public/: they go
+// to .cache/msg-threads.json for scripts/review-messaging.mjs.
+{
+  const threads = {};
+  for (const p of snapshot.pairs) {
+    if (p._msgThreads) threads[`${p.repId}|${p.marketId}`] = p._msgThreads;
+    delete p._msgThreads;
+  }
+  fs.mkdirSync(THREADS_DIR, { recursive: true });
+  fs.writeFileSync(path.join(THREADS_DIR, 'msg-threads.json'), JSON.stringify({ generatedAt: Date.now(), threads }));
+}
 
 // Sticky offer / contract counters (Luke, Sept 14). aggregate.js emits a
 // strict current-stage-only baseline for each metric, plus per-opp stage

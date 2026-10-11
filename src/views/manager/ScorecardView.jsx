@@ -65,6 +65,10 @@ function Stack({ wk, wkT, mo, moT, frac }) {
 // What an automatic grade is based on, for the chip tooltip / issue list.
 function autoLine(d) {
   if (!d) return null;
+  if (d.parts) {
+    const pct = (x) => (x.total ? `${Math.round((x.ok / x.total) * 100)}%` : '—');
+    return d.parts.map((x) => `${x.label} ${pct(x)}${x.total ? ` (${x.ok}/${x.total})` : ''}${x.pending ? ` · ${x.pending} waiting` : ''}`).join(' · ');
+  }
   return d.total ? `${d.ok} of ${d.total} OK` : 'nothing to check this week';
 }
 
@@ -132,13 +136,23 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
                   <div className="flex items-center gap-2 text-sm">
                     <span className={`w-5 h-5 rounded text-[11px] font-extrabold flex items-center justify-center ${chip(auto.grades[i])}`}>{auto.grades[i] ?? '–'}</span>
                     <span className="font-semibold">{it.short}</span>
-                    <span className="text-zinc-500 text-xs">{d ? autoLine(d) : it.key === 'messaging' ? 'graded by a manager' : 'not available'}</span>
+                    {!d?.parts && <span className="text-zinc-500 text-xs">{d ? autoLine(d) : it.key === 'messaging' ? 'no texts checked yet' : 'not available'}</span>}
                     {manual?.[i] != null && <span className="ml-auto text-[11px] text-blue-700 font-semibold">manager: {manual[i]}</span>}
                   </div>
+                  {d?.parts && (
+                    <div className="ml-7 mt-0.5 grid grid-cols-[1fr_auto] gap-x-3 text-xs">
+                      {d.parts.map((x) => (
+                        <div key={x.key} className="contents">
+                          <span className="text-zinc-600">{x.label}{x.target ? ` (target ${Math.round(x.target * 100)}%)` : ''}{x.pending ? ` · ${x.pending} waiting for review` : ''}</span>
+                          <span className={`tabular-nums font-semibold text-right ${x.share == null ? 'text-zinc-400' : x.share >= 0.9 ? 'text-emerald-700' : x.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{x.total ? `${Math.round((x.ok / x.total) * 100)}% · ${x.ok}/${x.total}` : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {d?.bad?.length > 0 && (
                     <ul className="mt-0.5 ml-7 text-xs text-zinc-600 space-y-0.5">
                       {d.bad.map((b) => <li key={b.id + b.why} className="truncate">• {b.addr} — <span className="text-rose-700">{b.why}</span></li>)}
-                      {d.total - d.ok > d.bad.length && <li className="text-zinc-400">… and {d.total - d.ok - d.bad.length} more</li>}
+                      {(d.badN ?? d.total - d.ok) > d.bad.length && <li className="text-zinc-400">… and {(d.badN ?? d.total - d.ok) - d.bad.length} more</li>}
                     </ul>
                   )}
                 </div>

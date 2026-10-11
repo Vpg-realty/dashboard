@@ -14,7 +14,9 @@ import {
   countContactsByAnyTag,
   listCallsSince,
   listContactMessagesSince,
+  listTextsSince,
 } from './ghl.js';
+import { analyzeMessaging } from './messaging.js';
 import { crmChecks, requiredDispoFields, missingFields, MESSAGE_LOOKBACK_DAYS } from './crm.js';
 import { resolveDealFieldIds } from './deals.js';
 import { summarizeCalls } from './calls.js';
@@ -91,6 +93,8 @@ async function messagesFor(locationId, token, contactIds, startMs) {
 // CRM checks run at most hourly (they read every open deal's messages);
 // in between, each pair keeps the last result from the previous data.json.
 const CRM_EVERY_MS = 55 * 60 * 1000;
+// The messaging check reads every text of the week; every 3 hours is enough.
+const MESSAGING_EVERY_MS = 3 * 60 * 60 * 1000;
 
 export async function buildSnapshot({ tokens, prevPairs = [] }) {
   const errors = [];
@@ -210,6 +214,23 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
           }
         } catch (err) {
           pair.crmError = String(err?.message || err).slice(0, 200);
+        }
+
+        // Messaging (CRM item 3, server/messaging.js): the rules every 3
+        // hours; conversations for the AI review go out as _msgThreads
+        // (build-snapshot.mjs moves them out of the published data).
+        const prevMsg = prevPairs.find((p) => p.repId === repId && p.marketId === marketId)?.messaging;
+        if (prevMsg?.at && Date.now() - prevMsg.at < MESSAGING_EVERY_MS && prevMsg.weekStart === wkStart) {
+          pair.messaging = prevMsg;
+        } else {
+          try {
+            const texts = await listTextsSince(locationId, token, wkStart - 2 * 86400000);
+            const { threads, ...rules } = analyzeMessaging({ messages: texts, marketId, weekStartMs: wkStart });
+            pair.messaging = { ...rules, weekStart: wkStart, ...(prevMsg?.weekStart === wkStart && prevMsg.ai ? { ai: prevMsg.ai } : {}) };
+            pair._msgThreads = threads;
+          } catch (err) {
+            pair.messaging = prevMsg?.weekStart === wkStart ? { ...prevMsg, error: String(err?.message || err).slice(0, 200) } : { error: String(err?.message || err).slice(0, 200), weekStart: wkStart };
+          }
         }
         return pair;
       } catch (err) {

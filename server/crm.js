@@ -102,7 +102,7 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     const rank = rankOf(o);
     if (!OPEN_RANKS.has(rank)) continue;
     const key = keyOf(o);
-    const addr = customValue(o, fieldIds.address) || o.name || '';
+    const addr = String(customValue(o, fieldIds.address) || o.name || '').replace(/\s*-\s*$/, '');
     const created = ts(o.createdAt) || ts(o.dateAdded);
     const notes = humanNotes(o).filter((n) => n.at >= created - DAY);
     const touches = (messages?.[o.contactId] || []).filter(isTouch).map((m) => ts(m.dateAdded)).filter(Boolean).sort((a, b) => a - b);
@@ -131,7 +131,7 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
         worst = Math.max(worst, businessMs(prev, t));
         prev = t;
       }
-      if (worst > FOLLOWUP_BUSINESS_DAYS * DAY) out.followups.bad.push({ id: o.id, addr, why: `${Math.floor(worst / DAY)} business days without a check-in` });
+      if (worst > FOLLOWUP_BUSINESS_DAYS * DAY) out.followups.bad.push({ id: o.id, addr, why: `${(Math.round((worst / DAY) * 10) / 10).toFixed(1)} business days without a check-in` });
     }
   }
   // Keep the count, list at most 25 per check.
