@@ -302,7 +302,7 @@ Under `src/views/`:
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
 - **Manager tabs** (Luke, Oct 8; replaced the Advanced tab; reworked Oct 11)
-  — Team (scorecard + each rep), Coaching and Month in Review (a Revenue &
+  — Scorecard (team scorecard + each rep), Coaching and Month in Review (a Revenue &
   Forecast tab was dropped as a duplicate of Overview) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
@@ -329,7 +329,8 @@ Under `src/views/`:
     fill = earned), an "ⓘ How the score works" panel, and on Rep a
     click-open breakdown (actual of target, points; rounded so they sum to
     the total, a met target always shows full points).
-  - **Team = Weekly Scorecard** (Luke, Oct 11 — replaces the "VPG - Weekly
+  - **Scorecard** (nav label; view key `mgr-team`; renamed from Team, Luke
+    Oct 11) = Weekly Scorecard (Luke, Oct 11 — replaces the "VPG - Weekly
     Score Card" sheet; run side-by-side with it for 1–2 Fridays, then the
     sheet retires). `views/manager/TeamHub.jsx`: the picker shows "Full
     team (scorecard)" (`ScorecardView.jsx`) or one rep (the Rep view below;
@@ -359,16 +360,33 @@ Under `src/views/`:
       and retries once on a sha conflict). No token = read-only (reads the
       branch from raw.githubusercontent). Save needs a "Reviewed by" (Jack,
       Luke, Anthony, Sam — `REVIEWERS`).
-    - Planned: CRM items 1, 2, 4, 5 graded automatically from GHL
-      (pipeline: past IP end / COE or untouched 14+ days; notes on pipeline
-      opps; dispo required fields filled for the week's contracts;
-      follow-ups at most every 3 days), item 3 (messaging) by rules + AI
-      against the "VPG Texting Standard for Acquisitions" doc (needs the
-      ANTHROPIC_API_KEY secret). Managers can still override.
+    - **Automatic CRM grades** (Luke, Oct 11; `server/crm.js`): items 1, 2,
+      4, 5 come from GHL, hourly (snapshot.js reuses the previous
+      data.json's `pair.crm` for 55 min — the check reads each open deal's
+      texts). Open deal = status open, New Lead … Assigned.
+      1 Pipeline: past its key date (IP end for Under Contract / Dispo, COE
+      for Assigned) or untouched 14+ days (stage move, a person's note, a
+      rep text, a connected call). 2 Notes: a note by a person (has a
+      userId — workflow templates don't) since the deal opened (deals under
+      a day old skipped); notes come from `/opportunities/search?getNotes`,
+      and if the token can't read them the item is left out (`notesError`).
+      4 Dispo: deals that went under contract this week (`startedAt`) with
+      every opportunity field filled except "(If Applicable)" / "optional"
+      ones (`deal.missing`). 5 Follow-ups: this week (from Monday or when
+      the deal opened) no gap over 3 business days (Mon–Fri, AZ) without a
+      rep text (outbound with a userId) or a connected call, from
+      `/conversations/messages/export?contactId` (21 days back, emails not
+      included). Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
+      1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
+      (`mergeCrm`); chips graded automatically show a small "A", hover for
+      why, click the CRM total for the list. The freeze stores `crmAuto` per
+      rep. Messaging (item 3) is still by hand until the AI review
+      (needs the ANTHROPIC_API_KEY secret). Scores: CRM items count 5 points
+      each; with some ungraded, the graded points are scaled to 100 ("est.").
   - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
     biggest leak ringed dark orange, plus this month's counts.
-  - **Rep** (Team tab, a rep picked) — picker; score (with this week's CRM
+  - **Rep** (Scorecard tab, a rep picked) — picker; score (with this week's CRM
     grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
     as the Team cells — `paceTone` in metrics.js, Luke Oct 9),
@@ -445,7 +463,7 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 
 ## Weekly scorecard export (Luke, Oct 7)
 
-The Team tab's Weekly Scorecard (above) is replacing the sheet; this export
+The Scorecard tab (above) is replacing the sheet; this export
 keeps running until the sheet is retired.
 
 **Trigger (Luke, Oct 9):** GitHub's cron in `scorecard.yml` (Fridays 19:00

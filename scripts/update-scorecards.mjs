@@ -60,7 +60,7 @@ export function updateScorecards({ prev, seed, data, reps, now = new Date() }) {
     out.weeks[info.monday] = {
       monday: info.monday, friday: info.friday, label: info.weekOfLabel, weekOfMonth: info.weekOfMonth,
       frozenAt: now.toISOString(), source: 'dashboard',
-      reps: freezeNumbers(data, reps, info.friday.slice(0, 7)),
+      reps: freezeNumbers(data, reps, info.friday.slice(0, 7), info.monday),
     };
   }
   const keys = Object.keys(out.weeks).sort();

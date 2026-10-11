@@ -15,6 +15,7 @@ import useMonthLog from './useMonthLog.js';
 import { cancelsInRange, addedContractsInRange } from './monthReview.js';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
+import { autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
@@ -95,9 +96,10 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   const teamRates = STEPS.map((s) => rate(team, s));
   // Pre-Sept 14 ranges have no opp counts, so no funnel to judge.
   const leak = m.untracked?.size ? null : biggestLeak(m, teamRates);
-  // This week's CRM grades from the scorecard (Team tab), if given yet.
+  // This week's CRM grades from the Scorecard tab, if given yet.
   const sc = useScorecards();
-  const crm = reviewFor(sc, currentWeek().monday, rep.id).crm;
+  const wk = currentWeek().monday;
+  const crm = reviewFor(sc, wk, rep.id, null, sc.weeks[wk] ? sc.weeks[wk].reps?.[rep.id]?.crmAuto : autoCrm(pairs, wk)).crm;
   const { score, estimate } = scoreParts(m, crm);
   const markets = rep.markets.map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,
@@ -158,7 +160,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
     <ManagerFrame title="Rep" subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : "One rep's week and month, funnel and states"} right={picker}>
       <div className="h-full grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3 min-h-0">
         <div className="flex items-center gap-4 rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5">
-          <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline">← Team</button>
+          <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline">← Scorecard</button>
           <span className="w-4 h-4 rounded-full" style={{ background: rep.color }} />
           <span className="text-2xl font-extrabold">{rep.name}</span>
           <span className="text-sm text-zinc-500">{rep.markets.length} market{rep.markets.length === 1 ? '' : 's'}</span>

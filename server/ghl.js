@@ -44,12 +44,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // --- opportunities -------------------------------------------------------
 
-export async function getOpportunities(locationId, token) {
+// `getNotes` adds each opportunity's notes (for the scorecard's CRM checks,
+// server/crm.js); snapshot.js falls back to a plain pull if that fails.
+export async function getOpportunities(locationId, token, { getNotes = false } = {}) {
   const out = [];
   let page = 1;
   while (page <= 20) {
     const data = await ghlFetch('/opportunities/search', token, {
-      params: { location_id: locationId, page, limit: 100 },
+      params: { location_id: locationId, page, limit: 100, ...(getNotes ? { getNotes: true } : {}) },
     });
     const items = data?.opportunities || [];
     out.push(...items);
@@ -150,6 +152,15 @@ export async function listCallsSince(locationId, token, startMs, { maxPages = 10
     if (!cursor) break;
   }
   return out;
+}
+
+// Texts and calls with one contact since `startMs` (newest first, up to
+// 100), for the follow-up / staleness checks (server/crm.js).
+export async function listContactMessagesSince(locationId, token, contactId, startMs) {
+  const data = await ghlFetch('/conversations/messages/export', token, {
+    params: { locationId, contactId, startDate: new Date(startMs).toISOString(), endDate: new Date().toISOString(), limit: 100 },
+  });
+  return data?.messages || [];
 }
 
 // --- contacts (agent counts) --------------------------------------------

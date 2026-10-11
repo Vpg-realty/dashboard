@@ -246,7 +246,7 @@ export async function deleteSubAccount(locationId, { alsoDeleteSecret = true } =
 }
 
 // --- Weekly scorecard grades & notes (Luke, Oct 11) -----------------------
-// CRM grades, notes and "Reviewed by" from the Team tab are saved to
+// CRM grades, notes and "Reviewed by" from the Scorecard tab are saved to
 // scorecard-edits.json on the `scorecard-data` branch — not main, so a save
 // never triggers a deploy (Pages allows ~10 publishes / hr). Anyone can read
 // it (public repo); saving needs the same PAT as the Sub-Accounts panel.
