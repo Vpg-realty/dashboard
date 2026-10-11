@@ -100,7 +100,7 @@ export function biggestLeak(m, teamRates) {
   return gaps[0].rel < 0.8 ? gaps[0] : null;
 }
 
-// Weekly score = the Friday scorecard (Luke, Oct 11: the Team tab replaces
+// Weekly score = the Friday scorecard (Luke, Oct 11: the Scorecard tab replaces
 // the sheet): contracts 35, CRM 25, projected $ 15, offers 15, opps 10 — 100
 // points. Projected is judged against $6,250 × the week of the month (that
 // week's Friday, as on the sheet). Zero contracts caps the score at 89. Until

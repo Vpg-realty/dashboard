@@ -302,7 +302,7 @@ Under `src/views/`:
   doesn't want DISPO in caps on this tab). Overflowing columns scroll at
   ~12 px/s, pause 5 s at each end and glide back up (no jump to the top).
 - **Manager tabs** (Luke, Oct 8; replaced the Advanced tab; reworked Oct 11)
-  — Team (scorecard + each rep), Coaching and Month in Review (a Revenue &
+  — Scorecard (team scorecard + each rep), Coaching and Month in Review (a Revenue &
   Forecast tab was dropped as a duplicate of Overview) — click-only,
   never in the TV rotation. The nav shows them as a blue group after a
   "MANAGER ▸" label (TV tabs sit behind "TV ▸"), and every manager view
@@ -329,7 +329,8 @@ Under `src/views/`:
     fill = earned), an "ⓘ How the score works" panel, and on Rep a
     click-open breakdown (actual of target, points; rounded so they sum to
     the total, a met target always shows full points).
-  - **Team = Weekly Scorecard** (Luke, Oct 11 — replaces the "VPG - Weekly
+  - **Scorecard** (nav label; view key `mgr-team`; renamed from Team, Luke
+    Oct 11) = Weekly Scorecard (Luke, Oct 11 — replaces the "VPG - Weekly
     Score Card" sheet; run side-by-side with it for 1–2 Fridays, then the
     sheet retires). `views/manager/TeamHub.jsx`: the picker shows "Full
     team (scorecard)" (`ScorecardView.jsx`) or one rep (the Rep view below;
@@ -385,7 +386,7 @@ Under `src/views/`:
   - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
     biggest leak ringed dark orange, plus this month's counts.
-  - **Rep** (Team tab, a rep picked) — picker; score (with this week's CRM
+  - **Rep** (Scorecard tab, a rep picked) — picker; score (with this week's CRM
     grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
     as the Team cells — `paceTone` in metrics.js, Luke Oct 9),
@@ -462,7 +463,7 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 
 ## Weekly scorecard export (Luke, Oct 7)
 
-The Team tab's Weekly Scorecard (above) is replacing the sheet; this export
+The Scorecard tab (above) is replacing the sheet; this export
 keeps running until the sheet is retired.
 
 **Trigger (Luke, Oct 9):** GitHub's cron in `scorecard.yml` (Fridays 19:00

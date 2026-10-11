@@ -122,7 +122,7 @@ export function ScoreHelp({ light }) {
             <ul className="mt-3 text-sm text-zinc-600 space-y-1 list-disc pl-5">
               <li>Each part pays in proportion: 3 of 5 offers = 60% of the offer points. Going over the target doesn't add more.</li>
               <li>No contract this week → the score can't go above 89.</li>
-              <li>CRM cleanliness: five items, 0–2 each (2 = all good, 1 = 60%+, 0 = below). Pipeline, notes, dispo and follow-ups are graded automatically from GHL every hour; messaging is graded by a manager on the Team tab, and a manager can override any item. Until all five are in, the score is an estimate: the graded parts are scaled up to 100.</li>
+              <li>CRM cleanliness: five items, 0–2 each (2 = all good, 1 = 60%+, 0 = below). Pipeline, notes, dispo and follow-ups are graded automatically from GHL every hour; messaging is graded by a manager on the Scorecard tab, and a manager can override any item. Until all five are in, the score is an estimate: the graded parts are scaled up to 100.</li>
               <li>The week freezes Friday at 12:00 Arizona; the frozen numbers are what the week is scored on.</li>
               <li>Weekly counts restart Monday, so scores start low and build through the week. Thursday–Friday is when they mean the most.</li>
             </ul>

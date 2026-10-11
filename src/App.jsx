@@ -21,7 +21,7 @@ const VIEWS = {
   opportunities: { label: 'Opportunities · KPI tracking',   component: OpportunitiesView },
   master:        { label: 'Overview · this month',          component: MasterView },
   pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
-  'mgr-team':     { label: 'Manager · team',                 component: ManagerTeamView },
+  'mgr-team':     { label: 'Manager · scorecard',            component: ManagerTeamView },
   'mgr-coaching': { label: 'Manager · coaching',             component: ManagerCoachingView },
   'mgr-month':    { label: 'Manager · month in review',      component: ManagerMonthView },
 };

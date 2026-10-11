@@ -88,7 +88,7 @@ export function cellUpdates(tab, columnA, info, numbers) {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard scorecard (Luke, Oct 11: the Team tab replaces the Google Sheet).
+// Dashboard scorecard (Luke, Oct 11: the Scorecard tab replaces the Google Sheet).
 // Shared by the browser (views/manager/ScorecardView.jsx) and the Friday
 // freeze (scripts/update-scorecards.mjs).
 
