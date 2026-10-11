@@ -400,7 +400,13 @@ Under `src/views/`:
     grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
     as the Team cells — `paceTone` in metrics.js, Luke Oct 9),
-    funnel with step rates vs team, and a by-state table. Period picker
+    a **Progress** panel (`RepProgress.jsx`, Luke Oct 11: weekly score
+    over the last 8 weeks vs the dashed team average with the band colours
+    and the "auto CRM →" marker (shared `LineChart.jsx`), points earned per
+    part per week coloured by share of the part, and vs last week / vs
+    weeks before / best week / streak in the current band; CRM shown
+    scaled to 25 with * while some items aren't graded), funnel with step
+    rates vs team, and a by-state table (the page scrolls on short screens). Period picker
     (Luke, Oct 8; from the old Advanced tab): Current, Custom range, every
     Mon–Sun week and calendar month on file. A past period is totalled from
     history.json (`computeRange` via `rangeMetrics` in metrics.js; team rates
