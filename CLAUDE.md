@@ -342,9 +342,18 @@ Under `src/views/`:
     pace on top, month bar under it), projected $ MTD vs week pace,
     cancels (wk / mo), five CRM chips (`CRM_ITEMS`: pipeline, notes,
     messaging, dispo, follow-ups; 2 = all good, 1 = ~60%, 0 = below),
-    CRM /10 and a note. Tiles: team score, Pod A / Pod B, review status.
+    CRM /10 and a note. Under each pod a tinted totals row (Luke, Oct 11:
+    "clearly define totals for the pod"; Pod A violet, Pod B teal): sums vs
+    per-rep target × reps, pod score = average of its reps, CRM item
+    averages and CRM avg /10. Tiles: team score, Pod A / Pod B, review status.
     Week picker: this week (live until the freeze) and every week in
-    scorecards.json ("from sheet" = imported).
+    scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
+    (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke, Oct 11): reps × weeks
+    grid of the weekly score (or CRM /10 with the five item bars) in band
+    colours, a sparkline, change vs last week and vs the average of the up
+    to 4 weeks before; tiles for team now, most improved, biggest drop,
+    weeks on file; a line chart of team / Pod A / Pod B with the 90 / 75
+    bands and a dashed "auto CRM →" marker where dashboard weeks start.
     - **Freeze**: Friday 12:00 Arizona `scripts/update-scorecards.mjs`
       (chained onto `npm run append-history`) copies the week's numbers
       (`freezeNumbers`) into `public/scorecards.json` once
@@ -367,7 +376,8 @@ Under `src/views/`:
       1 Pipeline: past its key date (IP end for Under Contract / Dispo, COE
       for Assigned) or untouched 14+ days (stage move, a person's note, a
       rep text, a connected call). 2 Notes: a note by a person (has a
-      userId — workflow templates don't) since the deal opened (deals under
+      userId — workflow templates don't, unless a person filled the
+      template in: `lastUpdatedBy`) since the deal opened (deals under
       a day old skipped); notes come from `/opportunities/search?getNotes`,
       and if the token can't read them the item is left out (`notesError`).
       4 Dispo: deals that went under contract this week (`startedAt`) with

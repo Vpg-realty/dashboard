@@ -18,6 +18,7 @@ import { ScoreHelp } from './Score.jsx';
 import { T, metrics, repPairs, scoreTone, paceTone } from './metrics.js';
 import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf, autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
+import TrendsView from './TrendsView.jsx';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
@@ -33,7 +34,7 @@ const NEXT = { null: 2, 2: 1, 1: 0, 0: null };
 function groups() {
   const inPods = new Set([...PODS.flatMap((p) => p.reps), ...POD_LEADS]);
   return [
-    ...PODS.map((p) => ({ title: `${p.title.toUpperCase()} · ${repOf(p.lead).name}`, reps: p.reps.filter((id) => REPS.some((r) => r.id === id)), total: true })),
+    ...PODS.map((p) => ({ title: `${p.title.toUpperCase()} · ${repOf(p.lead).name}`, podId: p.id, podName: p.title, reps: p.reps.filter((id) => REPS.some((r) => r.id === id)), total: true })),
     { title: 'POD LEADS', reps: POD_LEADS.filter((id) => REPS.some((r) => r.id === id)) },
     { title: 'NO POD', reps: REPS.map((r) => r.id).filter((id) => !inPods.has(id)) },
   ].filter((g) => g.reps.length);
@@ -44,13 +45,13 @@ function Stack({ wk, wkT, mo, moT, frac }) {
   const tw = paceTone(wk || 0, wkT, frac);
   const tm = mo == null ? null : paceTone(mo, moT, frac < 1 ? paceFraction('month') : 1);
   return (
-    <div className={`rounded-md px-1.5 py-1 h-full flex flex-col justify-center min-w-0 border ${tw.box}`}>
+    <div className={`rounded-md px-1.5 py-0.5 h-full flex flex-col justify-center min-w-0 border ${tw.box}`}>
       <div className="flex items-baseline justify-center gap-1 leading-none">
         <span className={`text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${tw.text}`}>{wk || 0}</span>
         <span className={`text-[10px] font-bold opacity-60 ${tw.text}`}>/{wkT} wk</span>
       </div>
       {mo != null && (
-        <div className="flex items-center gap-1 mt-1">
+        <div className="flex items-center gap-1 mt-0.5">
           <div className="relative flex-1 h-1 rounded-full bg-white/80 overflow-hidden">
             <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (mo / moT) * 100)}%`, background: tm.bar }} />
           </div>
@@ -76,7 +77,7 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
   const pt = paceTone(n.projected || 0, projT, 1);
   const [editing, setEditing] = useState(false);
   return (
-    <div className="grid gap-x-1.5 items-stretch min-h-[2.9rem] h-full py-0.5" style={G}>
+    <div className="grid gap-x-1.5 items-stretch min-h-[2.45rem] h-full py-0.5" style={G}>
       <button onClick={() => onPickRep?.(id)} className="flex items-center gap-2 min-w-0 text-left hover:text-blue-700" title="Open this rep">
         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
         <span className="text-[min(1rem,1.9vh)] font-bold truncate hover:underline underline-offset-2">{first(id)}</span>
@@ -88,15 +89,15 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
         </span>
       </span>
       <Stack wk={n.contractsW} wkT={T.contractsPerWeek} mo={n.contractsM} moT={T.contractsPerMonth} frac={frac} />
-      <div className={`rounded-md px-1.5 py-1 h-full flex flex-col justify-center border ${pt.box}`}>
+      <div className={`rounded-md px-1.5 py-0.5 h-full flex flex-col justify-center border ${pt.box}`}>
         <div className={`text-center leading-none text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${pt.text}`}>{k(n.projected)}<span className="text-[10px] opacity-60"> /{k(projT)}</span></div>
-        <div className="text-center text-[10px] font-semibold text-zinc-500 mt-1">MTD · wk {wom} pace</div>
+        <div className="text-center text-[10px] font-semibold text-zinc-500 mt-0.5">MTD · wk {wom} pace</div>
       </div>
       <Stack wk={n.offersW} wkT={T.offersPerWeek} mo={n.offersM} moT={T.offersPerWeek * 4} frac={frac} />
       <Stack wk={n.oppsW} wkT={T.oppsOpenedPerWeek} mo={n.oppsM} moT={T.oppsOpenedPerWeek * 4} frac={frac} />
       <div className={`rounded-md h-full flex flex-col items-center justify-center border ${n.cancelsW ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-zinc-50 border-zinc-200 text-zinc-300'}`}>
         <span className="text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums leading-none">{n.cancelsW ?? '–'}</span>
-        {n.cancelsM != null && <span className={`text-[10px] font-semibold mt-1 ${n.cancelsW ? 'text-rose-600' : 'text-zinc-400'}`}>{n.cancelsM} mo</span>}
+        {n.cancelsM != null && <span className={`text-[10px] font-semibold mt-0.5 ${n.cancelsW ? 'text-rose-600' : 'text-zinc-400'}`}>{n.cancelsM} mo</span>}
       </div>
       <span />
       {CRM_ITEMS.map((it, i) => {
@@ -167,6 +168,65 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
   );
 }
 
+// Pod colours (also the Trends chart lines).
+const POD_COLORS = { A: { line: '#7c3aed', bg: 'bg-violet-50', border: 'border-violet-500', text: 'text-violet-800' }, B: { line: '#0d9488', bg: 'bg-teal-50', border: 'border-teal-500', text: 'text-teal-800' } };
+
+// Totals row under each pod (Luke, Oct 11: "clearly define totals for the
+// pod"): same columns as the reps, sums vs the pod's targets (per-rep
+// target × reps), the pod's average score, CRM averages.
+function PodTotal({ g, wom, frac }) {
+  const c = POD_COLORS[g.podId] || POD_COLORS.A;
+  const n = g.rows.length;
+  const sum = (key) => g.rows.reduce((a, r) => a + (r.n[key] || 0), 0);
+  const has = (key) => g.rows.some((r) => r.n[key] != null);
+  const score = Math.round(avg(g.rows.map((r) => r.s.score)));
+  const tone = scoreTone(score);
+  const projT = 6250 * Math.min(4, Math.max(1, wom)) * n;
+  const pt = paceTone(sum('projected'), projT, 1);
+  const graded = g.rows.filter((r) => r.s.crmKnown);
+  const itemAvg = (i) => avg(g.rows.map((r) => r.crm?.[i]).filter((v) => v != null));
+  const crm10 = graded.length ? avg(graded.map((r) => (r.crm.reduce((a, v) => a + (v ?? 0), 0) / (2 * r.s.crmKnown)) * 10)) : null;
+  return (
+    <div className={`grid gap-x-1.5 items-stretch min-h-[2.45rem] h-full py-0.5 mt-0.5 rounded-lg border-l-[6px] ${c.border} ${c.bg}`} style={G}>
+      <span className={`flex flex-col justify-center pl-2 leading-tight ${c.text}`}>
+        <span className="text-[13px] font-extrabold tracking-wide uppercase">{g.podName} total</span>
+        <span className="text-[10px] font-semibold opacity-80">{n} reps · pod targets</span>
+      </span>
+      <span className="flex items-center">
+        <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ring-2 ring-inset ring-white/60 ${tone.bg} ${tone.text}`} title={`Pod average · ${ratingOf(score)}`}>
+          <span className="text-[min(1.2rem,2.2vh)] font-extrabold tabular-nums">{score}</span>
+          <span className="text-[9px] font-bold">avg</span>
+        </span>
+      </span>
+      <Stack wk={sum('contractsW')} wkT={T.contractsPerWeek * n} mo={has('contractsM') ? sum('contractsM') : null} moT={T.contractsPerMonth * n} frac={frac} />
+      <div className={`rounded-md px-1.5 py-0.5 h-full flex flex-col justify-center border ${pt.box}`}>
+        <div className={`text-center leading-none text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${pt.text}`}>{k(sum('projected'))}<span className="text-[10px] opacity-60"> /{k(projT)}</span></div>
+        <div className="text-center text-[10px] font-semibold text-zinc-500 mt-0.5">MTD · wk {wom} pace</div>
+      </div>
+      <Stack wk={sum('offersW')} wkT={T.offersPerWeek * n} mo={has('offersM') ? sum('offersM') : null} moT={T.offersPerWeek * 4 * n} frac={frac} />
+      <Stack wk={sum('oppsW')} wkT={T.oppsOpenedPerWeek * n} mo={has('oppsM') ? sum('oppsM') : null} moT={T.oppsOpenedPerWeek * 4 * n} frac={frac} />
+      <div className={`rounded-md h-full flex flex-col items-center justify-center border ${sum('cancelsW') ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-white/70 border-zinc-200 text-zinc-300'}`}>
+        <span className="text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums leading-none">{has('cancelsW') ? sum('cancelsW') : '–'}</span>
+        {has('cancelsM') && <span className={`text-[10px] font-semibold mt-1 ${sum('cancelsW') ? 'text-rose-600' : 'text-zinc-400'}`}>{sum('cancelsM')} mo</span>}
+      </div>
+      <span />
+      {CRM_ITEMS.map((it, i) => {
+        const a = itemAvg(i);
+        return (
+          <span key={it.key} className={`rounded-md self-center h-full max-h-10 flex items-center justify-center text-[13px] font-extrabold tabular-nums bg-white/80 ${a == null ? 'text-zinc-300' : a >= 1.75 ? 'text-emerald-700' : a >= 1 ? 'text-amber-700' : 'text-rose-700'}`} title={`${it.label} · pod average`}>
+            {a == null ? '–' : a.toFixed(1)}
+          </span>
+        );
+      })}
+      <span className="flex flex-col items-center justify-center leading-none">
+        <span className={`text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums ${c.text}`}>{crm10 == null ? '–' : crm10.toFixed(1)}</span>
+        <span className="text-[9px] text-zinc-500">avg /10</span>
+      </span>
+      <span className={`self-center text-[11px] font-semibold ${c.text}`}>Pod score = average of the {n} reps</span>
+    </div>
+  );
+}
+
 export default function ScorecardView({ onPickRep }) {
   const sc = useScorecards();
   const cur = currentWeek();
@@ -191,6 +251,7 @@ export default function ScorecardView({ onPickRep }) {
       return { value: m, label: `Week of ${label}${tag}` };
     });
   }, [sc.weeks, cur.monday, cur.weekOfLabel]);
+  const trends = week === '__trends';
 
   // Each rep's numbers for the week, review, and score.
   const rowOf = (id) => {
@@ -257,6 +318,7 @@ export default function ScorecardView({ onPickRep }) {
         {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
       </select>
       <select className="rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold" value={week} onChange={(e) => setWeek(e.target.value)}>
+        <option value="__trends">📈 Trends · last 8 weeks</option>
         {weekOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <ScoreHelp light />
@@ -264,7 +326,8 @@ export default function ScorecardView({ onPickRep }) {
   );
 
   return (
-    <ManagerFrame title="Weekly Scorecard" subtitle={isLive ? 'live · freezes Fri 12:00 AZ' : frozen?.source === 'sheet' ? 'imported from the sheet' : `frozen ${frozen?.frozenAt ? new Date(frozen.frozenAt).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' }) : ''}`} right={right}>
+    <ManagerFrame title="Weekly Scorecard" subtitle={trends ? 'trends · week by week' : isLive ? 'live · freezes Fri 12:00 AZ' : frozen?.source === 'sheet' ? 'imported from the sheet' : `frozen ${frozen?.frozenAt ? new Date(frozen.frozenAt).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' }) : ''}`} right={right}>
+      {trends ? <TrendsView sc={sc} groups={groups()} onPickRep={onPickRep} /> : (
       <div className="h-full flex flex-col gap-2 min-h-0">
         <div className="grid gap-2 shrink-0" style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0,1fr))` }}>
           {tiles.map(([l, v, sub, t]) => (
@@ -313,21 +376,16 @@ export default function ScorecardView({ onPickRep }) {
           <div className="flex-1 min-h-0 flex flex-col gap-1.5 pt-1 overflow-y-auto">
             {!sc.loaded && <div className="text-sm text-zinc-400 p-2">Loading scorecards…</div>}
             {gs.map((g) => {
-              const sum = (key) => g.rows.reduce((a, r) => a + (r.n[key] || 0), 0);
               const n = g.rows.length;
               return (
-                <div key={g.title} className="flex flex-col shrink-0" style={{ flex: `${n + 0.9} 1 auto` }}>
+                <div key={g.title} className="flex flex-col shrink-0" style={{ flex: `${n + (g.total ? 2 : 0.9)} 1 auto` }}>
                   <div className="flex items-center gap-3 border-b-2 border-zinc-800 pb-0.5 mb-0.5">
                     <span className="text-[11px] font-extrabold tracking-[0.18em] text-zinc-800">{g.title}</span>
-                    {g.total && (
-                      <span className="text-[11px] text-zinc-500 tabular-nums">
-                        Pod total · contracts <b className="text-zinc-800">{sum('contractsW')}/{n}</b> · offers <b className="text-zinc-800">{sum('offersW')}/{n * 5}</b> · opps <b className="text-zinc-800">{sum('oppsW')}/{n * 10}</b> · projected <b className="text-zinc-800">{k(sum('projected'))}</b> · pod score <b className="text-zinc-800">{Math.round(podScore(g))}</b>
-                      </span>
-                    )}
                   </div>
-                  <div className="flex-1 grid" style={{ gridTemplateRows: `repeat(${n}, minmax(2.9rem,1fr))` }}>
+                  <div className="flex-1 grid" style={{ gridTemplateRows: `repeat(${n}, minmax(2.45rem,1fr))` }}>
                     {g.rows.map((r) => <Row key={r.id} row={r} wom={wom} frac={frac} canEdit={canEdit} onCrm={onCrm} onNote={onNote} onPickRep={onPickRep} />)}
                   </div>
+                  {g.total && <PodTotal g={g} wom={wom} frac={frac} />}
                 </div>
               );
             })}
@@ -341,6 +399,7 @@ export default function ScorecardView({ onPickRep }) {
           </div>
         </div>
       </div>
+      )}
     </ManagerFrame>
   );
 }
