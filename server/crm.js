@@ -6,8 +6,9 @@
 //                  its key date (IP end for Under Contract / Dispo, COE for
 //                  Assigned) and touched in the last 14 days (stage move, a
 //                  note, or a text / call from the rep).
-//   2 Notes      — every open deal has a note written by a person (not a
-//                  workflow template) since the deal was opened.
+//   2 Notes      — every open deal has a note written by a person since the
+//                  deal was opened (a workflow template counts once a person
+//                  has filled it in).
 //   4 Dispo      — deals that went under contract this week have every
 //                  opportunity field filled except the "(If Applicable)" /
 //                  optional ones (graded in scripts/scorecard-lib.mjs from
@@ -48,10 +49,17 @@ export function missingFields(opp, required) {
   return required.filter((f) => customValue(opp, f.id) == null).map((f) => f.name);
 }
 
-// A note written by a person (workflow-created templates have no user).
+// A note written by a person — or a workflow template (the "Required
+// Property Info" note) a person filled in afterwards. `at` = when the person
+// wrote / last edited it.
+const byPerson = (who) => !!(who && (who.userId || who.source === 'WEB_USER' || who.source === 'MOBILE_APP'));
 export function humanNotes(opp) {
   const list = Array.isArray(opp.notes) ? opp.notes : Array.isArray(opp.notes?.notes) ? opp.notes.notes : [];
-  return list.filter((n) => n && !n.deleted && (n.createdBy?.userId || n.createdBy?.source === 'WEB_USER' || n.createdBy?.source === 'MOBILE_APP'));
+  return list.filter((n) => n && !n.deleted).flatMap((n) => {
+    if (byPerson(n.createdBy)) return [{ ...n, at: ts(n.dateAdded) }];
+    if (byPerson(n.lastUpdatedBy)) return [{ ...n, at: ts(n.dateUpdated || n.lastUpdatedBy.timestamp) }];
+    return [];
+  });
 }
 
 // A touch with the agent: a text / message sent by a rep (has a userId —
@@ -96,13 +104,13 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     const key = keyOf(o);
     const addr = customValue(o, fieldIds.address) || o.name || '';
     const created = ts(o.createdAt) || ts(o.dateAdded);
-    const notes = humanNotes(o).filter((n) => ts(n.dateAdded) >= created - DAY);
+    const notes = humanNotes(o).filter((n) => n.at >= created - DAY);
     const touches = (messages?.[o.contactId] || []).filter(isTouch).map((m) => ts(m.dateAdded)).filter(Boolean).sort((a, b) => a - b);
 
     // 1 Pipeline
     out.pipeline.total++;
     const keyDate = key === 'assigned' ? toDateStr(customValue(o, fieldIds.coe)) : rank === 5 || rank === 6 ? toDateStr(customValue(o, fieldIds.ipEnd)) : null;
-    const lastTouch = Math.max(ts(o.lastStageChangeAt), created, ...notes.map((n) => ts(n.dateAdded)), ...touches);
+    const lastTouch = Math.max(ts(o.lastStageChangeAt), created, ...notes.map((n) => n.at), ...touches);
     if (keyDate && keyDate < today) out.pipeline.bad.push({ id: o.id, addr, why: `${key === 'assigned' ? 'COE' : 'IP end'} passed ${keyDate.slice(5).replace('-', '/')}` });
     else if (now - lastTouch > STALE_DAYS * DAY) out.pipeline.bad.push({ id: o.id, addr, why: `untouched ${Math.floor((now - lastTouch) / DAY)}d` });
 
