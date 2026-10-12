@@ -7,15 +7,11 @@ import { SCORE_PARTS, scoreTone } from './metrics.js';
 import LineChart from './LineChart.jsx';
 import { weekSeries, avgOf } from './trends.js';
 
-// Points a part earned in a week (CRM: 5 per graded item, out of 5 per item).
+// Points a part earned in a week, of what it could earn that week (weights
+// changed the week of Oct 12; speed has none before, ungraded CRM none yet).
 function partPts(r, key) {
-  if (!r) return null;
-  if (key === 'crm') {
-    const known = (r.crm || []).filter((v) => v != null);
-    return known.length ? { pts: known.reduce((a, b) => a + b, 0) * 2.5, max: 5 * known.length } : null;
-  }
-  const max = SCORE_PARTS.find((p) => p.key === key).weight;
-  return { pts: r.s.parts[key], max };
+  if (!r || !r.s.max[key]) return null;
+  return { pts: r.s.parts[key] || 0, max: r.s.max[key], full: r.s.weights[key] };
 }
 const cellCls = (share) => (share == null ? 'bg-zinc-50 text-zinc-300' : share >= 1 ? 'bg-emerald-100 text-emerald-800' : share >= 0.6 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800');
 
@@ -69,26 +65,26 @@ export default function RepProgress({ sc, rep }) {
           />
         </div>
         <div className="min-h-0 flex flex-col">
-          <div className="grid gap-1 text-[10px] uppercase tracking-[0.06em] text-zinc-500 font-semibold pb-0.5" style={{ gridTemplateColumns: `7.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
+          <div className="grid gap-1 text-[10px] uppercase tracking-[0.06em] text-zinc-500 font-semibold pb-0.5" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
             <span>Points earned</span>
             {weeks.map((w) => <span key={w.monday} className="text-center">{w.label}{w.live ? ' ·live' : ''}</span>)}
           </div>
           <div className="flex-1 min-h-0 grid gap-1" style={{ gridTemplateRows: `repeat(${SCORE_PARTS.length + 1}, minmax(0,1fr))` }}>
             {SCORE_PARTS.map((p) => (
-              <div key={p.key} className="grid gap-1 items-stretch" style={{ gridTemplateColumns: `7.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
+              <div key={p.key} className="grid gap-1 items-stretch" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
                 <span className="flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color }} />{p.short || p.label}<span className="text-[10px] text-zinc-400 font-normal">/{p.weight}</span></span>
                 {weeks.map((w) => {
                   const x = partPts(w.reps[rep.id], p.key);
                   const share = x ? x.pts / x.max : null;
                   return (
                     <span key={w.monday} className={`rounded flex items-center justify-center text-sm font-bold tabular-nums ${cellCls(share)}`} title={x ? `${Math.round(x.pts * 10) / 10} of ${x.max}` : 'not on file'}>
-                      {x ? (p.key === 'crm' && x.max < 25 ? `${Math.round(share * 25)}*` : Math.round(x.pts)) : '—'}
+                      {x ? (p.key === 'crm' && x.max < x.full ? `${Math.round(share * x.full)}*` : Math.round(x.pts)) : '—'}
                     </span>
                   );
                 })}
               </div>
             ))}
-            <div className="grid gap-1 items-stretch border-t border-zinc-200 pt-1" style={{ gridTemplateColumns: `7.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
+            <div className="grid gap-1 items-stretch border-t border-zinc-200 pt-1" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
               <span className="flex items-center text-sm font-extrabold">Score</span>
               {mine.map((v, i) => {
                 const t = v == null ? null : scoreTone(v);
@@ -104,7 +100,7 @@ export default function RepProgress({ sc, rep }) {
               <div className="text-xl font-extrabold tabular-nums leading-tight">{v}</div>
             </div>
           ))}
-          <div className="text-[10px] text-zinc-400 leading-tight">* CRM scaled to 25 while some items aren't graded</div>
+          <div className="text-[10px] text-zinc-400 leading-tight">* CRM scaled to its full points while some items aren't graded. Weeks before Oct 12 used the old weights (CRM 25, opps 10, no speed).</div>
         </div>
       </div>
     </div>

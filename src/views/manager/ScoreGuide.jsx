@@ -5,8 +5,8 @@
 // ends with its settings: what to ask for when something should change.
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
-import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T } from './metrics.js';
-import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO } from '../../../scripts/scorecard-lib.mjs';
+import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
+import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
@@ -44,6 +44,7 @@ function Overview() {
   const full = {
     contracts: `${T.contractsPerWeek} contract this week`,
     crm: '10 of 10 on the five CRM items',
+    speed: `${pct(SPEED_TARGET)} of agent texts answered within ${ANSWER_WITHIN_MIN} min`,
     projected: `${formatCompactCurrency((T.revenuePerRepMonth / 4) * wk)} by week ${wk} of the month`,
     offers: `${T.offersPerWeek} offers this week`,
     opps: `${T.oppsOpenedPerWeek} opps opened this week`,
@@ -52,7 +53,7 @@ function Overview() {
     <>
       <div className="text-sm text-zinc-700">One score out of 100 per rep per week, the same scorecard the Google Sheet used. It resets every Monday and freezes Friday at 12:00 Arizona.</div>
       <div className="flex gap-[3px] h-8 mt-3 rounded overflow-hidden">
-        {SCORE_PARTS.map((p) => <div key={p.key} className="flex items-center justify-center text-white text-xs font-bold" style={{ flex: p.weight, background: p.color }}>{p.short || p.label} · {p.weight}</div>)}
+        {SCORE_PARTS.map((p) => <div key={p.key} className="flex items-center justify-center text-white text-xs font-bold whitespace-nowrap overflow-hidden" style={{ flex: p.weight, background: p.color }} title={`${p.label} · ${p.weight}`}>{p.weight < 8 ? p.weight : `${p.short || p.label} · ${p.weight}`}</div>)}
       </div>
       <table className="w-full mt-3 text-sm">
         <thead><tr className="text-left text-[10px] uppercase tracking-[0.12em] text-zinc-500"><th className="py-1">Part</th><th>Points</th><th>Full points at</th></tr></thead>
@@ -70,7 +71,8 @@ function Overview() {
       <ul className="mt-1 text-sm text-zinc-700 space-y-1 list-disc pl-5">
         <li>Each part pays in proportion to its target: 3 of 5 offers = 60% of the 15 offer points = 9. Going over the target adds nothing.</li>
         <li>No contract this week → the score is capped at 89, however good the rest is.</li>
-        <li>CRM: five items graded 0, 1 or 2; each item is worth 5 points (2 = 5, 1 = 2.5, 0 = 0). While an item has no grade, the parts that are graded are scaled up to 100 and the score shows <b>est.</b></li>
+        <li>CRM: five items graded 0, 1 or 2; each item is worth {partOf('crm').weight / 5} points (2 = {partOf('crm').weight / 5}, 1 = {partOf('crm').weight / 10}, 0 = 0). While an item has no grade, or speed hasn't been checked yet, the parts that are graded are scaled up to 100 and the score shows <b>est.</b></li>
+        <li>Speed to response became its own part the week of Oct 12. Earlier weeks keep the sheet's weights ({['contracts', 'crm', 'projected', 'offers', 'opps'].map((k) => SHEET_WEIGHTS[k]).join(' / ')}, no speed), so their scores don't change.</li>
         <li>Scores start low on Monday and build through the week; Thursday and Friday are when they mean the most.</li>
       </ul>
       <H>What the colours mean</H>
@@ -86,6 +88,7 @@ function Overview() {
       <Settings items={[
         ['Contracts / week', T.contractsPerWeek], ['Offers / week', T.offersPerWeek], ['Opps opened / week', T.oppsOpenedPerWeek],
         ['Revenue / month (projected pace)', formatCompactCurrency(T.revenuePerRepMonth)], ['Cap with no contract', 89],
+        ['Speed: full points at', `${pct(SPEED_TARGET)} within ${ANSWER_WITHIN_MIN} min`],
         ['Point weights', SCORE_PARTS.map((p) => p.weight).join(' / ')], ['Strong / Watch from', '90 / 75'],
       ]} />
     </>
@@ -96,17 +99,22 @@ function Numbers() {
   return (
     <>
       <div className="text-sm text-zinc-700">Everything comes from GHL, read-only, about every 15 minutes, across every rep × state sub-account. Weeks run Monday–Sunday, Pacific time for the counts.</div>
-      <Item title="Contracts" color={SCORE_PARTS[0].color}>
+      <Item title="Contracts" color={partOf('contracts').color}>
         <Row k="Counts">A deal the first time it reaches <b>Under Contract</b> this week (or jumps straight to Dispo Active). It stays counted even if it later moves on or falls through.</Row>
         <Row k="Not counted">Deals already under contract before the week; deals in the excluded list (put in the wrong pipeline).</Row>
       </Item>
-      <Item title="Offers" color={SCORE_PARTS[3].color}>
+      <Item title="Offers" color={partOf('offers').color}>
         <Row k="Counts">A deal the first time it reaches <b>Offer Submitted</b> this week; it stays counted after it moves on.</Row>
       </Item>
-      <Item title="Opps opened" color={SCORE_PARTS[4].color}>
+      <Item title="Opps opened" color={partOf('opps').color}>
         <Row k="Counts">Opportunities created this week.</Row>
       </Item>
-      <Item title="Projected $" color={SCORE_PARTS[2].color}>
+      <Item title="Speed to response" color={partOf('speed').color}>
+        <Row k="Counts">Agent texts that came in on weekdays, 8am–5pm Arizona, answered within {ANSWER_WITHIN_MIN} minutes by a text the rep typed or a call that connected. Auto-replies, plain acknowledgements and texts Claude judged as not needing an answer are left out (details on the Messaging tab).</Row>
+        <Row k="Graded">Against the Texting Standard's {pct(SPEED_TARGET)} target: {pct(SPEED_TARGET)} or better = the full {partOf('speed').weight} points, 60% = {Math.round((0.6 / SPEED_TARGET) * partOf('speed').weight)}. No agent texts that week = full points.</Row>
+        <Row k="Updated">Every 3 hours.</Row>
+      </Item>
+      <Item title="Projected $" color={partOf('projected').color}>
         <Row k="Counts">Month to date: revenue from deals Closed this month + the value of deals in <b>Assigned</b> whose COE is this month. Anything before Assigned has no fee yet, so it never counts.</Row>
         <Row k="Graded">Against $25K ÷ 4 × the week of the month (week 1 = $6.25K … week 4+ = $25K).</Row>
       </Item>
@@ -157,8 +165,8 @@ function Messaging() {
   return (
     <>
       <div className="text-sm text-zinc-700"><b>Rep texts</b> = texts the rep typed in GHL. Workflow, bulk and campaign texts are sent under the rep's name too, but only count in the Never-send / hours / STOP check (the rep owns their automations). </div>
-      <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Four parts, each a share out of 100%, averaged: <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
-      <Item title="Answered within 15 minutes">
+      <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Three parts, each a share out of 100%, averaged (answer speed is scored on its own, as Speed to response, from the week of Oct 12): <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
+      <Item title={`Answered within 15 minutes · the Speed to response part (${partOf('speed').weight} points)`} color={partOf('speed').color}>
         <Row k="Checks">Agent texts that came in on weekdays, 8am–5pm Arizona, answered within {ANSWER_WITHIN_MIN} minutes by a text the rep typed <b>or a call that connected</b>. Graded against the {pct(SPEED_TARGET)} target (hitting {pct(SPEED_TARGET)} = full marks). Also shown on the Coaching tab.</Row>
         <Row k="Skipped">Texts that came in after hours; plain acknowledgements ("thanks", "ok", "sounds good", 👍); STOP replies; auto-replies and out-of-office messages; phone reactions ('Liked "…"').</Row>
         <Row k="Claude">Every agent text that went unanswered is read by Claude, which decides whether it needed an answer. If not, it's left out of the count. When unsure it counts as needing one.

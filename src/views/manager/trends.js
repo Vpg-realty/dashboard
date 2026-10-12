@@ -4,7 +4,7 @@
 // (live) when it isn't frozen yet. Scores use the same scoreWeek as the
 // scorecard, with the managers' CRM grades over the automatic ones.
 import { REPS } from '../../data/config.js';
-import { scoreWeek, mergeCrm, autoCrm } from '../../../scripts/scorecard-lib.mjs';
+import { scoreWeek, mergeCrm, autoCrm, repSpeed } from '../../../scripts/scorecard-lib.mjs';
 import { metrics, repPairs } from './metrics.js';
 import { reviewFor, currentWeek } from './useScorecards.js';
 
@@ -22,13 +22,13 @@ export function weekSeries(sc, max = 8) {
       let auto = n?.crmAuto || null;
       if (live) {
         const m = metrics(repPairs(r.id));
-        n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, projected: m.projected };
+        n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, projected: m.projected, ...repSpeed(repPairs(r.id)) };
         auto = autoCrm(repPairs(r.id), monday);
       }
       if (!n) continue;
       const { manual } = reviewFor(sc, monday, r.id, null);
       const crm = mergeCrm(manual, auto);
-      reps[r.id] = { n, crm, s: scoreWeek(n, crm, w?.weekOfMonth ?? cur.weekOfMonth) };
+      reps[r.id] = { n, crm, s: scoreWeek(n, crm, w?.weekOfMonth ?? cur.weekOfMonth, monday) };
     }
     return { monday, label: w?.label || cur.weekOfLabel, live, source: w?.source || (live ? 'live' : 'dashboard'), reps };
   });

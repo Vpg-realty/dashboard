@@ -86,7 +86,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
 
       <Panel className="col-span-12 lg:col-span-5 min-h-0" accent="Weekly score" title="Scores by rep" subtitle={`change = week of ${now?.label || '—'} vs ${prev?.label || '—'}`}>
         <div className="h-full flex flex-col min-h-0">
-          <div className="grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 pb-1.5 border-b border-zinc-200 text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold leading-tight">
+          <div className="grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 px-2 pb-1.5 border-b border-zinc-200 text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold leading-tight">
             <span className="self-end">Rep</span>
             <span className="text-center">Week of<br />{prev?.label || '—'}</span>
             <span className="text-center text-zinc-800">Week of<br />{now?.label || '—'}</span>
@@ -109,7 +109,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
                       onClick={() => setFocus(on ? null : id)}
                       onDoubleClick={() => onPickRep?.(id)}
                       title="Click to show on the chart · double-click to open the rep"
-                      className={`w-full grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 items-center py-1.5 px-1 rounded-lg text-left ${on ? 'bg-blue-50 ring-2 ring-blue-400' : 'hover:bg-zinc-50'}`}
+                      className={`w-full grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 items-center py-1.5 px-2 rounded-lg text-left ${on ? 'bg-blue-50 ring-2 ring-inset ring-blue-400' : 'hover:bg-zinc-50'}`}
                     >
                       <span className="flex items-center gap-2 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: repOf(id).color }} />
