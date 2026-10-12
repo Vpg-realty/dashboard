@@ -156,7 +156,8 @@ function Crm() {
 function Messaging() {
   return (
     <>
-      <div className="text-sm text-zinc-700">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Four parts, each a share out of 100%, averaged: <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
+      <div className="text-sm text-zinc-700"><b>Rep texts</b> = texts the rep typed in GHL. Workflow, bulk and campaign texts are sent under the rep's name too, but only count in the Never-send / hours / STOP check (the rep owns their automations). </div>
+      <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Four parts, each a share out of 100%, averaged: <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
       <Item title="Answered within 15 minutes">
         <Row k="Checks">Agent texts that came in on weekdays, 8am–5pm Arizona, answered by a text from the rep within {ANSWER_WITHIN_MIN} minutes. Graded against the {pct(SPEED_TARGET)} target (hitting {pct(SPEED_TARGET)} = full marks).</Row>
         <Row k="Skipped">Replies that don't need an answer ("thanks", "ok", "sounds good", 👍) and STOP replies; texts that came in after hours.</Row>

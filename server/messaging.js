@@ -16,6 +16,9 @@
 // published).
 
 const MIN = 60000;
+// Bump when the rules change so cached results (reused for 3 hours) are
+// recomputed on the next deploy.
+export const MESSAGING_VERSION = 2;
 export const ANSWER_WITHIN_MIN = 15;
 export const SPEED_TARGET = 0.75;
 
@@ -49,7 +52,12 @@ const inBusinessHours = (ms) => { const p = parts(ms, 'America/Phoenix'); return
 const localHour = (ms, tz) => +parts(ms, tz).hour;
 
 const isSms = (m) => !m.messageType || m.messageType === 'TYPE_SMS';
-const isRep = (m) => m.direction === 'outbound' && !!m.userId;
+// A text the rep typed. Workflow / bulk / campaign sends carry the rep's
+// userId too (Oct 12: Daniel's "stay on your radar" workflow), so the
+// source decides: hand-typed texts come from the app ("app", mobile).
+export const AUTOMATED_SOURCE = /workflow|bulk|campaign|automation|trigger|drip|api|integration|zapier/i;
+export const isManualOutbound = (m) => m.direction === 'outbound' && !!m.userId && !AUTOMATED_SOURCE.test(m.source || '');
+const isRep = isManualOutbound;
 const isStop = (body) => /^\s*(stop|stop all|unsubscribe|remove me|quit|cancel|end)\b/i.test(body || '');
 // Agent texts that don't call for an answer.
 const isAck = (body) => /^\s*(ok(ay)?|k|thanks?( you)?|thx|ty|👍|sounds good|will do|you too|np|no problem|great|perfect|got it|cool)(?:[\s!.]|\p{Extended_Pictographic}|\ufe0f)*$/iu.test(body || '');
@@ -103,7 +111,7 @@ export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.n
       const h = localHour(t, tz);
       if (h < 8 || h >= 21) why.push(`sent at ${h}:00 contact time`);
       if (stoppedAt != null && t > stoppedAt) why.push('texted after STOP');
-      if (why.length) { if (compliance.bad.length < 15) compliance.bad.push({ at: t, why: why.join('; '), auto: !m.userId }); }
+      if (why.length) { if (compliance.bad.length < 15) compliance.bad.push({ at: t, why: why.join('; '), auto: !isRep(m) }); }
       else compliance.ok++;
       // Questions — the last text in each run of rep texts.
       const next = list[i + 1];
@@ -120,12 +128,12 @@ export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.n
       threads.push({
         key: `${conv}:${last.id}`,
         texts: list.slice(-12).map((x) => ({
-          from: x.direction === 'inbound' ? 'agent' : x.userId ? 'rep' : 'automated',
+          from: x.direction === 'inbound' ? 'agent' : isRep(x) ? 'rep' : 'automated',
           at: ts(x.dateAdded),
           body: String(x.body || '').slice(0, 400),
         })),
       });
     }
   }
-  return { at: now, speed, questions, compliance, threads };
+  return { v: MESSAGING_VERSION, at: now, speed, questions, compliance, threads };
 }

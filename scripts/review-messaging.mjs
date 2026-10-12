@@ -27,6 +27,10 @@ const OUT = path.join(ROOT, 'public', 'messaging-review.json');
 const THREADS = path.join(ROOT, '.cache', 'msg-threads.json');
 const PAGES_URL = 'https://vpg-realty.github.io/dashboard/messaging-review.json';
 const KEEP_WEEKS = 6;
+// Bump when what Claude is shown changes, so earlier verdicts are dropped
+// and the conversations re-reviewed (2: workflow texts labelled
+// "automated", not "rep" — Oct 12).
+const RULES_VERSION = 2;
 const PER_CALL = 12;        // conversations per request
 const MAX_PER_RUN = 150;    // cost guard: the rest wait for the next run
 const REREVIEW_MS = 24 * 3600 * 1000;   // a conversation with new rep texts is looked at again at most daily
@@ -123,7 +127,8 @@ async function main() {
   const data = JSON.parse(fs.readFileSync(DATA, 'utf8'));
   const cache = fs.existsSync(THREADS) ? JSON.parse(fs.readFileSync(THREADS, 'utf8')) : { threads: {} };
   const prev = await loadDeployed();   // throws after 3 tries → the deploy stops instead of wiping verdicts
-  const state = prev || { v: 1, weeks: {} };
+  const state = prev && prev.rules === RULES_VERSION ? prev : { v: 1, rules: RULES_VERSION, weeks: {} };
+  if (prev && prev.rules !== RULES_VERSION) console.log(`[messaging-ai] review rules changed (${prev.rules || 1} → ${RULES_VERSION}): earlier verdicts dropped`);
 
   // Conversations to review: this run's, not reviewed yet.
   const todo = [];

@@ -16,8 +16,8 @@ import {
   listContactMessagesSince,
   listTextsSince,
 } from './ghl.js';
-import { analyzeMessaging } from './messaging.js';
-import { crmChecks, requiredDispoFields, missingFields, MESSAGE_LOOKBACK_DAYS } from './crm.js';
+import { analyzeMessaging, MESSAGING_VERSION } from './messaging.js';
+import { crmChecks, requiredDispoFields, missingFields, MESSAGE_LOOKBACK_DAYS, CRM_VERSION } from './crm.js';
 import { resolveDealFieldIds } from './deals.js';
 import { summarizeCalls } from './calls.js';
 
@@ -193,7 +193,7 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
             }
           }
           const prevCrm = prevPairs.find((p) => p.repId === repId && p.marketId === marketId)?.crm;
-          if (prevCrm?.at && Date.now() - prevCrm.at < CRM_EVERY_MS && prevCrm.notesOk === oppPull.notes) {
+          if (prevCrm?.at && prevCrm.v === CRM_VERSION && Date.now() - prevCrm.at < CRM_EVERY_MS && prevCrm.notesOk === oppPull.notes) {
             pair.crm = prevCrm;
           } else {
             const { keyOf, rankOf } = stageResolver(pipelines);
@@ -220,7 +220,7 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
         // hours; conversations for the AI review go out as _msgThreads
         // (build-snapshot.mjs moves them out of the published data).
         const prevMsg = prevPairs.find((p) => p.repId === repId && p.marketId === marketId)?.messaging;
-        if (prevMsg?.at && Date.now() - prevMsg.at < MESSAGING_EVERY_MS && prevMsg.weekStart === wkStart) {
+        if (prevMsg?.at && prevMsg.v === MESSAGING_VERSION && Date.now() - prevMsg.at < MESSAGING_EVERY_MS && prevMsg.weekStart === wkStart) {
           pair.messaging = prevMsg;
         } else {
           try {
