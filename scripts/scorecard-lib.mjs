@@ -105,7 +105,7 @@ export const POD_LEADS = ['anthony', 'sam_mackenzie'];
 export const CRM_ITEMS = [
   { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Nothing past its IP end (Under Contract / Dispo) or COE (Assigned); no open deal untouched 14+ days (stage move, note, text or call).' },
   { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each open deal has a note written by a person (not a workflow template) since it was opened.' },
-  { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Texts follow the VPG Texting Standard: answer within 15 min, every text ends in a question, nothing from Never send, professional, right questions on a lead.' },
+  { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Follows the VPG Texting Standard: agent texts answered within 15 min in business hours (75% target), rep texts end in a question, no Never-send texts / texts outside 8am–9pm / after STOP, and Claude\'s review of the week\'s agent conversations (professional, true, right questions, condition before price).' },
   { key: 'dispo', label: 'Clean dispo handoffs', short: 'Dispo', help: 'Every deal that went under contract this week has every field filled except the "(If Applicable)" ones.' },
   { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'This week, every open deal\'s agent got a text or call from the rep at least every 3 business days.' },
 ];
@@ -140,6 +140,7 @@ export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Atten
 // From each pair's `crm` checks (server/crm.js) and deals' `missing` dispo
 // fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
 // Messaging (item 3) isn't automatic yet → null.
+export const MESSAGING_SPEED_TARGET = 0.75;
 export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= 0.6 ? 1 : 0);
 // Monday 00:00 Arizona (UTC-7) of the week whose Monday is `monday`.
 export const weekStartMs = (monday) => Date.parse(`${monday}T07:00:00Z`);
@@ -155,13 +156,43 @@ export function autoCrm(pairs, monday) {
     const bad = have.reduce((a, c) => a + (c.badN ?? c.bad.length), 0);
     detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, 12) };
   }
+  // Messaging (server/messaging.js + scripts/review-messaging.mjs): four
+  // parts, each a share of 1 — reply speed vs the 75% target, rep texts
+  // ending in a question, texts clear of Never-send / quiet hours / STOP,
+  // and conversations Claude judged to meet the standard. Their average
+  // grades it: 90%+ = 2, 60%+ = 1, below = 0.
+  const msgs = pairs.map((p) => p.messaging).filter((m) => m && m.speed);
+  if (msgs.length) {
+    const sum = (f) => msgs.reduce((a, m) => a + (f(m) || 0), 0);
+    const ai = msgs.filter((m) => m.ai);
+    const mparts = [
+      { key: 'speed', label: 'Answered in 15 min', ok: sum((m) => m.speed.ok), total: sum((m) => m.speed.total), target: MESSAGING_SPEED_TARGET },
+      { key: 'questions', label: 'Ends in a question', ok: sum((m) => m.questions.ok), total: sum((m) => m.questions.total) },
+      { key: 'compliance', label: 'Never-send / hours / STOP', ok: sum((m) => m.compliance.ok), total: sum((m) => m.compliance.total) },
+      ...(ai.length ? [{ key: 'ai', label: 'AI review vs the standard', ok: ai.reduce((a, m) => a + m.ai.ok, 0), total: ai.reduce((a, m) => a + m.ai.total, 0), pending: ai.reduce((a, m) => a + (m.ai.pending || 0), 0) }] : []),
+    ].map((x) => ({ ...x, share: x.total ? Math.min(1, x.ok / x.total / (x.target || 1)) : null }));
+    const shares = mparts.map((x) => x.share).filter((v) => v != null);
+    const share = shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null;
+    const bad = [
+      ...msgs.flatMap((m) => (m.ai?.bad || []).map((b) => ({ id: `ai${b.why}`, addr: 'AI review', why: b.why }))),
+      ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
+      ...msgs.flatMap((m) => m.speed.slow.map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
+    ];
+    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, 12), badN: bad.length };
+  }
+
   // Dispo: deals that went under contract this week.
   if (pairs.some((p) => p.crm)) {
     const fresh = pairs.flatMap((p) => p.deals || []).filter((d) => d.startedAt >= start && d.startedAt < end && Array.isArray(d.missing));
     const bad = fresh.filter((d) => d.missing.length);
     detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, bad: bad.slice(0, 12).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}` })) };
   }
-  const grades = CRM_ITEMS.map((it) => (detail[it.key] ? gradeShare(detail[it.key].ok, detail[it.key].total) : null));
+  const grades = CRM_ITEMS.map((it) => {
+    const d = detail[it.key];
+    if (!d) return null;
+    if (it.key === 'messaging') return d.share == null ? null : d.share >= 0.9 ? 2 : d.share >= 0.6 ? 1 : 0;
+    return gradeShare(d.ok, d.total);
+  });
   return grades.some((g) => g != null) ? { grades, detail } : null;
 }
 

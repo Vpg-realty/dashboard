@@ -390,9 +390,32 @@ Under `src/views/`:
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
       why, click the CRM total for the list. The freeze stores `crmAuto` per
-      rep. Messaging (item 3) is still by hand until the AI review
-      (needs the ANTHROPIC_API_KEY secret). Scores: CRM items count 5 points
-      each; with some ungraded, the graded points are scaled to 100 ("est.").
+      rep. Scores: CRM items count 5 points each; with some ungraded, the
+      graded points are scaled to 100 ("est.").
+    - **Messaging, CRM item 3** (Luke, Oct 11; the "VPG Texting Standard for
+      Acquisitions" Claude Doc). Rules in `server/messaging.js`, every 3
+      hours per sub-account from this week's texts
+      (`listTextsSince`, SMS export): **speed** = agent texts that came in
+      weekdays 8am–5pm Arizona (acks like "thanks" and STOPs skipped)
+      answered by a rep text within 15 min, vs the 75% target; **questions**
+      = each run of rep texts ends in "?"; **compliance** = every outbound
+      text this week (automated too) free of Never-send phrases
+      (`NEVER_SEND`), texts before 8am / after 9pm contact time (`MARKET_TZ`)
+      and texts after a STOP. The **AI review** is
+      `scripts/review-messaging.mjs`, chained after build-snapshot in `npm
+      run snapshot` (key = the `ANTHROPIC_API_KEY` repo secret via
+      ALL_SECRETS): conversations where an agent wrote and a rep answered
+      this week go to `.cache/msg-threads.json` (never published), 12 per
+      request to `claude-opus-5-5` (effort low, structured JSON verdicts,
+      `fallbacks: "default"`), with the standard's judgment rules as the
+      system prompt; verdict = ok + a short reason with no names / numbers /
+      quotes. Verdicts per conversation live in `public/messaging-review.json`
+      (Pages-carried, abort-don't-wipe, 6 weeks); a conversation is
+      re-reviewed at most daily when it has new rep texts; 150 per run max.
+      Never fails the deploy over Claude (no key / errors = try next run).
+      `autoCrm` grades messaging from the average of the four shares:
+      90%+ = 2, 60%+ = 1, below = 0; the issue list shows AI reasons,
+      compliance hits and slow answers.
   - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
     biggest leak ringed dark orange, plus this month's counts.

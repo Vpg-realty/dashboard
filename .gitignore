@@ -13,3 +13,4 @@ public/data.json
 public/history.json
 proposals/
 
+.cache

@@ -8,11 +8,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "snapshot": "node scripts/build-snapshot.mjs && node scripts/auto-scorecard.mjs",
+    "snapshot": "node scripts/build-snapshot.mjs && node scripts/review-messaging.mjs && node scripts/auto-scorecard.mjs",
     "append-history": "node scripts/append-history.mjs && node scripts/update-month-log.mjs && node scripts/update-scorecards.mjs",
     "month-log": "node scripts/update-month-log.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@tailwindcss/vite": "^4.2.4",
     "libsodium-wrappers": "^0.8.4",
     "react": "^19.2.5",
