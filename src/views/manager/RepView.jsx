@@ -41,11 +41,13 @@ function Tile({ label, v, t, frac, money, na, sub, subText }) {
         {frac < 1 && <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, (want / t) * 100)}% - 1px)` }} />}
       </div>
       {sub ? (() => {
-        const mt = paceTone(sub.v, sub.t, paceFraction('month'));
+        if (sub.na) return <div className="text-[11px] text-zinc-400 mt-1.5 truncate">— {sub.label || 'month'}</div>;
+        const mt = paceTone(sub.v, sub.t, sub.frac ?? paceFraction('month'));
+        const f = (x) => (sub.money ? kMoney(x) : x);
         return (
           <div className="flex items-center gap-1.5 mt-1.5">
             <div className="relative flex-1 h-1 rounded-full bg-white/70 overflow-hidden"><div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (sub.v / sub.t) * 100)}%`, background: mt.bar }} /></div>
-            <span className="text-[11px] font-semibold text-zinc-600 tabular-nums whitespace-nowrap">{sub.v}/{sub.t} month</span>
+            <span className="text-[11px] font-semibold text-zinc-600 tabular-nums whitespace-nowrap">{f(sub.v)}{sub.t ? `/${f(sub.t)}` : ''} {sub.label || 'month'}</span>
           </div>
         );
       })() : <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{subText || '\u00a0'}</div>}
@@ -61,7 +63,7 @@ function CancelTile({ v, na, contracts, subText, label = 'Cancels' }) {
       <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${bad ? 'text-rose-800' : 'text-zinc-500'} opacity-80`}>{label}</div>
       <div className="flex items-baseline gap-1 mt-1">
         <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums leading-none ${bad ? 'text-rose-800' : na ? 'text-zinc-300' : 'text-zinc-900'}`}>{na ? '—' : v}</span>
-        {!na && contracts > 0 && <span className={`text-sm font-bold ${bad ? 'text-rose-800' : 'text-zinc-400'} opacity-60`}>{Math.round((v / contracts) * 100)}% of contracts</span>}
+        {!na && <span className={`text-sm font-bold ${bad ? 'text-rose-800' : 'text-zinc-400'} opacity-60`}>vs {contracts} contract{contracts === 1 ? '' : 's'}</span>}
       </div>
       <div className="h-1.5 mt-2" />
       <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{na ? 'counted from Oct 7' : subText || 'under contract → Abandoned / Lost'}</div>
@@ -105,6 +107,21 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   if (range && log && !m.untracked.has('cancelsM')) m.cancelsM = cancelsInRange(log, range.from, range.to, rep.id);
   // Plus contracts the history missed, found in GHL (Sept 1–13).
   if (range && log && !m.untracked.has('contractsM')) m.contractsM += addedContractsInRange(log, range.from, range.to, rep.id);
+  // A past week: month to date as of the week's last day, shown under each
+  // week number like this week's (Luke, Oct 12). A week that crosses into a
+  // new month shows the month it ends in.
+  let mtd = null;
+  if (range?.kind === 'week') {
+    const mFrom = `${range.to.slice(0, 7)}-01`;
+    mtd = rangeMetrics(history, rep.id, 'ALL', { from: mFrom, to: range.to, kind: 'month' });
+    if (mtd && log && !mtd.untracked.has('cancelsM')) mtd.cancelsM = cancelsInRange(log, mFrom, range.to, rep.id);
+    if (mtd && log && !mtd.untracked.has('contractsM')) mtd.contractsM += addedContractsInRange(log, mFrom, range.to, rep.id);
+    if (mtd) {
+      const dim = new Date(Date.UTC(+range.to.slice(0, 4), +range.to.slice(5, 7), 0)).getUTCDate();
+      mtd.frac = Math.min(1, +range.to.slice(8, 10) / dim);
+      mtd.label = rangeLabel(mFrom, range.to);
+    }
+  }
   const team = range ? addMetrics(REPS.map((r) => rangeMetrics(history, r.id, 'ALL', range))) : teamMetrics();
   const teamRates = STEPS.map((s) => rate(team, s));
   // Pre-Sept 14 ranges have no opp counts, so no funnel to judge.
@@ -149,6 +166,19 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   // "This week & month": the dates it covers, Monday–Sunday and the month.
   const wkFrom = weekStart(today);
   const nowLabel = `${shortDate(wkFrom)}–${shortDate(addDays(wkFrom, 6))}`;
+  // Week view (this week or any past week): the week's numbers on top, the
+  // month to date under them. Months and custom ranges show their totals.
+  const weekView = !range || range.kind === 'week';
+  const wkT = rangeTargets({ kind: 'week' }, 7);
+  const wkFrac = range ? frac : paceFraction('week');
+  const wkN = range
+    ? { opps: m.oppsM, offers: m.offersM, contracts: m.contractsM, closed: m.closedM, revenue: m.revenueM, cancels: m.cancelsM }
+    : { opps: m.oppsW, offers: m.offersW, contracts: m.contractsW, closed: m.closedW || 0, revenue: m.revenueW || 0, cancels: m.cancelsW };
+  const monthSub = (key, target, money, word) => {
+    if (!range) return { v: m[key], t: target, money, label: word ? `${word} month` : 'month' };
+    if (!mtd || mtd.untracked.has(key)) return { na: true, label: mtd ? `month (${mtd.label})` : 'month' };
+    return { v: mtd[key], t: target, money, frac: mtd.frac, label: mtd.label };
+  };
   const picker = (
     <>
       <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
@@ -156,9 +186,13 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
         {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
       <select className={pickCls} value={period} onChange={(e) => setPeriod(e.target.value)}>
-        <option value="now">This week & month ({nowLabel})</option>
+        {/* Luke, Oct 12: custom range at the top, then the weeks (opens on
+            this week), months at the bottom. */}
         <option value="custom">Custom range…</option>
-        <optgroup label="Weeks">{weeks.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+        <optgroup label="Weeks">
+          <option value="now">This week ({nowLabel})</option>
+          {weeks.filter((o) => o.from !== wkFrom).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </optgroup>
         <optgroup label="Months">{months.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
       </select>
       {period === 'custom' && (
@@ -218,7 +252,28 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
             number of boxes … add the month numbers under it"). This week &
             month: the week's number on top, the month underneath. A past
             period: that period's total against its target. */}
-        {range ? (
+        {weekView ? (
+          <div className="grid grid-cols-6 gap-3">
+            <Tile label="Opps opened · week" v={wkN.opps} t={wkT.opps} frac={wkFrac} na={na('oppsM') && !!range} sub={monthSub('oppsM', T.oppsOpenedPerWeek * 4)} />
+            <Tile label="Offers · week" v={wkN.offers} t={wkT.offers} frac={wkFrac} na={na('offersM') && !!range} sub={monthSub('offersM', T.offersPerWeek * 4)} />
+            <Tile label="Contracts · week" v={wkN.contracts} t={wkT.contracts} frac={wkFrac} na={na('contractsM') && !!range} sub={monthSub('contractsM', T.contractsPerMonth)} />
+            {/* Closed and revenue are month-only (Luke, Oct 12: a weekly closed
+                target of half a deal reads red most weeks): month to date as of
+                the week's end, graded on month pace. */}
+            {range ? (
+              <>
+                <Tile label="Closed · month" v={mtd?.closedM ?? 0} t={T.dealsClosedPerMonth} frac={mtd?.frac ?? 1} na={!mtd || mtd.untracked.has('closedM')} subText={mtd ? `month to date · ${mtd.label}` : 'month not on record'} />
+                <Tile label="Revenue closed · month" v={mtd?.revenueM ?? 0} t={T.revenuePerRepMonth} frac={mtd?.frac ?? 1} money na={!mtd || mtd.untracked.has('revenueM')} subText={mtd ? `month to date · ${mtd.label}` : 'month not on record'} />
+              </>
+            ) : (
+              <>
+                <Tile label="Closed · month" v={m.closedM} t={T.dealsClosedPerMonth} frac={paceFraction('month')} subText="month to date" />
+                <Tile label="Projected · month" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money subText={`closed ${kMoney(m.revenueM)} + assigned ${kMoney(m.assigned || 0)}`} />
+              </>
+            )}
+            <CancelTile v={wkN.cancels} na={na('cancelsM') && !!range} contracts={wkN.contracts} label="Cancels · week" subText={range ? (mtd && !mtd.untracked.has('cancelsM') ? `${mtd.cancelsM} ${mtd.label}` : 'month not on record') : `${m.cancelsM} this month`} />
+          </div>
+        ) : (
           <div className="grid grid-cols-6 gap-3">
             <Tile label="Opps opened" v={m.oppsM} t={t.opps} frac={frac} na={na('oppsM')} subText={when} />
             <Tile label="Offers" v={m.offersM} t={t.offers} frac={frac} na={na('offersM')} subText={when} />
@@ -226,15 +281,6 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
             <Tile label="Closed" v={m.closedM} t={t.closed} frac={frac} na={na('closedM')} subText={when} />
             <Tile label="Revenue closed" v={m.revenueM} t={t.revenue} frac={frac} money na={na('revenueM')} subText={when} />
             <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} subText={when} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-6 gap-3">
-            <Tile label="Opps opened · week" v={m.oppsW} t={T.oppsOpenedPerWeek} frac={paceFraction('week')} sub={{ v: m.oppsM, t: T.oppsOpenedPerWeek * 4 }} />
-            <Tile label="Offers · week" v={m.offersW} t={T.offersPerWeek} frac={paceFraction('week')} sub={{ v: m.offersM, t: T.offersPerWeek * 4 }} />
-            <Tile label="Contracts · week" v={m.contractsW} t={T.contractsPerWeek} frac={paceFraction('week')} sub={{ v: m.contractsM, t: T.contractsPerMonth }} />
-            <Tile label="Closed · month" v={m.closedM} t={T.dealsClosedPerMonth} frac={paceFraction('month')} subText="month target · closings count by month" />
-            <Tile label="Projected · month" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money subText={`closed ${kMoney(m.revenueM)} + assigned ${kMoney(m.assigned || 0)}`} />
-            <CancelTile v={m.cancelsW} contracts={m.contractsW} subText={`${m.cancelsM} this month`} label="Cancels · week" />
           </div>
         )}
         <RepProgress sc={sc} rep={rep} />
