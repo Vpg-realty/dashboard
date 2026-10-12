@@ -22,8 +22,12 @@
 // 0 = below) are worked out per rep in scripts/scorecard-lib.mjs.
 
 import { customValue, toDateStr } from './deals.js';
+import { isManualOutbound } from './messaging.js';
 
 const DAY = 86400000;
+// Bump when the checks change so the cached result (reused for 55 min) is
+// recomputed on the next deploy.
+export const CRM_VERSION = 2;
 export const STALE_DAYS = 14;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
 // Messages are read back this far: covers the 14-day staleness check and
@@ -62,12 +66,13 @@ export function humanNotes(opp) {
   });
 }
 
-// A touch with the agent: a text / message sent by a rep (has a userId —
-// workflow and bulk sends don't), or a call that connected either way.
+// A touch with the agent: a text the rep typed (not a workflow / bulk send —
+// those carry the rep's userId too, see isManualOutbound), or a call that
+// connected either way.
 export function isTouch(m) {
   if (!m) return false;
   if (m.messageType === 'TYPE_CALL') return m.meta?.call?.status === 'completed' || m.status === 'completed';
-  return m.direction === 'outbound' && !!m.userId;
+  return isManualOutbound(m);
 }
 
 // Business milliseconds (Mon–Fri, Arizona days) between two times.
@@ -92,6 +97,7 @@ export function businessMs(from, to) {
 export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, now = Date.now(), weekStartMs }) {
   const today = laDate(now);
   const out = {
+    v: CRM_VERSION,
     at: now,
     pipeline: { total: 0, bad: [] },
     notes: { total: 0, bad: [] },

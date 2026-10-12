@@ -326,7 +326,14 @@ Under `src/views/`:
     under 75 = needs a 1-on-1; `SCORE_BANDS`), a segment bar per part
     (`SCORE_PARTS`: contracts blue 35, CRM slate 25 — hatched until graded,
     projected teal 15, offers violet 15, opps amber 10; width = weight,
-    fill = earned), an "ⓘ How the score works" panel, and on Rep a
+    fill = earned), an "ⓘ How the score works" guide (`ScoreGuide.jsx`,
+    Luke Oct 12: "descriptions on how the scores are reached and what
+    information is reviewed … so we can easily adapt" — tabs The score / The
+    numbers / CRM cleanliness / Messaging / Week & review; every number is
+    read from the constants the checks use (scorecard-lib `GRADE_ONE`,
+    `MESSAGING_TWO`; server/crm.js; server/messaging.js) and the AI rules
+    from `scripts/messaging-standard.mjs`, the same list Claude is given;
+    each tab ends with a blue "Settings you can change" box), and on Rep a
     click-open breakdown (actual of target, points; rounded so they sum to
     the total, a met target always shows full points).
   - **Scorecard** (nav label; view key `mgr-team`; renamed from Team, Luke
@@ -345,7 +352,8 @@ Under `src/views/`:
     CRM /10 and a note. Under each pod a tinted totals row (Luke, Oct 11:
     "clearly define totals for the pod"; Pod A violet, Pod B teal): sums vs
     per-rep target × reps, pod score = average of its reps, CRM item
-    averages and CRM avg /10. Tiles: team score, Pod A / Pod B, review status.
+    averages and CRM avg /10 (the pod colour bar is an inset shadow so the
+    cells line up with the rep rows). Tiles: team score, Pod A / Pod B, review status.
     Week picker: this week (live until the freeze) and every week in
     scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
     (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke, Oct 11): reps × weeks
@@ -401,14 +409,22 @@ Under `src/views/`:
       = each run of rep texts ends in "?"; **compliance** = every outbound
       text this week (automated too) free of Never-send phrases
       (`NEVER_SEND`), texts before 8am / after 9pm contact time (`MARKET_TZ`)
-      and texts after a STOP. The **AI review** is
+      and texts after a STOP. "Rep text" = typed by the rep
+      (`isManualOutbound`): outbound with a userId AND a source that isn't
+      workflow / bulk / campaign — workflow sends carry the rep's userId too
+      (Oct 12: Daniel's "stay on your radar" workflow was first counted as
+      his own texts). The same test decides a follow-up "touch" in
+      server/crm.js. `MESSAGING_VERSION` / `CRM_VERSION` / the review's
+      `RULES_VERSION`: bump to force a recompute (and, for the review, to
+      drop old verdicts) when the rules change. The **AI review** is
       `scripts/review-messaging.mjs`, chained after build-snapshot in `npm
       run snapshot` (key = the `ANTHROPIC_API_KEY` repo secret via
       ALL_SECRETS): conversations where an agent wrote and a rep answered
       this week go to `.cache/msg-threads.json` (never published), 12 per
       request to `claude-opus-5-5` (effort low, structured JSON verdicts,
-      `fallbacks: "default"`), with the standard's judgment rules as the
-      system prompt; verdict = ok + a short reason with no names / numbers /
+      `fallbacks: "default"`), with the standard's judgment rules
+      (`scripts/messaging-standard.mjs` — edit there to change what the
+      review looks for; the guide shows the same list) as the system prompt; verdict = ok + a short reason with no names / numbers /
       quotes. Verdicts per conversation live in `public/messaging-review.json`
       (Pages-carried, abort-don't-wipe, 6 weeks); a conversation is
       re-reviewed at most daily when it has new rep texts; 150 per run max.

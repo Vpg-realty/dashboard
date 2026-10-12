@@ -201,8 +201,10 @@ function PodTotal({ g, wom, frac }) {
   const itemAvg = (i) => avg(g.rows.map((r) => r.crm?.[i]).filter((v) => v != null));
   const crm10 = graded.length ? avg(graded.map((r) => (r.crm.reduce((a, v) => a + (v ?? 0), 0) / (2 * r.s.crmKnown)) * 10)) : null;
   return (
-    <div className={`grid gap-x-1.5 items-stretch min-h-[2.45rem] h-full py-0.5 mt-0.5 rounded-lg border-l-[6px] ${c.border} ${c.bg}`} style={G}>
-      <span className={`flex flex-col justify-center pl-2 leading-tight ${c.text}`}>
+    // The pod colour bar is an inset shadow, not a border, so the columns
+    // line up exactly with the rep rows above.
+    <div className={`grid gap-x-1.5 items-stretch min-h-[2.45rem] h-full py-0.5 mt-0.5 rounded-lg ${c.bg}`} style={{ ...G, boxShadow: `inset 6px 0 0 ${c.line}` }}>
+      <span className={`flex flex-col justify-center pl-3 leading-tight ${c.text}`}>
         <span className="text-[13px] font-extrabold tracking-wide uppercase">{g.podName} total</span>
         <span className="text-[10px] font-semibold opacity-80">{n} reps · pod targets</span>
       </span>

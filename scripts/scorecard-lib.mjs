@@ -141,7 +141,12 @@ export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Atten
 // fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
 // Messaging (item 3) isn't automatic yet → null.
 export const MESSAGING_SPEED_TARGET = 0.75;
-export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= 0.6 ? 1 : 0);
+// Grade cut-offs (shown under "How the score works"): items 1, 2, 4, 5 need
+// every deal OK for a 2 and GRADE_ONE of them for a 1; messaging averages
+// four shares and needs MESSAGING_TWO for a 2.
+export const GRADE_ONE = 0.6;
+export const MESSAGING_TWO = 0.9;
+export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= GRADE_ONE ? 1 : 0);
 // Monday 00:00 Arizona (UTC-7) of the week whose Monday is `monday`.
 export const weekStartMs = (monday) => Date.parse(`${monday}T07:00:00Z`);
 
@@ -190,7 +195,7 @@ export function autoCrm(pairs, monday) {
   const grades = CRM_ITEMS.map((it) => {
     const d = detail[it.key];
     if (!d) return null;
-    if (it.key === 'messaging') return d.share == null ? null : d.share >= 0.9 ? 2 : d.share >= 0.6 ? 1 : 0;
+    if (it.key === 'messaging') return d.share == null ? null : d.share >= MESSAGING_TWO ? 2 : d.share >= GRADE_ONE ? 1 : 0;
     return gradeShare(d.ok, d.total);
   });
   return grades.some((g) => g != null) ? { grades, detail } : null;
