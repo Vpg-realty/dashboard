@@ -66,7 +66,7 @@ function autoLine(d) {
   if (!d) return null;
   if (d.parts) {
     const pct = (x) => (x.total ? `${Math.round((x.ok / x.total) * 100)}%` : '—');
-    return d.parts.map((x) => `${x.label} ${pct(x)}${x.total ? ` (${x.ok}/${x.total})` : ''}${x.pending ? ` · ${x.pending} waiting` : ''}`).join(' · ');
+    return d.parts.map((x) => `${x.label} ${pct(x)}${x.total ? ` (${x.ok}/${x.total})` : ''}${x.target ? ` vs ${Math.round(x.target * 100)}%` : ''}${x.pending ? ` · ${x.pending} waiting` : ''}`).join(' · ');
   }
   return d.total ? `${d.ok} of ${d.total} OK` : 'nothing to check this week';
 }
@@ -174,10 +174,11 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
                     <div className="ml-7 mt-0.5 grid grid-cols-[1fr_auto] gap-x-3 text-xs">
                       {d.parts.map((x) => (
                         <div key={x.key} className="contents">
-                          <span className="text-zinc-600">{x.label}{x.target ? ` (target ${Math.round(x.target * 100)}%)` : ''}{x.pending ? ` · ${x.pending} waiting for review` : ''}</span>
-                          <span className={`tabular-nums font-semibold text-right ${x.share == null ? 'text-zinc-400' : x.share >= 0.9 ? 'text-emerald-700' : x.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{x.total ? `${Math.round((x.ok / x.total) * 100)}% · ${x.ok}/${x.total}` : '—'}</span>
+                          <span className="text-zinc-600">{x.label}{x.target ? ` · standard ${Math.round(x.target * 100)}%` : ''}{x.pending ? ` · ${x.pending} waiting for review` : ''}</span>
+                          <span className={`tabular-nums font-semibold text-right ${x.share == null ? 'text-zinc-400' : x.share >= 1 ? 'text-emerald-700' : x.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{x.total ? `${Math.round((x.ok / x.total) * 100)}% · ${x.ok}/${x.total}` : '—'}</span>
                         </div>
                       ))}
+                      {d.share != null && <span className="col-span-2 mt-0.5 pt-0.5 border-t border-zinc-100 text-zinc-500">Standards met on average: <b className="text-zinc-800">{Math.round(d.share * 100)}%</b> → 2 at 90%+, 1 at 60%+</span>}
                     </div>
                   )}
                   {d?.bad?.length > 0 && (

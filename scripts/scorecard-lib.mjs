@@ -166,6 +166,12 @@ export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Atten
 // fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
 // Messaging (item 3) isn't automatic yet → null.
 export const MESSAGING_SPEED_TARGET = 0.75;
+// Team standards for the three messaging checks (Luke, Oct 12: "based on the
+// successful reps, what should the team standard be"): set at what the top
+// reps reach in the first week of data, to be revisited once a few full
+// weeks are in. Each check is graded against its standard, like speed
+// against 75% — meeting it = 100% for that check.
+export const MESSAGING_STANDARDS = { questions: 0.4, compliance: 0.9, ai: 0.5 };
 // Answered-in-15-min counts for one sub-account's messaging.speed, without
 // the unanswered agent texts Claude judged as not needing an answer.
 export function speedCounts(sp) {
@@ -175,7 +181,7 @@ export function speedCounts(sp) {
 }
 // Grade cut-offs (shown under "How the score works"): items 1, 2, 4, 5 need
 // every deal OK for a 2 and GRADE_ONE of them for a 1; messaging averages
-// four shares and needs MESSAGING_TWO for a 2.
+// its checks (each vs its standard) and needs MESSAGING_TWO for a 2.
 export const GRADE_ONE = 0.6;
 export const MESSAGING_TWO = 0.9;
 export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= GRADE_ONE ? 1 : 0);
@@ -193,10 +199,11 @@ export function autoCrm(pairs, monday) {
     const bad = have.reduce((a, c) => a + (c.badN ?? c.bad.length), 0);
     detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, 12) };
   }
-  // Messaging (server/messaging.js + scripts/review-messaging.mjs): four
-  // parts, each a share of 1 — reply speed vs the 75% target, rep texts
-  // ending in a question, texts clear of Never-send / quiet hours / STOP,
-  // and conversations Claude judged to meet the standard. Their average
+  // Messaging (server/messaging.js + scripts/review-messaging.mjs): each
+  // check a share of its team standard, capped at 1 — reply speed vs 75%
+  // (before SPEED_FROM only), rep texts ending in a question vs 40%, texts
+  // clear of Never-send / quiet hours / STOP vs 90%, and conversations
+  // Claude judged to meet the Texting Standard vs 50%. Their average
   // grades it: 90%+ = 2, 60%+ = 1, below = 0.
   const msgs = pairs.map((p) => p.messaging).filter((m) => m && m.speed);
   if (msgs.length) {
@@ -206,9 +213,9 @@ export function autoCrm(pairs, monday) {
       // Speed is its own score category from SPEED_FROM, so it leaves
       // messaging there (no double count).
       ...(monday >= SPEED_FROM ? [] : [{ key: 'speed', label: 'Answered in 15 min', ok: sum((m) => speedCounts(m.speed).ok), total: sum((m) => speedCounts(m.speed).total), target: MESSAGING_SPEED_TARGET, skipped: sum((m) => speedCounts(m.speed).skipped), pending: sum((m) => speedCounts(m.speed).unjudged) }]),
-      { key: 'questions', label: 'Ends in a question', ok: sum((m) => m.questions.ok), total: sum((m) => m.questions.total) },
-      { key: 'compliance', label: 'Never-send / hours / STOP', ok: sum((m) => m.compliance.ok), total: sum((m) => m.compliance.total) },
-      ...(ai.length ? [{ key: 'ai', label: 'AI review vs the standard', ok: ai.reduce((a, m) => a + m.ai.ok, 0), total: ai.reduce((a, m) => a + m.ai.total, 0), pending: ai.reduce((a, m) => a + (m.ai.pending || 0), 0) }] : []),
+      { key: 'questions', label: 'Ends in a question', ok: sum((m) => m.questions.ok), total: sum((m) => m.questions.total), target: MESSAGING_STANDARDS.questions },
+      { key: 'compliance', label: 'Never-send / hours / STOP', ok: sum((m) => m.compliance.ok), total: sum((m) => m.compliance.total), target: MESSAGING_STANDARDS.compliance },
+      ...(ai.length ? [{ key: 'ai', label: 'AI review vs the standard', ok: ai.reduce((a, m) => a + m.ai.ok, 0), total: ai.reduce((a, m) => a + m.ai.total, 0), pending: ai.reduce((a, m) => a + (m.ai.pending || 0), 0), target: MESSAGING_STANDARDS.ai }] : []),
     ].map((x) => ({ ...x, share: x.total ? Math.min(1, x.ok / x.total / (x.target || 1)) : null }));
     const shares = mparts.map((x) => x.share).filter((v) => v != null);
     const share = shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null;

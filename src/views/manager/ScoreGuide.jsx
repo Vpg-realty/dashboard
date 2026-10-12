@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
-import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
@@ -165,7 +165,13 @@ function Messaging() {
   return (
     <>
       <div className="text-sm text-zinc-700"><b>Rep texts</b> = texts the rep typed in GHL. Workflow, bulk and campaign texts are sent under the rep's name too, but only count in the Never-send / hours / STOP check (the rep owns their automations). </div>
-      <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Three parts, each a share out of 100%, averaged (answer speed is scored on its own, as Speed to response, from the week of Oct 12): <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
+      <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Three checks, each graded against a <b>team standard</b> set at what the top reps reach (meeting it = 100% for that check), then averaged: <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below. Answer speed is scored on its own, as Speed to response, from the week of Oct 12.</div>
+      <div className="grid grid-cols-3 gap-2 mt-2">
+        {[['Ends in a question', STD.questions], ['Never-send · hours · STOP', STD.compliance], ['AI review', STD.ai]].map(([l, v]) => (
+          <div key={l} className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5"><div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">{l}</div><div className="text-lg font-extrabold tabular-nums">{pct(v)} <span className="text-xs font-semibold text-zinc-500">standard</span></div></div>
+        ))}
+      </div>
+      <div className="text-xs text-zinc-500 mt-1">Example: 30% of texts ending in a question vs the {pct(STD.questions)} standard = {pct(Math.min(1, 0.3 / STD.questions))} for that check. Standards from the first week of data (Oct 12); to be reviewed once a few full weeks are in.</div>
       <Item title={`Answered within 15 minutes · the Speed to response part (${partOf('speed').weight} points)`} color={partOf('speed').color}>
         <Row k="Checks">Agent texts that came in on weekdays, 8am–5pm Arizona, answered within {ANSWER_WITHIN_MIN} minutes by a text the rep typed <b>or a call that connected</b>. Graded against the {pct(SPEED_TARGET)} target (hitting {pct(SPEED_TARGET)} = full marks). Also shown on the Coaching tab.</Row>
         <Row k="Skipped">Texts that came in after hours; plain acknowledgements ("thanks", "ok", "sounds good", 👍); STOP replies; auto-replies and out-of-office messages; phone reactions ('Liked "…"').</Row>
@@ -194,7 +200,7 @@ function Messaging() {
       </Item>
       <Settings items={[
         ['Answer within', `${ANSWER_WITHIN_MIN} min`], ['Question rule skips texts under', `${QUESTION_MIN_WORDS} words`], ['Speed target', pct(SPEED_TARGET)], ['Business hours', 'Mon–Fri 8–5 AZ'],
-        ['Texting hours', '8am–9pm contact time'], ['Grade 2 needs', `${pct(MESSAGING_TWO)} average`], ['Grade 1 from', `${pct(GRADE_ONE)} average`],
+        ['Texting hours', '8am–9pm contact time'], ['Standards: questions / compliance / AI', `${pct(STD.questions)} / ${pct(STD.compliance)} / ${pct(STD.ai)}`], ['Grade 2 needs', `${pct(MESSAGING_TWO)} average`], ['Grade 1 from', `${pct(GRADE_ONE)} average`],
         ['Standard rules / Never-send list', 'editable'], ['Re-read a conversation', 'once a day max'],
       ]} />
     </>
