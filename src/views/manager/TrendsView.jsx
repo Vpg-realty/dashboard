@@ -1,171 +1,178 @@
-// Scorecard · Trends (Luke, Oct 11: "track improvement / progress"). Reps ×
-// weeks, each cell the week's score (or CRM /10) in its band colour, with the
-// change vs last week and vs the rep's average of the weeks before; a line
-// chart of Pod A, Pod B and the team underneath. Weeks come from
-// scorecards.json + the live week (trends.js).
+// Scorecard · Trends (Luke, Oct 11; reworked Oct 12: "reflect the
+// conversations tab — scores on left, trend chart on right … too confusing
+// what we're looking at"). Laid out like the Conversations tab: stat cards
+// on top, this week's scores on the left (this week, last week, change),
+// the weekly-score trend on the right. The chart shows the team average;
+// click a rep on the left to see their line against the team. Weeks come
+// from scorecards.json + the live week (trends.js).
 import { useState } from 'react';
-import LineChart from './LineChart.jsx';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, ReferenceArea } from 'recharts';
+import Panel from '../../components/Panel.jsx';
 import { REPS } from '../../data/config.js';
-import { PODS, CRM_ITEMS } from '../../../scripts/scorecard-lib.mjs';
-import { weekSeries, avgOf, crmTenths } from './trends.js';
+import { PODS } from '../../../scripts/scorecard-lib.mjs';
+import { scoreTone } from './metrics.js';
+import { weekSeries, avgOf } from './trends.js';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
-const band = (v) => (v == null ? 'bg-zinc-50 text-zinc-300' : v >= 90 ? 'bg-emerald-100 text-emerald-800' : v >= 75 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800');
-const crmBand = (v) => (v == null ? 'bg-zinc-50 text-zinc-300' : v >= 9 ? 'bg-emerald-100 text-emerald-800' : v >= 6 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800');
-const chipBg = (v) => (v == null ? '#e4e4e7' : v === 2 ? '#10b981' : v === 1 ? '#fbbf24' : '#e11d48');
+const TEAM = '#2a78d6';
 
-function Delta({ v, unit = '' }) {
+function Change({ v, big }) {
   if (v == null) return <span className="text-zinc-300">—</span>;
-  const r = Math.round(v * 10) / 10;
-  if (Math.abs(r) < 0.5) return <span className="text-zinc-500 font-semibold">±0</span>;
-  return <span className={`font-extrabold ${r > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{r > 0 ? '▲' : '▼'} {Math.abs(Math.round(r))}{unit}</span>;
+  const r = Math.round(v);
+  if (r === 0) return <span className={`text-zinc-500 font-semibold ${big ? 'text-base' : ''}`}>±0</span>;
+  return <span className={`font-bold tabular-nums ${r > 0 ? 'text-emerald-600' : 'text-rose-600'} ${big ? 'text-base' : ''}`}>{r > 0 ? '▲' : '▼'} {Math.abs(r)}</span>;
 }
 
-// Small score line per rep.
-function Spark({ values, color }) {
-  const pts = values.map((v, i) => [i, v]).filter(([, v]) => v != null);
-  if (pts.length < 2) return <span className="text-[10px] text-zinc-300">—</span>;
-  const W = 84, H = 26, n = Math.max(1, values.length - 1);
-  const xy = pts.map(([i, v]) => [(i / n) * (W - 4) + 2, H - 2 - (v / 100) * (H - 4)]);
+function Stat({ label, value, sub, tone }) {
+  const t = tone ? scoreTone(tone) : null;
   return (
-    <svg width={W} height={H} className="overflow-visible">
-      <line x1="0" x2={W} y1={H - 2 - 0.9 * (H - 4)} y2={H - 2 - 0.9 * (H - 4)} stroke="#d1fae5" strokeDasharray="2 2" />
-      <polyline points={xy.map((p) => p.join(',')).join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-      <circle cx={xy[xy.length - 1][0]} cy={xy[xy.length - 1][1]} r="2.6" fill={color} />
-    </svg>
+    <div className={`rounded-xl border p-4 min-w-0 ${t ? `${t.bg} border-transparent` : 'border-zinc-300/80 bg-white'}`}>
+      <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600 mb-1 truncate">{label}</div>
+      <div className={`text-[min(2.5rem,4.4vh)] font-bold tabular-nums leading-tight truncate ${t ? t.text : 'text-zinc-900'}`}>{value}</div>
+      <div className="text-xs text-zinc-600 mt-0.5 truncate">{sub}</div>
+    </div>
   );
 }
 
 export default function TrendsView({ sc, groups, onPickRep }) {
-  const [mode, setMode] = useState('score');
+  const [focus, setFocus] = useState(null);   // rep id shown on the chart, or null = team
   const weeks = weekSeries(sc, 8);
-  const val = (w, id) => {
-    const r = w.reps[id];
-    if (!r) return null;
-    return mode === 'score' ? r.s.score : crmTenths(r.crm);
-  };
-  const cellBand = mode === 'score' ? band : crmBand;
-  const lastI = weeks.length - 1;
-  // Change vs last week, and vs the average of the weeks before (up to 4).
-  const deltas = (id) => {
-    const vs = weeks.map((w) => val(w, id));
-    const now = vs[lastI];
-    const prev = vs[lastI - 1];
-    const before = vs.slice(Math.max(0, lastI - 4), lastI).filter((v) => v != null);
-    return { vs, wk: now != null && prev != null ? now - prev : null, avg: now != null && before.length ? now - avgOf(before) : null };
-  };
-  const teamVals = weeks.map((w) => avgOf(Object.values(w.reps).map((r) => (mode === 'score' ? r.s.score : crmTenths(r.crm))).filter((v) => v != null)));
-  const podVals = (p) => weeks.map((w) => avgOf(p.reps.map((id) => val(w, id)).filter((v) => v != null)));
-  const autoFrom = weeks.findIndex((w) => w.source !== 'sheet');
+  const score = (w, id) => w?.reps[id]?.s.score ?? null;
+  const teamOf = (w) => avgOf(Object.values(w.reps).map((r) => r.s.score));
+  const podOf = (w, p) => avgOf(p.reps.map((id) => score(w, id)).filter((v) => v != null));
+  // Like the Conversations tab, compare finished weeks only: the week in
+  // progress is shown as "so far" and never in a change.
+  const done = weeks.filter((w) => !w.live);
+  const live = weeks.find((w) => w.live) || null;
+  const now = done[done.length - 1];
+  const prev = done[done.length - 2];
 
-  // Movers vs last week.
-  const movers = REPS.map((r) => ({ id: r.id, d: deltas(r.id).wk })).filter((m) => m.d != null).sort((a, b) => b.d - a.d);
+  const teamNow = teamOf(now);
+  const teamPrev = prev ? teamOf(prev) : null;
+  const movers = REPS.map((r) => ({ id: r.id, d: score(now, r.id) != null && score(prev, r.id) != null ? score(now, r.id) - score(prev, r.id) : null }))
+    .filter((m) => m.d != null).sort((a, b) => b.d - a.d);
   const up = movers[0]?.d > 0 ? movers[0] : null;
-  const down = movers[movers.length - 1]?.d < 0 ? movers[movers.length - 1] : null;
-  const teamNow = teamVals[lastI];
-  const teamBefore = avgOf(teamVals.slice(Math.max(0, lastI - 4), lastI).filter((v) => v != null));
-  const fmt = (v) => (v == null ? '—' : mode === 'score' ? Math.round(v) : v.toFixed(1));
+  const round = (v) => (v == null ? '—' : Math.round(v));
+  const weekLabel = (w) => (w.live ? `${w.label} (so far)` : w.label);
 
-  const G = { gridTemplateColumns: `8rem repeat(${weeks.length}, minmax(0,1fr)) 6rem 5.5rem 5.5rem` };
-  const head = 'text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold text-center leading-tight';
-  const tiles = [
-    ['Team this week', fmt(teamNow), teamBefore != null ? <>vs {fmt(teamBefore)} avg before · <Delta v={teamNow - teamBefore} /></> : 'first week on file'],
-    ['Most improved', up ? first(up.id) : '—', up ? <>▲ {Math.round(up.d)} vs last week</> : 'nobody up vs last week'],
-    ['Biggest drop', down ? first(down.id) : '—', down ? <>▼ {Math.abs(Math.round(down.d))} vs last week</> : 'nobody down vs last week'],
-    ['Weeks on file', `${weeks.length}`, `${weeks.filter((w) => w.source === 'sheet').length} from the sheet · ${weeks.filter((w) => w.source !== 'sheet').length} from the dashboard`],
-  ];
+  const data = weeks.map((w) => ({
+    label: weekLabel(w),
+    live: !!w.live,
+    team: teamOf(w) == null ? null : Math.round(teamOf(w)),
+    rep: focus ? score(w, focus) : null,
+  }));
+  // Hollow point for the week in progress.
+  const dot = (color, r) => (props) => {
+    const { cx, cy, payload, index } = props;
+    if (cx == null || cy == null) return <g key={index} />;
+    return payload.live
+      ? <circle key={index} cx={cx} cy={cy} r={r} fill="#ffffff" stroke={color} strokeWidth={2.5} />
+      : <circle key={index} cx={cx} cy={cy} r={r} fill={color} />;
+  };
+  const focusRep = focus ? repOf(focus) : null;
 
   return (
-    <div className="h-full flex flex-col gap-2 min-h-0">
-      <div className="grid grid-cols-4 gap-2 shrink-0">
-        {tiles.map(([l, v, sub]) => (
-          <div key={l} className="rounded-xl border border-zinc-300/80 bg-white px-3 py-1.5">
-            <div className="text-[10px] uppercase tracking-[0.16em] text-zinc-500 font-semibold">{l}</div>
-            <div className="text-[min(1.35rem,2.5vh)] font-extrabold text-zinc-900 leading-tight truncate">{v}</div>
-            <div className="text-[11px] text-zinc-600 truncate">{sub}</div>
-          </div>
-        ))}
+    <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4 h-full min-h-0">
+      <div className="col-span-12 grid grid-cols-4 gap-4">
+        <Stat label={`Team score · week of ${now?.label || '—'}`} value={round(teamNow)} tone={teamNow} sub={<>week before {round(teamPrev)} · <Change v={teamNow != null && teamPrev != null ? teamNow - teamPrev : null} />{live ? <> · this week so far {round(teamOf(live))}</> : null}</>} />
+        {PODS.map((p) => {
+          const a = podOf(now, p);
+          const b = prev ? podOf(prev, p) : null;
+          return <Stat key={p.id} label={`${p.title} · ${first(p.lead)}`} value={round(a)} tone={a} sub={<>week before {round(b)} · <Change v={a != null && b != null ? a - b : null} />{live ? <> · so far {round(podOf(live, p))}</> : null}</>} />;
+        })}
+        <Stat label="Most improved" value={up ? first(up.id) : '—'} sub={up ? <><Change v={up.d} /> week of {now.label} vs the week before ({score(prev, up.id)} → {score(now, up.id)})</> : 'nobody up vs the week before'} />
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,2.3fr)_minmax(0,1fr)] gap-2">
-        <div className="min-h-0 rounded-xl bg-white border border-zinc-300/80 px-3 py-2 flex flex-col">
-          <div className="flex items-center gap-3 pb-1 shrink-0">
-            <span className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 font-semibold">Week by week · last {weeks.length} weeks</span>
-            <span className="ml-auto inline-flex rounded-md border border-zinc-300 overflow-hidden text-xs font-semibold">
-              {[['score', 'Weekly score'], ['crm', 'CRM /10']].map(([k, l]) => (
-                <button key={k} onClick={() => setMode(k)} className={`px-2.5 py-1 ${mode === k ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}>{l}</button>
-              ))}
-            </span>
+      <Panel className="col-span-12 lg:col-span-5 min-h-0" accent="Weekly score" title="Scores by rep" subtitle={`change = week of ${now?.label || '—'} vs ${prev?.label || '—'}`}>
+        <div className="h-full flex flex-col min-h-0">
+          <div className="grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 pb-1.5 border-b border-zinc-200 text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold leading-tight">
+            <span className="self-end">Rep</span>
+            <span className="text-center">Week of<br />{prev?.label || '—'}</span>
+            <span className="text-center text-zinc-800">Week of<br />{now?.label || '—'}</span>
+            <span className="text-center self-end">Change</span>
+            <span className="text-center">This week<br />so far</span>
           </div>
-          <div className="grid gap-x-1.5 items-end pb-1 border-b border-zinc-200 shrink-0" style={G}>
-            <span className={`${head} text-left`}>Rep</span>
-            {weeks.map((w, i) => (
-              <span key={w.monday} className={`${head} ${i === autoFrom && i > 0 ? 'border-l-2 border-dashed border-slate-400' : ''}`}>
-                {w.label}<br /><span className="normal-case tracking-normal font-normal">{w.live ? 'live' : w.source === 'sheet' ? 'sheet' : 'frozen'}</span>
-              </span>
-            ))}
-            <span className={head}>Trend</span>
-            <span className={head}>vs last<br /><span className="normal-case tracking-normal font-normal">week</span></span>
-            <span className={head}>vs avg<br /><span className="normal-case tracking-normal font-normal">weeks before</span></span>
-          </div>
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pt-1">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {groups.map((g) => (
-              <div key={g.title} className="flex flex-col">
-                <div className="text-[11px] font-extrabold tracking-[0.18em] text-zinc-800 border-b-2 border-zinc-800 pb-0.5 mb-0.5">{g.title}</div>
+              <div key={g.title}>
+                <div className="text-[10px] font-extrabold tracking-[0.18em] text-zinc-500 pt-2 pb-0.5">{g.title}</div>
                 {g.reps.map((id) => {
-                  const d = deltas(id);
+                  const a = score(now, id);
+                  const b = score(prev, id);
+                  const c = live ? score(live, id) : null;
+                  const t = a == null ? null : scoreTone(a);
+                  const on = focus === id;
                   return (
-                    <div key={id} className="grid gap-x-1.5 items-center py-[2px]" style={G}>
-                      <button onClick={() => onPickRep?.(id)} className="flex items-center gap-2 min-w-0 text-left hover:text-blue-700">
+                    <button
+                      key={id}
+                      onClick={() => setFocus(on ? null : id)}
+                      onDoubleClick={() => onPickRep?.(id)}
+                      title="Click to show on the chart · double-click to open the rep"
+                      className={`w-full grid grid-cols-[1fr_5.5rem_5.5rem_5rem_5.5rem] gap-2 items-center py-1.5 px-1 rounded-lg text-left ${on ? 'bg-blue-50 ring-2 ring-blue-400' : 'hover:bg-zinc-50'}`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: repOf(id).color }} />
                         <span className="text-[min(1rem,1.9vh)] font-bold truncate">{first(id)}</span>
-                      </button>
-                      {weeks.map((w, i) => {
-                        const r = w.reps[id];
-                        const v = val(w, id);
-                        return (
-                          <div key={w.monday} className={`rounded-md h-[min(2.1rem,3.3vh)] flex items-center justify-center gap-1.5 ${cellBand(v)} ${i === autoFrom && i > 0 ? 'ring-2 ring-inset ring-transparent' : ''}`} title={r && mode === 'score' && r.s.estimate ? 'estimate — not all CRM items graded' : undefined}>
-                            <span className="text-[min(1.1rem,2vh)] font-extrabold tabular-nums">{fmt(v)}</span>
-                            {mode === 'score' && r?.s.estimate && <span className="text-[9px] font-bold opacity-70">est.</span>}
-                            {mode === 'crm' && r?.crm && (
-                              <span className="flex gap-[2px]" title={CRM_ITEMS.map((it, k) => `${it.short}: ${r.crm[k] ?? '–'}`).join(' · ')}>
-                                {r.crm.map((c, k) => <span key={k} className="w-1.5 h-3.5 rounded-sm" style={{ background: chipBg(c) }} />)}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                      <span className="flex justify-center"><Spark values={mode === 'score' ? d.vs : d.vs.map((v) => (v == null ? null : v * 10))} color={repOf(id).color} /></span>
-                      <span className="text-center text-sm tabular-nums"><Delta v={d.wk} /></span>
-                      <span className="text-center text-sm tabular-nums"><Delta v={d.avg} /></span>
-                    </div>
+                      </span>
+                      <span className="text-center text-[min(1rem,1.9vh)] tabular-nums text-zinc-500">{b ?? '—'}</span>
+                      <span className="flex justify-center">
+                        {t ? <span className={`rounded-md px-2 py-0.5 text-[min(1.1rem,2vh)] font-extrabold tabular-nums ${t.bg} ${t.text}`}>{a}</span> : <span className="text-zinc-300">—</span>}
+                      </span>
+                      <span className="text-center"><Change v={a != null && b != null ? a - b : null} /></span>
+                      <span className="text-center text-[min(1rem,1.9vh)] tabular-nums text-zinc-400 italic">{c ?? '—'}</span>
+                    </button>
                   );
                 })}
               </div>
             ))}
           </div>
+          <div className="text-[11px] text-zinc-500 pt-1.5 border-t border-zinc-200 shrink-0">Finished weeks are compared (frozen Friday noon); this week is still building, so it isn't in the change. Click a rep to see their trend · double-click to open their page.</div>
         </div>
+      </Panel>
 
-        <div className="min-h-0 rounded-xl bg-white border border-zinc-300/80 px-3 py-2 flex flex-col">
-          <div className="flex items-center gap-4 shrink-0 text-[11px]">
-            <span className="uppercase tracking-[0.16em] text-zinc-500 font-semibold">{mode === 'score' ? 'Average weekly score' : 'Average CRM /10 (×10)'} · team and pods</span>
-            <span className="inline-flex items-center gap-1 font-semibold"><span className="w-4 h-1 rounded bg-zinc-900" />Team {fmt(teamVals[lastI])}</span>
-            {PODS.map((p, i) => <span key={p.id} className="inline-flex items-center gap-1 font-semibold" style={{ color: i ? '#0d9488' : '#7c3aed' }}><span className="w-4 h-1 rounded" style={{ background: i ? '#0d9488' : '#7c3aed' }} />{p.title} {fmt(podVals(p)[lastI])}</span>)}
-            <span className="ml-auto text-zinc-500">bands: green 90+ Strong · amber 75–89 Watch · red under 75 Behind</span>
-          </div>
+      <Panel
+        className="col-span-12 lg:col-span-7 min-h-0"
+        accent={focusRep ? `${focusRep.name} vs team` : 'Team average'}
+        title={`Weekly score · last ${weeks.length} weeks`}
+        subtitle={focusRep ? <button onClick={() => setFocus(null)} className="text-blue-600 font-semibold hover:underline">← back to team</button> : 'click a rep on the left to compare'}
+      >
+        <div className="h-full flex flex-col gap-2 min-h-0">
           <div className="flex-1 min-h-0">
-            <LineChart
-              labels={weeks.map((w) => w.label)}
-              autoFrom={autoFrom}
-              series={[
-                ...PODS.map((p, i) => ({ name: p.title, color: i ? '#0d9488' : '#7c3aed', values: podVals(p).map((v) => (v == null ? null : mode === 'score' ? v : v * 10)) })),
-                { name: 'Team', color: '#18181b', bold: true, values: teamVals.map((v) => (v == null ? null : mode === 'score' ? v : v * 10)) },
-              ]}
-            />
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 24, right: 28, left: 4, bottom: 0 }}>
+                <ReferenceArea y1={90} y2={100} fill="#ecfdf5" fillOpacity={1} />
+                <ReferenceArea y1={75} y2={90} fill="#fffbeb" fillOpacity={1} />
+                <ReferenceArea y1={0} y2={75} fill="#fff1f2" fillOpacity={0.6} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                <XAxis dataKey="label" stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 90, 100]} />
+                <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
+                <Line
+                  type="monotone" dataKey="team" name="Team average" stroke={focusRep ? '#a1a1aa' : TEAM} strokeWidth={focusRep ? 2 : 3}
+                  strokeDasharray={focusRep ? '6 5' : undefined} dot={dot(focusRep ? '#a1a1aa' : TEAM, focusRep ? 3.5 : 5)} connectNulls isAnimationActive={false}
+                >
+                  {!focusRep && <LabelList dataKey="team" position="top" fill="#1e3a8a" fontSize={14} fontWeight={700} offset={10} />}
+                </Line>
+                {focusRep && (
+                  <Line type="monotone" dataKey="rep" name={focusRep.name} stroke={focusRep.color} strokeWidth={3} dot={dot(focusRep.color, 5)} connectNulls isAnimationActive={false}>
+                    <LabelList dataKey="rep" position="top" fill={focusRep.color} fontSize={14} fontWeight={700} offset={10} />
+                  </Line>
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-center gap-5 text-xs text-zinc-600 shrink-0">
+            {focusRep && <span className="inline-flex items-center gap-1.5"><span className="w-5 h-[3px] rounded" style={{ background: focusRep.color }} /> {first(focusRep.id)}</span>}
+            <span className="inline-flex items-center gap-1.5">{focusRep ? <span className="w-5 border-t-2 border-dashed border-zinc-400" /> : <span className="w-5 h-[3px] rounded" style={{ background: TEAM }} />} Team average</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-100" />Strong 90+</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-amber-100" />Watch 75–89</span>
+            <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-rose-100" />Behind</span>
+            {live && <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border-2 border-zinc-500 bg-white" />this week so far</span>}
+            <span className="text-zinc-400 hidden 2xl:inline">Weeks before Oct 12 came from the Google Sheet</span>
           </div>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

@@ -356,12 +356,17 @@ Under `src/views/`:
     cells line up with the rep rows). Tiles: team score, Pod A / Pod B, review status.
     Week picker: this week (live until the freeze) and every week in
     scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
-    (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke, Oct 11): reps × weeks
-    grid of the weekly score (or CRM /10 with the five item bars) in band
-    colours, a sparkline, change vs last week and vs the average of the up
-    to 4 weeks before; tiles for team now, most improved, biggest drop,
-    weeks on file; a line chart of team / Pod A / Pod B with the 90 / 75
-    bands and a dashed "auto CRM →" marker where dashboard weeks start.
+    (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke Oct 11, reworked Oct 12
+    to match the Conversations tab: "scores on left, trend chart on right"):
+    stat cards (team, Pod A, Pod B: last finished week vs the week before,
+    plus "so far" for the live week; most improved), left a "Scores by rep"
+    table grouped by pod (week before, last finished week as a band-coloured
+    pill, change, this week so far in grey italics), right a Recharts line
+    chart of the team average over the Strong / Watch / Behind bands with the
+    live week drawn as a hollow "so far" point. Click a rep row → their line
+    vs the dashed team average; double-click → their Rep page. Changes only
+    ever compare finished (frozen) weeks, like Conversations compares
+    completed days.
     - **Freeze**: Friday 12:00 Arizona `scripts/update-scorecards.mjs`
       (chained onto `npm run append-history`) copies the week's numbers
       (`freezeNumbers`) into `public/scorecards.json` once
