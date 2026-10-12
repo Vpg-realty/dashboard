@@ -441,7 +441,11 @@ Under `src/views/`:
       compliance hits and slow answers.
   - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
-    biggest leak ringed dark orange, plus this month's counts.
+    biggest leak ringed dark orange, plus this month's counts, and a
+    **SPEED · this week** column (Luke, Oct 12): agent texts answered within
+    15 min (weekdays 8–5 AZ) from each pair's `messaging.speed`, % over
+    "N of M", green at the Texting Standard's 75% target, amber from 56%,
+    red below; hover for the split by state.
   - **Rep** (Scorecard tab, a rep picked) — picker; score (with this week's CRM
     grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
