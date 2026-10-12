@@ -174,7 +174,7 @@ function Messaging() {
         <Row k="Judges">The rep's texts against the standard:
           <ol className="list-decimal pl-5 mt-1 space-y-0.5">{STANDARD_RULES.map((r) => <li key={r}>{r}</li>)}</ol>
         </Row>
-        <Row k="OK">Benefit of the doubt for {OK_CASES}.</Row>
+        <Row k="OK">Benefit of the doubt for {OK_CASES}. Automated texts in the conversation are never held against the rep (they're checked in Never-send / hours / STOP).</Row>
         <Row k="Not OK">Only a clear miss: {MISSES.join('; ')}.</Row>
       </Item>
       <Settings items={[
