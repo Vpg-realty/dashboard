@@ -141,6 +141,13 @@ export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Atten
 // fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
 // Messaging (item 3) isn't automatic yet → null.
 export const MESSAGING_SPEED_TARGET = 0.75;
+// Answered-in-15-min counts for one sub-account's messaging.speed, without
+// the unanswered agent texts Claude judged as not needing an answer.
+export function speedCounts(sp) {
+  if (!sp) return { ok: 0, total: 0, skipped: 0, unjudged: 0 };
+  const skipped = (sp.notNeeded || []).length;
+  return { ok: sp.ok, total: Math.max(sp.ok, sp.total - skipped), skipped, unjudged: sp.unjudged || 0 };
+}
 // Grade cut-offs (shown under "How the score works"): items 1, 2, 4, 5 need
 // every deal OK for a 2 and GRADE_ONE of them for a 1; messaging averages
 // four shares and needs MESSAGING_TWO for a 2.
@@ -171,7 +178,7 @@ export function autoCrm(pairs, monday) {
     const sum = (f) => msgs.reduce((a, m) => a + (f(m) || 0), 0);
     const ai = msgs.filter((m) => m.ai);
     const mparts = [
-      { key: 'speed', label: 'Answered in 15 min', ok: sum((m) => m.speed.ok), total: sum((m) => m.speed.total), target: MESSAGING_SPEED_TARGET },
+      { key: 'speed', label: 'Answered in 15 min', ok: sum((m) => speedCounts(m.speed).ok), total: sum((m) => speedCounts(m.speed).total), target: MESSAGING_SPEED_TARGET, skipped: sum((m) => speedCounts(m.speed).skipped), pending: sum((m) => speedCounts(m.speed).unjudged) },
       { key: 'questions', label: 'Ends in a question', ok: sum((m) => m.questions.ok), total: sum((m) => m.questions.total) },
       { key: 'compliance', label: 'Never-send / hours / STOP', ok: sum((m) => m.compliance.ok), total: sum((m) => m.compliance.total) },
       ...(ai.length ? [{ key: 'ai', label: 'AI review vs the standard', ok: ai.reduce((a, m) => a + m.ai.ok, 0), total: ai.reduce((a, m) => a + m.ai.total, 0), pending: ai.reduce((a, m) => a + (m.ai.pending || 0), 0) }] : []),
@@ -181,7 +188,7 @@ export function autoCrm(pairs, monday) {
     const bad = [
       ...msgs.flatMap((m) => (m.ai?.bad || []).map((b) => ({ id: `ai${b.why}`, addr: 'AI review', why: b.why }))),
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
-      ...msgs.flatMap((m) => m.speed.slow.map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
+      ...msgs.flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
     ];
     detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, 12), badN: bad.length };
   }

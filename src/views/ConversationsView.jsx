@@ -73,12 +73,12 @@ export default function ConversationsView() {
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-3 gap-4">
-        <BigStat label="Conversations Today" value={head.conversationsToday} accent="emerald" />
-        <BigStat label="This Week" value={head.conversationsWeek} accent="blue" />
-        <BigStat label="Avg / Day" value={Math.round(head.conversationsWeek / 7)} accent="violet" />
+        <BigStat label="New Conversations Today" value={head.conversationsToday} accent="emerald" />
+        <BigStat label="New Conversations This Week" value={head.conversationsWeek} accent="blue" />
+        <BigStat label="New Conversations · Avg / Day" value={Math.round(head.conversationsWeek / 7)} accent="violet" />
       </div>
 
-      <Panel className="col-span-12 lg:col-span-7 min-h-0" title="By Rep × Market" subtitle="this week" accent="Conversations">
+      <Panel className="col-span-12 lg:col-span-7 min-h-0" title="By Rep × Market" subtitle="this week" accent="New conversations">
         <div className="h-full flex flex-col gap-2 min-h-0">
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -122,7 +122,7 @@ export default function ConversationsView() {
         subtitle={todayIdx > 0 && wow != null
           ? <WowBadge now={doneNow} last={doneLast} pct={wow} range={todayIdx > 1 ? `${DAYS[0]}–${DAYS[todayIdx - 1]}` : DAYS[0]} />
           : `last week: ${lastWeekTotal} total`}
-        accent="Conversations · team"
+        accent="New conversations · team"
       >
         <div className="h-full flex flex-col gap-2 min-h-0">
           <div className="flex-1 min-h-0">

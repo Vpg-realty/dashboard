@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { REPS, MARKETS } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
-import { periodOptions, rangeLabel, shortDate, laToday, addDays, LEGACY_CUTOFF } from '../../utils/historyRange.js';
+import { periodOptions, rangeLabel, shortDate, laToday, addDays, weekStart, LEGACY_CUTOFF } from '../../utils/historyRange.js';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { paceFraction } from '../../utils/pace.js';
 import { STATE_DOT } from '../../utils/marketShade.js';
@@ -21,7 +21,9 @@ import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, ran
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
 // not recorded for the period (pre-Sept 14 history).
-function Tile({ label, v, t, frac, money, na }) {
+// `sub` = the month under a week tile ({ v, t }, graded on month pace);
+// `subText` = a plain line in its place, so every tile is the same height.
+function Tile({ label, v, t, frac, money, na, sub, subText }) {
   const want = t * frac;
   // Whole tile in the pace colour, like the Team table cells.
   const tone = na ? null : paceTone(v, t, frac);
@@ -38,21 +40,31 @@ function Tile({ label, v, t, frac, money, na }) {
         {tone && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (v / t) * 100)}%`, background: tone.bar }} />}
         {frac < 1 && <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, (want / t) * 100)}% - 1px)` }} />}
       </div>
+      {sub ? (() => {
+        const mt = paceTone(sub.v, sub.t, paceFraction('month'));
+        return (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div className="relative flex-1 h-1 rounded-full bg-white/70 overflow-hidden"><div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (sub.v / sub.t) * 100)}%`, background: mt.bar }} /></div>
+            <span className="text-[11px] font-semibold text-zinc-600 tabular-nums whitespace-nowrap">{sub.v}/{sub.t} month</span>
+          </div>
+        );
+      })() : <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{subText || '\u00a0'}</div>}
     </div>
   );
 }
 
 // Cancelled contracts in a past period (no target): red when any.
-function CancelTile({ v, na, contracts }) {
+function CancelTile({ v, na, contracts, subText, label = 'Cancels' }) {
   const bad = !na && v > 0;
   return (
     <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${bad ? 'bg-rose-100 border-rose-300' : 'bg-white border-zinc-300/80'}`}>
-      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${bad ? 'text-rose-800' : 'text-zinc-500'} opacity-80`}>Cancels</div>
+      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${bad ? 'text-rose-800' : 'text-zinc-500'} opacity-80`}>{label}</div>
       <div className="flex items-baseline gap-1 mt-1">
         <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums leading-none ${bad ? 'text-rose-800' : na ? 'text-zinc-300' : 'text-zinc-900'}`}>{na ? '—' : v}</span>
         {!na && contracts > 0 && <span className={`text-sm font-bold ${bad ? 'text-rose-800' : 'text-zinc-400'} opacity-60`}>{Math.round((v / contracts) * 100)}% of contracts</span>}
       </div>
-      <div className="text-[10px] text-zinc-500 mt-2 truncate">{na ? 'counted from Oct 7' : 'under contract → Abandoned / Lost'}</div>
+      <div className="h-1.5 mt-2" />
+      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{na ? 'counted from Oct 7' : subText || 'under contract → Abandoned / Lost'}</div>
     </div>
   );
 }
@@ -134,15 +146,17 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   // (or a custom range) against the whole target.
   const frac = !range ? null : range.to === today && range.kind !== 'custom' ? paceFraction(range.kind) : 1;
 
+  // "This week & month": the dates it covers, Monday–Sunday and the month.
+  const wkFrom = weekStart(today);
+  const nowLabel = `${shortDate(wkFrom)}–${shortDate(addDays(wkFrom, 6))}`;
   const picker = (
     <>
       <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
         {withTeam && <option value="__team">Full team (scorecard)</option>}
         {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
       </select>
-      {!range && <ScoreHelp light />}
       <select className={pickCls} value={period} onChange={(e) => setPeriod(e.target.value)}>
-        <option value="now">Current</option>
+        <option value="now">This week & month ({nowLabel})</option>
         <option value="custom">Custom range…</option>
         <optgroup label="Weeks">{weeks.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
         <optgroup label="Months">{months.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
@@ -154,6 +168,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
           <input type="date" className={pickCls} value={customTo} min={firstOnFile} max={today} onChange={(e) => setCustomTo(e.target.value)} />
         </>
       )}
+      {/* Always last, so the pickers never change places (Luke, Oct 12). */}
+      <ScoreHelp light />
     </>
   );
 
@@ -198,25 +214,27 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
           )}
           <span className={`${range ? 'ml-auto ' : ''}text-sm text-zinc-500 whitespace-nowrap`}>Aban {show('aban', m.aban)} · Lost {show('lost', m.lost)} {range ? 'in period' : 'this month'}</span>
         </div>
+        {/* The same six tiles for every period (Luke, Oct 12: "keep the same
+            number of boxes … add the month numbers under it"). This week &
+            month: the week's number on top, the month underneath. A past
+            period: that period's total against its target. */}
         {range ? (
           <div className="grid grid-cols-6 gap-3">
-            <Tile label="Opps opened" v={m.oppsM} t={t.opps} frac={frac} na={na('oppsM')} />
-            <Tile label="Offers" v={m.offersM} t={t.offers} frac={frac} na={na('offersM')} />
-            <Tile label="Contracts" v={m.contractsM} t={t.contracts} frac={frac} na={na('contractsM')} />
-            <Tile label="Closed" v={m.closedM} t={t.closed} frac={frac} na={na('closedM')} />
-            <Tile label="Revenue closed" v={m.revenueM} t={t.revenue} frac={frac} money na={na('revenueM')} />
-            <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} />
+            <Tile label="Opps opened" v={m.oppsM} t={t.opps} frac={frac} na={na('oppsM')} subText={when} />
+            <Tile label="Offers" v={m.offersM} t={t.offers} frac={frac} na={na('offersM')} subText={when} />
+            <Tile label="Contracts" v={m.contractsM} t={t.contracts} frac={frac} na={na('contractsM')} subText={when} />
+            <Tile label="Closed" v={m.closedM} t={t.closed} frac={frac} na={na('closedM')} subText={when} />
+            <Tile label="Revenue closed" v={m.revenueM} t={t.revenue} frac={frac} money na={na('revenueM')} subText={when} />
+            <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} subText={when} />
           </div>
         ) : (
-          <div className="grid grid-cols-8 gap-3">
-            <Tile label="Opps · wk" v={m.oppsW} t={T.oppsOpenedPerWeek} frac={paceFraction('week')} />
-            <Tile label="Offers · wk" v={m.offersW} t={T.offersPerWeek} frac={paceFraction('week')} />
-            <Tile label="Contracts · wk" v={m.contractsW} t={T.contractsPerWeek} frac={paceFraction('week')} />
-            <Tile label="Opps · mo" v={m.oppsM} t={T.oppsOpenedPerWeek * 4} frac={paceFraction('month')} />
-            <Tile label="Offers · mo" v={m.offersM} t={T.offersPerWeek * 4} frac={paceFraction('month')} />
-            <Tile label="Contracts · mo" v={m.contractsM} t={T.contractsPerMonth} frac={paceFraction('month')} />
-            <Tile label="Closed · mo" v={m.closedM} t={T.dealsClosedPerMonth} frac={paceFraction('month')} />
-            <Tile label="Projected · mo" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money />
+          <div className="grid grid-cols-6 gap-3">
+            <Tile label="Opps opened · week" v={m.oppsW} t={T.oppsOpenedPerWeek} frac={paceFraction('week')} sub={{ v: m.oppsM, t: T.oppsOpenedPerWeek * 4 }} />
+            <Tile label="Offers · week" v={m.offersW} t={T.offersPerWeek} frac={paceFraction('week')} sub={{ v: m.offersM, t: T.offersPerWeek * 4 }} />
+            <Tile label="Contracts · week" v={m.contractsW} t={T.contractsPerWeek} frac={paceFraction('week')} sub={{ v: m.contractsM, t: T.contractsPerMonth }} />
+            <Tile label="Closed · month" v={m.closedM} t={T.dealsClosedPerMonth} frac={paceFraction('month')} subText="month target · closings count by month" />
+            <Tile label="Projected · month" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money subText={`closed ${kMoney(m.revenueM)} + assigned ${kMoney(m.assigned || 0)}`} />
+            <CancelTile v={m.cancelsW} contracts={m.contractsW} subText={`${m.cancelsM} this month`} label="Cancels · week" />
           </div>
         )}
         <RepProgress sc={sc} rep={rep} />
@@ -237,8 +255,14 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
                     )}
                     <div className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-2">
                       <span className="text-base font-bold">{label}</span>
-                      <div className="h-[min(1.5rem,2.6vh)] rounded-md bg-zinc-100">
-                        <div className="h-full rounded-md" style={{ width: `${Math.max(1.5, (v / Math.max(1, funnel[0][1])) * 100)}%`, background: rep.color, opacity: 1 - i * 0.12 }} />
+                      <div className="h-[min(1.5rem,2.6vh)] rounded-md bg-zinc-100 overflow-hidden">
+                        {/* Sized against the biggest step shown and capped at 100% — a past
+                            week can have a closing but no conversations on
+                            record (Oct 12: Anthony, June 22–28, bar ran off
+                            the screen). Untracked steps get no bar. */}
+                        {!na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i]) && (
+                          <div className="h-full rounded-md" style={{ width: `${Math.min(100, Math.max(1.5, (v / Math.max(1, ...funnel.map(([, x], j) => (na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][j]) ? 0 : x || 0)))) * 100))}%`, background: rep.color, opacity: 1 - i * 0.12 }} />
+                        )}
                       </div>
                       <span className="text-2xl font-extrabold tabular-nums text-right">{show(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i], v)}</span>
                     </div>

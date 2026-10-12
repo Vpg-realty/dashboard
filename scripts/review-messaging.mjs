@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM } from './messaging-standard.mjs';
+import { SYSTEM, REPLY_SYSTEM } from './messaging-standard.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public', 'data.json');
@@ -34,7 +34,9 @@ const KEEP_WEEKS = 6;
 const RULES_VERSION = 3;
 const PER_CALL = 12;        // conversations per request
 const MAX_PER_RUN = 150;    // cost guard: the rest wait for the next run
-const REREVIEW_MS = 24 * 3600 * 1000;   // a conversation with new rep texts is looked at again at most daily
+const REREVIEW_MS = 24 * 3600 * 1000;
+const REPLY_PER_CALL = 25;     // unanswered agent texts per request
+const REPLY_MAX_PER_RUN = 300;   // a conversation with new rep texts is looked at again at most daily
 
 export const MODEL = 'claude-opus-5-5';
 
@@ -123,12 +125,54 @@ export function aiSummary(state, weekStart, pairKey, convs) {
   return { ok: done.length - bad.length, total: done.length, pending: convs.length - done.length, bad: bad.slice(0, 10).map((c) => ({ why: v[c].issue })) };
 }
 
+const REPLY_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { id: { type: 'string' }, needs_reply: { type: 'boolean' } },
+        required: ['id', 'needs_reply'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['items'],
+  additionalProperties: false,
+};
+
+// One request: up to REPLY_PER_CALL unanswered agent texts → { msgId: bool }.
+export async function judgeReplies(client, batch) {
+  const ids = batch.map((_, i) => `m${i + 1}`);
+  const body = batch.map((t, i) => `<item id="${ids[i]}">\n${t.texts.map((x) => `[${fmtTime(x.at)}] ${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}\n</item>`).join('\n\n');
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: [{ type: 'text', text: REPLY_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: REPLY_SCHEMA } },
+    messages: [{ role: 'user', content: `For each of these ${batch.length} items, does the last agent text need an answer?\n\n${body}` }],
+  });
+  if (response.stop_reason === 'refusal') throw new Error(`refused (${response.stop_details?.category || 'no category'})`);
+  if (response.stop_reason === 'max_tokens') throw new Error('hit max_tokens');
+  const parsed = JSON.parse(response.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));
+  const out = {};
+  for (const v of parsed.items || []) {
+    const i = ids.indexOf(v.id);
+    if (i >= 0) out[batch[i].id] = !!v.needs_reply;
+  }
+  return { verdicts: out, usage: response.usage };
+}
+
 async function main() {
   if (!fs.existsSync(DATA)) { console.log('[messaging-ai] no data.json — skipped'); return; }
   const data = JSON.parse(fs.readFileSync(DATA, 'utf8'));
   const cache = fs.existsSync(THREADS) ? JSON.parse(fs.readFileSync(THREADS, 'utf8')) : { threads: {} };
   const prev = await loadDeployed();   // throws after 3 tries → the deploy stops instead of wiping verdicts
-  const state = prev && prev.rules === RULES_VERSION ? prev : { v: 1, rules: RULES_VERSION, weeks: {} };
+  const state = prev && prev.rules === RULES_VERSION ? prev : { v: 1, rules: RULES_VERSION, weeks: {}, needs: prev?.needs || {} };
+  state.needs ||= {};   // { week: { pairKey: { msgId: { needs, at } } } } — did an unanswered agent text need an answer
   if (prev && prev.rules !== RULES_VERSION) console.log(`[messaging-ai] review rules changed (${prev.rules || 1} → ${RULES_VERSION}): earlier verdicts dropped`);
 
   // Conversations to review: this run's, not reviewed yet.
@@ -176,9 +220,44 @@ async function main() {
     console.log(`[messaging-ai] reviewed ${reviewed} conversation(s), ${failed} left for next run, ${todo.length - queue.length} over the per-run cap · tokens in ${inTok} out ${outTok}`);
   } else console.log('[messaging-ai] nothing new to review');
 
+  // Unanswered agent texts: did they need an answer? (Luke, Oct 12.) Each
+  // is judged once; "no" takes it out of the speed count.
+  const replyTodo = [];
+  for (const p of data.pairs || []) {
+    const wk = p.messaging?.weekStart;
+    const pairKey = `${p.repId}|${p.marketId}`;
+    const list = cache.misses?.[pairKey];
+    if (!wk || !list) continue;
+    const done = state.needs?.[wk]?.[pairKey] || {};
+    for (const m of list) if (!done[m.id]) replyTodo.push({ ...m, wk, pairKey });
+  }
+  if (key && replyTodo.length) {
+    const client = new Anthropic({ apiKey: key, maxRetries: 2 });
+    const queue = replyTodo.slice(0, REPLY_MAX_PER_RUN);
+    let judged = 0, inTok = 0, outTok = 0;
+    for (let i = 0; i < queue.length; i += REPLY_PER_CALL) {
+      const batch = queue.slice(i, i + REPLY_PER_CALL);
+      try {
+        const { verdicts, usage } = await judgeReplies(client, batch);
+        inTok += (usage?.input_tokens || 0) + (usage?.cache_read_input_tokens || 0) + (usage?.cache_creation_input_tokens || 0);
+        outTok += usage?.output_tokens || 0;
+        for (const m of batch) {
+          if (verdicts[m.id] === undefined) continue;
+          ((state.needs[m.wk] ||= {})[m.pairKey] ||= {})[m.id] = { needs: verdicts[m.id], at: Date.now() };
+          judged++;
+        }
+      } catch (err) {
+        console.warn(`[messaging-ai] reply batch failed: ${String(err?.message || err).slice(0, 200)}`);
+      }
+    }
+    console.log(`[messaging-ai] judged ${judged} unanswered agent text(s), ${replyTodo.length - queue.length} over the per-run cap · tokens in ${inTok} out ${outTok}`);
+  }
+
   // Keep a few weeks.
-  const weeks = Object.keys(state.weeks).sort((a, b) => a - b);
-  for (const w of weeks.slice(0, Math.max(0, weeks.length - KEEP_WEEKS))) delete state.weeks[w];
+  for (const store of [state.weeks, state.needs]) {
+    const weeks = Object.keys(store).sort((a, b) => a - b);
+    for (const w of weeks.slice(0, Math.max(0, weeks.length - KEEP_WEEKS))) delete store[w];
+  }
   state.updatedAt = new Date().toISOString();
 
   // Each pair's AI result for the week: the conversations in this run's
@@ -191,6 +270,14 @@ async function main() {
     const list = cache.threads?.[pairKey];
     const convs = list ? [...new Set(list.map((t) => convOf(t.key)))] : Object.keys(state.weeks?.[wk]?.[pairKey] || {});
     p.messaging.ai = aiSummary(state, wk, pairKey, convs);
+    // Speed: unanswered agent texts Claude judged as not needing an answer
+    // come out of the count (scorecard-lib speedCounts); not judged yet =
+    // still counted.
+    if (p.messaging.speed?.missIds) {
+      const needs = state.needs?.[wk]?.[pairKey] || {};
+      p.messaging.speed.notNeeded = p.messaging.speed.missIds.filter((id) => needs[id]?.needs === false);
+      p.messaging.speed.unjudged = p.messaging.speed.missIds.filter((id) => !needs[id]).length;
+    }
   }
 
   fs.writeFileSync(OUT, JSON.stringify(state));
