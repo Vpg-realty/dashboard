@@ -28,7 +28,6 @@ const k = (v) => { const x = (v || 0) / 1000; return `$${x >= 100 || Number.isIn
 const G = { gridTemplateColumns: '8.5rem 5.5rem repeat(5,minmax(0,1fr)) 0.5rem repeat(5,2.6rem) 3.2rem minmax(0,1.6fr)' };
 const head = 'text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold text-center leading-tight';
 const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-300' : v === 2 ? 'bg-emerald-500 text-white' : v === 1 ? 'bg-amber-400 text-amber-950' : 'bg-rose-600 text-white');
-const NEXT = { null: 2, 2: 1, 1: 0, 0: null };
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
 function groups() {
@@ -108,17 +107,33 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
         const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
         const d = auto?.detail?.[it.key];
         const why = d ? `\nAutomatic: ${autoLine(d)}${d.bad?.length ? `\n${d.bad.slice(0, 6).map((b) => `• ${b.addr} — ${b.why}`).join('\n')}` : ''}` : '';
+        const val = crm?.[i] ?? null;
         return (
-          <button
+          <span
             key={it.key}
-            disabled={!canEdit}
-            onClick={() => onCrm(id, i)}
-            title={`${it.label} — ${it.help}${isAuto ? why : manual?.[i] != null ? `\nSet by a manager${d ? ` (automatic: ${auto.grades[i]} — ${autoLine(d)})` : ''}` : ''}${canEdit ? '\nClick to change: 2 → 1 → 0 → back to automatic' : ''}`}
-            className={`relative rounded-md h-full max-h-10 self-center flex items-center justify-center text-[min(1.05rem,2vh)] font-extrabold ${chip(crm?.[i] ?? null)} ${canEdit ? 'hover:ring-2 hover:ring-blue-400 cursor-pointer' : 'cursor-default'}`}
+            title={`${it.label} — ${it.help}${isAuto ? `\nA = graded automatically from GHL.${why}` : manual?.[i] != null ? `\nSet by a manager${d ? ` (automatic: ${auto.grades[i]} — ${autoLine(d)})` : ''}` : ''}${canEdit ? '\nPick a grade from the list (or Automatic).' : ''}`}
+            className={`relative rounded-md h-full max-h-10 self-center flex items-center justify-center text-[min(1.05rem,2vh)] font-extrabold ${chip(val)} ${canEdit ? 'hover:ring-2 hover:ring-blue-400 cursor-pointer' : 'cursor-default'}`}
           >
-            {crm?.[i] ?? '–'}
+            {val ?? '–'}
             {isAuto && <span className="absolute top-0 right-0.5 text-[8px] font-bold opacity-80">A</span>}
-          </button>
+            {canEdit && <span className="absolute bottom-0 right-0.5 text-[8px] opacity-70">▾</span>}
+            {/* Dropdown (Luke, Oct 12: "select the number instead of
+                clicking … removes the risk of accidentally clicking it"):
+                an invisible native select over the chip. */}
+            {canEdit && (
+              <select
+                aria-label={`${it.label} grade for ${first(id)}`}
+                value={manual?.[i] == null ? 'auto' : String(manual[i])}
+                onChange={(e) => onCrm(id, i, e.target.value === 'auto' ? null : Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              >
+                <option value="auto">Automatic{auto?.grades?.[i] != null ? ` (${auto.grades[i]})` : ''}</option>
+                <option value="2">2 — all good</option>
+                <option value="1">1 — about 60%</option>
+                <option value="0">0 — below 60%</option>
+              </select>
+            )}
+          </span>
         );
       })}
       <span className="relative flex">
@@ -294,10 +309,11 @@ export default function ScorecardView({ onPickRep }) {
     fn(w);
     return { ...d, [week]: w };
   });
-  const onCrm = (id, i) => edit((w) => {
+  // Set one CRM grade by hand (null = back to the automatic grade).
+  const onCrm = (id, i, value) => edit((w) => {
     const curCrm = reviewFor(sc, week, id, w).manual;
     const next = Array.isArray(curCrm) ? [...curCrm] : [null, null, null, null, null];
-    next[i] = NEXT[String(next[i] ?? null)];
+    next[i] = value;
     (w.reps[id] ||= {}).crm = next.every((v) => v == null) ? null : next;
   });
   const onNote = (id, text) => edit((w) => { (w.reps[id] ||= {}).note = text; });
@@ -411,7 +427,7 @@ export default function ScorecardView({ onPickRep }) {
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500" />2 all good</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-400" />1 = 60%+</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-600" />0 below 60%</span>
-            <span>· A = graded automatically from GHL (hover for why, click CRM total for the list) · est. = not all CRM items graded · Score: contracts 35 · CRM 25 · projected 15 · offers 15 · opps 10 · no contract caps at 89</span>
+            <span>· A = graded automatically from GHL (hover for why, click CRM total for the list) · a manager can pick a grade from each chip's dropdown · est. = not all CRM items graded · Score: contracts 35 · CRM 25 · projected 15 · offers 15 · opps 10 · no contract caps at 89</span>
           </div>
         </div>
       </div>

@@ -402,7 +402,9 @@ Under `src/views/`:
       included). Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
-      why, click the CRM total for the list. The freeze stores `crmAuto` per
+      why, click the CRM total for the list. Managers (with the token) set a
+      grade from a dropdown on each chip — Automatic / 2 / 1 / 0 (Luke,
+      Oct 12: no click-to-cycle, so no accidental changes). The freeze stores `crmAuto` per
       rep. Scores: CRM items count 5 points each; with some ungraded, the
       graded points are scaled to 100 ("est.").
     - **Messaging, CRM item 3** (Luke, Oct 11; the "VPG Texting Standard for
@@ -449,7 +451,10 @@ Under `src/views/`:
       `autoCrm` grades messaging from the average of the four shares:
       90%+ = 2, 60%+ = 1, below = 0; the issue list shows AI reasons,
       compliance hits and slow answers.
-  - **Coaching** (`CoachingView.jsx`, restored Oct 11) — funnel per rep vs
+  - **Coaching** (`CoachingView.jsx`, restored Oct 11; reordered Oct 12,
+    Luke: counts → answer speed → conversions → biggest leak). Counts this
+    month read like the Scorecard cells (number, "/40 mo" target, bar,
+    coloured on month pace; new conversations have no target). Funnel per rep vs
     team: % on top, "4 of 13" under it, cells coloured vs team rate,
     biggest leak ringed dark orange, plus this month's counts, and a
     **SPEED · this week** column (Luke, Oct 12): agent texts answered within
@@ -466,7 +471,14 @@ Under `src/views/`:
     part per week coloured by share of the part, and vs last week / vs
     weeks before / best week / streak in the current band; CRM shown
     scaled to 25 with * while some items aren't graded), funnel with step
-    rates vs team, and a by-state table (the page scrolls on short screens). Period picker
+    rates vs team (bars sized against the biggest step shown and capped —
+    Oct 12, a past week with a closing but no conversations on record ran
+    off the screen), and a by-state table (the page scrolls on short
+    screens). Pickers always in the order rep · period · How the score
+    works. The same six tiles for every period (Luke, Oct 12): "This week &
+    month (Oct 12–18)" = the week's number on top with the month under it
+    (opps, offers, contracts, cancels), closed and projected for the month;
+    a past period = its totals vs target. Period picker
     (Luke, Oct 8; from the old Advanced tab): Current, Custom range, every
     Mon–Sun week and calendar month on file. A past period is totalled from
     history.json (`computeRange` via `rangeMetrics` in metrics.js; team rates

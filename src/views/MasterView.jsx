@@ -94,7 +94,7 @@ export default function MasterView() {
     <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4">
       {/* Month totals — slim cards (Luke, Oct 8: the full KpiCards were too
           big here). Same pace grading and colours as the Opportunities boxes. */}
-      <SlimCard label="Conversations" actual={convosMonth} note={`${formatNumber(head.conversationsToday)} today · ${formatNumber(head.conversationsWeek)} this week`} />
+      <SlimCard label="New conversations" actual={convosMonth} note={`${formatNumber(head.conversationsToday)} today · ${formatNumber(head.conversationsWeek)} this week`} />
       {MONTH_CARDS.map((c) => {
         const actual = sum(PAIRS, c.key);
         const need = Math.max(0, c.target - actual);
