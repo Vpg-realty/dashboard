@@ -18,8 +18,17 @@
 const MIN = 60000;
 // Bump when the rules change so cached results (reused for 3 hours) are
 // recomputed on the next deploy.
-export const MESSAGING_VERSION = 2;
+export const MESSAGING_VERSION = 3;
 export const ANSWER_WITHIN_MIN = 15;
+// "Ends in a question" only judges real messages (Luke, Oct 12: soften it):
+// a last text under this many words, or a thanks / logistics line ("Sent!",
+// "Thank you!", "Calling you now"), isn't counted either way.
+export const QUESTION_MIN_WORDS = 7;
+const SHORT_REPLY = /^\s*(thanks?|thank you|ty|thx|sent|done|got it|will do|sounds good|perfect|awesome|great|ok(ay)?|no problem|np|you too|calling( you)?( now)?|on my way|omw|appreciate( it| you)?)\b/i;
+export const needsQuestion = (body) => {
+  const text = String(body || '').trim();
+  return text.split(/\s+/).filter(Boolean).length >= QUESTION_MIN_WORDS && !SHORT_REPLY.test(text);
+};
 export const SPEED_TARGET = 0.75;
 
 // The standard's "Never send" list (and close variants).
@@ -113,11 +122,14 @@ export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.n
       if (stoppedAt != null && t > stoppedAt) why.push('texted after STOP');
       if (why.length) { if (compliance.bad.length < 15) compliance.bad.push({ at: t, why: why.join('; '), auto: !isRep(m) }); }
       else compliance.ok++;
-      // Questions — the last text in each run of rep texts.
+      // Questions — the last text in each run of rep texts (real messages only,
+      // see needsQuestion).
       const next = list[i + 1];
       if (isRep(m) && !(next && isRep(next))) {
-        questions.total++;
-        if (endsInQuestion(m.body)) questions.ok++;
+        if (needsQuestion(m.body)) {
+          questions.total++;
+          if (endsInQuestion(m.body)) questions.ok++;
+        }
       }
     }
     // Conversation for the AI review: the agent wrote and the rep answered

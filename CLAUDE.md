@@ -406,7 +406,9 @@ Under `src/views/`:
       (`listTextsSince`, SMS export): **speed** = agent texts that came in
       weekdays 8am–5pm Arizona (acks like "thanks" and STOPs skipped)
       answered by a rep text within 15 min, vs the 75% target; **questions**
-      = each run of rep texts ends in "?"; **compliance** = every outbound
+      = each run of rep texts ends in "?" (softened Oct 12, Luke: a last
+      text under `QUESTION_MIN_WORDS` = 7 words or a thanks / logistics line
+      like "Sent!" isn't counted — `needsQuestion`); **compliance** = every outbound
       text this week (automated too) free of Never-send phrases
       (`NEVER_SEND`), texts before 8am / after 9pm contact time (`MARKET_TZ`)
       and texts after a STOP. "Rep text" = typed by the rep

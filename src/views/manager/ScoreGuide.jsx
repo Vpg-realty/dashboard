@@ -8,7 +8,7 @@ import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T } from './metrics.js';
 import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
-import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND } from '../../../server/messaging.js';
+import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES } from '../../../scripts/messaging-standard.mjs';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
@@ -164,6 +164,7 @@ function Messaging() {
       </Item>
       <Item title="Ends in a question">
         <Row k="Checks">The last text in each run of rep texts ends with "?" (an emoji after it is fine).</Row>
+        <Row k="Skipped">Short replies under {QUESTION_MIN_WORDS} words and thanks / logistics lines ("Sent!", "Thank you!", "Calling you now") — they don't need a question.</Row>
       </Item>
       <Item title="Never-send · hours · STOP">
         <Row k="Checks">Every text sent from the account this week, automated ones included: no text from the Never-send list, nothing before 8am or after 9pm in the contact's time zone, and nothing after the contact replied STOP.</Row>
@@ -178,7 +179,7 @@ function Messaging() {
         <Row k="Not OK">Only a clear miss: {MISSES.join('; ')}.</Row>
       </Item>
       <Settings items={[
-        ['Answer within', `${ANSWER_WITHIN_MIN} min`], ['Speed target', pct(SPEED_TARGET)], ['Business hours', 'Mon–Fri 8–5 AZ'],
+        ['Answer within', `${ANSWER_WITHIN_MIN} min`], ['Question rule skips texts under', `${QUESTION_MIN_WORDS} words`], ['Speed target', pct(SPEED_TARGET)], ['Business hours', 'Mon–Fri 8–5 AZ'],
         ['Texting hours', '8am–9pm contact time'], ['Grade 2 needs', `${pct(MESSAGING_TWO)} average`], ['Grade 1 from', `${pct(GRADE_ONE)} average`],
         ['Standard rules / Never-send list', 'editable'], ['Re-read a conversation', 'once a day max'],
       ]} />
