@@ -475,10 +475,16 @@ Under `src/views/`:
     Oct 12, a past week with a closing but no conversations on record ran
     off the screen), and a by-state table (the page scrolls on short
     screens). Pickers always in the order rep · period · How the score
-    works. The same six tiles for every period (Luke, Oct 12): "This week &
-    month (Oct 12–18)" = the week's number on top with the month under it
-    (opps, offers, contracts, cancels), closed and projected for the month;
-    a past period = its totals vs target. Period picker
+    works. Period dropdown (Luke, Oct 12): Custom range… on top, then the
+    weeks — opening on "This week (Oct 12–18)" (live numbers) — then the
+    months at the bottom. Any week (this one or a past one) shows six tiles:
+    the week's opps / offers / contracts / closed / revenue closed / cancels
+    vs the weekly targets, and under each the month to date as of that
+    week's last day (a past week: from history via `rangeMetrics` over the
+    1st → week end, graded on that day's month pace; a week crossing into a
+    new month shows the month it ends in, e.g. "Oct 1 – 4"; this week:
+    projected $ under revenue). Months and custom ranges show the same six
+    tiles as period totals vs target. Period picker
     (Luke, Oct 8; from the old Advanced tab): Current, Custom range, every
     Mon–Sun week and calendar month on file. A past period is totalled from
     history.json (`computeRange` via `rangeMetrics` in metrics.js; team rates

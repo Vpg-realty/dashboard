@@ -31,6 +31,7 @@ export function metrics(pairs) {
     oppsM: sumP(pairs, 'oppsOpenedMonth'), offersM: sumP(pairs, 'offersMonth'), contractsM: sumP(pairs, 'contractsMonth'),
     // Cancelled contracts (under contract → Abandoned / Lost; stickyCounts.js).
     cancelsW: sumP(pairs, 'cancelsWeek'), cancelsM: sumP(pairs, 'cancelsMonth'),
+    closedW: sumP(pairs, 'dealsClosedWeek'), revenueW: sumP(pairs, 'revenueWeek'),
     closedM: sumP(pairs, 'dealsClosedMonth'), revenueM, assigned, projected: revenueM + assigned,
     aban: sumP(pairs, 'abandoned'), lost: sumP(pairs, 'lost'),
   };
