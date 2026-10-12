@@ -5,7 +5,7 @@ import { REPS, KPI_TARGETS } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { laToday, pairConvosMonth, computeRange, periodTargets } from '../../utils/historyRange.js';
-import { scoreWeek, weekInfo, azDate } from '../../../scripts/scorecard-lib.mjs';
+import { scoreWeek, weekInfo, azDate, repSpeed, MESSAGING_SPEED_TARGET } from '../../../scripts/scorecard-lib.mjs';
 import { CANCELS_FROM } from './monthReview.js';
 
 export const T = KPI_TARGETS;
@@ -34,6 +34,8 @@ export function metrics(pairs) {
     closedW: sumP(pairs, 'dealsClosedWeek'), revenueW: sumP(pairs, 'revenueWeek'),
     closedM: sumP(pairs, 'dealsClosedMonth'), revenueM, assigned, projected: revenueM + assigned,
     aban: sumP(pairs, 'abandoned'), lost: sumP(pairs, 'lost'),
+    // Speed to response this week (agent texts answered within 15 min).
+    ...repSpeed(pairs),
   };
 }
 // The same numbers for a past period (Rep page period picker, Luke Oct 8),
@@ -102,33 +104,41 @@ export function biggestLeak(m, teamRates) {
 }
 
 // Weekly score = the Friday scorecard (Luke, Oct 11: the Scorecard tab replaces
-// the sheet): contracts 35, CRM 25, projected $ 15, offers 15, opps 10 — 100
-// points. Projected is judged against $6,250 × the week of the month (that
-// week's Friday, as on the sheet). Zero contracts caps the score at 89. Until
-// a rep's CRM checklist is graded the other 75 points are scaled to 100 and
-// the score is an estimate. The number itself comes from scoreWeek in
-// scripts/scorecard-lib.mjs, shared with the scorecard and the Friday freeze;
-// scoreParts adds each piece (points earned of its weight) for the views.
+// the sheet). From the week of Oct 12: contracts 35, CRM 20, speed to
+// response 10, projected $ 15, offers 15, opps 5 — 100 points (earlier weeks
+// keep the sheet's 35 / 25 / – / 15 / 15 / 10; weightsFor in scorecard-lib).
+// Projected is judged against $6,250 × the week of the month (that week's
+// Friday, as on the sheet); speed against the Texting Standard's 75% answered
+// within 15 min. Zero contracts caps the score at 89. Parts not known yet
+// (ungraded CRM items, speed before the messaging check) are left out and the
+// rest scaled to 100 — the score is an estimate. The number itself comes from
+// scoreWeek in scripts/scorecard-lib.mjs, shared with the scorecard and the
+// Friday freeze; scoreParts adds each piece (points earned of its weight) for
+// the views. `weight` here = the current weights.
 export const SCORE_PARTS = [
   { key: 'contracts', label: 'Contracts', weight: 35, color: '#1d4ed8' },
-  { key: 'crm', label: 'CRM cleanliness', short: 'CRM', weight: 25, color: '#475569' },
+  { key: 'crm', label: 'CRM cleanliness', short: 'CRM', weight: 20, color: '#475569' },
+  { key: 'speed', label: 'Speed to response', short: 'Speed', weight: 10, color: '#db2777' },
   { key: 'projected', label: 'Projected $', weight: 15, color: '#0d9488' },
   { key: 'offers', label: 'Offers', weight: 15, color: '#7c3aed' },
-  { key: 'opps', label: 'Opps opened', short: 'Opps', weight: 10, color: '#d97706' },
+  { key: 'opps', label: 'Opps opened', short: 'Opps', weight: 5, color: '#d97706' },
 ];
+export const partOf = (key) => SCORE_PARTS.find((p) => p.key === key);
 export const weekOfMonth = () => weekInfo(azDate()).weekOfMonth;
-export function scoreParts(m, crm = null, wom = weekOfMonth()) {
+export const thisMonday = () => weekInfo(azDate()).monday;
+export function scoreParts(m, crm = null, wom = weekOfMonth(), monday = thisMonday()) {
   const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
-  const want = { contracts: T.contractsPerWeek, crm: 2 * known.length, projected: 6250 * Math.min(4, Math.max(1, wom)), offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
-  const have = { contracts: m.contractsW, crm: known.reduce((a, b) => a + b, 0), projected: m.projected, offers: m.offersW, opps: m.oppsW };
-  const parts = SCORE_PARTS.map((p) => {
-    const share = want[p.key] ? Math.min(1, (have[p.key] || 0) / want[p.key]) : 0;
-    // CRM counts 5 points per graded item; ungraded items are left out.
-    const weight = p.key === 'crm' ? 5 * known.length : p.weight;
-    return { ...p, have: have[p.key] || 0, want: want[p.key], share, pts: share * weight, max: weight, pending: p.key === 'crm' && !known.length, partial: p.key === 'crm' && known.length > 0 && known.length < 5, known: known.length };
+  const s = scoreWeek(m, crm, wom, monday);
+  const want = { contracts: T.contractsPerWeek, crm: 2 * known.length, speed: m.speedTotal ? Math.ceil(m.speedTotal * MESSAGING_SPEED_TARGET) : 0, projected: s.projectedPace, offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
+  const have = { contracts: m.contractsW, crm: known.reduce((a, b) => a + b, 0), speed: m.speedOk, projected: m.projected, offers: m.offersW, opps: m.oppsW };
+  const parts = SCORE_PARTS.filter((p) => s.weights[p.key] > 0).map((p) => {
+    const weight = s.weights[p.key];
+    const pending = p.key === 'crm' ? !known.length : p.key === 'speed' ? !s.speedKnown : false;
+    const pts = s.parts[p.key] || 0;
+    const max = pending ? 0 : s.max[p.key];
+    return { ...p, weight, have: have[p.key] || 0, want: want[p.key], share: max ? pts / max : 0, pts, max, pending, partial: p.key === 'crm' && known.length > 0 && known.length < 5, known: known.length, total: p.key === 'speed' ? m.speedTotal : undefined };
   });
-  const s = scoreWeek({ contractsW: m.contractsW, projected: m.projected, offersW: m.offersW, oppsW: m.oppsW }, crm, wom);
-  const scale = 100 / (75 + 5 * known.length);
+  const scale = 100 / s.possible;
   const raw = Math.round(parts.reduce((a, p) => a + p.pts, 0) * scale);
   return { parts, raw, capped: s.score < raw, score: s.score, estimate: s.estimate, scale };
 }

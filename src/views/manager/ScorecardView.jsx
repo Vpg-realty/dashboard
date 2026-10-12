@@ -16,7 +16,7 @@ import { hasPAT } from '../../utils/githubApi.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { ScoreHelp } from './Score.jsx';
 import { T, metrics, repPairs, scoreTone, paceTone } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf, autoCrm } from '../../../scripts/scorecard-lib.mjs';
+import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import TrendsView from './TrendsView.jsx';
 
@@ -25,7 +25,7 @@ const first = (id) => repOf(id).name.split(' ')[0];
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 const k = (v) => { const x = (v || 0) / 1000; return `$${x >= 100 || Number.isInteger(Math.round(x * 10) / 10) ? Math.round(x) : (Math.round(x * 10) / 10).toFixed(1)}K`; };
 
-const G = { gridTemplateColumns: '8.5rem 5.5rem repeat(5,minmax(0,1fr)) 0.5rem repeat(5,2.6rem) 3.2rem minmax(0,1.6fr)' };
+const G = { gridTemplateColumns: '8.5rem 5.5rem repeat(6,minmax(0,1fr)) 0.5rem repeat(5,2.6rem) 3.2rem minmax(0,1.6fr)' };
 const head = 'text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold text-center leading-tight';
 const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-300' : v === 2 ? 'bg-emerald-500 text-white' : v === 1 ? 'bg-amber-400 text-amber-950' : 'bg-rose-600 text-white');
 
@@ -71,6 +71,21 @@ function autoLine(d) {
   return d.total ? `${d.ok} of ${d.total} OK` : 'nothing to check this week';
 }
 
+// Speed to response cell (score category from the week of Oct 12): share of
+// agent texts answered within 15 min, coloured like the Coaching tab (green at
+// the 75% target, amber from 56%).
+function SpeedCell({ ok, total, bg = 'bg-zinc-50' }) {
+  if (total == null) return <div className={`rounded-md h-full flex items-center justify-center border border-zinc-200 text-zinc-300 ${bg}`} title="Not checked this week">–</div>;
+  const r = total ? ok / total : null;
+  const cls = r == null ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : r >= 0.75 ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : r >= 0.56 ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-rose-50 border-rose-300 text-rose-700';
+  return (
+    <div className={`rounded-md h-full flex flex-col items-center justify-center border ${cls}`} title={`Agent texts answered within 15 min (weekdays 8–5 AZ): ${ok} of ${total} · target 75%`}>
+      <span className="text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums leading-none">{r == null ? '—' : `${Math.round(r * 100)}%`}</span>
+      <span className="text-[10px] font-semibold mt-0.5 opacity-70">{total ? `${ok} of ${total}` : 'no texts'}</span>
+    </div>
+  );
+}
+
 function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
   const { id, n, crm, manual, auto, note, s } = row;
   const [issues, setIssues] = useState(false);
@@ -86,7 +101,7 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
         <span className="text-[min(1rem,1.9vh)] font-bold truncate hover:underline underline-offset-2">{first(id)}</span>
       </button>
       <span className="flex items-center">
-        <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of 5 CRM items graded (graded parts scaled to 100)` : ratingOf(s.score)}>
+        <span className={`inline-flex items-baseline gap-1 rounded-lg px-2 py-0.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of 5 CRM items graded${s.weights.speed && !s.speedKnown ? ', speed not checked yet' : ''} (graded parts scaled to 100)` : ratingOf(s.score)}>
           <span className="text-[min(1.2rem,2.2vh)] font-extrabold tabular-nums">{s.score}</span>
           {s.estimate && <span className="text-[9px] font-bold">est.</span>}
         </span>
@@ -98,6 +113,7 @@ function Row({ row, wom, frac, canEdit, onCrm, onNote, onPickRep }) {
       </div>
       <Stack wk={n.offersW} wkT={T.offersPerWeek} mo={n.offersM} moT={T.offersPerWeek * 4} frac={frac} />
       <Stack wk={n.oppsW} wkT={T.oppsOpenedPerWeek} mo={n.oppsM} moT={T.oppsOpenedPerWeek * 4} frac={frac} />
+      <SpeedCell ok={n.speedOk} total={n.speedTotal} />
       <div className={`rounded-md h-full flex flex-col items-center justify-center border ${n.cancelsW ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-zinc-50 border-zinc-200 text-zinc-300'}`}>
         <span className="text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums leading-none">{n.cancelsW ?? '–'}</span>
         {n.cancelsM != null && <span className={`text-[10px] font-semibold mt-0.5 ${n.cancelsW ? 'text-rose-600' : 'text-zinc-400'}`}>{n.cancelsM} mo</span>}
@@ -236,6 +252,7 @@ function PodTotal({ g, wom, frac }) {
       </div>
       <Stack wk={sum('offersW')} wkT={T.offersPerWeek * n} mo={has('offersM') ? sum('offersM') : null} moT={T.offersPerWeek * 4 * n} frac={frac} />
       <Stack wk={sum('oppsW')} wkT={T.oppsOpenedPerWeek * n} mo={has('oppsM') ? sum('oppsM') : null} moT={T.oppsOpenedPerWeek * 4 * n} frac={frac} />
+      <SpeedCell ok={sum('speedOk')} total={g.rows.some((r) => r.n.speedTotal != null) ? sum('speedTotal') : null} bg="bg-white/70" />
       <div className={`rounded-md h-full flex flex-col items-center justify-center border ${sum('cancelsW') ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-white/70 border-zinc-200 text-zinc-300'}`}>
         <span className="text-[min(1.15rem,2.1vh)] font-extrabold tabular-nums leading-none">{has('cancelsW') ? sum('cancelsW') : '–'}</span>
         {has('cancelsM') && <span className={`text-[10px] font-semibold mt-1 ${sum('cancelsW') ? 'text-rose-600' : 'text-zinc-400'}`}>{sum('cancelsM')} mo</span>}
@@ -290,12 +307,12 @@ export default function ScorecardView({ onPickRep }) {
     if (frozen) n = frozen.reps?.[id] || null;
     else {
       const m = metrics(repPairs(id));
-      n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, cancelsW: m.cancelsW, contractsM: m.contractsM, offersM: m.offersM, oppsM: m.oppsM, cancelsM: m.cancelsM, projected: m.projected };
+      n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, cancelsW: m.cancelsW, contractsM: m.contractsM, offersM: m.offersM, oppsM: m.oppsM, cancelsM: m.cancelsM, projected: m.projected, ...repSpeed(repPairs(id)) };
     }
     if (!n) return null;
     const auto = frozen ? n.crmAuto || null : isLive ? autoCrm(repPairs(id), week) : null;
     const { crm, manual, note } = reviewFor(sc, week, id, draft, auto);
-    return { id, n, crm, manual, auto, note, s: scoreWeek(n, crm, wom) };
+    return { id, n, crm, manual, auto, note, s: scoreWeek(n, crm, wom, week) };
   };
   const gs = groups().map((g) => ({ ...g, rows: g.reps.map(rowOf).filter(Boolean) })).filter((g) => g.rows.length);
   const allRows = gs.flatMap((g) => g.rows);
@@ -397,6 +414,7 @@ export default function ScorecardView({ onPickRep }) {
             <span className={head}>Projected $<br /><span className="normal-case tracking-normal font-normal">month to date</span></span>
             <span className={head}>Offers<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
             <span className={head}>Opps opened<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
+            <span className={head}>Speed<br /><span className="normal-case tracking-normal font-normal">≤15 min · wk</span></span>
             <span className={`${head} text-rose-700`}>Cancels<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
             <span />
             {CRM_ITEMS.map((it, i) => (
@@ -427,7 +445,7 @@ export default function ScorecardView({ onPickRep }) {
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500" />2 all good</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-amber-400" />1 = 60%+</span>
             <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-600" />0 below 60%</span>
-            <span>· A = graded automatically from GHL (hover for why, click CRM total for the list) · a manager can pick a grade from each chip's dropdown · est. = not all CRM items graded · Score: contracts 35 · CRM 25 · projected 15 · offers 15 · opps 10 · no contract caps at 89</span>
+            <span>· A = graded automatically from GHL (hover for why, click CRM total for the list) · a manager can pick a grade from each chip's dropdown · est. = not every part graded yet · Score: {Object.entries(weightsFor(week)).filter(([, w]) => w).map(([k, w]) => `${k === 'crm' ? 'CRM' : k} ${w}`).join(' · ')} · no contract caps at 89</span>
           </div>
         </div>
       </div>

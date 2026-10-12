@@ -57,6 +57,7 @@ export function repNumbers(data, reps, month) {
     out[rep.name] = {
       contracts: sum('contractsWeek'),
       projected: Math.round(sum('revenueMonth') + assigned),
+      ...repSpeed(pairs),
       offers: sum('offersWeek'),
       oppsOpened: sum('oppsOpenedWeek'),
     };
@@ -105,33 +106,57 @@ export const POD_LEADS = ['anthony', 'sam_mackenzie'];
 export const CRM_ITEMS = [
   { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Nothing past its IP end (Under Contract / Dispo) or COE (Assigned); no open deal untouched 14+ days (stage move, note, text or call).' },
   { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each open deal has a note written by a person (not a workflow template) since it was opened.' },
-  { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Follows the VPG Texting Standard: agent texts answered within 15 min in business hours (75% target), rep texts end in a question, no Never-send texts / texts outside 8am–9pm / after STOP, and Claude\'s review of the week\'s agent conversations (professional, true, right questions, condition before price).' },
+  { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Follows the VPG Texting Standard: rep texts end in a question, no Never-send texts / texts outside 8am–9pm / after STOP, and Claude\'s review of the week\'s agent conversations (professional, true, right questions, condition before price).' },
   { key: 'dispo', label: 'Dispo Handoffs', short: 'Dispo Handoffs', help: 'Every deal that went under contract this week has every field filled except the "(If Applicable)" ones.' },
   { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'This week, every open deal\'s agent got a text or call from the rep at least every 3 business days.' },
 ];
 export const REVIEWERS = ['Jack', 'Luke', 'Anthony', 'Sam'];
 
-// The sheet's weekly score, 0–100: contracts 35, projected $ 15 (vs $6,250 ×
-// week of month, capped at $25K), offers 15, opps opened 10, CRM 25 (five
-// items, 0–2 each, 5 points per item); zero contracts caps the score at 89.
-// While some CRM items aren't graded yet the graded points are scaled to 100
-// and the result is marked `estimate` (none graded = the other 75 scaled up).
-export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 0 }, crm, weekOfMonth) {
+// The weekly score, 0–100. Since the week of Oct 12 (Luke: "speed to
+// response" as its own category): contracts 35, CRM 20 (five items, 0–2
+// each, 4 points per item), speed to response 10, projected $ 15 (vs $6,250 ×
+// week of month, capped at $25K), offers 15, opps opened 5. Weeks before
+// SPEED_FROM keep the sheet's weights (contracts 35, CRM 25, projected 15,
+// offers 15, opps 10), so their frozen scores never move. Zero contracts caps
+// the score at 89. Parts not known yet (ungraded CRM items, speed with no
+// messaging check) are left out and the rest scaled to 100 — `estimate`.
+export const SPEED_FROM = '2026-10-12';
+export const SPEED_WEIGHTS = { contracts: 35, crm: 20, speed: 10, projected: 15, offers: 15, opps: 5 };
+export const SHEET_WEIGHTS = { contracts: 35, crm: 25, speed: 0, projected: 15, offers: 15, opps: 10 };
+export const weightsFor = (monday) => (!monday || monday >= SPEED_FROM ? SPEED_WEIGHTS : SHEET_WEIGHTS);
+// Speed to response: agent texts answered within 15 min (weekdays 8–5 AZ),
+// full points at the Texting Standard's 75% target.
+export const speedShare = (ok, total) => (total ? Math.min(1, ok / total / MESSAGING_SPEED_TARGET) : 1);
+export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 0, speedOk = null, speedTotal = null }, crm, weekOfMonth, monday) {
+  const W = weightsFor(monday);
   const cap = (x) => Math.max(0, Math.min(1, x));
   const pace = 6250 * Math.min(4, Math.max(1, weekOfMonth || 1));
-  const parts = {
-    contracts: cap(contractsW / 1) * 35,
-    projected: cap(projected / pace) * 15,
-    offers: cap(offersW / 5) * 15,
-    opps: cap(oppsW / 10) * 10,
-  };
-  const base = parts.contracts + parts.projected + parts.offers + parts.opps;
   const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
-  const crmPts = known.length === 5 ? known.reduce((a, b) => a + b, 0) : null;
-  let score = ((base + known.reduce((a, b) => a + b, 0) * 2.5) / (75 + 5 * known.length)) * 100;
-  score = Math.round(score);
+  const speedKnown = W.speed > 0 && speedTotal != null;
+  const perItem = W.crm / 5;
+  const parts = {
+    contracts: cap(contractsW / 1) * W.contracts,
+    projected: cap(projected / pace) * W.projected,
+    offers: cap(offersW / 5) * W.offers,
+    opps: cap(oppsW / 10) * W.opps,
+    speed: speedKnown ? speedShare(speedOk, speedTotal) * W.speed : null,
+    crm: known.length ? (known.reduce((a, b) => a + b, 0) / 2) * perItem : null,
+  };
+  const max = { contracts: W.contracts, projected: W.projected, offers: W.offers, opps: W.opps, speed: speedKnown ? W.speed : 0, crm: perItem * known.length };
+  const possible = Object.values(max).reduce((a, b) => a + b, 0);
+  const earned = Object.values(parts).reduce((a, b) => a + (b || 0), 0);
+  let score = Math.round((earned / possible) * 100);
   if (!contractsW) score = Math.min(89, score);
-  return { score, estimate: known.length < 5, crm: crmPts, crmKnown: known.length, parts, projectedPace: pace };
+  const crmPts = known.length === 5 ? known.reduce((a, b) => a + b, 0) : null;
+  return { score, estimate: known.length < 5 || (W.speed > 0 && !speedKnown), crm: crmPts, crmKnown: known.length, speedKnown, parts, max, weights: W, possible, projectedPace: pace };
+}
+// A rep's speed to response for the week, from each sub-account's messaging
+// check (null when none ran).
+export function repSpeed(pairs) {
+  const sp = pairs.map((p) => p.messaging?.speed).filter(Boolean);
+  if (!sp.length) return { speedOk: null, speedTotal: null };
+  const c = sp.map(speedCounts);
+  return { speedOk: c.reduce((a, x) => a + x.ok, 0), speedTotal: c.reduce((a, x) => a + x.total, 0) };
 }
 export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Attention' : 'Red Week');
 
@@ -178,7 +203,9 @@ export function autoCrm(pairs, monday) {
     const sum = (f) => msgs.reduce((a, m) => a + (f(m) || 0), 0);
     const ai = msgs.filter((m) => m.ai);
     const mparts = [
-      { key: 'speed', label: 'Answered in 15 min', ok: sum((m) => speedCounts(m.speed).ok), total: sum((m) => speedCounts(m.speed).total), target: MESSAGING_SPEED_TARGET, skipped: sum((m) => speedCounts(m.speed).skipped), pending: sum((m) => speedCounts(m.speed).unjudged) },
+      // Speed is its own score category from SPEED_FROM, so it leaves
+      // messaging there (no double count).
+      ...(monday >= SPEED_FROM ? [] : [{ key: 'speed', label: 'Answered in 15 min', ok: sum((m) => speedCounts(m.speed).ok), total: sum((m) => speedCounts(m.speed).total), target: MESSAGING_SPEED_TARGET, skipped: sum((m) => speedCounts(m.speed).skipped), pending: sum((m) => speedCounts(m.speed).unjudged) }]),
       { key: 'questions', label: 'Ends in a question', ok: sum((m) => m.questions.ok), total: sum((m) => m.questions.total) },
       { key: 'compliance', label: 'Never-send / hours / STOP', ok: sum((m) => m.compliance.ok), total: sum((m) => m.compliance.total) },
       ...(ai.length ? [{ key: 'ai', label: 'AI review vs the standard', ok: ai.reduce((a, m) => a + m.ai.ok, 0), total: ai.reduce((a, m) => a + m.ai.total, 0), pending: ai.reduce((a, m) => a + (m.ai.pending || 0), 0) }] : []),
@@ -188,7 +215,7 @@ export function autoCrm(pairs, monday) {
     const bad = [
       ...msgs.flatMap((m) => (m.ai?.bad || []).map((b) => ({ id: `ai${b.why}`, addr: 'AI review', why: b.why }))),
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
-      ...msgs.flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
+      ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
     ];
     detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, 12), badN: bad.length };
   }
@@ -229,6 +256,7 @@ export function freezeNumbers(data, reps, month, monday) {
       contractsW: sum('contractsWeek'), offersW: sum('offersWeek'), oppsW: sum('oppsOpenedWeek'), cancelsW: sum('cancelsWeek'),
       contractsM: sum('contractsMonth'), offersM: sum('offersMonth'), oppsM: sum('oppsOpenedMonth'), cancelsM: sum('cancelsMonth'),
       projected: Math.round(sum('revenueMonth') + assigned),
+      ...repSpeed(pairs),
       ...(monday ? { crmAuto: autoCrm(pairs, monday) } : {}),
     };
   }

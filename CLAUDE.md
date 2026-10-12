@@ -316,8 +316,18 @@ Under `src/views/`:
   offers 15, opps 10; no contract caps at 89; projected judged vs $6,250 ×
   week-of-month (ceil(Friday's day / 7), max 4). The number comes from
   `scoreWeek` in scripts/scorecard-lib.mjs (shared by browser, freeze and
-  sheet export). Until a rep's five CRM grades are in, the other 75 points
-  are scaled to 100 and the score shows "est.". Funnel steps are this
+  sheet export). Until a rep's five CRM grades are in, the other parts
+  are scaled to 100 and the score shows "est.". **Speed to response**
+  (Luke, Oct 12) is its own part from the week of Oct 12 (`SPEED_FROM`):
+  contracts 35, CRM 20 (4 per item), speed 10, projected 15, offers 15,
+  opps 5 (`SPEED_WEIGHTS`); earlier weeks keep the sheet's weights above
+  (`SHEET_WEIGHTS`, `weightsFor(monday)`) so frozen scores never move.
+  Speed = agent texts answered within 15 min (`repSpeed` over the pairs'
+  `messaging.speed`, Claude's "no answer needed" taken out), full points at
+  75%, no agent texts = full, not checked yet = left out ("est."). From
+  that week speed leaves the Messaging CRM item (questions, compliance and
+  AI review only). The freeze stores `speedOk` / `speedTotal`; the
+  Scorecard table has a Speed column. Funnel steps are this
   month's counts stage to stage (Convo→Opp, Opp→Offer, Offer→Contract; no
   Contract→Close — closings come from earlier months); "biggest leak" =
   the step furthest below the team rate, flagged when 20%+ below.
