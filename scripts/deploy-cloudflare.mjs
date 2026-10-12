@@ -25,6 +25,8 @@ function run(cmd, args, env, timeout) {
 
 function main() {
   const file = process.env.RUNNER_TEMP && path.join(process.env.RUNNER_TEMP, 'cf-deploy.json');
+  // The Access token handed over for the state loaders is no longer needed.
+  if (process.env.RUNNER_TEMP) fs.rmSync(path.join(process.env.RUNNER_TEMP, 'cf-access.json'), { force: true });
   if (!file || !fs.existsSync(file)) return;
   let creds;
   try { creds = JSON.parse(fs.readFileSync(file, 'utf8')); } finally { fs.rmSync(file, { force: true }); }

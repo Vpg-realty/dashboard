@@ -16,6 +16,10 @@ function main() {
   if (!process.env.GITHUB_ACTIONS || !process.env.RUNNER_TEMP) return;
   let secrets = {};
   try { secrets = JSON.parse(process.env.ALL_SECRETS || '{}'); } catch { secrets = {}; }
+  // The Access service token, for state-source.mjs in steps without secrets.
+  if (secrets.CF_ACCESS_CLIENT_ID && secrets.CF_ACCESS_CLIENT_SECRET) {
+    fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'cf-access.json'), JSON.stringify({ id: secrets.CF_ACCESS_CLIENT_ID, secret: secrets.CF_ACCESS_CLIENT_SECRET }), { mode: 0o600 });
+  }
   const token = secrets.CLOUDFLARE_API_TOKEN;
   const account = secrets.CLOUDFLARE_ACCOUNT_ID;
   if (!token || !account) {

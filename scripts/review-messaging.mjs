@@ -20,12 +20,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { SYSTEM, REPLY_SYSTEM } from './messaging-standard.mjs';
+import { fetchState } from './state-source.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public', 'data.json');
 const OUT = path.join(ROOT, 'public', 'messaging-review.json');
 const THREADS = path.join(ROOT, '.cache', 'msg-threads.json');
-const PAGES_URL = 'https://vpg-realty.github.io/dashboard/messaging-review.json';
 const KEEP_WEEKS = 6;
 // Bump when what Claude is shown changes, so earlier verdicts are dropped
 // and the conversations re-reviewed (2: workflow texts labelled
@@ -73,7 +73,7 @@ function apiKey() {
 async function loadDeployed() {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('messaging-review.json');
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();

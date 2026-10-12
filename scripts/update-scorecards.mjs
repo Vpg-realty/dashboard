@@ -17,18 +17,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { azDate, weekInfo, freezeNumbers, pastFreeze } from './scorecard-lib.mjs';
+import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'public', 'scorecards.json');
-const PAGES_URL = 'https://vpg-realty.github.io/dashboard/scorecards.json';
 const KEEP_WEEKS = 60;
 
 async function loadDeployed() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('scorecards.json');
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();

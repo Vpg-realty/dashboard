@@ -8,17 +8,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { updateMonthLog } from '../server/monthLog.js';
 import { MANUAL_CONTRACTS, EXCLUDED_OPP_IDS } from '../server/config.js';
+import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUB = path.resolve(__dirname, '..', 'public');
 const OUT = path.join(PUB, 'month-log.json');
-const PAGES_URL = 'https://vpg-realty.github.io/dashboard/month-log.json';
 
 async function loadDeployedLog() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('month-log.json');
       if (r.status === 404) return null;                // genuine first run
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();

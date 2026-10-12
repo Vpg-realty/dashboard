@@ -67,10 +67,16 @@ Publishing without editing deploy.yml: `npm run snapshot` starts with
 `scripts/deploy-cloudflare.mjs`, which (only when that file exists, deleting
 it) builds a second copy at base `/` into `dist-cf/`, copies the state JSONs
 from `dist/` and runs `npx wrangler@4 pages deploy`. Never fails the deploy.
-Until the cut-over the GitHub Pages copy keeps publishing (still public) and
-the state loaders still read from it. Cut-over still to do: state files
-read from the private site (needs an Access service token as a repo secret,
-Luke's call) and the GitHub Pages copy replaced by a redirect. Next steps
+State files are read by `scripts/state-source.mjs` `fetchState(name)`:
+the private copy with the Access service token "dashboard-build" (repo
+secrets `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`, created by Luke;
+handed to the append-history step via `$RUNNER_TEMP/cf-access.json`, removed
+in deploy-cloudflare), falling back to the GitHub Pages copy when the private
+read isn't JSON (each run logs `[state] <file>: private copy` or why not).
+The token must be allowed by a "Service Auth" policy on the VPG Dashboard
+Access app. Until the cut-over the GitHub Pages copy keeps publishing (still
+public); cut-over = drop the fallback and replace the GitHub copy with a
+"moved" page. Next steps
 after that: roles (team / manager / owner, data split server-side by a
 Worker) and the deal tracker in D1.
 
