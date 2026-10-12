@@ -14,3 +14,4 @@ public/history.json
 proposals/
 
 .cache
+dist-cf
