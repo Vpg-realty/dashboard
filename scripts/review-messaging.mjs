@@ -29,8 +29,9 @@ const PAGES_URL = 'https://vpg-realty.github.io/dashboard/messaging-review.json'
 const KEEP_WEEKS = 6;
 // Bump when what Claude is shown changes, so earlier verdicts are dropped
 // and the conversations re-reviewed (2: workflow texts labelled
-// "automated", not "rep" — Oct 12).
-const RULES_VERSION = 2;
+// "automated", not "rep" — Oct 12; 3: never hold automated texts against
+// the rep — Oct 12).
+const RULES_VERSION = 3;
 const PER_CALL = 12;        // conversations per request
 const MAX_PER_RUN = 150;    // cost guard: the rest wait for the next run
 const REREVIEW_MS = 24 * 3600 * 1000;   // a conversation with new rep texts is looked at again at most daily
