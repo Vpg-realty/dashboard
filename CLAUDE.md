@@ -458,7 +458,10 @@ Under `src/views/`:
       (Pages-carried, abort-don't-wipe, 6 weeks); a conversation is
       re-reviewed at most daily when it has new rep texts; 150 per run max.
       Never fails the deploy over Claude (no key / errors = try next run).
-      `autoCrm` grades messaging from the average of the four shares:
+      `autoCrm` grades messaging from the average of its checks, each a
+      share of its team standard (`MESSAGING_STANDARDS`, Luke Oct 12 — set at
+      what the top reps reach: questions 40%, compliance 90%, AI review 50%;
+      speed 75% before it became its own part), capped at 1:
       90%+ = 2, 60%+ = 1, below = 0; the issue list shows AI reasons,
       compliance hits and slow answers.
   - **Coaching** (`CoachingView.jsx`, restored Oct 11; reordered Oct 12,
