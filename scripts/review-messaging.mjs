@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
+import { SYSTEM } from './messaging-standard.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'public', 'data.json');
@@ -32,24 +33,9 @@ const REREVIEW_MS = 24 * 3600 * 1000;   // a conversation with new rep texts is 
 
 export const MODEL = 'claude-opus-5-5';
 
-// The parts of the VPG Texting Standard for Acquisitions that need judgment
-// (speed, ending in a question, Never-send phrases, quiet hours and STOP are
-// checked by rules in server/messaging.js).
-export const SYSTEM = `You review text conversations between a real estate acquisitions rep at Valley Property Group (VPG), a home buyer, and listing agents. Judge only the texts marked "rep". Texts marked "automated" were sent by a workflow and texts marked "agent" are the agent's; use them as context only.
-
-The company's texting standard for reps:
-1. Name the property and ask one question.
-2. Every text ends in a question.
-3. When passing on a property, ask for the next deal in the same text ("Can't make this one pencil. Anything else coming up that needs updating?"). A pass with no question is not OK.
-4. Short, plain and true: one to three sentences, sounding like a person. No fake mix-ups, no apologies, no "I've been slow", nothing untrue.
-5. Too far off on cash: offer seller finance before walking away.
-6. Once an agent answers, keep them talking with one specific question about the property (repairs needed, rental restrictions, condition of big-ticket items). Don't name a price until you know the condition.
-7. Never send: fake "closing funds are in" / "wrong person" texts, "stay on your radar", criteria updates with no question, "market's been slow", "don't want to be a pest" / "broken record", "bump this up / keep me in mind", a plain pass ("too far apart, wouldn't want to waste your time").
-8. Professional and courteous at all times. If asked, the rep is an unrepresented buyer who does flips and value-add projects.
-
-For each conversation decide whether the rep's texts meet the standard overall. Give the benefit of the doubt: an open-ended or friendly text, a quick logistics reply ("Sent!", "Calling you now?"), or a conversation that is just scheduling or paperwork is OK. Mark it not OK only for a clear miss: unprofessional or rude, untrue, a Never-send text, naming a price before asking about condition, a pass or a no without asking for the next deal, walking away on cash without raising seller finance when that was the reason, or texts that ramble well beyond a few sentences.
-
-For "issue", write one short plain sentence (under 15 words) saying what to fix, or null when OK. Never include names, phone numbers, emails, addresses, prices or quotes from the texts.`;
+// The judgment rules Claude is given live in scripts/messaging-standard.mjs
+// (also shown on the dashboard under "How the score works").
+export { SYSTEM };
 
 const SCHEMA = {
   type: 'object',

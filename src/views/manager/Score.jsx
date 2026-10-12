@@ -2,8 +2,9 @@
 // needs to be more clear … a clear way to understand what scores mean and
 // how it is weighted").
 import { useState } from 'react';
+import ScoreGuide from './ScoreGuide.jsx';
 import { formatCompactCurrency } from '../../utils/format.js';
-import { SCORE_PARTS, SCORE_BANDS, scoreParts, scoreTone, weekOfMonth, T } from './metrics.js';
+import { scoreParts, scoreTone } from './metrics.js';
 
 // Score number in a pill coloured by band, with the band name.
 export function ScorePill({ score, big }) {
@@ -68,17 +69,9 @@ export function ScoreBreakdown({ m, crm = null }) {
   );
 }
 
-// "How the score works" button + panel.
+// "How the score works" button + the full guide (ScoreGuide.jsx).
 export function ScoreHelp({ light }) {
   const [open, setOpen] = useState(false);
-  const wk = weekOfMonth();
-  const targets = {
-    contracts: `${T.contractsPerWeek} this week`,
-    crm: '10 of 10: five checks, 2 = all good, 1 = about 60%, 0 = below',
-    projected: `${formatCompactCurrency((T.revenuePerRepMonth / 4) * wk)} by week ${wk} ($25K ÷ 4 × week of month)`,
-    offers: `${T.offersPerWeek} this week`,
-    opps: `${T.oppsOpenedPerWeek} this week`,
-  };
   return (
     <>
       <button
@@ -87,59 +80,7 @@ export function ScoreHelp({ light }) {
       >
         ⓘ How the score works
       </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(15,23,42,0.45)' }} onClick={() => setOpen(false)}>
-          <div className="w-[min(46rem,94vw)] max-h-[92vh] overflow-auto rounded-2xl bg-white text-zinc-900 shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Weekly score</div>
-                <div className="text-2xl font-extrabold">How the score works</div>
-                <div className="text-sm text-zinc-600 mt-1">The weekly scorecard. Resets every Monday. Out of 100.</div>
-              </div>
-              <button onClick={() => setOpen(false)} className="text-2xl leading-none text-zinc-400 hover:text-zinc-700">×</button>
-            </div>
-
-            <div className="mt-5 text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">What it's made of</div>
-            <div className="flex gap-[3px] h-7 mt-2 rounded overflow-hidden">
-              {SCORE_PARTS.map((p) => (
-                <div key={p.key} className="flex items-center justify-center text-white text-xs font-bold" style={{ flex: p.weight, background: p.color }}>
-                  {p.short || p.label} · {p.weight}
-                </div>
-              ))}
-            </div>
-            <table className="w-full mt-3 text-sm">
-              <thead><tr className="text-left text-[10px] uppercase tracking-[0.12em] text-zinc-500"><th className="py-1">Part</th><th>Points</th><th>Full points at</th></tr></thead>
-              <tbody>
-                {SCORE_PARTS.map((p) => (
-                  <tr key={p.key} className="border-t border-zinc-100">
-                    <td className="py-1.5 font-semibold"><span className="inline-block w-2.5 h-2.5 rounded-sm mr-2" style={{ background: p.color }} />{p.label}</td>
-                    <td className="tabular-nums">{p.weight}</td>
-                    <td className="text-zinc-600">{targets[p.key]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <ul className="mt-3 text-sm text-zinc-600 space-y-1 list-disc pl-5">
-              <li>Each part pays in proportion: 3 of 5 offers = 60% of the offer points. Going over the target doesn't add more.</li>
-              <li>No contract this week → the score can't go above 89.</li>
-              <li>CRM cleanliness: five items, 0–2 each (2 = all good, 1 = 60%+, 0 = below). All five are graded automatically from GHL: pipeline, notes, dispo and follow-ups every hour; messaging every 3 hours against the VPG Texting Standard (rules plus Claude reading the week's agent conversations). A manager can override any item on the Scorecard tab. Until all five are in, the score is an estimate: the graded parts are scaled up to 100.</li>
-              <li>The week freezes Friday at 12:00 Arizona; the frozen numbers are what the week is scored on.</li>
-              <li>Weekly counts restart Monday, so scores start low and build through the week. Thursday–Friday is when they mean the most.</li>
-            </ul>
-
-            <div className="mt-5 text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">What the colours mean</div>
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {SCORE_BANDS.map((b, i) => (
-                <div key={b.label} className={`rounded-lg px-3 py-2 ${b.bg}`}>
-                  <div className={`text-lg font-extrabold ${b.text}`}>{b.label}</div>
-                  <div className={`text-sm font-bold ${b.text}`}>{i === 0 ? '90 – 100' : i === 1 ? '75 – 89' : 'under 75'}</div>
-                  <div className="text-xs text-zinc-600 mt-0.5">{b.note}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {open && <ScoreGuide onClose={() => setOpen(false)} />}
     </>
   );
 }
