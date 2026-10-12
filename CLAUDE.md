@@ -407,17 +407,16 @@ Under `src/views/`:
       weekdays 8am–5pm Arizona (acks like "thanks" and STOPs skipped)
       answered by a rep text within 15 min, vs the 75% target; **questions**
       = each run of rep texts ends in "?"; **compliance** = every outbound
-      text this week (automated too) free of Never-send phrases. "Rep
-      text" = typed by the rep (`isManualOutbound`): outbound with a userId
-      AND a source that isn't workflow / bulk / campaign — workflow sends
-      carry the rep's userId too (Oct 12, Daniel's "stay on your radar"
-      workflow was first counted as his own texts). The same test decides a
-      follow-up "touch" in server/crm.js. `MESSAGING_VERSION` /
-      `CRM_VERSION` / the review's `RULES_VERSION`: bump to force a recompute
-      (and, for the review, to drop old verdicts) when the rules change.
-      Compliance texts free of Never-send phrases
+      text this week (automated too) free of Never-send phrases
       (`NEVER_SEND`), texts before 8am / after 9pm contact time (`MARKET_TZ`)
-      and texts after a STOP. The **AI review** is
+      and texts after a STOP. "Rep text" = typed by the rep
+      (`isManualOutbound`): outbound with a userId AND a source that isn't
+      workflow / bulk / campaign — workflow sends carry the rep's userId too
+      (Oct 12: Daniel's "stay on your radar" workflow was first counted as
+      his own texts). The same test decides a follow-up "touch" in
+      server/crm.js. `MESSAGING_VERSION` / `CRM_VERSION` / the review's
+      `RULES_VERSION`: bump to force a recompute (and, for the review, to
+      drop old verdicts) when the rules change. The **AI review** is
       `scripts/review-messaging.mjs`, chained after build-snapshot in `npm
       run snapshot` (key = the `ANTHROPIC_API_KEY` repo secret via
       ALL_SECRETS): conversations where an agent wrote and a rep answered
