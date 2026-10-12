@@ -45,6 +45,39 @@ The site has NO backend. Every state file it needs
 previous Pages deploy, mutated, and re-published. That's how the
 sticky counts and ~13-month (400-day) history survive without a database.
 
+## Private hosting — Cloudflare (Luke, Oct 12)
+
+The dashboard is moving off public GitHub Pages to a login-protected
+Cloudflare Pages project, **`vpg-dashboard`** → https://vpg-dashboard.pages.dev
+(Luke's Cloudflare account; his other project `valley-site-pages` is the
+public website — never touch it). In front of it, Cloudflare Access app
+**"VPG Dashboard"** (Zero Trust team `tiny-base-e88a.cloudflareaccess.com`)
+covers `vpg-dashboard.pages.dev` and `*.vpg-dashboard.pages.dev`: login by
+emailed one-time code ("Email code" identity provider), session 730 h
+(~1 month), policy "VPG team" = an allow-list of @valleypropertygroup.com
+emails (luke, jack = owners; anthony, sam = managers; spencer, axel, cayden,
+danni, daniel, rory, patrick = team; tc = Aiza; info = the office TV, which
+should get team-level access once roles exist). Free plan: Access logs are
+kept 24 h.
+
+Publishing without editing deploy.yml: `npm run snapshot` starts with
+`scripts/cloudflare-handoff.mjs`, which takes `CLOUDFLARE_API_TOKEN` /
+`CLOUDFLARE_ACCOUNT_ID` from ALL_SECRETS (repo secrets) and leaves them in
+`$RUNNER_TEMP/cf-deploy.json`; `npm run build` ends with
+`scripts/deploy-cloudflare.mjs`, which (only when that file exists, deleting
+it) builds a second copy at base `/` into `dist-cf/`, copies the state JSONs
+from `dist/` and runs `npx wrangler@4 pages deploy`. Never fails the deploy.
+Until the cut-over the GitHub Pages copy keeps publishing (still public) and
+the state loaders still read from it. Cut-over still to do: state files
+read from the private site (needs an Access service token as a repo secret,
+Luke's call) and the GitHub Pages copy replaced by a redirect. Next steps
+after that: roles (team / manager / owner, data split server-side by a
+Worker) and the deal tracker in D1.
+
+Claude Code sessions reach api.cloudflare.com through a network secret
+(the proxy injects the token); wrangler's asset upload needs its own JWT,
+which the proxy overwrites, so uploads only work from GitHub Actions.
+
 ## Refresh cadence
 
 Two workflows, both in `.github/workflows/`:
