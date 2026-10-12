@@ -12,11 +12,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.resolve(__dirname, '..', 'public', 'data.json');
 const HISTORY_PATH = path.resolve(__dirname, '..', 'public', 'history.json');
-const PAGES_HISTORY_URL = 'https://vpg-realty.github.io/dashboard/history.json';
 // ~13 months, so the Advanced date selector can compare against the same
 // month last year (Luke, Sept 29). Zero fields are omitted below to keep the
 // file small.
@@ -38,7 +38,7 @@ async function loadDeployedHistory() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_HISTORY_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('history.json');
       if (r.status === 404) return [];                   // genuine first run
       if (!r.ok) throw new Error(`status ${r.status}`);  // 5xx/etc → retry
       const d = await r.json();

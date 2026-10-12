@@ -19,13 +19,12 @@ import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.
 import { applyStickyCounts } from '../server/stickyCounts.js';
 import { EXCLUDED_OPP_IDS, MANUAL_CANCELS, MANUAL_CONTRACTS } from '../server/config.js';
 import { keepCallsMonotonic } from '../server/calls.js';
+import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(__dirname, '..', 'public', 'data.json');
 const STATE_OUT = path.resolve(__dirname, '..', 'public', 'opp-state.json');
 const THREADS_DIR = path.resolve(__dirname, '..', '.cache');
-const PAGES_STATE_URL = 'https://vpg-realty.github.io/dashboard/opp-state.json';
-const PAGES_DATA_URL = 'https://vpg-realty.github.io/dashboard/data.json';
 
 // Loads the previous run's opp-state so stickyCounts.js can diff. Hardened
 // the same way loadDeployedHistory in append-history.mjs is: retry on
@@ -37,7 +36,7 @@ async function loadPrevOppState() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_STATE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('opp-state.json');
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();
@@ -60,7 +59,7 @@ async function loadPrevOppState() {
 async function loadPrevData() {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await fetch(`${PAGES_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      const r = await fetchState('data.json');
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();
