@@ -39,3 +39,34 @@ Automated texts are checked separately. Never hold an automated text against the
 For each conversation decide whether the rep's texts meet the standard overall. Give the benefit of the doubt: ${OK_CASES} is OK. Mark it not OK only for a clear miss: ${MISSES.join(', ')}.
 
 For "issue", write one short plain sentence (under 15 words) saying what to fix, or null when OK. Never include names, phone numbers, emails, addresses, prices or quotes from the texts.`;
+
+// --- Does an agent's text need an answer? (Luke, Oct 12) -------------------
+// Only the agent texts that went unanswered for 15 minutes are judged; an
+// answered text counts as answered either way. Under the standard every
+// "no" is a chance to ask for the next deal, so a no / pass / sold still
+// needs an answer.
+export const NEEDS_REPLY = [
+  'a question of any kind, including "who is this?" or "what would you offer?"',
+  'information about a property: price, condition, repairs, photos, access, status',
+  'a counter, a price or terms, or anything that moves a deal forward',
+  'a no, a pass, "not interested", "sold", "pending" or "under contract" — the rep should ask for the next deal',
+  'a new listing, an off-market lead or "I have something for you"',
+  'anything the agent clearly expects an answer to',
+];
+export const NO_REPLY_NEEDED = [
+  'an auto-reply or out-of-office message',
+  'a reaction or a lone emoji',
+  'a thank-you or acknowledgement that closes a loop the rep already handled (e.g. "Got it, thanks!" after the rep sent what was asked)',
+  'a message plainly not meant for the rep (wrong person, spam, group text noise)',
+  'an opt-out (STOP, "remove me")',
+];
+
+export const REPLY_SYSTEM = `You help grade how fast a real estate acquisitions rep at Valley Property Group (VPG) answers listing agents. Each item is an agent's text that the rep did not answer within 15 minutes, with the few texts before it for context. Decide whether that last agent text needed an answer from the rep.
+
+It NEEDS an answer if it is:
+${NEEDS_REPLY.map((r) => `- ${r}`).join('\n')}
+
+It does NOT need an answer if it is:
+${NO_REPLY_NEEDED.map((r) => `- ${r}`).join('\n')}
+
+When unsure, say it needs an answer. Judge only the last agent text in each item.`;

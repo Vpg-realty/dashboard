@@ -127,12 +127,15 @@ const snapshot = await buildSnapshot({ tokens, prevPairs: prev?.pairs || [] });
 // to .cache/msg-threads.json for scripts/review-messaging.mjs.
 {
   const threads = {};
+  const misses = {};
   for (const p of snapshot.pairs) {
     if (p._msgThreads) threads[`${p.repId}|${p.marketId}`] = p._msgThreads;
+    if (p._msgMisses) misses[`${p.repId}|${p.marketId}`] = p._msgMisses;
     delete p._msgThreads;
+    delete p._msgMisses;
   }
   fs.mkdirSync(THREADS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(THREADS_DIR, 'msg-threads.json'), JSON.stringify({ generatedAt: Date.now(), threads }));
+  fs.writeFileSync(path.join(THREADS_DIR, 'msg-threads.json'), JSON.stringify({ generatedAt: Date.now(), threads, misses }));
 }
 
 // Sticky offer / contract counters (Luke, Sept 14). aggregate.js emits a

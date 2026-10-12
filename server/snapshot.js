@@ -225,9 +225,10 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
         } else {
           try {
             const texts = await listTextsSince(locationId, token, wkStart - 2 * 86400000);
-            const { threads, ...rules } = analyzeMessaging({ messages: texts, marketId, weekStartMs: wkStart });
+            const { threads, misses, ...rules } = analyzeMessaging({ messages: texts, calls: Array.isArray(callMessages) ? callMessages : [], marketId, weekStartMs: wkStart });
             pair.messaging = { ...rules, weekStart: wkStart, ...(prevMsg?.weekStart === wkStart && prevMsg.ai ? { ai: prevMsg.ai } : {}) };
             pair._msgThreads = threads;
+            pair._msgMisses = misses;
           } catch (err) {
             pair.messaging = prevMsg?.weekStart === wkStart ? { ...prevMsg, error: String(err?.message || err).slice(0, 200) } : { error: String(err?.message || err).slice(0, 200), weekStart: wkStart };
           }

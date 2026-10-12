@@ -10,15 +10,17 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { first, STEPS, rate, pct, biggestLeak, convCls, repRows, teamMetrics, repPairs } from './metrics.js';
 import { PAIRS } from '../../data/source.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
+import { speedCounts } from '../../../scripts/scorecard-lib.mjs';
 
 const G = { gridTemplateColumns: '9rem repeat(3,minmax(0,1fr)) repeat(4,minmax(0,0.6fr)) minmax(0,1.1fr) 11rem' };
 
 // Answered-in-time for a set of sub-accounts this week.
 function speedOf(pairs) {
-  const ms = pairs.map((p) => p.messaging?.speed).filter(Boolean);
+  const ms = pairs.filter((p) => p.messaging?.speed).map((p) => ({ mkt: p.marketId, ...speedCounts(p.messaging.speed) }));
   const ok = ms.reduce((a, x) => a + x.ok, 0);
   const total = ms.reduce((a, x) => a + x.total, 0);
-  return { ok, total, rate: total ? ok / total : null, byState: pairs.filter((p) => p.messaging?.speed?.total).map((p) => `${p.marketId} ${p.messaging.speed.ok}/${p.messaging.speed.total}`) };
+  const skipped = ms.reduce((a, x) => a + x.skipped, 0);
+  return { ok, total, skipped, rate: total ? ok / total : null, byState: ms.filter((x) => x.total).map((x) => `${x.mkt} ${x.ok}/${x.total}`) };
 }
 // Green at the standard's target, amber from 75% of it, red below.
 const speedCls = (r) => (r == null ? 'bg-zinc-50 text-zinc-400' : r >= SPEED_TARGET ? 'bg-emerald-100 text-emerald-800' : r >= SPEED_TARGET * 0.75 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800');
@@ -76,7 +78,7 @@ export default function CoachingView({ onPickRep }) {
                 </span>
               ))}
               {[m.convosM, m.oppsM, m.offersM, m.contractsM].map((v, i) => <span key={i} className="text-center text-[min(1.125rem,2.2vh)] font-semibold tabular-nums text-zinc-700">{v}</span>)}
-              <span className={`h-full max-h-14 rounded-lg flex flex-col items-center justify-center leading-none gap-1 tabular-nums ${speedCls(speed.rate)}`} title={speed.byState.length ? `By state: ${speed.byState.join(' · ')}` : 'no agent texts in business hours yet'}>
+              <span className={`h-full max-h-14 rounded-lg flex flex-col items-center justify-center leading-none gap-1 tabular-nums ${speedCls(speed.rate)}`} title={speed.byState.length ? `By state: ${speed.byState.join(' · ')}${speed.skipped ? ` · ${speed.skipped} unanswered text(s) Claude judged as not needing an answer left out` : ''}` : 'no agent texts in business hours yet'}>
                 <span className="text-[min(1.5rem,2.8vh)] font-bold">{pct(speed.rate)}</span>
                 <span className="text-[min(0.8125rem,1.5vh)] font-semibold opacity-75">{speed.total ? `${speed.ok} of ${speed.total}` : 'no texts yet'}</span>
               </span>

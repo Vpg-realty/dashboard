@@ -409,8 +409,18 @@ Under `src/views/`:
       Acquisitions" Claude Doc). Rules in `server/messaging.js`, every 3
       hours per sub-account from this week's texts
       (`listTextsSince`, SMS export): **speed** = agent texts that came in
-      weekdays 8am–5pm Arizona (acks like "thanks" and STOPs skipped)
-      answered by a rep text within 15 min, vs the 75% target; **questions**
+      weekdays 8am–5pm Arizona answered within 15 min by a rep text or a
+      connected call (`isConnectedCall`; the pair's call export is passed
+      in — Luke, Oct 12), vs the 75% target. Skipped: acks like "thanks",
+      STOPs, auto-replies / out-of-office and iPhone tapbacks
+      (`isAutoReply`). Every unanswered one goes to Claude
+      (`misses` → `.cache/msg-threads.json`, `judgeReplies` in
+      review-messaging, rules `NEEDS_REPLY` / `NO_REPLY_NEEDED` in
+      messaging-standard.mjs — a no / sold still needs an answer: ask for
+      the next deal); judged "no answer needed" → `speed.notNeeded`, taken
+      out of the count by `speedCounts` (scorecard-lib), used by autoCrm and
+      the Coaching tab. Verdicts in messaging-review.json `needs`, once per
+      text, 300 per run; **questions**
       = each run of rep texts ends in "?" (softened Oct 12, Luke: a last
       text under `QUESTION_MIN_WORDS` = 7 words or a thanks / logistics line
       like "Sent!" isn't counted — `needsQuestion`); **compliance** = every outbound

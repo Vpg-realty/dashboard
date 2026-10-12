@@ -18,7 +18,7 @@
 const MIN = 60000;
 // Bump when the rules change so cached results (reused for 3 hours) are
 // recomputed on the next deploy.
-export const MESSAGING_VERSION = 3;
+export const MESSAGING_VERSION = 4;
 export const ANSWER_WITHIN_MIN = 15;
 // "Ends in a question" only judges real messages (Luke, Oct 12: soften it):
 // a last text under this many words, or a thanks / logistics line ("Sent!",
@@ -70,19 +70,33 @@ const isRep = isManualOutbound;
 const isStop = (body) => /^\s*(stop|stop all|unsubscribe|remove me|quit|cancel|end)\b/i.test(body || '');
 // Agent texts that don't call for an answer.
 const isAck = (body) => /^\s*(ok(ay)?|k|thanks?( you)?|thx|ty|👍|sounds good|will do|you too|np|no problem|great|perfect|got it|cool)(?:[\s!.]|\p{Extended_Pictographic}|\ufe0f)*$/iu.test(body || '');
+// Auto-replies and phone reactions — never need an answer (Luke, Oct 12:
+// "skip auto replies only"). Out-of-office / away messages, "I'm driving"
+// texts, and iPhone tapbacks ('Liked "…"').
+const isAutoReply = (body) => /out of (the )?office|auto(matic|mated)?[- ]?(reply|response)|this is an automated|i('| a)?m (currently )?(away|out of town|on vacation|unavailable|driving)|away from (my )?(desk|phone|the office)|limited access to (my )?(phone|email)|will (respond|reply|get back to you) (as soon as|when) (i('| a)?m|possible)|do not disturb|^\s*(liked|loved|laughed at|emphasized|disliked|questioned|reacted [^ ]+ to) ["“'‘]/i.test(body || '');
+// A call that connected, either way (Luke, Oct 12: a call counts as an answer).
+const isConnectedCall = (m) => m && m.messageType === 'TYPE_CALL' && (m.meta?.call?.status === 'completed' || m.status === 'completed');
+
 // Ends in a question (allowing trailing emoji / closing punctuation).
 export const endsInQuestion = (body) => /\?(?:[\s"')\].!]|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f)*$/u.test(String(body || '').trim());
 
 // messages: this sub-account's texts since a little before the week began
-// (any order). Returns { at, speed, questions, compliance, threads }.
-export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.now() }) {
+// (any order); calls: its calls this week (a connected call within 15 min
+// answers an agent text). Returns { at, speed, questions, compliance,
+// threads, misses } — threads and misses are internal (never published):
+// misses are the agent texts that went unanswered, for Claude to judge
+// whether they needed an answer (scripts/review-messaging.mjs).
+export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, now = Date.now() }) {
   const tz = MARKET_TZ[marketId] || 'America/Phoenix';
   const byConv = new Map();
   for (const m of messages || []) {
     if (!isSms(m) || !m.conversationId) continue;
     (byConv.get(m.conversationId) || byConv.set(m.conversationId, []).get(m.conversationId)).push(m);
   }
-  const speed = { ok: 0, total: 0, slow: [] };
+  const speed = { ok: 0, total: 0, slow: [], missIds: [] };
+  const misses = [];
+  const callsByConv = new Map();
+  for (const c of calls || []) if (isConnectedCall(c) && c.conversationId) (callsByConv.get(c.conversationId) || callsByConv.set(c.conversationId, []).get(c.conversationId)).push(ts(c.dateAdded));
   const questions = { ok: 0, total: 0 };
   const compliance = { ok: 0, total: 0, bad: [] };
   const threads = [];
@@ -99,13 +113,24 @@ export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.n
         // Speed: an agent text that starts their turn, in business hours,
         // that calls for an answer.
         const prev = list[i - 1];
-        if (inWeek && inBusinessHours(t) && (!prev || prev.direction !== 'inbound') && !isAck(m.body) && !isStop(m.body)) {
+        if (inWeek && inBusinessHours(t) && (!prev || prev.direction !== 'inbound') && !isAck(m.body) && !isStop(m.body) && !isAutoReply(m.body)) {
+          // Answered = the first rep text, or a connected call, after it.
           const reply = list.slice(i + 1).find((x) => isRep(x));
-          const answered = reply && ts(reply.dateAdded) - t <= ANSWER_WITHIN_MIN * MIN;
+          const call = (callsByConv.get(conv) || []).filter((c) => c >= t).sort((a, b) => a - b)[0];
+          const first = Math.min(reply ? ts(reply.dateAdded) : Infinity, call ?? Infinity);
+          const answered = first - t <= ANSWER_WITHIN_MIN * MIN;
           if (answered || now - t > ANSWER_WITHIN_MIN * MIN) {
             speed.total++;
             if (answered) speed.ok++;
-            else if (speed.slow.length < 10) speed.slow.push({ at: t, mins: reply ? Math.round((ts(reply.dateAdded) - t) / MIN) : null });
+            else {
+              speed.missIds.push(m.id);
+              if (speed.slow.length < 25) speed.slow.push({ id: m.id, at: t, mins: Number.isFinite(first) ? Math.round((first - t) / MIN) : null });
+              // For Claude: the agent's text and the few texts before it.
+              misses.push({
+                id: m.id,
+                texts: list.slice(Math.max(0, i - 4), i + 1).map((x) => ({ from: x.direction === 'inbound' ? 'agent' : isRep(x) ? 'rep' : 'automated', at: ts(x.dateAdded), body: String(x.body || '').slice(0, 400) })),
+              });
+            }
           }
         }
         continue;
@@ -147,5 +172,5 @@ export function analyzeMessaging({ messages, marketId, weekStartMs, now = Date.n
       });
     }
   }
-  return { v: MESSAGING_VERSION, at: now, speed, questions, compliance, threads };
+  return { v: MESSAGING_VERSION, at: now, speed, questions, compliance, threads, misses };
 }

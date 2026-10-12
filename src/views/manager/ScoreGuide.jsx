@@ -9,7 +9,7 @@ import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T } from './metrics.js';
 import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
-import { STANDARD_RULES, OK_CASES, MISSES } from '../../../scripts/messaging-standard.mjs';
+import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 
@@ -159,8 +159,14 @@ function Messaging() {
       <div className="text-sm text-zinc-700"><b>Rep texts</b> = texts the rep typed in GHL. Workflow, bulk and campaign texts are sent under the rep's name too, but only count in the Never-send / hours / STOP check (the rep owns their automations). </div>
       <div className="text-sm text-zinc-700 mt-1">Graded against the <b>VPG Texting Standard for Acquisitions</b>. Four parts, each a share out of 100%, averaged: <b>2</b> = {pct(MESSAGING_TWO)}+, <b>1</b> = {pct(GRADE_ONE)}+, <b>0</b> = below.</div>
       <Item title="Answered within 15 minutes">
-        <Row k="Checks">Agent texts that came in on weekdays, 8am–5pm Arizona, answered by a text from the rep within {ANSWER_WITHIN_MIN} minutes. Graded against the {pct(SPEED_TARGET)} target (hitting {pct(SPEED_TARGET)} = full marks).</Row>
-        <Row k="Skipped">Replies that don't need an answer ("thanks", "ok", "sounds good", 👍) and STOP replies; texts that came in after hours.</Row>
+        <Row k="Checks">Agent texts that came in on weekdays, 8am–5pm Arizona, answered within {ANSWER_WITHIN_MIN} minutes by a text the rep typed <b>or a call that connected</b>. Graded against the {pct(SPEED_TARGET)} target (hitting {pct(SPEED_TARGET)} = full marks). Also shown on the Coaching tab.</Row>
+        <Row k="Skipped">Texts that came in after hours; plain acknowledgements ("thanks", "ok", "sounds good", 👍); STOP replies; auto-replies and out-of-office messages; phone reactions ('Liked "…"').</Row>
+        <Row k="Claude">Every agent text that went unanswered is read by Claude, which decides whether it needed an answer. If not, it's left out of the count. When unsure it counts as needing one.
+          <div className="grid grid-cols-2 gap-4 mt-1">
+            <div><b>Needs an answer</b><ul className="list-disc pl-5 mt-0.5 space-y-0.5">{NEEDS_REPLY.map((r) => <li key={r}>{r}</li>)}</ul></div>
+            <div><b>Doesn't need one</b><ul className="list-disc pl-5 mt-0.5 space-y-0.5">{NO_REPLY_NEEDED.map((r) => <li key={r}>{r}</li>)}</ul></div>
+          </div>
+        </Row>
       </Item>
       <Item title="Ends in a question">
         <Row k="Checks">The last text in each run of rep texts ends with "?" (an emoji after it is fine).</Row>
