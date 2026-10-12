@@ -106,7 +106,7 @@ export const CRM_ITEMS = [
   { key: 'pipeline', label: 'Pipeline organized', short: 'Pipeline', help: 'Nothing past its IP end (Under Contract / Dispo) or COE (Assigned); no open deal untouched 14+ days (stage move, note, text or call).' },
   { key: 'notes', label: 'Notes on every lead', short: 'Notes', help: 'Each open deal has a note written by a person (not a workflow template) since it was opened.' },
   { key: 'messaging', label: 'Messaging correct & complete', short: 'Messaging', help: 'Follows the VPG Texting Standard: agent texts answered within 15 min in business hours (75% target), rep texts end in a question, no Never-send texts / texts outside 8am–9pm / after STOP, and Claude\'s review of the week\'s agent conversations (professional, true, right questions, condition before price).' },
-  { key: 'dispo', label: 'Clean dispo handoffs', short: 'Dispo', help: 'Every deal that went under contract this week has every field filled except the "(If Applicable)" ones.' },
+  { key: 'dispo', label: 'Dispo Handoffs', short: 'Dispo Handoffs', help: 'Every deal that went under contract this week has every field filled except the "(If Applicable)" ones.' },
   { key: 'followups', label: 'Follow-ups correct & consistent', short: 'Follow-ups', help: 'This week, every open deal\'s agent got a text or call from the rep at least every 3 business days.' },
 ];
 export const REVIEWERS = ['Jack', 'Luke', 'Anthony', 'Sam'];

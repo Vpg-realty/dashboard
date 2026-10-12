@@ -348,7 +348,7 @@ Under `src/views/`:
     Per rep: score, contracts / offers / opps cells (week number vs weekly
     pace on top, month bar under it), projected $ MTD vs week pace,
     cancels (wk / mo), five CRM chips (`CRM_ITEMS`: pipeline, notes,
-    messaging, dispo, follow-ups; 2 = all good, 1 = ~60%, 0 = below),
+    messaging, Dispo Handoffs (renamed from "Clean dispo handoffs", Luke Oct 12 — not to be confused with the dispo team), follow-ups; 2 = all good, 1 = ~60%, 0 = below),
     CRM /10 and a note. Under each pod a tinted totals row (Luke, Oct 11:
     "clearly define totals for the pod"; Pod A violet, Pod B teal): sums vs
     per-rep target × reps, pod score = average of its reps, CRM item
