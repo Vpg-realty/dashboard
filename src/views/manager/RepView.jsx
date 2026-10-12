@@ -257,8 +257,20 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
             <Tile label="Opps opened · week" v={wkN.opps} t={wkT.opps} frac={wkFrac} na={na('oppsM') && !!range} sub={monthSub('oppsM', T.oppsOpenedPerWeek * 4)} />
             <Tile label="Offers · week" v={wkN.offers} t={wkT.offers} frac={wkFrac} na={na('offersM') && !!range} sub={monthSub('offersM', T.offersPerWeek * 4)} />
             <Tile label="Contracts · week" v={wkN.contracts} t={wkT.contracts} frac={wkFrac} na={na('contractsM') && !!range} sub={monthSub('contractsM', T.contractsPerMonth)} />
-            <Tile label="Closed · week" v={wkN.closed} t={wkT.closed} frac={wkFrac} na={na('closedM') && !!range} sub={monthSub('closedM', T.dealsClosedPerMonth)} />
-            <Tile label="Revenue closed · week" v={wkN.revenue} t={wkT.revenue} frac={wkFrac} money na={na('revenueM') && !!range} sub={range ? monthSub('revenueM', T.revenuePerRepMonth, true, 'closed') : { v: m.projected, t: T.revenuePerRepMonth, money: true, label: 'projected month' }} />
+            {/* Closed and revenue are month-only (Luke, Oct 12: a weekly closed
+                target of half a deal reads red most weeks): month to date as of
+                the week's end, graded on month pace. */}
+            {range ? (
+              <>
+                <Tile label="Closed · month" v={mtd?.closedM ?? 0} t={T.dealsClosedPerMonth} frac={mtd?.frac ?? 1} na={!mtd || mtd.untracked.has('closedM')} subText={mtd ? `month to date · ${mtd.label}` : 'month not on record'} />
+                <Tile label="Revenue closed · month" v={mtd?.revenueM ?? 0} t={T.revenuePerRepMonth} frac={mtd?.frac ?? 1} money na={!mtd || mtd.untracked.has('revenueM')} subText={mtd ? `month to date · ${mtd.label}` : 'month not on record'} />
+              </>
+            ) : (
+              <>
+                <Tile label="Closed · month" v={m.closedM} t={T.dealsClosedPerMonth} frac={paceFraction('month')} subText="month to date" />
+                <Tile label="Projected · month" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money subText={`closed ${kMoney(m.revenueM)} + assigned ${kMoney(m.assigned || 0)}`} />
+              </>
+            )}
             <CancelTile v={wkN.cancels} na={na('cancelsM') && !!range} contracts={wkN.contracts} label="Cancels · week" subText={range ? (mtd && !mtd.untracked.has('cancelsM') ? `${mtd.cancelsM} ${mtd.label}` : 'month not on record') : `${m.cancelsM} this month`} />
           </div>
         ) : (

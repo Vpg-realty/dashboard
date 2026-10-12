@@ -478,8 +478,9 @@ Under `src/views/`:
     works. Period dropdown (Luke, Oct 12): Custom range… on top, then the
     weeks — opening on "This week (Oct 12–18)" (live numbers) — then the
     months at the bottom. Any week (this one or a past one) shows six tiles:
-    the week's opps / offers / contracts / closed / revenue closed / cancels
-    vs the weekly targets, and under each the month to date as of that
+    the week's opps / offers / contracts / cancels vs the weekly targets
+    (closed and revenue are month-only — month to date as of the week's end
+    on month pace; this week shows projected $ — Luke Oct 12), and under each the month to date as of that
     week's last day (a past week: from history via `rangeMetrics` over the
     1st → week end, graded on that day's month pace; a week crossing into a
     new month shows the month it ends in, e.g. "Oct 1 – 4"; this week:
