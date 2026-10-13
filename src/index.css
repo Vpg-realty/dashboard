@@ -2,6 +2,20 @@
 
 :root {
   color-scheme: light;
+  /* Default size (Luke, Oct 13): the whole site renders like Chrome at 90%
+     — sleeker, with no zooming needed on a new screen. Change this one
+     number to resize everything. */
+  --ui-zoom: 0.9;
+}
+
+html {
+  zoom: var(--ui-zoom);
+}
+
+/* The full-window frame, corrected for the zoom so it still fills the
+   window (used instead of h-screen). */
+.h-app {
+  height: calc(100vh / var(--ui-zoom));
 }
 
 html, body, #root {

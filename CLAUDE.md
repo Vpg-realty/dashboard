@@ -249,6 +249,16 @@ Current targets (Luke, Sept 23; opps + offers Sept 29):
 - Deals closed: 2 / rep / month
 - Revenue: $25k / rep / month
 
+## Default size (Luke, Oct 13)
+
+The whole site renders like Chrome at 90% ("sleeker", no zooming needed on
+a new screen): `--ui-zoom: 0.9` in `src/index.css` sets `html { zoom }`,
+and the full-window frame in App.jsx uses `.h-app` (100vh / zoom) instead
+of `h-screen` so it still fills the window. Change that one number to
+resize everything. Checked against a real 90% Chrome zoom (screenshots
+match). A screen that was already zoomed to 90% by hand should be reset to
+100% (⌘0), or it shows at 81%.
+
 ## Views
 
 Under `src/views/`:

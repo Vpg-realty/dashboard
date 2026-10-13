@@ -106,7 +106,7 @@ export default function App() {
   const ActiveView = VIEWS[view].component;
 
   return (
-    <div className="relative h-screen flex flex-col bg-zinc-50">
+    <div className="relative h-app flex flex-col bg-zinc-50">
       <Header
         viewName={VIEWS[view].label}
         isCycling={isCycling}
