@@ -91,6 +91,29 @@ Claude Code sessions reach api.cloudflare.com through a network secret
 (the proxy injects the token); wrangler's asset upload needs its own JWT,
 which the proxy overwrites, so uploads only work from GitHub Actions.
 
+## Private input files (Luke, Oct 13)
+
+The hand-kept lists — `excluded-opps.json`, `manual-cancels.json`,
+`manual-contracts.json`, `scorecard-seed.json` — are NOT in git (they're
+gitignored; the repo is public). They live in the Cloudflare D1 database
+`vpg-dashboard` (id in `scripts/load-private-files.mjs`), table
+`private_files (name, body, updated_at)`. `scripts/load-private-files.mjs`
+runs first in `npm run snapshot` and writes them to the repo root, where
+server/config.js and update-scorecards.mjs read them as before; in the
+GitHub deploy a failed read or a missing file stops the deploy (config.js
+would otherwise treat a list as empty and counts would shift). To change
+one: edit the JSON and upsert it into D1 (`POST /accounts/{acct}/d1/
+database/{db}/query`, `INSERT … ON CONFLICT(name) DO UPDATE`) from a
+Claude Code session (api.cloudflare.com via the network secret; Node needs
+`NODE_USE_ENV_PROXY=1` there). For local work, run the loader the same way
+to get the files on disk. Still public: `subaccounts.json` (GHL location
+ids + rep names; the Sub-Accounts panel commits it), and the git history
+of the moved files — that only goes away by making the repo private, which
+first needs the 15-min refresh off GitHub Actions (private repos pay for
+minutes). Scorecard grades / notes saved from the browser would go to the
+public repo's `scorecard-data` branch — none saved yet; they move to D1
+with the roles Worker.
+
 ## Refresh cadence
 
 Two workflows, both in `.github/workflows/`:
@@ -160,9 +183,9 @@ Conversations tab first (not on this board yet).
 
 ## Excluded opportunities (Luke, Oct 9)
 
-`excluded-opps.json` at repo root lists opp ids the dashboard ignores
+`excluded-opps.json` (a private input file, see below) lists opp ids the dashboard ignores
 everywhere — deals put in the wrong rep's pipeline by mistake (first:
-"Linda Booker", Closed in Daniel / AZ). `server/snapshot.js` drops them
+a Closed deal in the wrong rep's AZ pipeline). `server/snapshot.js` drops them
 before `aggregatePair`, so they never reach any count, the Pipeline, Wins
 or celebrations. `applyStickyCounts` (`excluded` arg) takes back, once,
 the offer/contract crossings an excluded opp already added this week /
@@ -185,7 +208,7 @@ opp-state `cancelled` (kept from the start of last month) and published as
 `cancelsMonth`, which go into history.json.
 Before Oct 7 they weren't tracked; 31 were found by a read-only GHL check
 (lost/abandoned Sept 1 – Oct 9 with the `agent - contracted deal` tag and/or
-IP end + COE filled) and loaded from **`manual-cancels.json`** (repo root,
+IP end + COE filled) and loaded from **`manual-cancels.json`** (private input file,
 `MANUAL_CANCELS` in server/config.js): `applyStickyCounts` adds them like
 any other cancel (once, while inside the kept window, `manual: true`), so
 they reach the pairs, history and month-log.json. Their date is when they
@@ -203,12 +226,11 @@ cancelsM.
 GHL keeps no stage history and has no contract-date field, so exact contract
 dates were found by hand (read-only: text threads like "signed contract" /
 "ratified", DocuSign notes, stage moves) and stored in
-**`manual-contracts.json`** (`MANUAL_CONTRACTS`, server/config.js). Every
+**`manual-contracts.json`** (private input file; `MANUAL_CONTRACTS`, server/config.js). Every
 entry goes into month-log.json at its real time (it wins over a logged
-date), which sets First contract of the month (Oct: Danni, 1456 Nick Davis
-Rd, Oct 1 12:30 AZ; Sept: Daniel, 2804 Maplewood, Sept 2 6:41 PM AZ —
-shown "✓ confirmed in GHL"). `add` field: "sticky" = the live count missed
-it (Rory's 1615 E 8th St Pueblo — CO sub-account added Oct 6);
+date), which sets First contract of the month (shown "✓ confirmed in
+GHL"). `add` field: "sticky" = the live count missed
+it (a CO deal from before that sub-account was added, Oct 6);
 `applyStickyCounts` adds it once (`manualAdded` in opp-state) to the week /
 month it falls in. "view" = a closed month whose history missed it (Sept
 1–13, before counting began): Month in Review and Rep past periods add it
