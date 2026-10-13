@@ -15,3 +15,9 @@ proposals/
 
 .cache
 dist-cf
+
+# Private input files — kept in Cloudflare D1, loaded by scripts/load-private-files.mjs
+excluded-opps.json
+manual-cancels.json
+manual-contracts.json
+scorecard-seed.json
