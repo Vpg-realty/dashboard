@@ -43,6 +43,10 @@ async function loadPrevOppState() {
       if (!d || !d.pairs) throw new Error('malformed opp-state');
       return d;
     } catch (err) {
+      // A key problem isn't a blip: reseeding would publish a fresh opp-state
+      // and lose the week's / month's accrued counts, so stop the deploy and
+      // keep the published file.
+      if (err.auth) throw new Error(`[snapshot] ${err.message}. Aborting so the published opp-state.json (sticky counts) is kept.`);
       if (attempt === 2) {
         console.warn(`[snapshot] opp-state load failed after 3 tries (${err.message}). Sticky counts will reseed from the current snapshot.`);
         return null;

@@ -11,7 +11,7 @@ displays on an office TV. It shows KPIs pulled hourly from Go High
 Level (GHL) across every (rep × market) sub-account — conversations,
 agents, offers, contracts, closed deals, revenue.
 
-**Live URL:** https://vpg-realty.github.io/dashboard/
+**Live URL:** https://vpg-dashboard.pages.dev (private, Cloudflare Access login — see below). The old https://vpg-realty.github.io/dashboard/ only shows a "moved" notice since Oct 13.
 **Owner / client:** Luke, VPG. All feedback ultimately routes to him.
 
 ## Architecture in one screen
@@ -37,17 +37,18 @@ GHL API ──> server/snapshot.js + server/aggregate.js
             400 days, writes public/history.json)
            │
            ▼
-        Vite build ──> dist/  ──> GitHub Pages
+        Vite build ──> dist-cf/ ──> Cloudflare Pages (private)
+                   dist/    ──> GitHub Pages ("moved" notice only)
 ```
 
 The site has NO backend. Every state file it needs
 (`data.json`, `history.json`, `opp-state.json`, `month-log.json`) is fetched from the
-previous Pages deploy, mutated, and re-published. That's how the
+previous deploy (the private Cloudflare copy, `scripts/state-source.mjs`), mutated, and re-published. That's how the
 sticky counts and ~13-month (400-day) history survive without a database.
 
 ## Private hosting — Cloudflare (Luke, Oct 12)
 
-The dashboard is moving off public GitHub Pages to a login-protected
+The dashboard moved off public GitHub Pages (switch-over Oct 13) to a login-protected
 Cloudflare Pages project, **`vpg-dashboard`** → https://vpg-dashboard.pages.dev
 (Luke's Cloudflare account; his other project `valley-site-pages` is the
 public website — never touch it). In front of it, Cloudflare Access app
@@ -71,12 +72,18 @@ State files are read by `scripts/state-source.mjs` `fetchState(name)`:
 the private copy with the Access service token "dashboard-build" (repo
 secrets `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`, created by Luke;
 handed to the append-history step via `$RUNNER_TEMP/cf-access.json`, removed
-in deploy-cloudflare), falling back to the GitHub Pages copy when the private
-read isn't JSON (each run logs `[state] <file>: private copy` or why not).
-The token must be allowed by a "Service Auth" policy on the VPG Dashboard
-Access app. Until the cut-over the GitHub Pages copy keeps publishing (still
-public); cut-over = drop the fallback and replace the GitHub copy with a
-"moved" page. Next steps
+in deploy-cloudflare), with no fallback (each run logs `[state] <file>: private copy`). A key
+problem (missing / refused token) throws with `err.auth`; build-snapshot's
+opp-state loader then aborts the deploy instead of reseeding the sticky
+counts. The token is allowed by the reusable "Build key" policy (Service
+Auth) attached to the VPG Dashboard app; if the token is rotated in
+Cloudflare, both repo secrets must be updated (Client ID changes too), and
+"Last Seen" on the token page shows whether builds use it. In the GitHub
+deploy only, deploy-cloudflare.mjs then empties `dist/` to a "moved" notice
+(index.html + 404.html, 5-second redirect), so the public address carries
+no data. The manual "Run workflow" of scorecard.yml has no Access token and
+can no longer read data.json (the Friday export runs inside the deploy via
+auto-scorecard.mjs on the local file, unaffected). Next steps
 after that: roles (team / manager / owner, data split server-side by a
 Worker) and the deal tracker in D1.
 
@@ -663,7 +670,8 @@ must be shared (Editor) with the service account. Pure logic lives in
   you need to test aggregation, mock a pair in code.
 - **Playwright-verify visual changes** after deploy. MCP Playwright
   tools are available; screenshot
-  https://vpg-realty.github.io/dashboard/, click through the tabs,
+  https://vpg-dashboard.pages.dev (needs a login; locally, `vite preview`
+  of a `VITE_USE_LIVE=1` build with the JSON files copied in), click through the tabs,
   confirm the change reads on a 1920×1080 TV viewport.
 - **The `_oppRanks` field on pairs is INTERNAL**. It is stripped by
   `applyStickyCounts` before publish. Never expose it to the
