@@ -18,10 +18,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { azDate, weekInfo, repNumbers, cellUpdates } from './scorecard-lib.mjs';
+import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_TAB = 'TEMPLATE (copy me)';
-const DATA_URL = 'https://vpg-realty.github.io/dashboard/data.json';
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 function fail(msg) {
@@ -84,7 +84,7 @@ async function main() {
   // one, scripts/auto-scorecard.mjs) instead of the published copy.
   const data = process.env.SCORECARD_DATA_FILE
     ? JSON.parse(fs.readFileSync(process.env.SCORECARD_DATA_FILE, 'utf8'))
-    : await fetchJson(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    : await (await fetchState('data.json')).json();
   if (!Array.isArray(data?.pairs)) fail('data.json is malformed.');
   console.log(`[scorecard] data.json generated ${data.generatedAt}`);
   const config = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'subaccounts.json'), 'utf8'));

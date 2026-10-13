@@ -8,7 +8,9 @@
 // (i.e. in the GitHub deploy), so local builds are unaffected. Builds a second
 // copy at base "/" (the GitHub Pages copy lives under /dashboard/), copies the
 // state files the snapshot produced (data.json, history.json, …) and uploads
-// it with wrangler. Never fails the deploy.
+// it with wrangler. Never fails the deploy. Then, in the GitHub deploy
+// only, empties dist/ (the GitHub Pages upload) down to a "moved" notice, so
+// the old public address carries no data.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +23,40 @@ const PROJECT = 'vpg-dashboard';
 function run(cmd, args, env, timeout) {
   const r = spawnSync(cmd, args, { cwd: root, stdio: 'inherit', timeout, env: { ...process.env, ...env } });
   if (r.status !== 0) throw new Error(`${cmd} ${args[0]} exited ${r.status ?? r.signal}`);
+}
+
+// What the old public address (GitHub Pages, vpg-realty.github.io/dashboard)
+// shows since the switch-over (Oct 13): a notice with no data that sends
+// the browser to the private site. Old screens still open on the old
+// address lose their data feed, reload, and land here.
+const MOVED = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="5;url=https://${PROJECT}.pages.dev/">
+<title>VPG Dashboard has moved</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fafafa;color:#18181b;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{text-align:center;padding:24px}
+  h1{margin:0 0 8px;font-size:28px}
+  p{margin:0 0 20px;color:#52525b}
+  a{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:10px}
+</style></head>
+<body><main>
+  <h1>The VPG Dashboard has moved</h1>
+  <p>It's now private: sign in with your @valleypropertygroup.com email. Taking you there…</p>
+  <a href="https://${PROJECT}.pages.dev/">Open the dashboard</a>
+</main></body></html>
+`;
+
+// Replace everything in dist/ (the GitHub Pages upload) with the notice.
+function writeMovedPage() {
+  const dist = path.join(root, 'dist');
+  fs.rmSync(dist, { recursive: true, force: true });
+  fs.mkdirSync(dist);
+  fs.writeFileSync(path.join(dist, 'index.html'), MOVED);
+  fs.writeFileSync(path.join(dist, '404.html'), MOVED);
+  console.log('[cloudflare] GitHub Pages copy replaced by the "moved" notice (no data)');
 }
 
 function main() {
@@ -44,3 +80,8 @@ function main() {
 }
 
 try { main(); } catch (err) { console.warn(`[cloudflare] deploy skipped: ${err.message}`); }
+// Only in the GitHub deploy (never a local build), and even if the
+// Cloudflare upload failed: the public copy must never carry data again.
+if (process.env.GITHUB_ACTIONS) {
+  try { writeMovedPage(); } catch (err) { console.error(`[cloudflare] could not write the moved page: ${err.message}`); process.exitCode = 1; }
+}
