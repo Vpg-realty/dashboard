@@ -5,57 +5,62 @@
 // copy them, release one early, flag bad data, and their pull history.
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
-import { useZips, useStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } from './store.js';
-import { useCounties } from '../territory/store.js';
+import { useZips, useManyStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } from './store.js';
+import { useManyCounties } from '../territory/store.js';
 import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
 function ZipSearch({ states, repId }) {
-  const [state, setState] = useState(states[0] || '');
+  const [only, setOnly] = useState('');
   const [q, setQ] = useState('');
-  const zs = useStateZips(state);
-  const cs = useCounties(state);
+  const all = useManyStateZips(states);
+  const cs = new Map(useManyCounties(states));
   const w = q.trim().toLowerCase();
-  const results = useMemo(() => {
-    if (!w || zs.status !== 'ready') return [];
+  const loading = all.some(([, z]) => z.status === 'loading');
+  const results = (() => {
+    if (!w) return [];
     const byCounty = new Map();
-    for (const z of zs.data.zips) {
-      const c = cs.list?.find((x) => x.county === z.county);
-      const hit = /^\d/.test(w) ? z.zip.startsWith(w) : z.county.toLowerCase().includes(w) || String(c?.cities || '').toLowerCase().includes(w);
-      if (!hit) continue;
-      if (!byCounty.has(z.county)) byCounty.set(z.county, { county: z.county, cities: c?.cities || '', zips: [] });
-      byCounty.get(z.county).zips.push(z);
+    for (const [state, zs] of all) {
+      if ((only && state !== only) || zs.status !== 'ready') continue;
+      const cl = cs.get(state)?.list || [];
+      for (const z of zs.data.zips) {
+        const c = cl.find((x) => x.county === z.county);
+        const hit = /^\d/.test(w) ? z.zip.startsWith(w) : z.county.toLowerCase().includes(w) || String(c?.cities || '').toLowerCase().includes(w);
+        if (!hit) continue;
+        const k = `${state}|${z.county}`;
+        if (!byCounty.has(k)) byCounty.set(k, { state, round: zs.data.round || 1, county: z.county, cities: c?.cities || '', zips: [] });
+        byCounty.get(k).zips.push(z);
+      }
     }
     return [...byCounty.values()].slice(0, 12);
-  }, [w, zs, cs.list]);
-  const round = zs.data?.round || 1;
-  const kind = (z) => (z.status !== 'active' ? 'off' : z.held_by === repId ? 'mine' : z.held_by ? 'taken' : z.flag ? 'off' : z.last_round >= round ? 'used' : 'open');
+  })();
+  const kind = (z, round) => (z.status !== 'active' ? 'off' : z.held_by === repId ? 'mine' : z.held_by ? 'taken' : z.flag ? 'off' : z.last_round >= round ? 'used' : 'open');
   const LOOK = { open: 'bg-white ring-emerald-300 text-emerald-900', mine: 'bg-navy-700 ring-navy-700 text-white', taken: 'bg-zinc-100 ring-zinc-200 text-zinc-400', used: 'bg-zinc-50 ring-zinc-200 text-zinc-400', off: 'bg-white ring-zinc-100 text-zinc-300 line-through' };
   return (
     <Panel title="Search zips" sub="a zip, county or city in your states">
       <div className="p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={state} onChange={(e) => setState(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]">{states.map((s) => <option key={s}>{s}</option>)}</select>
+          <select value={only} onChange={(e) => setOnly(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]"><option value="">All my states</option>{states.map((s) => <option key={s}>{s}</option>)}</select>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 flex-1 min-w-[220px] rounded-lg border border-zinc-200 px-3 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
         </div>
         <div className="flex flex-wrap gap-3 text-[12px] text-zinc-600">
           {[['open', 'Available'], ['mine', 'Yours'], ['taken', 'Another rep has it'], ['used', 'Used this round'], ['off', 'Paused / flagged']].map(([k, l]) => <span key={k} className="inline-flex items-center gap-1.5"><span className={`w-3.5 h-3.5 rounded ring-1 ring-inset ${LOOK[k]}`} />{l}</span>)}
         </div>
-        {w && zs.status === 'loading' && <div className="text-zinc-400">Loading…</div>}
-        {w && zs.status === 'ready' && !results.length && <div className="text-zinc-500">Nothing in {state} matches “{q}”.</div>}
+        {w && loading && <div className="text-zinc-400">Loading…</div>}
+        {w && !loading && !results.length && <div className="text-zinc-500">Nothing in {only || 'your states'} matches “{q}”.</div>}
         {results.map((c) => {
-          const open = c.zips.filter((z) => kind(z) === 'open').map((z) => z.zip);
+          const open = c.zips.filter((z) => kind(z, c.round) === 'open').map((z) => z.zip);
           return (
-            <div key={c.county} className="rounded-lg border border-tan-200 p-3">
+            <div key={`${c.state}|${c.county}`} className="rounded-lg border border-tan-200 p-3">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="font-semibold text-navy-800">{c.county}</span>
+                <span className="font-semibold text-navy-800">{c.county}</span><span className="text-[12px] text-zinc-500">{c.state}</span>
                 <span className="text-[12px] text-zinc-500">{c.zips.length} zips · {open.length} available</span>
                 <CopyButton zips={c.zips.map((z) => z.zip)} label="Copy all" />
                 {open.length > 0 && <CopyButton zips={open} label="Copy available" />}
               </div>
               {c.cities && <div className="text-[12px] text-zinc-500 mb-2 line-clamp-2">{c.cities}</div>}
-              <div className="flex flex-wrap gap-1.5">{c.zips.map((z) => <span key={z.zip} title={`Tier ${z.tier}`} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12.5px] tabular-nums ring-1 ring-inset ${LOOK[kind(z)]}`}><span className="text-[9.5px] font-bold opacity-60">{z.tier}</span>{z.zip}</span>)}</div>
+              <div className="flex flex-wrap gap-1.5">{c.zips.map((z) => <span key={z.zip} title={`Tier ${z.tier}`} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12.5px] tabular-nums ring-1 ring-inset ${LOOK[kind(z, c.round)]}`}><span className="text-[9.5px] font-bold opacity-60">{z.tier}</span>{z.zip}</span>)}</div>
             </div>
           );
         })}
@@ -143,6 +148,8 @@ export default function MyZips() {
         </div>
       </Panel>
 
+      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} />}
+
       <Panel title="Your zips" sub={`${all.length} held`} right={<CopyButton zips={all} label="Copy all my zips" />}>
         {!all.length && <div className="px-5 py-8 text-center text-zinc-500">No zips yet — request some above.</div>}
         {byState.map(([st, list]) => (
@@ -173,8 +180,6 @@ export default function MyZips() {
           </div>
         ))}
       </Panel>
-
-      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} />}
 
       <Panel title="Your pulls" sub="every request and assignment, newest first">
         {!(me.history || []).length && <div className="px-5 py-6 text-center text-zinc-500">No pulls yet.</div>}

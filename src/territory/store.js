@@ -40,3 +40,10 @@ export function useCounties(state) {
 export async function reloadTerritory(state) {
   await Promise.all([loadStates(), state ? loadCounties(state) : null]);
 }
+
+export function useManyCounties(list) {
+  useTick();
+  const key = (list || []).join('|');
+  useEffect(() => { for (const st of key ? key.split('|') : []) if (!counties.has(st)) loadCounties(st); }, [key]);
+  return (list || []).map((st) => [st, counties.get(st) || { status: 'loading', list: [] }]);
+}

@@ -36,6 +36,14 @@ export function useStateZips(state) {
   return (state && states.get(state)) || { status: state ? 'loading' : 'idle', data: null };
 }
 
+// Several states at once (Get zips search across all of a rep's states).
+export function useManyStateZips(list) {
+  useTick();
+  const key = (list || []).join('|');
+  useEffect(() => { for (const st of key ? key.split('|') : []) if (!states.has(st)) loadState(st); }, [key]);
+  return (list || []).map((st) => [st, states.get(st) || { status: 'loading', data: null }]);
+}
+
 // A change (request, release, flag, assign…): POST, then refresh what's shown.
 export async function zipAction(action, body = {}) {
   const r = await call('zips', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, ...body }) });
