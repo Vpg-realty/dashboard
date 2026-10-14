@@ -179,9 +179,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `document.title` follows the page. Cloudflare Pages serves index.html for
   unknown paths (SPA fallback), so deep links work.
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
-  tab = an existing view key), who sees them. Home, **Pipeline** and **Team
-  overview** (the board: Overview, Pipeline, Conversations, Agents,
-  Opportunities; section id `board`, renamed from "Board" Oct 14) for
+  tab = an existing view key), who sees them. Labels are Title Case (Luke,
+  Oct 14: "Who Works Where", "Zip Rules & Data Health", "My Scorecard";
+  small words — of, and, &, by, in, the, to, a — lower case unless first;
+  acronyms kept), and they're the browser tab's title too. Home, **Pipeline**
+  and **Team Overview** (the board: Overview, Conversations, Agents,
+  Opportunities; section id `board`, renamed from "Board" Oct 14; its
+  Pipeline tab was dropped the same day — the Pipeline section replaces it,
+  old /board/pipeline links redirect to /pipeline via `MOVED`) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; **Territory** for everyone (Oct 14: the one place for
@@ -193,11 +198,20 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
   shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
-  the data (functions/_middleware.js).
+  the data (functions/_middleware.js). Sidebar order (Luke, Oct 14): the
+  working sections on top; at the bottom a "Team screens" group — Team
+  Overview (`bottom: 'screens'`, everyone) and TV Mode (owners / managers)
+  — then, under a line, Settings (`bottom: 'admin'`) and Sub-Accounts
+  (owners). The phone bar shows the first four sections.
 - **Home** (`HomeView.jsx`; Needs attention rows show the stage as a chip
   in the board Pipeline's column colours — Under contract blue, Dispo amber,
   Assigned violet, Closed green — and the due date as the board's coloured
-  date chip, Luke Oct 14): greeting, this week's numbers vs target for
+  date chip, Luke Oct 14; and the deal's **EMD status** — the tracker deal
+  at the same address (`addrKey`, pending first) as `EmdPill` (pills.jsx,
+  worded like Active's EMD column via `emdCell`: In / Pending / VPG only /
+  Pending · payer; N/A or none grey), for everyone who sees Home — reps and
+  managers read the pending deals through GET /api/deals; a deal not in the
+  tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
   attention (key date late or within 3 days, Late / Today & tomorrow / Next
@@ -217,9 +231,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
   the team's own page — `PipelineView` with optional `keep` (filter),
   `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
-  passes none, so Team overview → Pipeline and the TV are unchanged. Filter
-  in the link: `?who=` all (Full team) / `me` (Mine, needs `rep_id`) / a rep
-  id (Pick a person — owners, managers, TC). A person's deals = their GHL
+  passes none, so the TV's Pipeline is unchanged. Filter in the link:
+  `?who=` all (Full team) / `me` (Mine, needs `rep_id`) / a rep id (Pick a
+  person — owners, managers, TC). Mine is the default for anyone with a
+  `rep_id` (reps, managers); owners / TC without one open on Full team; the
+  default stays out of the link (Luke, Oct 14). The filter sits on the left,
+  before the title: Mine, Full team, then Pick a person (it was easy to miss
+  on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
@@ -323,9 +341,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
   in index.css that gives the TV-first views the app's look (normal-case
   labels, lighter weights, tan borders, navy headings and team cells) —
-  Luke, Oct 14; the TV board never gets it.
+  Luke, Oct 14; the TV board never gets it. The Weekly Scorecard's column
+  titles carry `sc-head` / `sc-sub` / `sc-crm`, which `.app-team` makes 13px
+  bold navy with a darker second line (Luke, Oct 14: "hard to read"); the
+  five CRM columns are 3.5rem so their titles don't overlap.
 - **Settings** (owners; Luke, Oct 14: change things without going through
-  Claude): bottom of the sidebar (`bottom: true` in sections.js),
+  Claude): bottom of the sidebar (`bottom: 'admin'` in sections.js),
   `src/settings/`. **People** — D1 `users` (name, role, rep on the board),
   add / remove; can't change yourself, always one owner; a person must also
   be on the Cloudflare Access allow-list to sign in (signed in but not in
@@ -354,7 +375,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   results for every deal. `checkRules` checks the shape and the rule set in
   effect on every start date; `rulesFor` gives the TC only the TC-fee
   timelines.
-  **Dropdown lists** — `settings.deal_lists` and Reports to. API
+  **Dropdown Lists** — `settings.deal_lists` and Reports to. Reports to
+  (Luke, Oct 14) is laid out as columns: each pod lead on top of a column
+  with their reps under it (Move… menu, ×), "+ Add a rep" per column, a "No
+  manager" column for everyone on the acquisition list reporting to nobody,
+  and "+ Add a pod lead" (an empty column until a rep is added — nothing is
+  stored for a lead with no reps). Stored shape unchanged: `reportsTo {rep:
+  lead}`. API
   `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
   owners only, never while viewing as; values checked; every save in
   `edit_log`). KPI targets and Sub-accounts still live in code / the
@@ -1236,7 +1263,9 @@ Under `src/views/`:
     a **Progress** panel (`RepProgress.jsx`, Luke Oct 11: weekly score
     over the last 8 weeks vs the dashed team average with the band colours
     and the "auto CRM →" marker (shared `LineChart.jsx`), points earned per
-    part per week coloured by share of the part, and vs last week / vs
+    part per week coloured by share of the part (the table newest first —
+    the live week on the left, older weeks to the right, Luke Oct 14; the
+    chart keeps time left → right), and vs last week / vs
     weeks before / best week / streak in the current band; CRM shown
     scaled to 25 with * while some items aren't graded), funnel with step
     rates vs team (bars sized against the biggest step shown and capped —
@@ -1293,7 +1322,9 @@ Under `src/views/`:
 
 Rotation (TV mode): the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
-Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). The Manager
+Conversations, Agents, Opportunities (`CYCLE_VIEWS`). Pipeline is still a TV
+tab (`TV_VIEWS`) but click-only since Oct 14 (Luke: the TV must not rotate
+to it); clicking it pauses the rotation like any manual pick. The Manager
 tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:

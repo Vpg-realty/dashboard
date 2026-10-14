@@ -8,7 +8,7 @@ import AgentsView from '../views/AgentsView.jsx';
 import OpportunitiesView from '../views/OpportunitiesView.jsx';
 import MasterView from '../views/MasterView.jsx';
 import PipelineView from '../views/PipelineView.jsx';
-import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from '../data/config.js';
+import { CYCLE_VIEWS, TV_VIEWS, CYCLE_INTERVAL_MS } from '../data/config.js';
 import { useDataUpdates, useDataStatus } from '../data/source.js';
 import { navigate } from './router.js';
 
@@ -20,8 +20,9 @@ const VIEWS = {
   pipeline:      { label: 'Pipeline · active deals',        component: PipelineView },
 };
 
-// TV mode (Luke, Oct 14): the office TV's full-screen board — the five TV
-// tabs rotating every 10 s, nothing else. The TV login (info@, role tv) lands
+// TV mode (Luke, Oct 14): the office TV's full-screen board — the TV
+// tabs rotating every 10 s (Pipeline a click-only tab since Oct 14 — not in
+// CYCLE_VIEWS), nothing else. The TV login (info@, role tv) lands
 // here directly; owners and managers open it from the sidebar ("TV mode",
 // /tv) and get a small "Back to app" link. Everyone else uses the app shell
 // (AppShell.jsx).
@@ -39,7 +40,7 @@ export default function TvMode({ me }) {
       const raw = localStorage.getItem('vpg.cycleIntervalMs');
       const v = raw ? Number(raw) : NaN;
       if (Number.isFinite(v) && v >= 5000 && v <= 60000) return v;
-    } catch {}
+    } catch { /* storage blocked */ }
     return CYCLE_INTERVAL_MS;
   });
   const indexRef = useRef(0);
@@ -47,7 +48,7 @@ export default function TvMode({ me }) {
   const handleCycleIntervalChange = useCallback((ms) => {
     const clamped = Math.min(60000, Math.max(5000, Math.round(ms / 1000) * 1000));
     setCycleIntervalMs(clamped);
-    try { localStorage.setItem('vpg.cycleIntervalMs', String(clamped)); } catch {}
+    try { localStorage.setItem('vpg.cycleIntervalMs', String(clamped)); } catch { /* storage blocked */ }
   }, []);
 
   // Cycle through views every N seconds (manager tabs pause it)
@@ -99,7 +100,7 @@ export default function TvMode({ me }) {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  const shownView = CYCLE_VIEWS.includes(view) ? view : CYCLE_VIEWS[0];
+  const shownView = TV_VIEWS.includes(view) ? view : CYCLE_VIEWS[0];
   const ActiveView = VIEWS[shownView].component;
   const canExit = me && me.role !== 'tv' && me.role !== 'none';
 

@@ -82,12 +82,16 @@ export const PIPELINE_STAGES = [
 // needed; Master carries the revenue goal bar).
 // Overview (view key 'master') is the first tab and first in the rotation
 // (Luke, Oct 8).
-export const CYCLE_VIEWS = ['master', 'conversations', 'agents', 'opportunities', 'pipeline'];
+// Oct 14 (Luke): Pipeline left the rotation — the TV still has it as a tab
+// (TV_VIEWS) to click, but never rotates to it.
+export const CYCLE_VIEWS = ['master', 'conversations', 'agents', 'opportunities'];
+// The TV's tabs: the rotation, then the click-only Pipeline.
+export const TV_VIEWS = [...CYCLE_VIEWS, 'pipeline'];
 // Tab order in the nav bar: the rotation first, then the click-only tabs.
 // Manager views (Luke, Oct 8): click-only, never in the TV rotation; they
 // replaced the Advanced tab.
 export const MANAGER_VIEWS = ['mgr-team', 'mgr-coaching', 'mgr-month'];
-export const NAV_VIEWS = [...CYCLE_VIEWS, ...MANAGER_VIEWS];
+export const NAV_VIEWS = [...TV_VIEWS, ...MANAGER_VIEWS];
 export const CYCLE_INTERVAL_MS = 10000;
 
 // Date-range presets for the Advanced view.

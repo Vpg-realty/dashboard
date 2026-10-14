@@ -33,6 +33,9 @@ export default function RepProgress({ sc, rep, pointsOnly }) {
   const band = now == null ? null : scoreTone(now).label;
   for (let i = lastI; i >= 0 && mine[i] != null && scoreTone(mine[i]).label === band; i--) streak++;
   const autoFrom = weeks.findIndex((w) => w.source !== 'sheet');
+  // The points table reads newest first (Luke, Oct 14: the live week on the
+  // left, older weeks to the right); the chart keeps time left → right.
+  const cols = weeks.map((w, i) => ({ w, v: mine[i] })).reverse();
   const d = (a, b) => (a == null || b == null ? null : Math.round(a - b));
   const dWk = d(now, prev);
   const dAvg = before.length ? d(now, avgOf(before)) : null;
@@ -68,14 +71,14 @@ export default function RepProgress({ sc, rep, pointsOnly }) {
         </div>}
         <div className="min-h-0 flex flex-col">
           <div className="grid gap-1 text-[10px] uppercase tracking-[0.06em] text-zinc-500 font-semibold pb-0.5" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
-            <span>Points earned</span>
-            {weeks.map((w) => <span key={w.monday} className="text-center">{w.label}{w.live ? ' ·live' : ''}</span>)}
+            <span>Points earned <span className="normal-case tracking-normal font-normal text-zinc-400">· newest first</span></span>
+            {cols.map(({ w }) => <span key={w.monday} className="text-center">{w.label}{w.live ? ' ·live' : ''}</span>)}
           </div>
           <div className="flex-1 min-h-0 grid gap-1" style={{ gridTemplateRows: `repeat(${SCORE_PARTS.length + 1}, minmax(0,1fr))` }}>
             {SCORE_PARTS.map((p) => (
               <div key={p.key} className="grid gap-1 items-stretch" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
                 <span className="flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color }} />{p.short || p.label}<span className="text-[10px] text-zinc-400 font-normal">/{p.weight}</span></span>
-                {weeks.map((w) => {
+                {cols.map(({ w }) => {
                   const x = partPts(w.reps[rep.id], p.key);
                   const share = x ? x.pts / x.max : null;
                   return (
@@ -88,9 +91,9 @@ export default function RepProgress({ sc, rep, pointsOnly }) {
             ))}
             <div className="grid gap-1 items-stretch border-t border-zinc-200 pt-1" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
               <span className="flex items-center text-sm font-extrabold">Score</span>
-              {mine.map((v, i) => {
+              {cols.map(({ w, v }) => {
                 const t = v == null ? null : scoreTone(v);
-                return <span key={weeks[i].monday} className={`rounded flex items-center justify-center text-sm font-extrabold tabular-nums ${t ? `${t.bg} ${t.text}` : 'bg-zinc-50 text-zinc-300'}`}>{v ?? '—'}{weeks[i].reps[rep.id]?.s.estimate ? <span className="text-[9px] ml-0.5">est.</span> : null}</span>;
+                return <span key={w.monday} className={`rounded flex items-center justify-center text-sm font-extrabold tabular-nums ${t ? `${t.bg} ${t.text}` : 'bg-zinc-50 text-zinc-300'}`}>{v ?? '—'}{w.reps[rep.id]?.s.estimate ? <span className="text-[9px] ml-0.5">est.</span> : null}</span>;
               })}
             </div>
           </div>
