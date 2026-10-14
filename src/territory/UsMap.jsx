@@ -1,6 +1,8 @@
 // The US map for Territory (Luke, Oct 14: "who works where with an
 // interactive map"). State shapes: US Census via us-atlas, pre-projected
-// (src/territory/usStates.json, made once from us-atlas states-albers-10m).
+// (src/territory/usStates.json, made once from us-atlas states-albers-10m;
+// cx / cy = each state's label point, the spot deepest inside its main land
+// area — the polylabel method — so abbreviations sit visually centred).
 // Colour by number of reps, winter risk or legal status; hover a state to
 // outline it and show its summary in a fixed bar under the map (Luke, Oct 14:
 // a box following the cursor made it hard to see where the cursor was);
@@ -28,6 +30,7 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   if (!geo) return <div className="aspect-[975/610] grid place-items-center text-zinc-400">Loading map…</div>;
   const hs = hover && byAbbr.get(hover.id);
   const hoverShape = hover && geo.states.find((s) => s.id === hover.id);
+  const selectedShape = selected && geo.states.find((s) => s.id === selected);
   return (
     <div onMouseLeave={() => setHover(null)}>
       <div className="mb-2 h-[52px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
@@ -42,19 +45,24 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
         {geo.states.map((s) => {
           const st = byAbbr.get(s.id);
           const f = fillFor(st, mode, focusRep);
-          const on = selected === s.id;
           return (
-            <path key={s.id} d={s.d} fill={f} stroke={on ? '#0e1e34' : '#ffffff'} strokeWidth={on ? 2.5 : 0.8}
+            <path key={s.id} d={s.d} fill={f} stroke="#ffffff" strokeWidth={0.8}
               className={st ? 'cursor-pointer' : ''}
               onMouseEnter={() => setHover({ id: s.id, name: s.name })}
               onClick={() => st && onSelect?.(s.id)} />
           );
         })}
-        {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" pointerEvents="none" />}
+        {/* Outlines go on top of every state, or the neighbours drawn later
+            would cover half of the border. */}
+        {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" strokeLinejoin="round" pointerEvents="none" />}
+        {selectedShape && <g pointerEvents="none" fill="none" strokeLinejoin="round">
+          <path d={selectedShape.d} stroke="#ffffff" strokeWidth="5.5" />
+          <path d={selectedShape.d} stroke="#0e1e34" strokeWidth="2.5" />
+        </g>}
         {geo.states.filter((s) => byAbbr.has(s.id)).map((s) => {
           const st = byAbbr.get(s.id);
           const dark = darkFill(fillFor(st, mode, focusRep));
-          return <text key={`t${s.id}`} x={s.cx} y={s.cy + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill={dark ? '#ffffff' : '#1b385f'} pointerEvents="none">{s.id}</text>;
+          return <text key={`t${s.id}`} x={s.cx} y={s.cy} textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="700" fill={dark ? '#ffffff' : '#1b385f'} pointerEvents="none">{s.id}</text>;
         })}
       </svg>
     </div>
