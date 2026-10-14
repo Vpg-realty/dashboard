@@ -17,7 +17,7 @@ import LineChart from './LineChart.jsx';
 import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
-import { T, metrics, repPairs, scoreParts, scoreTone, paceTone } from './metrics.js';
+import { T, metrics, repPairs, scoreParts, scoreTone, paceTone, mostPointsLeft } from './metrics.js';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 const card = 'rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
@@ -61,20 +61,21 @@ function Kpi({ label, v, t, frac, money }) {
   );
 }
 
-// The part of the score with the most points still on the table.
+// The part of the score with the most points still on the table
+// (mostPointsLeft in metrics.js, shared with the Scorecard's Next move).
 function oneThing(parts, m, scale) {
-  const left = parts.filter((p) => !p.pending && p.max > 0 && p.pts < p.max).map((p) => ({ p, gain: Math.round((p.max - p.pts) * scale) })).sort((a, b) => b.gain - a.gain)[0];
-  if (!left || left.gain < 1) return null;
-  const n = Math.max(1, Math.ceil((left.p.want || 0) - (left.p.have || 0)));
+  const left = mostPointsLeft({ parts, scale });
+  if (!left) return null;
+  const { n } = left;
   const s = (x, w) => `${x} ${w}${x === 1 ? '' : 's'}`;
   const text = {
     contracts: `get ${s(n, 'contract')}`,
     offers: `send ${s(n, 'more offer')}`,
     opps: `open ${s(n, 'more opp')}`,
-    projected: `line up ${kMoney(Math.max(0, (left.p.want || 0) - (m.projected || 0)))} more assigned this month`,
+    projected: `line up ${kMoney(Math.max(0, (left.part.want || 0) - (m.projected || 0)))} more assigned this month`,
     speed: 'answer agent texts within 15 minutes',
     crm: 'fix the CRM items below',
-  }[left.p.key];
+  }[left.part.key];
   return text ? { text, gain: left.gain } : null;
 }
 

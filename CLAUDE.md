@@ -1125,15 +1125,41 @@ Under `src/views/`:
     `POD_LEADS` in scorecard-lib): Pod A (lead Anthony: Spencer, Axel,
     Cayden), Pod B (lead Sam: Danni, Daniel, Rory), Pod Leads (Anthony,
     Sam — not in pod totals), No pod (Patrick, and any rep not listed).
-    Per rep: score, contracts / offers / opps cells (week number vs weekly
-    pace on top, month bar under it), projected $ MTD vs week pace,
-    cancels (wk / mo), five CRM chips (`CRM_ITEMS`: pipeline, notes,
-    messaging, Dispo Handoffs (renamed from "Clean dispo handoffs", Luke Oct 12 — not to be confused with the dispo team), follow-ups; 2 = all good, 1 = ~60%, 0 = below),
-    CRM /10 and a note. Under each pod a tinted totals row (Luke, Oct 11:
-    "clearly define totals for the pod"; Pod A violet, Pod B teal): sums vs
-    per-rep target × reps, pod score = average of its reps, CRM item
-    averages and CRM avg /10 (the pod colour bar is an inset shadow so the
-    cells line up with the rep rows). Tiles: team score, Pod A / Pod B, review status.
+    **Layout = design "D · Combined"** (Luke, Oct 14; the view scrolls inside
+    the tab): title "Week of <Mon>" + live / frozen / imported, review line
+    (reviewed by, N of M fully graded), pickers (rep, week incl. Trends, How
+    the score works); filter chips Everyone / Pod A / Pod B / Needs a 1-on-1
+    (score < 75) and Sort By pod / By score, both in the link (`?show=A|B|behind`,
+    `?sort=score`). A navy team strip: team score + band + change vs the last
+    finished week + how many need a 1-on-1, then contracts / offers / opps
+    this week "x of target", projected $ MTD (vs the summed pace) and
+    answered ≤ 15 min (pooled `repSpeed`). The table (light-navy header row):
+    rep avatar + name (click = Rep page; a note icon when there's a note),
+    score pill (band name + change vs the last finished week from
+    `weekSeries`, "est."), contracts / offers / opps (this week "of" weekly
+    target + 8px pace bar coloured by `paceTone`, navy tick = where they
+    should be by now; a red "Cancels N wk · N mo" line under contracts when
+    any), projected $ (vs $6,250 × week of month), CRM · Speed (points /10 or
+    "/6 est." while partly graded, speed %; split bar: CRM half, speed half
+    vs 75%), and **Next move** (≤ 4 words: the part with the most points left,
+    `mostPointsLeft` in metrics.js — the same rule as My scorecard's "one
+    thing"; CRM names the lowest item, "Keep it up" when nothing's left).
+    By pod: a tinted band per group (Pod A violet, Pod B teal, leads / no pod
+    tan) and, for real pods, a totals row (sums vs per-rep target × reps,
+    pod score = average, CRM avg · pooled speed); By score: one ranked list.
+    Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
+    pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
+    handoffs", Luke Oct 12 — not to be confused with the dispo team),
+    follow-ups; 2 = all good, 1 = ~60%, 0 = below) with the managers' grade
+    dropdowns and `A` marks, what the automatic checks found, the month to
+    date and the note (owners / managers only). Below: **Where they leak**
+    — the Coaching funnel (`STEPS` / `rate` / `biggestLeak`) for the reps
+    shown: new conversations, Convo→Opp, Opp→Offer, Offer→Contract ("n of
+    d"), team rate row, green ≥ team / amber within 20% below / red more,
+    biggest leak ringed #c2410c (20%+ below), "N pts below"; the live week
+    uses this month, a past week the month to date as of its Sunday
+    (`rangeMetrics` + month-log contracts, like the Rep page). Plain-words
+    legend at the foot.
     Week picker: this week (live until the freeze) and every week in
     scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
     (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke Oct 11, reworked Oct 12
