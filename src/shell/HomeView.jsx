@@ -12,9 +12,9 @@ import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { formatCompactCurrency } from '../utils/format.js';
-import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
+import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals } from '../deals/store.js';
 import { nextStep } from '../deals/status.js';
@@ -25,16 +25,6 @@ const KEY_LABEL = { ipEnd: 'IP end', coe: 'COE' };
 const STAGE = { under_contract: 'Under contract', dispo: 'Dispo', assigned: 'Assigned', closed: 'Closed' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
 const DAY = 86_400_000;
-
-// Which reps this person's Home covers; null = everyone.
-function scopeReps(me) {
-  if (!me || me.role === 'owner' || me.role === 'tc') return null;
-  if (me.role === 'manager') {
-    const pod = PODS.find((p) => p.lead === me.rep_id);
-    return [me.rep_id, ...(pod?.reps || [])].filter(Boolean);
-  }
-  return me.rep_id ? [me.rep_id] : [];
-}
 
 function Avatar({ rep, size = 20 }) {
   const initials = (rep?.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('');

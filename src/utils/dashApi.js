@@ -42,3 +42,16 @@ export const saveScorecardWeek = (week, reps) => call('scorecard-edits', {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ week, reps }),
 });
+
+// --- a rep's own scorecard (functions/api/my-scorecard.js) --------------------
+// Shared by the live store (their own CRM / messaging fields) and the
+// scorecard hook; re-asked at most every 5 minutes.
+let mine = null;
+let mineAt = 0;
+export function loadMyScorecard() {
+  if (!mine || Date.now() - mineAt > 5 * 60_000) {
+    mineAt = Date.now();
+    mine = call('my-scorecard').catch((e) => { mine = null; throw e; });
+  }
+  return mine;
+}

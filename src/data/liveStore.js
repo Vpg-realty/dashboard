@@ -16,7 +16,7 @@
 
 import { useEffect, useReducer } from 'react';
 import { REPS, MARKETS, TIERS } from './config.js';
-import { loadMe, canGrade } from '../utils/dashApi.js';
+import { loadMe, canGrade, loadMyScorecard } from '../utils/dashApi.js';
 
 // File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
 const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 30_000);
@@ -132,7 +132,16 @@ async function fetchSnapshot() {
     // Managers and owners also get the manager-only fields (CRM / messaging
     // checks, calls), which the build keeps out of data.json (Oct 14); the
     // server refuses data-mgr.json to everyone else, so it's not even asked.
-    if (canGrade(await loadMe())) {
+    const who = await loadMe();
+    if (!canGrade(who) && who?.rep_id) {
+      // A rep: the same fields for their own sub-accounts only (Oct 14,
+      // "My scorecard"), from /api/my-scorecard.
+      try {
+        const extra = new Map(((await loadMyScorecard()).pairs || []).map((p) => [`${p.repId}|${p.marketId}`, p]));
+        data.pairs = data.pairs.map((p) => ({ ...(extra.get(`${p.repId}|${p.marketId}`) || {}), ...p }));
+      } catch { /* optional */ }
+    }
+    if (canGrade(who)) {
       try {
         const m = await fetch(`${BASE}data-mgr.json?t=${Date.now()}`, { cache: 'no-store' });
         if (m.ok && (m.headers.get('content-type') || '').includes('json')) {

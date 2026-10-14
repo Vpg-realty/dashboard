@@ -41,6 +41,11 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: each rep sees their own scorecard (team average, no notes).
+    id: 'me', label: 'My scorecard', icon: 'user', roles: ['team', 'manager'],
+    tabs: [{ id: 'scorecard', label: 'This week & trend', view: 'my-scorecard', phone: DESK }],
+  },
+  {
     id: 'team', label: 'Team', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },

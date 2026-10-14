@@ -12,6 +12,7 @@ import PipelineView from '../views/PipelineView.jsx';
 import TeamHub from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
+import MyScorecardView from '../views/manager/MyScorecardView.jsx';
 import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
@@ -23,11 +24,13 @@ import { sectionsFor, resolve, hrefOf, ROLE_LABEL } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
+import Welcome from './Welcome.jsx';
 import Icon from './icons.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
+  'my-scorecard': MyScorecardView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -204,6 +207,7 @@ export default function AppShell({ me }) {
 
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={me.role} />
+      <Welcome me={me} />
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );

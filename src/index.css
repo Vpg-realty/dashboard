@@ -72,3 +72,17 @@ html, body, #root {
   color: #18181b !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 }
+
+/* Welcome splash (src/shell/Welcome.jsx): the V mark sweeps in, text rises. */
+@keyframes vpg-sweep-a { from { transform: translateY(-40%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vpg-sweep-b { from { transform: translateX(35%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vpg-rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes vpg-pop { from { transform: scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.vpg-sweep-a, .vpg-sweep-b { transform-box: fill-box; }
+.vpg-sweep-a { animation: vpg-sweep-a 700ms cubic-bezier(.2,.8,.2,1) both; }
+.vpg-sweep-b { animation: vpg-sweep-b 700ms cubic-bezier(.2,.8,.2,1) 180ms both; }
+.vpg-rise { animation: vpg-rise 600ms cubic-bezier(.2,.8,.2,1) both; }
+.vpg-pop { animation: vpg-pop 450ms cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .vpg-sweep-a, .vpg-sweep-b, .vpg-rise, .vpg-pop { animation: none; }
+}

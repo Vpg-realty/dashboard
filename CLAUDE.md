@@ -175,7 +175,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
   tab = an existing view key), who sees them. Home + Board (Overview,
   Pipeline, Conversations, Agents, Opportunities) for everyone; Team
-  (Scorecard, Coaching, Month in Review) for owner / manager; Deals (Active,
+  (Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
+  for team + manager; Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
@@ -192,6 +193,37 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   tracker (owners / TC: active, act now, attention, closing ≤ 7d), Pipeline
   by stage, Wins, and "This week by rep" (owners: everyone, managers: their
   pod).
+- **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
+  average yes, manager notes no): sidebar section for team + managers
+  (`MyScorecardView.jsx` → `RepView` with `self`: no rep picker, plus
+  `MyCrmCard.jsx` "What to fix" — each CRM item's grade, manager's wins, and
+  the deals / texts behind the automatic checks). Data from
+  `functions/api/my-scorecard.js` (needs `users.rep_id`): their own rows of
+  scorecards.json, their CRM grades from D1 (never notes), their pairs'
+  data-mgr.json fields, and the team's average score per week (frozen weeks
+  from scorecards.json + D1 grades; the live week from data.json +
+  data-mgr.json via `freezeNumbers` / `scoreWeek`), read through
+  `env.ASSETS`. Nobody else's rows leave the server. Browser: `dashApi`
+  `loadMyScorecard` (5-min memo), used by `liveStore` (merges their own
+  CRM / messaging fields) and `useScorecards` (cache with only their rows,
+  `self`, `liveTeamAvg`); `weekSeries` carries `teamAvg`, which RepProgress
+  draws as the team line.
+- **Welcome** (`Welcome.jsx`, Luke, Oct 14: "a graphic or something fun"
+  on first login / first visit of the day): first time on a device → a
+  welcome card with three tips for their role; first visit each Arizona day
+  → a ~3 s navy splash (the V mark sweeps in, greeting, their day — closed /
+  new contracts since yesterday, closings this week, needing attention — and
+  a line for the day; Monday / Friday have their own). Click / Esc skips;
+  stored per email in localStorage `vpg.welcome.<email>`; reduced motion
+  respected; never in TV mode. Home's `scopeReps` moved to `shell/scope.js`.
+- **Login page & icons**: the Access login page uses the logo at
+  `public/brand/vpg-logo.png` (rendered from the logo in Montserrat; served
+  publicly from raw.githubusercontent.com, since the login page shows before
+  sign-in) with navy / tan colours, set in Zero Trust → Settings → Custom
+  pages (Access organization `login_design`). `public/favicon.svg` is the V
+  mark. dashboard.valleypropertygroup.com is a Squarespace forward (301) to
+  vpg-dashboard.pages.dev — the domain's DNS stays at Squarespace (Luke,
+  Oct 14: don't touch DNS / email).
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
