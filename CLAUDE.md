@@ -175,11 +175,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
   tab = an existing view key), who sees them. Home + Board (Overview,
   Pipeline, Conversations, Agents, Opportunities) for everyone; Team
-  (Scorecard, Coaching, Month in Review) for owner / manager. A link a role
-  can't open falls back to the section's first tab, then Home. Add Deals
-  (owner + tc; tc without commission / profit), Territory (tc, manager,
-  owner) and Finance (owner) here when they're built — only working
-  sections are shown. Hiding is navigation only; the server still guards
+  (Scorecard, Coaching, Month in Review) for owner / manager; Deals (Active,
+  All deals, Summary) for owner + tc. A link a role can't open falls back
+  to the section's first tab, then Home. Add Territory (tc, manager, owner)
+  and Finance (owner) here when they're built — only working sections are
+  shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js).
 - **Home** (`HomeView.jsx`): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
@@ -188,11 +188,88 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   few days) and Wins this week.
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
+- Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
+  logo Luke sent Oct 14 (drawn as an inline SVG in AppShell.jsx), with
+  "VALLEY PROPERTY / GROUP" set like the logo.
+- **Company colours** (Luke, Oct 14: "incorporate our colors … a company
+  wide system"): `navy-*` and `tan-*` Tailwind colours in `src/index.css`
+  (`@theme`). The app uses them lightly: warm tan-50 page background and
+  tan borders, navy active nav / tabs / titles / primary buttons, a tan
+  marker on the active section, navy avatar, and a navy welcome banner with
+  the V mark on Home. Status colours (red / amber / green) and rep colours
+  stay as they were; the TV board is unchanged. The company font
+  (Montserrat) isn't used — Luke: harder to read.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app.
 - Phones: Board / Team pages are TV-sized, so each tab has a `phone` canvas
   in sections.js (Pipeline / Opportunities stack into a tall scroll; the
   wide ones keep the desktop layout and scroll sideways).
+
+## Deal tracker (Luke, Oct 14)
+
+The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar
+**Deals** (owners + the TC; `src/deals/`). Aiza (tc) sees and edits
+everything except the commission / profit columns and "Commission paid" —
+the server strips them (`forTc`) and refuses edits to them.
+- **Storage** (D1, `edge/deals.sql`): `deals (id, data JSON, created_*,
+  updated_*, deleted)` — one row per deal, the sheet's 51 columns as fields
+  (`FIELDS` in `src/deals/math.js`); `deal_log` — every change (who, when,
+  field, old → new; "History" in the panel); `settings` — `deal_rules`
+  (commission rates and the names they depend on) and `deal_lists`
+  (dropdowns + who reports to whom), kept in D1 because the repo is public.
+- **Formulas** = the sheet's, column by column, in `compute()` (math.js),
+  used by the browser and checked against the sheet: all 56 formula rows
+  match; totals match the sheet's Projections / Dashboard to the cent
+  (closed: 52 deals, gross $693,330, net profit $447,946). Older rows (Jan–
+  Aug, pasted as values in the sheet) keep their typed numbers in
+  `fixed` (shown amber "typed"; "use formula" switches one back). Gross =
+  VPG assignment − contract (finder's fee: the assignment); net = gross −
+  additional fees when dispo is VPG, else split 50/50; then acq, dispo,
+  manager, override and TC commissions and profit as in the sheet. Rates
+  and the names they depend on are in settings `deal_rules` only — never
+  write them into the repo or this file (it's public).
+- **API** (`functions/api/deals/`): `GET /api/deals` → deals + lists +
+  rules (TC: fee rules only); `POST` new deal; `GET /api/deals/:id` deal +
+  history; `PATCH` changed fields only (`fields`, `fixed: {k: value |
+  'formula'}`, `base` = the updatedAt the editor opened — if someone else
+  changed one of the same fields since, 409 with their name); `DELETE`
+  (owners; soft, logged). Tests: node:sqlite D1 shim + signed JWTs, like
+  the other functions.
+- **Pages**: **Active** (the sheet's Pipeline tab: pending deals, next step
+  by the sheet's rules — past COE, EMD pending with no payer, EMD VPG-only,
+  DD ending / expired without a buyer, set COE, closing ≤ 7 days, on track;
+  tiles filter) plus **"In GoHighLevel, not in the tracker yet"**: GHL deals
+  under contract or later with no tracker deal at the same address
+  (`addrKey`: house number + first street word), "Add to tracker" opens a
+  new deal filled from GHL (address, rep, state, COE, contract date = when
+  it went under contract, DD days from IP end). **All deals**: period
+  picker, by COE or contract date, search, status / rep / state filters,
+  column groups like the sheet's header bands, sort, totals, CSV export; all
+  kept in the link (`?p=…&by=…&cols=…`). Pending deals with no VPG
+  assignment price show "no buyer yet" instead of the sheet's negative
+  gross. **Summary** (the sheet's Dashboard tab): contracts / closed /
+  cancelled / close rate / sold volume (final assignment) / gross / net /
+  net profit / margin / avg net per closed, compare-to previous period or
+  same period last year, projected (pending + assigned), tables by acq
+  manager, dispo member, state and month (rows drill into All deals).
+- **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
+  `y:2026`, `q:2026-4`, `m:2026-10`, `r:2026-09-01..2026-10-14`; compare
+  `prev` / `yoy`.
+- **Deal panel** (`DealPanel.jsx`, `?deal=<id>` in the link): every field
+  grouped like the sheet, formulas recalculate as you type, nothing saved
+  until Save; warnings (COE before contract, closed without wire date / COE,
+  COE passed while pending, EMD overdue, final below contract); GHL stage /
+  IP end / COE with "use GHL's" when the COE differs; owners see who is
+  owed what on the deal (`payouts`). ⌘K finds tracker deals for owners / TC.
+  Buyer and Title agency (Luke, Oct 14): a dropdown of every entry used on
+  an earlier deal (most-used first, "Company · contact (N deals)", full text
+  shown under it) with "✎ Custom — type it in" at the top. Retrade = Y
+  shows **Original contracted price** beside it (`originalPrice`, the price
+  before the retrade — reference only, no formula uses it).
+- Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
+  `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
+  overwrites site edits. Commission payments (Owed → Approved → Paid),
+  rep statements and QuickBooks come with Finance.
 
 ## Refresh cadence
 

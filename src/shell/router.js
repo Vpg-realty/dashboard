@@ -39,3 +39,19 @@ export function linkProps(to) {
     },
   };
 }
+
+// Change some ?query values on the current page (null removes one), keeping
+// the rest — for filters and pickers that should live in the link.
+export function setQuery(patch, { replace = true } = {}) {
+  const { pathname, search } = window.location;
+  const q = new URLSearchParams(search);
+  for (const [k, v] of Object.entries(patch)) {
+    if (v == null || v === '') q.delete(k); else q.set(k, v);
+  }
+  const path = pathname.startsWith(BASE) ? pathname.slice(BASE.length) || '/' : pathname;
+  const s = q.toString();
+  const url = `${BASE}${path}${s ? `?${s}` : ''}`;
+  if (url === pathname + search) return;
+  window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
+  notify();
+}
