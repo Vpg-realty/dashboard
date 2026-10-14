@@ -252,6 +252,18 @@ the server strips them (`forTc`) and refuses edits to them.
   net profit / margin / avg net per closed, compare-to previous period or
   same period last year, projected (pending + assigned), tables by acq
   manager, dispo member, state and month (rows drill into All deals).
+- **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
+  deal profile"): `src/deals/status.js` is the one place — `nextStep()`
+  (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:
+  red = act now (past COE, DD ending / expired with no buyer), amber =
+  needs attention (EMD pending with no payer, EMD VPG-only, no COE), blue =
+  closing within 7 days, green = on track / closed, grey = waiting on a
+  buyer / cancelled. Active: a colour bar on every row, the next step as a
+  coloured pill, EMD / days-to-COE / DD-end values coloured, coloured dots
+  on the tiles and a legend. All deals: a dot before each address. Deal
+  panel: the same pill in the header, a full-height bar down its left edge
+  in the tone, and the fields behind the next step (`step.fields`, e.g.
+  COE + status for "past COE") tinted with "● check this".
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
   `y:2026`, `q:2026-4`, `m:2026-10`, `r:2026-09-01..2026-10-14`; compare
   `prev` / `yoy`.

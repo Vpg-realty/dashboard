@@ -2,6 +2,7 @@
 import Icon from '../shell/icons.jsx';
 import { GHL_STAGE } from './store.js';
 import { statusLabel } from './format.js';
+import { TONES } from './status.js';
 
 const STATUS_STYLE = {
   PENDING: 'bg-blue-50 text-blue-700 ring-blue-200', COMPLETE: 'bg-emerald-50 text-emerald-700 ring-emerald-200', CANCELLED: 'bg-zinc-100 text-zinc-500 ring-zinc-200',
@@ -27,16 +28,17 @@ export function PageHead({ title, sub, right }) {
   );
 }
 
-export function Tile({ label, value, sub, tone, onClick, active }) {
+export function Tile({ label, value, sub, tone, onClick, active, dot }) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag onClick={onClick} className={`text-left px-4 py-3 border-zinc-200/80 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-zinc-50' : ''} ${active ? 'bg-navy-50 shadow-[inset_0_-2px_0_var(--color-tan-500)]' : ''}`}>
-      <div className="text-[12.5px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
+      <div className="text-[12.5px] text-zinc-500 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOTS[dot]}`} />}{label}</div>
       <div className={`mt-1 text-xl font-semibold tracking-tight tabular-nums ${tone || ''}`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-zinc-500 whitespace-nowrap">{sub}</div>}
     </Tag>
   );
 }
+const DOTS = { red: 'bg-red-500', amber: 'bg-amber-500', blue: 'bg-blue-500', green: 'bg-emerald-500', zinc: 'bg-zinc-400' };
 export function Tiles({ children, cols = 4 }) {
   return <div className={`grid grid-cols-2 ${cols === 6 ? 'lg:grid-cols-6' : cols === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} rounded-xl border border-zinc-200/80 bg-white overflow-hidden [&>*]:border-b lg:[&>*]:border-b-0`}>{children}</div>;
 }
@@ -58,5 +60,11 @@ export function Search({ value, onChange, placeholder = 'Search address, rep, bu
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1 min-w-0 outline-none text-zinc-900 placeholder:text-zinc-400 bg-transparent" />
     </label>
   );
+}
+
+
+export function StepPill({ step }) {
+  const t = TONES[step.tone];
+  return <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12.5px] font-medium ring-1 ring-inset ${t.pill}`}><span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />{step.text}</span>;
 }
 

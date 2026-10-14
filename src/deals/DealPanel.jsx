@@ -6,7 +6,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FIELDS, GROUPS, compute, payouts } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
-import { StatusChip, GhlChip, Notice } from './ui.jsx';
+import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
+import { nextStep, TONES } from './status.js';
 import { money, shortDate, btnCls, primaryCls, selectCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 
@@ -187,6 +188,8 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
   if (!raw) return null;
   const g = ghlDeals().get(addrKey(merged.address));
   const warn = checks(merged);
+  const step = nextStep(merged);
+  const flagged = new Set(step.fields || []);
   const setField = (k, v) => setDraft((d) => ({ ...d, fields: { ...d.fields, [k]: v } }));
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
   function close() {
@@ -222,6 +225,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-zinc-950/20" onClick={close} />
       <section className="relative w-full max-w-[640px] h-full bg-white shadow-2xl flex flex-col" role="dialog" aria-label={merged.address || 'New deal'}>
+        {!isNew && <span className={`absolute left-0 top-0 bottom-0 w-1 ${TONES[step.tone].bar}`} />}
         <header className="shrink-0 px-5 pt-4 pb-0 border-b border-zinc-200">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -229,6 +233,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
               <h2 className="text-lg font-semibold tracking-tight truncate">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <StatusChip status={merged.status} />
+                {!isNew && <StepPill step={step} />}
                 <GhlChip g={g} />
                 {merged.coe && <span className="text-xs text-zinc-500">COE {shortDate(merged.coe, { year: true })}</span>}
               </div>
@@ -278,10 +283,11 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
                       return (
-                        <label key={f.key} className={`${wide ? 'col-span-2' : ''} min-w-0`}>
+                        <label key={f.key} className={`${wide ? 'col-span-2' : ''} min-w-0 rounded-md ${!isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-1.5 p-1.5` : ''}`}>
                           <span className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
                             {f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
+                            {!isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] text-zinc-400">auto</span>}
                             {isFixed && <span className="text-[10.5px] rounded bg-amber-100 text-amber-800 px-1" title="Typed by hand (in the sheet or here) — doesn't recalculate">typed</span>}
                           </span>
