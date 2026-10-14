@@ -90,7 +90,6 @@ export function newDealFrom(g, { repName, stateName }) {
     accepted,
     retrade: 'N',
     emdStatus: 'PENDING',
-    dispoTeam: 'PENDING',
     links: zillowUrl(g.address),
   };
   if (g.ipEnd) setDdEnd(d, g.ipEnd);

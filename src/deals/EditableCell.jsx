@@ -7,11 +7,13 @@ import { useEffect, useRef, useState } from 'react';
 import { saveDeal } from './store.js';
 import { Input } from './fields.jsx';
 import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST } from './fieldLib.js';
+import { editFields } from './edits.js';
 
 // Dropdowns save as soon as you pick. Dates don't (typing a year fires a
 // change per digit) — they save on Enter or click-away like text.
 const instant = (f) => f.type === 'list' || f.type === 'person' || !!FIXED_LISTS[f.key] || !!LIST_OF[f.key];
 const tall = (f) => f.type === 'longtext' || PICK_FROM_PAST.has(f.key);
+const isList = (f) => instant(f) && !PICK_FROM_PAST.has(f.key);
 
 // `fit`: size to the content instead of truncating (Active's short cells).
 export default function EditableCell({ deal, raw, f, lists, past, children, fit }) {
@@ -28,15 +30,17 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
     if ((v ?? null) === before || (v === '' && before == null)) { cancel(); return; }
     setBusy(true);
     try {
-      await saveDeal(deal.id, { fields: { [f.key]: v === '' ? null : v } }, deal.updatedAt);
+      // Some edits carry another field (retrade → the price; edits.js).
+      await saveDeal(deal.id, { fields: editFields(raw || deal, f.key, v === '' ? null : v) }, deal.updatedAt);
       setEditing(false); setErr(null);
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   }
 
-  // Click outside a text / number / long-text editor saves it.
+  // Click outside a text / number / long-text editor saves it; outside an
+  // open dropdown list closes it.
   useEffect(() => {
-    if (!editing || instant(f)) return undefined;
-    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) save(); };
+    if (!editing) return undefined;
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) { if (isList(f)) cancel(); else save(); } };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   });
@@ -50,12 +54,12 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
     );
   }
   return (
-    <div ref={box} className={`relative ${tall(f) ? 'w-72 whitespace-normal py-1' : 'min-w-[9rem]'}`}
+    <div ref={box} className={`relative ${tall(f) ? 'w-72 whitespace-normal py-1' : isList(f) ? 'w-60 whitespace-normal py-1' : 'min-w-[9rem]'}`}
       onKeyDown={(e) => {
         if (e.key === 'Escape') { e.preventDefault(); cancel(); }
         if (e.key === 'Enter' && !(e.target.tagName === 'TEXTAREA' && !e.metaKey && !e.ctrlKey)) { e.preventDefault(); save(); }
       }}>
-      <Input f={f} lists={lists} past={past} value={value} autoFocus onChange={(v) => { setValue(v); if (instant(f) && !PICK_FROM_PAST.has(f.key)) save(v); }} />
+      <Input f={f} lists={lists} past={past} value={value} deal={raw || deal} inline autoFocus onChange={(v) => { setValue(v); if (instant(f) && !PICK_FROM_PAST.has(f.key)) save(v); }} />
       {tall(f) && (
         <div className="flex justify-end gap-1.5 mt-1.5">
           <button type="button" onClick={cancel} className="h-7 px-2 rounded-md border border-zinc-200 bg-white text-xs">Cancel</button>

@@ -13,6 +13,7 @@ import PeriodBar from './PeriodBar.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { setQuery, navigate } from '../shell/router.js';
+import { assigned as isAssigned } from './status.js';
 
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -20,7 +21,7 @@ const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', '
 function stats(list) {
   const closed = list.filter((d) => d.status === 'COMPLETE');
   const pending = list.filter((d) => d.status === 'PENDING');
-  const assigned = pending.filter((d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0);
+  const assigned = pending.filter(isAssigned); // a VPG assignment price is in
   const sum = (arr, k) => arr.reduce((t, d) => t + n(d[k]), 0);
   const comm = (arr) => arr.reduce((t, d) => t + n(d.acqComm) + n(d.dispoComm) + n(d.mgrComm) + n(d.override) + n(d.tcComm), 0);
   const gross = sum(closed, 'grossAssign'); const profit = sum(closed, 'netProfit');

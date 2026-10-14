@@ -40,6 +40,9 @@ const num = (x, lo, hi) => typeof x === 'number' && Number.isFinite(x) && x >= l
 const names = (a) => Array.isArray(a) && a.length <= 40 && a.every((n) => typeof n === 'string' && n.length <= 60);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const STATUSES = ['PENDING', 'COMPLETE', 'CANCELLED'];
+// The TC fee / commission can also be charged once a deal is ASSIGNED (Luke,
+// Oct 14; math.js RULE_STATUSES).
+const FEE_STATUSES = [...STATUSES, 'ASSIGNED'];
 // A rule set, the older { versions: [{ from, rules, by?, at? }] } oldest
 // first, or per-rule timelines { since, timelines } (src/deals/rules.js):
 // the shape is checked, then the rule set in effect on every start date.
@@ -68,7 +71,7 @@ function checkRuleSet(r) {
   if (!r || typeof r !== 'object') return 'rules missing';
   if (!num(r.tcFee, 0, 10000) || !num(r.tcComm, 0, 10000)) return 'TC fee / commission must be dollar amounts';
   if (!num(r.acqRate, 0, 1) || !num(r.dispoRate, 0, 1)) return 'rates must be between 0% and 100%';
-  if (![r.tcFeeStatuses, r.tcCommStatuses].every((a) => Array.isArray(a) && a.every((s) => STATUSES.includes(s)))) return 'bad statuses';
+  if (![r.tcFeeStatuses, r.tcCommStatuses].every((a) => Array.isArray(a) && a.every((s) => FEE_STATUSES.includes(s)))) return 'bad statuses';
   if (!names(r.noCommission) || !names(r.dispoAfterAcq)) return 'bad names';
   if (typeof r.tcName !== 'string') return 'TC name missing';
   if (!r.acqOfNet || typeof r.acqOfNet !== 'object' || !Object.entries(r.acqOfNet).every(([k, v]) => k.length <= 60 && num(v, 0, 1))) return 'bad "paid on net" rates';

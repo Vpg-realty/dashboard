@@ -13,13 +13,15 @@
 // / filter yourself (useFrozenOrder). Cells a deal still needs for its stage
 // (required.js) get a red outline; the "Needs info" filter shows only those.
 import { useMemo } from 'react';
-import { FIELDS, GROUPS } from './math.js';
+import { FIELDS, GROUPS, BOOKS_KEYS, booksOpen, isBlank } from './math.js';
+import { showEndTime } from './ddTime.js';
+import SearchSelect from './SearchSelect.jsx';
 import { useDeals, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import EditableCell from './EditableCell.jsx';
 import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
 import { PageHead, Loading, Search, ResortBar } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
-import { money, shortDate, stateCode, statusLabel, selectCls, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
+import { money, shortDate, stateCode, statusLabel, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { useLocation, setQuery } from '../shell/router.js';
@@ -35,17 +37,20 @@ import { PanelHead } from '../shell/Panel.jsx';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 const OVERVIEW = ['address', 'ghlStage', 'acq', 'coe', 'accepted', 'state', 'status', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
-const GROUP_LABEL = { contract: 'Contract info', title: 'Title', emd: 'EMD', dd: 'Due diligence', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & profit', books: 'Bookkeeping', notes: 'Notes & links' };
+const GROUP_LABEL = { contract: 'Contract info', title: 'Title', emd: 'EMD', dd: 'Due diligence', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & profit', notes: 'Notes & links' };
 // How a value reads in the table (Luke, Oct 14: proper case throughout;
 // dropdown values worth scanning as pills, people as their coloured chip).
-const cell = (f, v, editable) => {
-  if (f.type === 'money') return money(v, { cents: true });
+// Empty or a dash reads "—" (no data); an entered 0 reads $0.00 (Luke, Oct 14).
+const NONE = <span className="text-zinc-300">—</span>;
+const cell = (f, v, editable, d) => {
+  if (isBlank(v)) return f.calc ? '' : NONE;
+  if (f.type === 'money') return v === 0 && !f.calc ? '$0.00' : money(v, { cents: true });
+  if (f.type === 'time') return showEndTime(d);
   if (f.type === 'percent') return typeof v === 'number' ? `${Math.round(v * 100)}%` : '';
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
-  if (f.key === 'acq' || f.key === 'dispoMember') return v ? <Person name={v} full /> : '';
-  if (v == null || v === '') return '';
+  if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
   const text = String(v).split('\n')[0];
   return f.type === 'list' ? pretty(f.key, text) : text; // free text stays as typed
 };
@@ -131,21 +136,18 @@ export default function AllDealsView() {
     <div className="h-full flex flex-col min-h-0">
       <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]} · click a cell to edit it, the address for the full deal`} right={<>
         <button onClick={csv} className={btnCls}>Export CSV</button>
-        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', dispoTeam: 'PENDING', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
+        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-2.5">
         <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
         <span className="w-px h-5 bg-zinc-200 mx-1" />
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
-        <select value={status} onChange={(e) => setQuery({ status: e.target.value || null })} className={selectCls} aria-label="Status">
-          <option value="">All statuses</option>{['PENDING', 'COMPLETE', 'CANCELLED'].map((x) => <option key={x} value={x}>{statusLabel(x)}</option>)}
-        </select>
-        <select value={acq} onChange={(e) => setQuery({ acq: e.target.value || null })} className={selectCls} aria-label="Acq. manager">
-          <option value="">Everyone</option>{opts('acq').map((x) => <option key={x}>{x}</option>)}
-        </select>
-        <select value={state} onChange={(e) => setQuery({ state: e.target.value || null })} className={selectCls} aria-label="State">
-          <option value="">All states</option>{opts('state').map((x) => <option key={x} value={x}>{x[0] + x.slice(1).toLowerCase()}</option>)}
-        </select>
+        <SearchSelect className="w-40" value={status || null} placeholder="All statuses" pinned={[{ value: null, label: 'All statuses' }]} clearable={false} onChange={(x) => setQuery({ status: x || null })}
+          options={['PENDING', 'COMPLETE', 'CANCELLED'].map((x) => ({ value: x, label: statusLabel(x) }))} />
+        <SearchSelect className="w-48" value={acq || null} placeholder="Everyone" pinned={[{ value: null, label: 'Everyone' }]} clearable={false} onChange={(x) => setQuery({ acq: x || null })}
+          options={opts('acq').map((x) => ({ value: x, label: x }))} />
+        <SearchSelect className="w-44" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
+          options={opts('state').map((x) => ({ value: x, label: pretty('state', x) }))} />
         {!s.readOnly && (
           <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#B42318] text-white ring-[#B42318]' : 'bg-white text-[#B42318] ring-[#F5C2BD] hover:bg-[#FDF1F0]'}`}>
             Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>
@@ -196,24 +198,27 @@ export default function AllDealsView() {
                 const step = nextStep(d, today);
                 const need = new Set(d._need);
                 return (
-                  <tr key={d.id} className={`group ${d._stale ? 'opacity-60' : ''}`}>
+                  <tr key={d.id} className="group">
                     {cols.map((f) => {
                       const st = cellStyle(d, f, today);
                       const missing = need.has(f.key);
                       const content = f.key === 'ghlStage' ? <GhlStage d={d} live={ghl.get(addrKey(d.address))} />
                         : NEEDS_BUYER.has(f.key) && noBuyer(d) ? <span className="opacity-60 text-[11px]">no buyer yet</span>
                           : null;
-                      const editable = !s.readOnly && !f.calc && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret);
-                      const shown = content ?? cell(f, d[f.key], editable);
+                      // Bookkeeping is locked until the COE date (Luke, Oct 14).
+                      const locked = BOOKS_KEYS.includes(f.key) && !booksOpen(d);
+                      const editable = !s.readOnly && !f.calc && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret) && !locked;
+                      const shown = content ?? cell(f, d[f.key], editable, d);
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
-                        <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
+                        <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
                           className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
                           style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, maxWidth: widthOf(f) + 60 }}>
                           {f.key === 'address' ? (
                             <span className="flex items-center gap-1.5 min-w-0">
                               <span className={`shrink-0 w-2 h-2 rounded-full ${TONES[step.tone].dot}`} title={step.text} />
                               <button type="button" onClick={() => open(d.id)} title={`${step.text} — open the full deal`} className="truncate text-left hover:underline underline-offset-2">{d.address}</button>
+                              {d._stale && <span title="Changed since the table was sorted — Re-sort now puts it in its place" className="shrink-0 rounded px-1 text-[10px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200 not-italic">changed · re-sort</span>}
                               {d._need.length > 0 && (
                                 <button type="button" onClick={() => open(d.id, 'need')} title={`Needs: ${d._need.map((k) => LABEL[k]).join(', ')}`}
                                   className="ml-auto shrink-0 rounded-full px-1.5 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] not-italic">{d._need.length} missing</button>

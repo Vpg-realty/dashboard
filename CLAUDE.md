@@ -408,13 +408,14 @@ the server strips them (`forTc`) and refuses edits to them.
   Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
   **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
   kept for the reps, but nothing after that" — no additional fees, TC fee,
-  net, wires, commission base, commissions or profit), not Bookkeeping,
-  Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
+  net, wires, commission base, commissions or profit), not the bookkeeping
+  fields, Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
   server strips the rest (and its history entries, `REP_LOG`); view-only
   fields read as plain text, not greyed-out boxes.
 - **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
   colours"): navy header with the V mark, a key-facts strip (contracted /
-  assignment price, gross for owners / TC, COE chip, DD end), each group a
+  assignment price, gross for owners / TC, COE chip, DD end with its time),
+  the GHL sub-account under the address, each group a
   numbered white card with a navy title on a tan background. Deals pages
   are full width (max 1720px) with bigger tiles and roomier rows.
 - **Zillow link** (Luke, Oct 14; the field `links`, renamed from "Zillow /
@@ -443,13 +444,20 @@ the server strips them (`forTc`) and refuses edits to them.
   Aug, pasted as values in the sheet) keep their typed numbers in
   `fixed` (shown amber "typed"; "use formula" switches one back). Gross =
   VPG assignment − contract (finder's fee: the assignment); net = gross −
-  additional fees when dispo is VPG, else split 50/50; then acq, dispo,
+  additional fees (VPG sells every deal — Luke, Oct 14; the sheet's 50/50
+  split for another dispo team is kept only for **closed** deals that have a
+  dispo team on file, `legacyDispo`, so closed numbers don't move — checked:
+  every closed / cancelled deal of the import computes exactly as before);
+  then acq, dispo,
   manager, override and TC commissions and profit as in the sheet. Rates
   and the names they depend on are in settings `deal_rules` only — never
   write them into the repo or this file (it's public).
 - **API** (`functions/api/deals/`): `GET /api/deals` → deals + lists +
   rules (TC: fee rules only); `POST` new deal; `GET /api/deals/:id` deal +
-  history; `PATCH` changed fields only (`fields`, `fixed: {k: value |
+  history (the deal carries `ghlSub` = `{location, rep, market}` of its
+  `deal_ghl` link, from subaccounts.json — the sync stores the link's
+  location as "<repId>|<marketId>" — or null; the list carries it too);
+  `PATCH` changed fields only (`fields`, `fixed: {k: value |
   'formula'}`, `base` = the updatedAt the editor opened — if someone else
   changed one of the same fields since, 409 with their name); `DELETE`
   (owners; soft, logged). Tests: node:sqlite D1 shim + signed JWTs, like
@@ -531,7 +539,8 @@ the server strips them (`forTc`) and refuses edits to them.
   bands (tan for the "Dispo % loss" pair), light column headers with a 3px
   accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
   slate; soft tints in the site's status colours, in the sheet's priority
-  order: net profit < 0 rose / bold red; commission paid NO and additional
+  order: net profit < 0 rose / bold red; net loss % over 20% rose / bold
+  red (`netLossHigh`, also in the panel); commission paid NO and additional
   fees > 0 amber "check"; DD end today rose / bold red, tomorrow sky
   (pending deals); cancelled row muted rose; closed row soft green. A colour key sits above the table. **Proper case + pills**
   (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
@@ -541,11 +550,10 @@ the server strips them (`forTc`) and refuses edits to them.
   dropdown values read "Pending", "Closed", "Off-market", "VPG + Buyer",
   "N/A" (acronyms kept), and the dropdowns themselves list them that way
   (fields.jsx). Pills: deal status (Pending amber / Closed green / Cancelled
-  red), EMD status, EMD paid by, dispo team, CFAR, EMD returned, commission
+  red), EMD status, EMD paid by, CFAR, EMD returned, commission
   paid, retrade, deal type, listing type — with a small ▾ when the cell can
   be edited (a click opens the dropdown); acq. manager and dispo member are
-  the coloured person chips; free text (titles, escrow #, end time) stays
-  as typed. Headers read in sentence case. The sheet's green / red EMD
+  the coloured person chips; free text (titles, escrow #) stays as typed. Headers read in sentence case. The sheet's green / red EMD
   block was dropped (the EMD status pill says it), and the CFAR / EMD
   returned cell fills too (their pills carry it). Active's EMD column is a
   pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
@@ -557,8 +565,9 @@ the server strips them (`forTc`) and refuses edits to them.
   rows, a totals row. **Every cell is editable in place**
   (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
   Enter or click-away, Esc cancels, buyer / title use the same past-entries
-  picker; one field per save, logged, same conflict check); calculated and
-  GHL cells aren't. The address (with a next-step dot) opens the full deal;
+  picker; one field per save — except the moves in `edits.js` — logged,
+  same conflict check); calculated and GHL cells aren't, nor locked
+  bookkeeping cells. The address (with a next-step dot) opens the full deal;
   "N missing" opens it on the first missing field. **Needs info** filter
   (`?need=1`); cells a deal still needs are outlined red.
 - **Active** = the sheet's Pipeline tab: "As of" date, tiles (Active,
@@ -569,21 +578,30 @@ the server strips them (`forTc`) and refuses edits to them.
   dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
   (Luke, Oct 14), gross (everyone — Luke, Oct 14: "gross assignment fee
   columns can be kept for the reps"); needs a buyer: next step, property,
-  acq. manager, state, COE, days, EMD, DD end, dispo team, title,
-  contract. Days red when past, amber ≤ 7; EMD ✓ green, "Pending" / "VPG
-  only" red. The COE chip keeps the board's Pipeline colours (`dueTone`).
-  COE, title, buyer, prices and dispo team edit in place (owners / TC).
+  acq. manager, state, COE, days, EMD, DD end (+ its time), title,
+  contract. The property column shows the full address, wrapping (Luke,
+  Oct 14: no "…"). A deal is "assigned" when a VPG assignment price is in
+  (`assigned` in status.js; until Oct 14 "gross ≥ 0", which put deals with
+  no price and no assignment in the assigned list). Days red when past,
+  amber ≤ 7; EMD ✓ green, "Pending" / "VPG only" red. The COE chip keeps
+  the board's Pipeline colours (`dueTone`). COE, title, buyer and prices
+  edit in place (owners / TC). On top, **IP ends within 48 hours — no buyer
+  yet** lists those deals (below).
   People are boxed in their colour (`people.jsx`).
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
   Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
-  EMD VPG-only), amber = coming up (DD ending / expired without a buyer,
-  set COE, closing ≤ 7 days — `soon`), blue = find a buyer, green = on
+  EMD VPG-only, IP ends ≤ 24 h with no buyer), amber = coming up (IP ends
+  ≤ 48 h, DD ending / expired without a buyer, set COE, closing ≤ 7 days —
+  `soon`: "Closing in Nd — TC: check in with title", a reminder for the TC
+  that only points at Title agency when none is on file), blue = find a
+  buyer, green = on
   track / closed; cancelled red. Active: a colour bar on every row and the
   next step as a coloured pill; All deals: a dot before each address; deal
   panel: the pill in the header, a bar down its left edge, and the fields
   behind the next step (`step.fields`) tinted with "● check this". Home's
-  Deal tracker card counts the same tones.
+  Deal tracker card counts the same tones. A deal is assigned once its VPG
+  assignment price is in (see Active).
 - **Needs info** (Luke, Oct 14: "alerts that tell me what data is missing
   per deal based on pipeline stage or change of pipeline stage … if it
   moves from dispo active to assigned, I need to enter all sold details …
@@ -593,16 +611,21 @@ the server strips them (`forTc`) and refuses edits to them.
   deal: address, acq, state, contract date, COE, deal / listing type,
   contracted price, title agency, EMD amount (unless EMD status NA), EMD
   status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
-  needs dispo details** (GHL stage Dispo active: dispo team, dispo member
-  if VPG, asking price); **Moved to Assigned — needs sold details** (GHL
-  stage Assigned, or an assignment price / buyer in: dispo team, dispo
-  member, buyer (if VPG; owners only), VPG and final assignment price, EMD
-  paid by — "PENDING" counts as missing); **Closed — needs closing
-  details** (closed in the tracker with COE in the last 90 days, or GHL
-  Closed while the tracker is pending — then status is flagged too: final
-  assignment, wire date / received, EMD returned (when VPG paid EMD),
-  commission paid (owners)); **Lost in GHL — confirm the cancel** (status).
-  Money must be above 0. `needsInfo(deal, {owner, readOnly})` lists only
+  needs dispo details** (GHL stage Dispo active: dispo member, asking
+  price); **Moved to Assigned — needs sold details** (GHL stage Assigned,
+  or an assignment price / buyer in: dispo member, buyer (owners only), VPG
+  and final assignment price, EMD paid by — "PENDING" counts as missing);
+  **Closed — needs closing details** (closed in the tracker with COE in the
+  last 90 days, or GHL Closed while the tracker is pending — then status is
+  flagged too: status, final assignment); **At COE — fill in bookkeeping**
+  (owners only — `owners: true`; pending deals from their COE date and
+  recently closed ones: wire received, wire date, EMD returned (when VPG
+  paid EMD), commission paid); **Lost in GHL — confirm the cancel**
+  (status). **Missing = empty, null, "-" or "—"** (Luke, Oct 14: a 0 is
+  data; `isBlank` in math.js — the dash is the standard for "no data":
+  every input takes "-" as empty and empty reads "—"; the server stores a
+  dash as null). One exception: a retraded deal's contracted price at 0
+  stays missing (below). `needsInfo(deal, {owner, readOnly})` lists only
   fields the person can fill in (TC: no secret fields; reps / managers get
   no alerts — view only). Shown as the Active tile + section (a tab per
   category, a field chip per missing field), the All deals filter / red
@@ -614,8 +637,10 @@ the server strips them (`forTc`) and refuses edits to them.
   automatically resort … a button … 'it's ok to sort now'"):
   `src/deals/useFrozenOrder.js` freezes the row order (and on Active which
   list a deal is in) when a sort / filter / search / period is picked; an
-  edited row stays where it was (dimmed if it no longer matches the
-  filter), new deals join at the end, and "Order is out of date — Re-sort
+  edited row stays where it was — fully legible, with a small grey
+  "changed · re-sort" tag ("now assigned" / "no buyer now" when it would
+  switch Active lists) instead of fading (Luke, Oct 14: faded rows were
+  hard to read) — new deals join at the end, and "Order is out of date — Re-sort
   now" appears once a fresh sort would differ. Header clicks still sort.
   Same on Active (both lists and Needs info).
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
@@ -632,6 +657,58 @@ the server strips them (`forTc`) and refuses edits to them.
   shown under it) with "✎ Custom — type it in" at the top. Retrade = Y
   shows **Original contracted price** beside it (`originalPrice`, the price
   before the retrade — reference only, no formula uses it).
+- **Oct 14 follow-ups (Luke)**:
+  - **Retrade** (`retradeFields` in math.js, applied through `editFields`
+    in `src/deals/edits.js` by the panel and the All deals / Active cells —
+    the one place): switching Retrade to Yes copies the contracted price
+    into Original contracted price (only if that's empty) and sets the
+    contracted price to 0, both in one save. While Retrade = Y and the price
+    is 0 (`retradePending`) the price box has an amber ring and "Re-enter
+    the new price after the retrade" (a short flash when it happens), the
+    key-facts strip says "Re-enter", and Needs info counts it missing.
+  - **Buyer's EMD** (`buyerEmd`, money, EMD group right of EMD amount): how
+    much earnest money the buyer placed — reference only, no formula; reps
+    see it (EMD group).
+  - **DD end time** (`src/deals/ddTime.js`): End time is a time picker
+    (`ddEndTime` = "HH:MM") plus **Time zone** (`ddEndTz`: Arizona /
+    Pacific / Mountain / Central / Eastern; empty = the state's zone,
+    `stateZone`). Older free text ("5PM EDT", "Midnight MST", "17:00 CST")
+    is parsed at read time (`parseEndTime`; MST in Arizona = Arizona;
+    midnight = 23:59 that day) and never rewritten in D1; text it can't
+    read is shown as typed. Picking a time on such a deal keeps the zone
+    the old text named. `ddEndMs` = the exact instant; **`ipEndAlert(deal,
+    now)`** (exported for Home) = a pending deal with no buyer and no
+    assignment price whose IP ends within 48 h → "IP ends in Nh — cancel
+    soon if no buyer" (red ≤ 24 h, amber ≤ 48 h). Shown as the deal's next
+    step (after Past COE, before the EMD checks), a red box in the deal
+    panel and the list on top of Active. **Pending:** no email / text is
+    sent — no sender is wired up yet (TODO in ddTime.js).
+  - **No dispo team** (VPG always sells the deal): the field left FIELDS
+    (panel, All deals, Active's Needs-a-buyer column, Needs info, the
+    Dropdown lists page, new deals); "(if VPG)" is gone from every label.
+    Stored values stay in D1 and are only read by `compute()` for closed
+    deals (see Formulas); `forRep` drops them. Kept: dispo member, buyer,
+    asking, assignment / final assignment price, net loss %.
+  - **Bookkeeping** (`BOOKS_KEYS`: wire received, wire date, EMD returned —
+    now in Financials — and commission paid — now in Commissions & profit;
+    the Bookkeeping group is gone) is locked ("locked · unlocks at COE")
+    until the COE date is reached (Arizona, `booksOpen`) or the deal is
+    closed or cancelled (a cancel still records the EMD return); the server
+    refuses a value before then (clearing is fine). Then it's the owners'
+    "At COE — fill in bookkeeping" task. Commission paid stays secret.
+  - **Field boxes in the panel**: one style for every field (padding,
+    radius, ring, a gap between boxes): needed = red, check this = amber,
+    retrade price = amber ring.
+  - **Searchable dropdowns** (`src/deals/SearchSelect.jsx`): every deals
+    dropdown (panel and in-place lists, acq. manager, dispo member, buyer /
+    title past entries — "✎ Custom — type it in" pinned on top, "(N deals)"
+    kept — All deals filters, the period picker) has a search box and lists
+    A → Z (periods and time zones keep their own order). In table cells the
+    list opens in place (no floating list cut off by the table).
+  - **TC fee rule "Assigned"**: "TC fee charged when the deal is …" (and the
+    TC commission rule) can include Assigned = it has a VPG assignment price
+    and isn't cancelled (`RULE_STATUSES`, `isAssigned` in math.js; the
+    settings check accepts ASSIGNED).
 - Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
   overwrites site edits. Commission payments (Owed → Approved → Paid),

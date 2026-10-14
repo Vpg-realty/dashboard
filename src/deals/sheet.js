@@ -32,7 +32,7 @@ export const HEAD_RULE = '#C9D3E0';
 // groups read apart without coloured blocks.
 export const GROUP_ACCENT = {
   contract: '#1b385f', title: '#4F6D95', emd: '#0F766E', dd: '#7C5CBF', dispo: '#ad9b7a',
-  money: '#15803D', pay: '#B7791F', books: '#64748B', notes: '#94A3B8',
+  money: '#15803D', pay: '#B7791F', notes: '#94A3B8',
 };
 export function headStyle(f) {
   const accent = LOSS_KEYS.has(f.key) ? TAN : GROUP_ACCENT[f.group] || NAVY;
@@ -44,7 +44,11 @@ export const GREEN = { background: '#EEF8F1', color: '#14532D' };
 export const RED = { background: '#FDF1F0', color: '#7A271A' };
 export const AMBER = { background: '#FFF8E6', color: '#7A4A06' };
 const CHECK = { background: '#FFF4D6', color: '#7A4A06', fontWeight: 600 };
-const ALERT = { background: '#FDECEA', color: '#B42318', fontWeight: 700 };
+export const ALERT = { background: '#FDECEA', color: '#B42318', fontWeight: 700 };
+// Net loss above 20% (Luke, Oct 14): the dispo sold well under the asking
+// assignment — flagged like a loss.
+export const NET_LOSS_ALERT = 0.2;
+export const netLossHigh = (d) => typeof d.netLoss === 'number' && d.netLoss > NET_LOSS_ALERT;
 const SOON = { background: '#EAF5FD', color: '#075985', fontWeight: 600 };
 const CANCELLED = { background: '#FBF3F3', color: '#9A8F8F' };
 const CALC = { background: '#F8FAFC' };
@@ -57,6 +61,7 @@ export function cellStyle(d, f, today = laToday()) {
   const st = up(d.status);
   // Single-cell checks first, as in the sheet.
   if ((k === 'grossProfit' || k === 'netProfit') && typeof d.netProfit === 'number' && d.netProfit < 0) return ALERT;
+  if (k === 'netLoss' && netLossHigh(d)) return ALERT;
   if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return CHECK;
   if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return CHECK;
   if ((k === 'ddEnd' || k === 'ddEndTime') && st === 'PENDING' && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
@@ -74,6 +79,6 @@ export function cellStyle(d, f, today = laToday()) {
 // The colour key above the table, in plain words.
 export const SHEET_LEGEND = [
   [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
-  [ALERT, 'DD ends today · net profit below zero'], [SOON, 'DD ends tomorrow'],
+  [ALERT, 'DD ends today · net profit below zero · net loss over 20%'], [SOON, 'DD ends tomorrow'],
   [CHECK, 'Check: extra fees · commission not paid'],
 ];

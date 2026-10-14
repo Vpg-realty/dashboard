@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { readSetting, changeRule } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
-import { compute } from '../deals/math.js';
+import { compute, RULE_STATUSES } from '../deals/math.js';
 import { toTimelines, entryAt, applyChange, TRACKER_START } from '../deals/rules.js';
 import { laToday } from '../utils/historyRange.js';
 import { money } from '../deals/format.js';
@@ -31,7 +31,7 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'sho
 const SECTIONS = [
   { title: 'Acquisition and dispo', sub: 'Commission base = net assignment − TC fee.', rules: [
     { key: 'acqRate', label: 'Acquisition manager', hint: 'of the commission base', type: 'pct' },
-    { key: 'dispoRate', label: 'Dispo member', hint: 'of the commission base, when a VPG dispo member is on the deal', type: 'pct' },
+    { key: 'dispoRate', label: 'Dispo member', hint: 'of the commission base, when a dispo member is on the deal', type: 'pct' },
     { key: 'noCommission', label: 'No commission (owners)', hint: 'Nothing paid when these people are the acq. manager or dispo member.', type: 'names' },
     { net: true },
     { key: 'dispoAfterAcq', label: 'Dispo paid after the acq. commission', hint: "For these acq. managers the dispo commission is taken from what's left after theirs.", type: 'names' },
@@ -49,7 +49,7 @@ const SECTIONS = [
   ] },
   { title: 'Transaction coordinator', rules: [
     { key: 'tcFee', label: 'TC fee per deal', hint: 'taken off the commission base', type: 'money' },
-    { key: 'tcFeeStatuses', label: 'TC fee charged when the deal is', type: 'statuses' },
+    { key: 'tcFeeStatuses', label: 'TC fee charged when the deal is', hint: 'Assigned = it has a VPG assignment price (and isn’t cancelled), pending or closed.', type: 'statuses' },
     { key: 'tcComm', label: 'TC commission per deal', type: 'money' },
     { key: 'tcCommStatuses', label: 'TC commission paid when the deal is', type: 'statuses' },
     { key: 'tcName', label: 'TC (paid the TC commission)', type: 'person' },
@@ -63,7 +63,7 @@ function show(type, v) {
   if (type === 'pct') return `${Math.round(v * 1000) / 10}%`;
   if (type === 'money') return money(v);
   if (type === 'names') return v.length ? v.join(', ') : <span className="text-zinc-400">nobody</span>;
-  if (type === 'statuses') return v.length ? STATUSES.filter(([k]) => v.includes(k)).map(([, l]) => l).join(', ') : <span className="text-zinc-400">never</span>;
+  if (type === 'statuses') return v.length ? RULE_STATUSES.filter(([k]) => v.includes(k)).map(([, l]) => l).join(', ') : <span className="text-zinc-400">never</span>;
   if (type === 'status') return STATUSES.find(([k]) => k === v)?.[1] || v;
   if (type === 'date') return v ? day(v) : <span className="text-zinc-400">any date</span>;
   if (type === 'reps') return v.length ? v.map((x) => (x.coeBefore ? `${x.rep} (COE before ${day(x.coeBefore, false)})` : x.rep)).join(', ') : <span className="text-zinc-400">nobody</span>;
@@ -86,10 +86,12 @@ function Names({ value, onChange, people }) {
     </div>
   );
 }
+// Deal statuses plus "Assigned" (has a VPG assignment price, not cancelled —
+// Luke, Oct 14), for the TC fee / commission rules.
 function Statuses({ value, onChange }) {
   return (
     <div className="flex gap-3 text-[13px] h-9 items-center">
-      {STATUSES.map(([k, l]) => (
+      {RULE_STATUSES.map(([k, l]) => (
         <label key={k} className="flex items-center gap-1.5"><input type="checkbox" checked={value.includes(k)} onChange={(e) => onChange(e.target.checked ? [...value, k] : value.filter((x) => x !== k))} />{l}</label>
       ))}
     </div>

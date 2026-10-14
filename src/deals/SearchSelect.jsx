@@ -1,0 +1,78 @@
+// One dropdown for the whole deal tracker (Luke, Oct 14: "every dropdown …
+// a search box at the top and options alphabetically"). A button that opens
+// a list with a search box; options sorted A → Z by label; `pinned` options
+// (e.g. "✎ Custom — type it in") stay on top whatever the search. Keyboard:
+// ↑ / ↓ to move, Enter to pick, Esc to close.
+//
+// `inline`: the list is open from the start and sits in the page flow (table
+// cells, where a floating list would be cut off by the table's scroll box).
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+const norm = (s) => String(s ?? '').toLowerCase();
+
+export default function SearchSelect({
+  value, onChange, options, pinned = [], clearable = true, placeholder = '—', inline = false, autoFocus = false,
+  disabled = false, sort = true, className = '', renderValue,
+}) {
+  const [open, setOpen] = useState(inline);
+  const [q, setQ] = useState('');
+  const [active, setActive] = useState(0);
+  const box = useRef(null);
+  const search = useRef(null);
+  const listRef = useRef(null);
+
+  const sorted = useMemo(() => (sort ? [...options].sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })) : options), [options, sort]);
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const hits = sorted.filter((o) => !words.length || words.every((w) => norm(`${o.label} ${o.search || ''}`).includes(w)));
+  const items = [...(clearable && !q ? [{ value: null, label: '—', clear: true }] : []), ...pinned.map((o) => ({ ...o, pinned: true })), ...hits];
+  const current = options.find((o) => o.value === value) || pinned.find((o) => o.value === value);
+
+  useEffect(() => { if (open) setTimeout(() => search.current?.focus({ preventScroll: true }), 0); }, [open]);
+  // Click outside closes a floating list.
+  useEffect(() => {
+    if (!open || inline) return undefined;
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open, inline]);
+  useEffect(() => { listRef.current?.querySelector(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' }); }, [active]);
+
+  const pick = (o) => { onChange(o.value ?? null); setQ(''); if (!inline) setOpen(false); };
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(items.length - 1, i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (items[active]) pick(items[active]); }
+    else if (e.key === 'Escape' && !inline) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+  };
+
+  const list = (
+    <div className={`${inline ? 'w-full' : 'absolute left-0 top-full mt-1 z-50 w-full min-w-[15rem] shadow-lg'} rounded-lg border border-zinc-200 bg-white overflow-hidden text-left`}>
+      <div className="p-1.5 border-b border-zinc-100">
+        <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Search…" autoFocus={autoFocus || inline}
+          className="w-full h-7 rounded-md border border-zinc-200 px-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
+      </div>
+      <ul ref={listRef} role="listbox" className="max-h-60 overflow-y-auto py-1 text-[13px]">
+        {items.map((o, i) => (
+          <li key={`${o.clear ? '__clear' : o.value}`} data-i={i} role="option" aria-selected={o.value === value}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)} onMouseEnter={() => setActive(i)}
+            className={`px-2.5 py-1.5 cursor-pointer whitespace-normal leading-snug ${i === active ? 'bg-navy-50' : ''} ${o.value === value && !o.clear ? 'font-semibold text-navy-800' : o.clear ? 'text-zinc-400' : 'text-zinc-800'} ${o.pinned ? 'border-b border-zinc-100' : ''}`}>
+            {o.label}{o.hint && <span className="ml-1 text-zinc-400 font-normal">{o.hint}</span>}
+          </li>
+        ))}
+        {!hits.length && q && <li className="px-2.5 py-1.5 text-zinc-400">No match for “{q}”</li>}
+      </ul>
+    </div>
+  );
+  if (inline) return <div ref={box} className={className}>{list}</div>;
+  return (
+    <div ref={box} className={`relative ${className}`}>
+      <button type="button" disabled={disabled} autoFocus={autoFocus} onClick={() => setOpen((x) => !x)}
+        onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); } }}
+        className="w-full h-8 flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200">
+        <span className={`flex-1 min-w-0 truncate ${current ? '' : 'text-zinc-400'}`}>{renderValue ? renderValue(current) : current ? current.label : placeholder}</span>
+        <span className="text-[10px] text-zinc-400">▾</span>
+      </button>
+      {open && list}
+    </div>
+  );
+}

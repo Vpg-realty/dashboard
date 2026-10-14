@@ -31,9 +31,9 @@ export function pretty(key, v) {
 }
 
 export const PILL_TONE = {
-  green: 'bg-[#EEF8F1] text-[#166534] ring-[#BFE3CB]',
+  green: 'bg-[#EEF8F1] text-[#14532D] ring-[#9FD4B1]',
   red: 'bg-[#FDF1F0] text-[#B42318] ring-[#F5C2BD]',
-  amber: 'bg-[#FFF7E6] text-[#9A5B07] ring-[#F5D9A8]',
+  amber: 'bg-[#FFF7E6] text-[#8A4B05] ring-[#EDC27A]',
   blue: 'bg-[#EFF5FF] text-[#1D4ED8] ring-[#C7D9FB]',
   navy: 'bg-navy-50 text-navy-800 ring-navy-100',
   grey: 'bg-zinc-50 text-zinc-600 ring-zinc-200',
@@ -48,7 +48,6 @@ export function toneOf(key, v) {
     case 'status': return { PENDING: 'amber', COMPLETE: 'green', CANCELLED: 'red' }[x] || 'grey';
     case 'emdStatus': return { COMPLETE: 'green', PENDING: 'red' }[x] || 'grey';
     case 'emdPaidBy': return x === 'PENDING' ? 'amber' : 'navy';
-    case 'dispoTeam': return x === 'PENDING' ? 'amber' : x === 'VPG' ? 'navy' : 'grey';
     case 'cfar': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';
     case 'emdReturned': return x === 'NO' ? 'red' : x === 'YES' ? 'green' : 'grey';
     case 'commPaid': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';
@@ -60,5 +59,5 @@ export function toneOf(key, v) {
 }
 
 // Columns shown as pills (dropdown values worth scanning down a column).
-export const PILL_KEYS = new Set(['status', 'emdStatus', 'emdPaidBy', 'dispoTeam', 'cfar', 'emdReturned', 'commPaid', 'retrade', 'dealType', 'listing']);
+export const PILL_KEYS = new Set(['status', 'emdStatus', 'emdPaidBy', 'cfar', 'emdReturned', 'commPaid', 'retrade', 'dealType', 'listing']);
 

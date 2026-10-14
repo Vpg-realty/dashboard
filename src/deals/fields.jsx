@@ -1,33 +1,35 @@
 // Inputs for deal fields — used by the deal panel and for editing right in
-// the All deals table (Luke, Oct 14).
+// the All deals table (Luke, Oct 14). Every dropdown is the one searchable
+// list (SearchSelect: search box on top, options A → Z). "-" or "—" typed in
+// any box means "no data"; empty shows as "—" (a 0 is data).
 import { useState } from 'react';
-import { selectCls } from './format.js';
 import { LIST_OF, FIXED_LISTS, ISO, norm, optionLabel } from './fieldLib.js';
 import { pretty } from './values.js';
+import { isBlank } from './math.js';
+import { endTimeOf, parseEndTime, zoneLabel } from './ddTime.js';
+import SearchSelect from './SearchSelect.jsx';
 
-export function PickOrType({ value, onChange, options, base, autoFocus }) {
+const CUSTOM = '__custom';
+const dashToNull = (v) => (isBlank(v) ? null : v);
+
+// Buyer and title agency: a past entry, or "✎ Custom — type it in".
+export function PickOrType({ value, onChange, options, base, autoFocus, inline }) {
   const current = typeof value === 'string' ? value : '';
   const match = options.find((o) => norm(o.value) === norm(current));
   const [custom, setCustom] = useState(!!current && !match);
-  const sel = custom ? '__custom' : match ? match.value : '';
+  const sel = custom ? CUSTOM : match ? match.value : null;
+  const opts = options.map((o) => ({ value: o.value, label: optionLabel(o.value), hint: o.n > 1 ? `(${o.n} deals)` : '', search: o.value }));
   return (
     <div className="flex flex-col gap-1.5">
-      <select value={sel} autoFocus={autoFocus} onChange={(e) => {
-        const v = e.target.value;
-        if (v === '__custom') { setCustom(true); return; }
-        setCustom(false);
-        onChange(v || null);
-      }} className={`${selectCls} w-full h-8 rounded-md disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200`}>
-        <option value="">—</option>
-        <option value="__custom">✎ Custom — type it in</option>
-        {options.length > 0 && (
-          <optgroup label="Used before">
-            {options.map((o) => <option key={o.value} value={o.value}>{optionLabel(o.value)}{o.n > 1 ? ` (${o.n} deals)` : ''}</option>)}
-          </optgroup>
-        )}
-      </select>
+      <SearchSelect value={sel} options={opts} pinned={[{ value: CUSTOM, label: '✎ Custom — type it in' }]} autoFocus={autoFocus} inline={inline && !custom}
+        renderValue={(o) => (o ? o.label : '—')}
+        onChange={(v) => {
+          if (v === CUSTOM) { setCustom(true); return; }
+          setCustom(false);
+          onChange(v || null);
+        }} />
       {custom ? (
-        <textarea value={current} autoFocus={!current} rows={Math.min(5, Math.max(3, current.split('\n').length))} onChange={(e) => onChange(e.target.value)}
+        <textarea value={current} autoFocus={!current} rows={Math.min(5, Math.max(3, current.split('\n').length))} onChange={(e) => onChange(dashToNull(e.target.value) ?? '')}
           placeholder={'Company\nContact name\nemail@…\nphone'} className={`${base} h-auto py-1.5 leading-snug`} />
       ) : match && (
         <div className="whitespace-pre-line rounded-md bg-zinc-50 px-2 py-1.5 text-[12.5px] text-zinc-600 leading-snug">{match.value}</div>
@@ -35,22 +37,61 @@ export function PickOrType({ value, onChange, options, base, autoFocus }) {
     </div>
   );
 }
-export function Input({ f, value, onChange, lists, disabled, past, autoFocus }) {
-  const base = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
+
+// Money / numbers as text, so "-" can mean "no data" and "$1,200" reads.
+const parseNum = (t) => {
+  const x = String(t).replace(/[$,\s]/g, '');
+  return /^-?\d*\.?\d+$/.test(x) ? Number(x) : null;
+};
+function NumberInput({ f, value, onChange, base, autoFocus, disabled }) {
+  const shown = typeof value === 'number' ? String(value) : '';
+  const [text, setText] = useState(shown);
+  const [was, setWas] = useState(shown);
+  if (shown !== was) { setWas(shown); if (parseNum(text) !== value) setText(shown); }
+  const bad = text.trim() && !isBlank(text) && parseNum(text) == null;
+  return (
+    <div className="relative">
+      {f.type === 'money' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400">$</span>}
+      <input type="text" inputMode="decimal" autoFocus={autoFocus} disabled={disabled} value={text} placeholder={typeof value === 'string' && value ? value : '—'}
+        onChange={(e) => {
+          const t = e.target.value;
+          setText(t);
+          if (isBlank(t)) onChange(null);
+          else { const n = parseNum(t); if (n != null) onChange(n); }
+        }}
+        title={bad ? 'Not a number — type digits, or "-" for no data' : undefined}
+        className={`${base} tabular-nums ${f.type === 'money' ? 'pl-5' : ''} ${bad ? 'border-[#F5C2BD] ring-1 ring-[#F5C2BD]' : ''}`} />
+    </div>
+  );
+}
+
+// End time: a time picker; older free text it can't read stays visible.
+function TimeInput({ value, onChange, base, autoFocus, disabled, deal }) {
+  const p = parseEndTime(value, deal?.state);
+  const unread = value && !p.time;
+  return (
+    <div className="flex flex-col gap-1">
+      <input type="time" autoFocus={autoFocus} disabled={disabled} value={p.time || ''} onChange={(e) => onChange(e.target.value || null)} className={base} />
+      {value && value !== p.time && (
+        <span className="text-[11.5px] text-zinc-500">{unread ? 'Typed in the sheet (not read):' : 'From the sheet:'} “{value}”</span>
+      )}
+    </div>
+  );
+}
+
+const BASE = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
+
+// `inline`: a dropdown opens in place (table cells). `deal`: the deal being
+// edited (for the end time / time zone defaults).
+export function Input({ f, value, onChange, lists, disabled, past, autoFocus, inline, deal }) {
+  const base = BASE;
   const v = value ?? '';
-  if (past) return <PickOrType value={value} onChange={onChange} options={past} base={base} autoFocus={autoFocus} />;
+  if (past) return <PickOrType value={value} onChange={onChange} options={past} base={base} autoFocus={autoFocus} inline={inline} />;
   if (f.type === 'longtext') {
-    return <textarea value={v} autoFocus={autoFocus} disabled={disabled} rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(e.target.value)} className={`${base} h-auto py-1.5 leading-snug`} />;
+    return <textarea value={v} autoFocus={autoFocus} disabled={disabled} placeholder="—" rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(dashToNull(e.target.value))} className={`${base} h-auto py-1.5 leading-snug`} />;
   }
-  if (f.type === 'money' || f.type === 'number') {
-    return (
-      <div className="relative">
-        {f.type === 'money' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400">$</span>}
-        <input type="number" step="any" inputMode="decimal" autoFocus={autoFocus} disabled={disabled} value={typeof v === 'number' ? v : v === '' ? '' : ''} placeholder={typeof v === 'string' && v ? v : ''}
-          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} className={`${base} tabular-nums ${f.type === 'money' ? 'pl-5' : ''}`} />
-      </div>
-    );
-  }
+  if (f.type === 'money' || f.type === 'number') return <NumberInput f={f} value={value} onChange={onChange} base={base} autoFocus={autoFocus} disabled={disabled} />;
+  if (f.type === 'time') return <TimeInput value={value} onChange={onChange} base={base} autoFocus={autoFocus} disabled={disabled} deal={deal} />;
   if (f.type === 'date') {
     const text = v && !ISO.test(v);
     return (
@@ -63,13 +104,13 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus }) 
   const opts = FIXED_LISTS[f.key] || lists?.[LIST_OF[f.key]];
   if (opts) {
     const all = v && !opts.includes(v) ? [...opts, v] : opts;
+    // Time zone: empty → the deal's state's zone (shown as the default).
+    const fallback = f.key === 'ddEndTz' && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
     return (
-      <select value={v} autoFocus={autoFocus} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={`${selectCls} w-full h-8 rounded-md disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200`}>
-        <option value="">—</option>
-        {all.map((o) => <option key={o} value={o}>{pretty(f.key, o)}</option>)}
-      </select>
+      <SearchSelect value={v || null} disabled={disabled} autoFocus={autoFocus} inline={inline} onChange={(x) => onChange(x || null)}
+        placeholder={fallback ? `${zoneLabel(fallback)} (from the state)` : '—'} sort={f.key !== 'ddEndTz'}
+        options={all.map((o) => ({ value: o, label: pretty(f.key, o) }))} />
     );
   }
-  return <input value={v} autoFocus={autoFocus} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={base} />;
+  return <input value={v} autoFocus={autoFocus} disabled={disabled} placeholder="—" onChange={(e) => onChange(dashToNull(e.target.value))} className={base} />;
 }
-

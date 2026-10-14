@@ -29,6 +29,9 @@ export const FIELDS = [
   ['title', 'Title agency', 'title', 'longtext'],
   ['escrow', 'Escrow #', 'title', 'text'],
   ['emd', 'EMD amount', 'emd', 'money'],
+  // Luke, Oct 14: how much earnest money the buyer placed — reference only,
+  // no formula uses it (shown right of EMD amount).
+  ['buyerEmd', "Buyer's EMD", 'emd', 'money'],
   ['optionFee', 'Option fee amount', 'emd', 'money'],
   ['cfar', 'Cancel for any reason?', 'emd', 'list'],
   ['emdDue', 'EMD due date', 'emd', 'date', 'calc'],
@@ -38,12 +41,16 @@ export const FIELDS = [
   ['ddDays', '# of days', 'dd', 'number'],
   ['ddStart', 'Start', 'dd', 'date', 'calc'],
   ['ddEnd', 'End', 'dd', 'date', 'calc'],
-  ['ddEndTime', 'End time', 'dd', 'text'],
-  ['dispoTeam', 'Dispo team', 'dispo', 'list'],
-  ['dispoMember', 'Dispo member (if VPG)', 'dispo', 'person'],
+  // Luke, Oct 14: a time picker + time zone (ddTime.js). New values are
+  // "HH:MM"; older free text ("5PM EDT") is read as it stands.
+  ['ddEndTime', 'End time', 'dd', 'time'],
+  ['ddEndTz', 'Time zone', 'dd', 'list'],
+  // "Dispo team" is gone (Luke, Oct 14: VPG always sells the deal) — the
+  // stored value is only still read by compute() for closed deals.
+  ['dispoMember', 'Dispo member', 'dispo', 'person'],
   // Owners only (Luke, Oct 14: buyer names are for Jack and Luke, so they
   // can't walk out the door with the reps).
-  ['buyer', 'Buyer (if VPG)', 'dispo', 'longtext', null, 'secret'],
+  ['buyer', 'Buyer', 'dispo', 'longtext', null, 'secret'],
   ['asking', 'Asking price', 'dispo', 'money'],
   ['vpgAssign', 'VPG assignment price', 'dispo', 'money'],
   ['finalAssign', 'Final assignment price', 'dispo', 'money'],
@@ -54,7 +61,10 @@ export const FIELDS = [
   ['netAssign', 'Net assignment', 'money', 'money', 'calc'],
   ['emdReturn', 'EMD – return', 'money', 'money', 'calc'],
   ['wireExpected', 'Total wire expected', 'money', 'money', 'calc'],
+  // Bookkeeping (BOOKS_KEYS): locked until COE, then a task for owners.
   ['wireReceived', 'Total wire received', 'money', 'money'],
+  ['wireDate', 'Wire date received', 'money', 'date'],
+  ['emdReturned', 'EMD returned?', 'money', 'list'],
   ['commBase', 'Commission base', 'pay', 'money', 'calc', 'secret'],
   ['acqComm', 'Acq. manager commission', 'pay', 'money', 'calc', 'secret'],
   ['dispoComm', 'Dispo commission', 'pay', 'money', 'calc', 'secret'],
@@ -63,9 +73,7 @@ export const FIELDS = [
   ['tcComm', 'TC commission', 'pay', 'money', 'calc', 'secret'],
   ['grossProfit', 'Gross profit', 'pay', 'money', 'calc', 'secret'],
   ['netProfit', 'Net profit', 'pay', 'money', 'calc', 'secret'],
-  ['wireDate', 'Wire date received', 'books', 'date'],
-  ['emdReturned', 'EMD returned?', 'books', 'list'],
-  ['commPaid', 'Commission paid', 'books', 'list', null, 'secret'],
+  ['commPaid', 'Commission paid', 'pay', 'list', null, 'secret'],
   ['notes', 'Notes', 'notes', 'longtext'],
   // Luke, Oct 14: "Zillow link"; filled in automatically for new deals.
   ['links', 'Zillow link', 'notes', 'longtext'],
@@ -77,8 +85,40 @@ export const CALC_KEYS = FIELDS.filter((f) => f.calc).map((f) => f.key);
 
 export const GROUPS = [
   ['contract', 'Contract'], ['title', 'Title'], ['emd', 'EMD'], ['dd', 'Due diligence'],
-  ['dispo', 'Dispositions'], ['money', 'Financials'], ['pay', 'Commissions & profit'], ['books', 'Bookkeeping'], ['notes', 'Notes & links'],
+  ['dispo', 'Dispositions'], ['money', 'Financials'], ['pay', 'Commissions & profit'], ['notes', 'Notes & links'],
 ];
+
+// "No data" (Luke, Oct 14): empty, null or a dash. A 0 is data.
+const DASHES = new Set(['', '-', '—', '–']);
+export const isBlank = (v) => v == null || (typeof v === 'string' && DASHES.has(v.trim()));
+
+// Bookkeeping (Luke, Oct 14): wire date / received, EMD returned and
+// commission paid sit in Financials / Commissions & profit, locked until the
+// COE date is reached (Arizona) or the deal is closed (or cancelled — its
+// EMD return still counts) — then they're a task for owners (required.js, "At COE — fill in bookkeeping").
+export const BOOKS_KEYS = ['wireReceived', 'wireDate', 'emdReturned', 'commPaid'];
+export const azToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(now);
+export function booksOpen(d, today = azToday()) {
+  const st = String(d?.status || '').toUpperCase();
+  // Closed — and cancelled, whose EMD return still has to be recorded.
+  if (st === 'COMPLETE' || st === 'CANCELLED') return true;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d?.coe || '') && today >= d.coe;
+}
+
+// Retrade (Luke, Oct 14): switching it to Yes keeps the price as the
+// "Original contracted price" (unless one is already there) and sets the
+// contracted price to 0, so the new price has to be typed in. The one place
+// for this move — the deal panel and the All deals cells both use it.
+export function retradeFields(deal, value) {
+  const out = { retrade: value };
+  if (String(value ?? '').toUpperCase() === 'Y' && String(deal?.retrade ?? '').toUpperCase() !== 'Y') {
+    if (isBlank(deal?.originalPrice) && !isBlank(deal?.price)) out.originalPrice = deal.price;
+    out.price = 0;
+  }
+  return out;
+}
+// A retraded deal whose new price hasn't been typed in yet.
+export const retradePending = (d) => String(d?.retrade ?? '').toUpperCase() === 'Y' && d?.price === 0;
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
 const is = (x, y) => up(x) === up(y);
@@ -116,6 +156,17 @@ export function pickRules(rules, deal) {
   return pick.rules;
 }
 
+// "Charged when the deal is …" (the TC fee / commission rules): a deal
+// status, or ASSIGNED (Luke, Oct 14) = it has a VPG assignment price and
+// isn't cancelled — so the fee applies from assignment on.
+export const RULE_STATUSES = [['PENDING', 'Pending'], ['ASSIGNED', 'Assigned'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
+export const isAssigned = (d) => !is(d.status, 'CANCELLED') && num(d.vpgAssign) > 0;
+const statusIn = (d, list) => (list || []).some((s) => (is(s, 'ASSIGNED') ? isAssigned(d) : is(d.status, s)));
+// A closed deal with a dispo team on file keeps the sheet's formula for it
+// (VPG, or the 50/50 split for anyone else — the "PENDING" placeholder
+// included, as the sheet did), so closed numbers never move.
+const legacyDispo = (d) => is(d.status, 'COMPLETE') && !isBlank(d.dispoTeam);
+
 // The sheet's formulas, column by column (AE … AT, Q, V, W). `rules` and
 // `lists` come from D1. Returns the deal with every computed field filled.
 export function compute(deal, rules, lists) {
@@ -131,13 +182,17 @@ export function compute(deal, rules, lists) {
   set('ddEnd', addDays(d.accepted, num(d.ddDays)));
   set('netLoss', num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
   set('grossAssign', cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
-  set('tcFee', (r.tcFeeStatuses || []).some((s) => is(d.status, s)) ? num(r.tcFee) : 0);
+  set('tcFee', statusIn(d, r.tcFeeStatuses) ? num(r.tcFee) : 0);
+  // VPG always sells the deal now (Luke, Oct 14): net = gross − additional
+  // fees, no 50/50 split. Closed deals with a dispo team on file keep the
+  // sheet's formula for that team (legacyDispo).
   set('netAssign', cancelled ? 0
-    : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - num(d.addlFees)
-      : finders ? num(d.vpgAssign) - num(d.addlFees) * 0.5
-        : (num(d.vpgAssign) - num(d.price)) * 0.5 - num(d.addlFees) * 0.5);
+    : !legacyDispo(d) ? (finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price)) - num(d.addlFees)
+      : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - num(d.addlFees)
+        : finders ? num(d.vpgAssign) - num(d.addlFees) * 0.5
+          : (num(d.vpgAssign) - num(d.price)) * 0.5 - num(d.addlFees) * 0.5);
   set('emdReturn', is(d.emdPaidBy, 'VPG + BUYER') || is(d.emdPaidBy, 'VPG') ? num(d.emd) : is(d.emdPaidBy, 'BUYER') ? 'PAID BY BUYER' : 0);
-  set('wireExpected', finders ? num(d.vpgAssign) - num(d.addlFees) * 0.5 + num(d.emdReturn)
+  set('wireExpected', finders && legacyDispo(d) ? num(d.vpgAssign) - num(d.addlFees) * 0.5 + num(d.emdReturn)
     : d.emdReturn === 'PAID BY BUYER' ? num(d.netAssign)
       : cancelled ? num(d.emd) : num(d.netAssign) + num(d.emdReturn));
   set('commBase', cancelled ? 0 : num(d.netAssign) - num(d.tcFee));
@@ -155,7 +210,7 @@ export function compute(deal, rules, lists) {
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];
   set('override', o.name && is(d.status, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
-  set('tcComm', (r.tcCommStatuses || []).some((s) => is(d.status, s)) ? num(r.tcComm) : 0);
+  set('tcComm', statusIn(d, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);
   const emdLost = is(d.emdReturned, 'NO');
@@ -198,6 +253,7 @@ export function zillowUrl(address) {
 }
 export function forRep(deal) {
   const d = forTc(deal);
+  delete d.dispoTeam; // retired column, only read by compute()
   for (const f of FIELDS) if (!repSees(f)) { delete d[f.key]; delete d.fixed[f.key]; }
   return d;
 }

@@ -11,25 +11,30 @@
 // deal panel all read the same next step from here.
 import { pretty } from './values.js';
 import { laToday } from '../utils/historyRange.js';
+import { ipEndAlert } from './ddTime.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
 // The sheet's own pill colours (Pipeline tab conditional formats).
 export const TONES = {
-  red: { label: 'Act now', dot: 'bg-[#B42318]', bar: 'bg-[#B42318]', pill: 'bg-[#FDE2E1] text-[#B42318] ring-[#F6B8B3]', text: 'text-[#B42318]', soft: 'bg-[#FDE2E1]/60' },
-  amber: { label: 'Coming up', dot: 'bg-[#DC8A0E]', bar: 'bg-[#DC8A0E]', pill: 'bg-[#FEF0C7] text-[#B54708] ring-[#F8D98A]', text: 'text-[#B54708]', soft: 'bg-[#FEF0C7]/70' },
-  blue: { label: 'Find a buyer', dot: 'bg-[#1D4ED8]', bar: 'bg-[#1D4ED8]', pill: 'bg-[#DCEBFE] text-[#1D4ED8] ring-[#B5D0FB]', text: 'text-[#1D4ED8]', soft: 'bg-[#DCEBFE]/60' },
-  green: { label: 'On track', dot: 'bg-[#15803D]', bar: 'bg-[#15803D]', pill: 'bg-[#DCFCE7] text-[#15803D] ring-[#A7E8BD]', text: 'text-[#15803D]', soft: 'bg-[#DCFCE7]/60' },
+  red: { label: 'Act now', dot: 'bg-[#B42318]', bar: 'bg-[#B42318]', pill: 'bg-[#FDE2E1] text-[#912018] ring-[#F09A93]', text: 'text-[#B42318]', soft: 'bg-[#FDE2E1]/60' },
+  amber: { label: 'Coming up', dot: 'bg-[#DC8A0E]', bar: 'bg-[#DC8A0E]', pill: 'bg-[#FEF0C7] text-[#93370D] ring-[#EBB64A]', text: 'text-[#B54708]', soft: 'bg-[#FEF0C7]/70' },
+  blue: { label: 'Find a buyer', dot: 'bg-[#1D4ED8]', bar: 'bg-[#1D4ED8]', pill: 'bg-[#DCEBFE] text-[#1E40AF] ring-[#93B8F6]', text: 'text-[#1D4ED8]', soft: 'bg-[#DCEBFE]/60' },
+  green: { label: 'On track', dot: 'bg-[#15803D]', bar: 'bg-[#15803D]', pill: 'bg-[#DCFCE7] text-[#14532D] ring-[#7FD19B]', text: 'text-[#15803D]', soft: 'bg-[#DCFCE7]/60' },
 };
 export const LEGEND = ['red', 'amber', 'blue', 'green'];
 
-const assigned = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
+// Assigned = a VPG assignment price is in (or a gross typed by hand). Until
+// Oct 14 this was "gross ≥ 0", which also counted a deal with no contract
+// price and no assignment yet (0 − 0) as assigned.
+export const assigned = (d) => (typeof d.vpgAssign === 'number' && d.vpgAssign > 0) || (typeof d.fixed?.grossAssign === 'number' && d.fixed.grossAssign > 0);
 
 // The deal's next step, by the sheet's Pipeline-tab rules in its order (and
 // its colours), plus closed / cancelled for deals that are done. `soon` =
-// closing within 7 days (the "Closing ≤ 7 days" tile).
-export function nextStep(d, today = laToday()) {
+// closing within 7 days (the "Closing ≤ 7 days" tile). `now` (ms) is for the
+// IP-end alert, which goes by the exact end time (ddTime.js).
+export function nextStep(d, today = laToday(), now = Date.now()) {
   const st = String(d.status || '').toUpperCase();
   if (st === 'COMPLETE') return { text: 'Closed', tone: 'green', done: true };
   if (st === 'CANCELLED') return { text: 'Cancelled', tone: 'red', done: true };
@@ -37,14 +42,21 @@ export function nextStep(d, today = laToday()) {
   const toDd = ISO.test(d.ddEnd || '') ? daysBetween(today, d.ddEnd) : null;
   const asg = assigned(d);
   if (toCoe != null && toCoe < 0) return { text: `Past COE by ${-toCoe}d — update status`, tone: 'red', fields: ['coe', 'status'] };
+  // The IP ends within 48 h with no buyer (ddTime.js) — before the EMD
+  // checks: it's the one with a clock on it.
+  const ip = asg ? null : ipEndAlert(d, now);
+  if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime', 'vpgAssign'], ip };
   if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdStatus', 'emdPaidBy'] };
   if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
   if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
   if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
   if (!asg) return { text: 'Find buyer', tone: 'blue', fields: ['vpgAssign'] };
   if (toCoe == null) return { text: 'Set COE date', tone: 'amber', fields: ['coe'] };
-  if (toCoe === 0) return { text: 'Closing today — confirm title', tone: 'amber', soon: true, fields: ['coe', 'title'] };
-  if (toCoe <= 7) return { text: `Closing in ${toCoe}d — confirm title`, tone: 'amber', soon: true, fields: ['coe', 'title'] };
+  // A reminder for the TC to check in with title that closing is on track
+  // (Luke, Oct 14) — it only points at Title agency when none is on file.
+  const titleTask = d.title && String(d.title).trim() ? [] : ['title'];
+  if (toCoe === 0) return { text: 'Closing today — TC: check in with title', tone: 'amber', soon: true, fields: titleTask };
+  if (toCoe <= 7) return { text: `Closing in ${toCoe}d — TC: check in with title`, tone: 'amber', soon: true, fields: titleTask };
   return { text: 'On track', tone: 'green' };
 }
 

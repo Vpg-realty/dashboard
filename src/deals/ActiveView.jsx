@@ -11,7 +11,6 @@
 // Rows stay in place while you edit (useFrozenOrder); "Re-sort now" applies
 // the new order. Under the lists, deals GoHighLevel has under contract that
 // aren't in the tracker yet, one click to add (fields filled from GHL).
-import { ValuePill } from './pills.jsx';
 import { PILL_TONE } from './values.js';
 import { useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.js';
@@ -24,22 +23,29 @@ import { FIELD } from './math.js';
 import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { nextStep, daysBetween, TONES, LEGEND, dueTone, DUE_KEY, emdCell, daysTone } from './status.js';
+import { nextStep, assigned, daysBetween, TONES, LEGEND, dueTone, DUE_KEY, emdCell, daysTone } from './status.js';
 import { needsInfo, CATEGORIES } from './required.js';
+import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : '—');
-const street = (a) => String(a || '').split(',')[0];
 const TONE_TEXT = { red: 'text-[#B42318] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-[#15803D] font-semibold' };
-const isAsg = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
+const isAsg = assigned; // a VPG assignment price is in (status.js)
 // The two lists, each marked with its colour dot (green = assigned, blue = needs a buyer).
 const SECTION = {
   assigned: { title: 'Assigned — headed to close', band: '#15803D' },
   needs: { title: 'Needs a buyer — in due diligence', band: '#1D4ED8' },
 };
+
+// An edited row stays where it was (useFrozenOrder) — a small tag says it
+// would move on a re-sort, instead of fading the row (Luke, Oct 14: faded
+// rows were hard to read).
+function StaleTag({ moved }) {
+  return <span title="Changed since the list was sorted — Re-sort now puts it in its place" className="ml-1.5 inline-block align-middle rounded px-1 text-[10.5px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200 whitespace-nowrap">{moved || 'changed'} · re-sort</span>;
+}
 
 function Legend() {
   return (
@@ -71,9 +77,9 @@ function Section({ id, rows, cols, sub, onOpen, empty }) {
             </thead>
             <tbody>
               {rows.map((d, ri) => (
-                <tr key={d.id} className={`border-t border-[#E5E9F0] hover:bg-tan-50 ${d._stale ? 'opacity-60' : ''}`} style={ri % 2 ? { background: '#F8FAFC' } : undefined}>
+                <tr key={d.id} className="border-t border-[#E5E9F0] hover:bg-tan-50" style={ri % 2 ? { background: '#F8FAFC' } : undefined}>
                   {cols.map((c, i) => (
-                    <td key={c.label} className={`${i === 0 ? 'relative pl-5' : ''} px-2.5 py-2 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>
+                    <td key={c.label} className={`${i === 0 ? 'relative pl-5' : ''} px-2.5 py-2 ${c.wrap ? 'whitespace-normal' : 'whitespace-nowrap'} ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>
                       {i === 0 && <span className={`absolute left-0 top-1 bottom-1 w-1 rounded-r ${TONES[d.step.tone].bar}`} />}
                       {c.get(d, onOpen)}
                     </td>
@@ -118,8 +124,8 @@ function NeedsInfo({ groups, onOpen, total }) {
         </thead>
         <tbody>
           {items.map(({ d, fields }, i) => (
-            <tr key={d.id} className={`border-t border-[#E5E9F0] ${d._stale ? 'opacity-60' : ''}`} style={i % 2 ? { background: '#F8FAFC' } : undefined}>
-              <td className="pl-5 px-3 py-1.5 whitespace-nowrap"><button type="button" onClick={() => onOpen(d.id, 'need')} className="font-semibold text-navy-800 hover:underline underline-offset-2 max-w-[300px] truncate text-left">{street(d.address)}</button></td>
+            <tr key={d.id} className="border-t border-[#E5E9F0]" style={i % 2 ? { background: '#F8FAFC' } : undefined}>
+              <td className="pl-5 px-3 py-1.5 min-w-[220px]"><button type="button" onClick={() => onOpen(d.id, 'need')} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{d.address}</button>{d._stale && <StaleTag />}</td>
               <td className="px-3 py-1.5 whitespace-nowrap"><Person name={d.acq} /></td>
               <td className="px-3 py-1.5 whitespace-nowrap text-[12px]">{d.ghlStage ? <span className="rounded px-1.5 py-0.5 font-semibold text-violet-800 bg-violet-100/80">{d.ghlStage}</span> : <span className="text-zinc-400">—</span>}</td>
               <td className="px-3 py-1.5"><NeedChips fields={fields} labels={LABEL} onPick={(k) => onOpen(d.id, k)} /></td>
@@ -210,19 +216,21 @@ export default function ActiveView() {
   // EMD as a pill like the other statuses (Luke, Oct 14: cleaner, proper case).
   const EMD_PILL = { green: 'green', red: 'red', amber: 'amber' };
   const emd = (d) => { const e = emdCell(d); const t = EMD_PILL[e.tone]; return t ? <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t]}`}>{e.text === '✓' ? 'In' : e.text}</span> : <span className="text-zinc-700">{e.text}</span>; };
+  // The full address, wrapping when it's long (Luke, Oct 14: no "…").
   const property = (d, onOpen) => (
-    <span className="inline-flex items-center gap-2 max-w-[300px]">
-      <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 truncate text-left" title="Open the full deal">{street(d.address)}</button>
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-[200px] max-w-[300px]">
+      <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left break-words" title="Open the full deal">{d.address}</button>
       {ed && d._needs.length > 0 && <button type="button" onClick={() => onOpen(d.id, 'need')} title="What's missing" className="shrink-0 rounded px-1 text-[10.5px] font-bold bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD]">{new Set(d._needs.flatMap((x) => x.fields)).size} missing</button>}
+      {d._stale && <StaleTag moved={isAsg(d) !== (d._group === 'assigned') ? (isAsg(d) ? 'now assigned' : 'no buyer now') : null} />}
     </span>
   );
   // The sheet's Pipeline-tab columns. Assigned: next step, property, acq →
   // dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
-  // (Luke, Oct 14), gross. Needs a buyer: …, EMD, DD end, dispo team, title,
-  // contract.
+  // (Luke, Oct 14), gross. Needs a buyer: …, EMD, DD end (with its time),
+  // title, contract (no dispo team — VPG sells every deal).
   const assignedCols = [
     { label: 'Next step', get: (d) => <StepPill step={d.step} /> },
-    { label: 'Property', get: property },
+    { label: 'Property', get: property, wrap: true },
     { label: 'Acq → Dispo', get: (d) => <span className="inline-flex items-center gap-1.5"><Person name={d.acq} /><span className="text-zinc-400">→</span><Person name={d.dispoMember} /></span> },
     { label: 'State', get: (d) => stateCode(d.state) },
     { label: 'COE', get: (d) => edit('coe', d, coeChip(d)) },
@@ -237,18 +245,19 @@ export default function ActiveView() {
   ];
   const needsCols = [
     { label: 'Next step', get: (d) => <StepPill step={d.step} /> },
-    { label: 'Property', get: property },
+    { label: 'Property', get: property, wrap: true },
     { label: 'Acq. manager', get: (d) => <Person name={d.acq} full /> },
     { label: 'State', get: (d) => stateCode(d.state) },
     { label: 'COE', get: (d) => edit('coe', d, coeChip(d)) },
     { label: 'Days', right: true, get: daysCell },
     { label: 'EMD', get: emd },
-    { label: 'DD end', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? TONE_TEXT[n < 0 ? 'red' : 'amber'] : ''}>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>; } },
-    { label: 'Dispo team', get: (d) => edit('dispoTeam', d, <ValuePill k="dispoTeam" v={d.dispoTeam} caret={ed} />) },
+    { label: 'DD end', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? TONE_TEXT[n < 0 ? 'red' : 'amber'] : ''}>{d.ddEnd ? shortDate(d.ddEnd) : '—'}{d.ddEnd && d.ddEndTime ? <span className="ml-1 text-[12px] font-normal text-zinc-500">{showEndTime(d)}</span> : null}</span>; } },
     { label: 'Title', get: (d) => edit('title', d, firstLine(d.title)), cls: 'max-w-[190px] truncate text-zinc-700' },
     { label: 'Contract', right: true, get: (d) => edit('price', d, money(d.price)) },
   ];
   const rows = frozen.rows;
+  // IP / DD ends within 48 hours and still no buyer (ddTime.js ipEndAlert).
+  const ipSoon = act.map((d) => ({ ...d, ip: ipEndAlert(d) })).filter((d) => d.ip && (!mineOnly || d.mine)).sort((a, b) => a.ip.at - b.ip.at);
   const assigned = rows.filter((d) => d._group === 'assigned');
   const needs = rows.filter((d) => d._group === 'needs');
   // Needs info grouped by category, in the frozen order.
@@ -268,7 +277,7 @@ export default function ActiveView() {
           </span>
         )}
         <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
-        {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', dispoTeam: 'PENDING', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
+        {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <Tiles cols={ed ? 7 : 6}>
         <Tile label="Active deals" value={tiles.active} onClick={() => setOnly(null)} active={!only} />
@@ -282,6 +291,24 @@ export default function ActiveView() {
       {only && <div className="mt-3 text-zinc-500">Showing only: {{ emd: 'EMD at risk', past: 'past COE', soon: 'closing within 7 days' }[only]} · <button onClick={() => setOnly(null)} className="text-blue-600 hover:underline">show all</button></div>}
       <div className="mt-4 flex flex-wrap items-center gap-3"><Legend /><span className="ml-auto"><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
       <div className="mt-3 flex flex-col gap-5">
+        {ipSoon.length > 0 && (
+          <section className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] overflow-hidden">
+            <div className="px-5 py-2.5 border-b border-[#F5C2BD] text-[#7A271A]">
+              <span className="font-semibold">IP ends within 48 hours — no buyer yet</span>
+              <span className="ml-2 text-[12.5px]">Find a buyer or cancel before the inspection period ends.</span>
+            </div>
+            <ul className="divide-y divide-[#F5C2BD]/60">
+              {ipSoon.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 bg-white/60">
+                  <StepPill step={{ text: d.ip.text, tone: d.ip.tone }} />
+                  <button type="button" onClick={() => open(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{d.address}</button>
+                  <Person name={d.acq} />
+                  <span className="text-zinc-600 text-[12.5px]">ends {new Date(d.ip.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} AZ</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {ed && needGroups.length > 0 && <NeedsInfo groups={needGroups} onOpen={open} total={needFrozen.rows.length} />}
         <Section id="assigned" rows={assigned} cols={assignedCols} onOpen={open} empty="No assigned deals."
           sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (isAsg(d) ? d.grossAssign : 0), 0))} gross assignment`} />
