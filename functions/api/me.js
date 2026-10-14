@@ -1,4 +1,4 @@
-// GET /api/me → { email, name, role } for the signed-in person.
+// GET /api/me → { email, name, role, rep_id } for the signed-in person.
 import { currentUser, json } from '../../edge/auth.js';
 
 export async function onRequestGet(context) {

@@ -60,7 +60,7 @@ export async function verifiedClaims(request) {
   }
 }
 
-// { email, name, role } for the signed-in person; role 'none' if they got
+// { email, name, role, rep_id } for the signed-in person; role 'none' if they got
 // past Access but aren't in the users table; role 'service' for the build's
 // service token. null = not signed in.
 // DEV_EMAIL is for `wrangler pages dev` on a laptop only — it is never set
@@ -72,7 +72,7 @@ export async function currentUser({ request, env }) {
   }
   const email = typeof claims?.email === 'string' ? claims.email.toLowerCase() : (env.DEV_EMAIL ? String(env.DEV_EMAIL).toLowerCase() : null);
   if (!email) return null;
-  const row = await env.DB.prepare('SELECT email, name, role FROM users WHERE email = ?').bind(email).first();
+  const row = await env.DB.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(email).first();
   return row || { email, name: email, role: 'none' };
 }
 

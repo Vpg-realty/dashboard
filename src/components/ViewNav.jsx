@@ -17,8 +17,9 @@ const LABELS = {
 // shown in the rotation. They replaced the Advanced tab. Only managers and
 // owners get the Manager group (Luke, Oct 14: everyone else, the TV
 // included, sees what the TV shows and nothing else).
-export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
-  const showManager = canGrade(useMe());
+export default function ViewNav({ active, onChange, cycleIntervalMs = 10000, tvOnly = false }) {
+  const isManager = canGrade(useMe());
+  const showManager = isManager && !tvOnly;
   const tab = (v, manager) => (
     <button
       key={v}

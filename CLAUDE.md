@@ -122,19 +122,19 @@ picks up `functions/` from the repo root), D1 bound as `DB` on the Pages
 project (production + preview). `edge/auth.js` verifies the Access JWT
 (`Cf-Access-Jwt-Assertion` / `CF_Authorization` cookie) against the team's
 certs and the app's AUD, then looks the email up in D1 `users (email, name,
-role)`: owner (Luke, Jack), manager (Anthony, Sam), team (reps, Aiza — tc@),
-tv (info@). Never trust a plain email header. `DEV_EMAIL` is a local
+role, rep_id)`: owner (Luke, Jack), manager (Anthony, Sam), tc (Aiza — tc@),
+team (reps), tv (info@); `rep_id` ties a person to their rep in
+subaccounts.json (Home scoping, pods). Never trust a plain email header. `DEV_EMAIL` is a local
 `wrangler pages dev` override only — never set it on the project.
-- `GET /api/me` → { email, name, role }.
+- `GET /api/me` → { email, name, role, rep_id }.
 - `GET/POST /api/scorecard-edits` (owner / manager only; reps get 403 and
   never receive notes): D1 `scorecard_edits (week, rep_id, crm, note,
   updated_by, updated_at)`, `scorecard_reviews (week, reviewed_by,
   reviewed_at)`; POST merges per rep and field and signs the week as
   reviewed by whoever saved; every save goes to `edit_log`.
 **Who sees what** (Luke, Oct 14: "non managers and owners only see what is
-presented on the TV, nothing else"): reps, Aiza and the TV get the TV tabs
-only — no Manager group (ViewNav), no Refresh / Sub-Accounts buttons
-(Header), and App.jsx sends anyone without the role off a manager view.
+presented on the TV, nothing else"): reps, Aiza and the TV get the TV
+boards only — no Team section, no Refresh / Sub-Accounts (see App shell).
 Enforced on the server too: `functions/_middleware.js` refuses
 `data-mgr.json`, `scorecards.json`, `messaging-review.json` and
 `month-log.json` to anyone but owners, managers and the build's service
@@ -152,8 +152,47 @@ Browser: `src/utils/dashApi.js` (`useMe`, `loadMe`, `canGrade`). On a local
 mock `/api/me` with Playwright `page.route` to see the manager tabs. Tests: the
 endpoints run in Node against node:sqlite with a locally signed JWT
 (forged / tampered / expired / wrong-app tokens rejected). Role-based tab
-visibility and the deal tracker come next; the Sub-Accounts panel still
-uses its GitHub token for now.
+visibility is the App shell below; the Sub-Accounts panel still uses its
+GitHub token for now.
+
+## App shell (Luke, Oct 14)
+
+Luke: "super easy to navigate", like a professional app (Linear / Stripe
+style, the second mockup). `src/App.jsx` only picks the experience:
+- **TV mode** (`src/shell/TvMode.jsx`, the old App.jsx): the office TV
+  (role tv), anyone opening `/tv`, and anyone /api/me doesn't know get the
+  rotating full-screen board exactly as before, TV tabs only. Owners and
+  managers open it from "TV mode" in the sidebar; a "← Back to app" button
+  returns.
+- **The app** (`src/shell/AppShell.jsx`) for everyone else: a sidebar of
+  sections (collapsible, `vpg.sidebarCollapsed`), the section's tabs along
+  the top, a breadcrumb, "Updated N min ago", Refresh (owner / manager), a
+  phone bottom bar. Every page has its own URL (`/board/pipeline`,
+  `/team/scorecard?rep=danni_brown`) via a tiny history-API router
+  (`src/shell/router.js`, base = Vite's BASE_URL); ⌘-click opens new tabs;
+  `document.title` follows the page. Cloudflare Pages serves index.html for
+  unknown paths (SPA fallback), so deep links work.
+- **`src/shell/sections.js`** is the one map: sections, their tabs (each
+  tab = an existing view key), who sees them. Home + Board (Overview,
+  Pipeline, Conversations, Agents, Opportunities) for everyone; Team
+  (Scorecard, Coaching, Month in Review) for owner / manager. A link a role
+  can't open falls back to the section's first tab, then Home. Add Deals
+  (owner + tc; tc without commission / profit), Territory (tc, manager,
+  owner) and Finance (owner) here when they're built — only working
+  sections are shown. Hiding is navigation only; the server still guards
+  the data (functions/_middleware.js).
+- **Home** (`HomeView.jsx`): greeting, this week's numbers vs target for
+  the person's scope (owner / tc = everyone, manager = own rep + their pod
+  from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
+  attention (key date late or within 3 days, Late / Today & tomorrow / Next
+  few days) and Wins this week.
+- **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
+  manager) and deals by address (→ Pipeline).
+- Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
+  blue "Manager view" strip isn't needed inside the app.
+- Phones: Board / Team pages are TV-sized, so each tab has a `phone` canvas
+  in sections.js (Pipeline / Opportunities stack into a tall scroll; the
+  wide ones keep the desktop layout and scroll sideways).
 
 ## Refresh cadence
 
@@ -653,7 +692,7 @@ Under `src/views/`:
   The old Advanced tab (per-sub-account drill-down) was removed; its
   past-period picker lives on in Rep.
 
-Rotation: the TV auto-rotates through views every 10s unless paused.
+Rotation (TV mode): the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
 Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). The Manager
 tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
