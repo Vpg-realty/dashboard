@@ -493,12 +493,9 @@ the server strips them (`forTc`) and refuses edits to them.
   bands (tan for the "Dispo % loss" pair), light column headers with a 3px
   accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
   slate; soft tints in the site's status colours, in the sheet's priority
-  order: net profit < 0 and EMD returned NO rose / bold red; commission paid
-  NO, additional fees > 0 and CFAR NO amber "check"; DD end today rose /
-  bold red, tomorrow sky (pending deals); cancelled row muted rose; closed
-  row soft green; on pending deals the EMD → VPG-assignment block soft green
-  (EMD complete) / soft rose (EMD pending); the status word itself green /
-  red / amber. A colour key sits above the table. **Proper case + pills**
+  order: net profit < 0 rose / bold red; commission paid NO and additional
+  fees > 0 amber "check"; DD end today rose / bold red, tomorrow sky
+  (pending deals); cancelled row muted rose; closed row soft green. A colour key sits above the table. **Proper case + pills**
   (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
   the GHL stage / people chips): `src/deals/values.js` (`pretty` — the
   words; `toneOf` / `PILL_TONE` — the colour; `PILL_KEYS` — which columns)
