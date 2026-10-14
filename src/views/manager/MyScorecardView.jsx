@@ -11,6 +11,7 @@ import { REPS } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import RepView from './RepView.jsx';
+import { PanelHead } from '../../shell/Panel.jsx';
 import LineChart from './LineChart.jsx';
 import { ScoreHelp } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
@@ -18,7 +19,7 @@ import { weekSeries, avgOf } from './trends.js';
 import { T, metrics, repPairs, scoreParts, scoreTone, paceTone } from './metrics.js';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
-const card = 'rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
+const card = 'rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
 
 function Ring({ score, estimate }) {
   const t = scoreTone(score);
@@ -89,9 +90,9 @@ function FixList({ pairs, monday, crm, manual }) {
   });
   const badge = (g) => (g == null ? 'bg-zinc-200 text-zinc-500' : g === 1 ? 'bg-amber-500 text-white' : 'bg-red-600 text-white');
   return (
-    <section className={`${card} p-5`}>
-      <h2 className="text-[15px] font-semibold text-navy-800">{rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'}</h2>
-      <div className="mt-3 flex flex-col gap-2.5">
+    <section className={card}>
+      <PanelHead title={rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'} />
+      <div className="p-5 flex flex-col gap-2.5">
         {rows.map(({ it, g, bad, more, note }) => (
           <div key={it.key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
             <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
@@ -139,14 +140,14 @@ function Trend({ sc, rep }) {
     ['Best week', best ? <span key="b" className="text-navy-800">{best.v} <span className="text-base font-medium text-zinc-500">{weeks[best.i].label}</span></span> : '—', 'border-tan-200 bg-white'],
   ];
   return (
-    <section className={`${card} p-5`}>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-        <h2 className="text-[15px] font-semibold text-navy-800">Your weekly score, last {weeks.length} weeks</h2>
-        <span className="ml-auto flex items-center gap-4 text-[12.5px] text-zinc-600">
+    <section className={card}>
+      <PanelHead title={`Your weekly score, last ${weeks.length} weeks`} right={(
+        <span className="flex items-center gap-4 text-[12.5px] text-zinc-600">
           <span className="inline-flex items-center gap-1.5 font-medium"><span className="w-5 h-1 rounded bg-navy-700" />You</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" />Team average</span>
         </span>
-      </div>
+      )} />
+      <div className="px-5 pb-5">
       <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map(([l, v, c]) => (
           <div key={l} className={`rounded-xl border px-4 py-3 ${c}`}>
@@ -165,6 +166,7 @@ function Trend({ sc, rep }) {
         />
       </div>
       <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Friday noon); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed line is the team's average score, for reference.</div>
+      </div>
     </section>
   );
 }

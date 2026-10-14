@@ -10,6 +10,7 @@ import { useDeals } from './store.js';
 import { PageHead, Loading } from './ui.jsx';
 import { money, compact } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
+import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { setQuery, navigate } from '../shell/router.js';
 
@@ -58,10 +59,7 @@ function Kpi({ label, value, now, then, pct, isMoney, sub, lowerIsBetter, tone }
 function Group({ title, dot, cols, children }) {
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <div className="flex items-center gap-2 px-5 py-2.5 border-b border-tan-100 bg-tan-50/60">
-        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
-        <span className="text-[12.5px] font-semibold text-navy-800">{title}</span>
-      </div>
+      <PanelHead title={<span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: dot }} />{title}</span>} />
       <div className={`grid grid-cols-2 ${cols}`}>{children}</div>
     </section>
   );
@@ -70,10 +68,7 @@ function Group({ title, dot, cols, children }) {
 function Breakdown({ title, sub, rows, cols }) {
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <div className="flex items-baseline gap-2 px-5 py-3.5 border-b border-tan-200">
-        <h2 className="text-[15px] font-semibold text-navy-800">{title}</h2>
-        {sub && <span className="text-zinc-500 text-[13px]">{sub}</span>}
-      </div>
+      <PanelHead title={title} sub={sub} />
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[14px]">
           <thead className="text-[12px] text-zinc-500 bg-tan-50/60"><tr>{cols.map((c, i) => <th key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr></thead>

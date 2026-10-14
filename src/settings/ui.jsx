@@ -1,18 +1,17 @@
 // Small pieces shared by the Settings pages.
+import { PanelHead } from '../shell/Panel.jsx';
 export function Section({ title, sub, children, right }) {
   return (
-    <section className="rounded-xl border border-tan-200 bg-white p-5 shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <div className="flex items-start gap-3 mb-4">
-        <div>
-          <h2 className="text-[15px] font-semibold text-navy-700">{title}</h2>
-          {sub && <p className="text-zinc-500 text-[13px] mt-0.5 max-w-3xl">{sub}</p>}
-        </div>
-        <div className="ml-auto">{right}</div>
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      <PanelHead title={title} right={right} />
+      <div className="p-5">
+        {sub && <p className="text-zinc-500 text-[13px] -mt-1 mb-4 max-w-3xl">{sub}</p>}
+        {children}
       </div>
-      {children}
     </section>
   );
 }
+
 export function Field({ label, hint, children }) {
   return (
     <label className="block">
