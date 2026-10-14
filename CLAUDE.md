@@ -185,7 +185,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; Territory (Who works where, Territory sheet) for
-  owner / manager / tc; Deals (Active,
+  owner / manager / tc; Zip center (My zips for team + manager, All zips
+  for owner / manager / tc, Rules & data health for everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
@@ -557,19 +558,61 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   binding) only when missing or changed (`ANTHROPIC_KEY_ID` = first 12 hex
   of its SHA-256), before the upload; never printed, never fails the deploy.
   Tests: node:sqlite shim + signed JWTs + a fake Anthropic endpoint.
-- **Zip center** — next to build. Luke's rules (Oct 14):
-  - Only owners assign reps to specific zips by hand.
-  - Reps request zips themselves, automatically (no approval): 10 zips per
-    request, at most 3 requests per week; a zip is held 30 days.
-  - No duplicates: a zip has one active holder (enforced in D1).
-  - Rounds: hand out tier 1 and tier 2 zips until 80% of them are used,
-    then phase tier 3 in alongside the remaining tier 1 / 2, so the data
-    stays good enough to work with.
-  - Some states have cities reps must stay close to — tracked per state and
-    flagged so Luke and Jack can rework the zip lists ("continually dial in
-    zip codes").
-  - When a state's zips are all out, flag it to the owners; only an owner
-    can approve releasing / reusing zips or clearing them for use again.
+
+## Zip center (Luke, Oct 14)
+
+Sidebar **Zip center** (`src/zips/`, everyone in the app): one store of
+every zip from the territory sheet, who holds which and for how long, and
+automatic requests that never hand out a zip twice.
+- **Storage** (D1, `edge/zips.sql`): `zips` (one row per zip: state,
+  county, county tier, `county_rank` = the county's place on the sheet,
+  zip tier, `untiered` (no tier on the sheet → counted as tier 3),
+  `curated` (Idaho / Virginia hand-picked lists → tier 1), status active /
+  paused / excluded, `last_round`, `flag*`, `sheet_for` / `sheet_pulled` =
+  the sheet's "data pulled for"); `zip_assignments` (holds; a unique
+  partial index means a zip has at most one open hold); `zip_requests`.
+  Imported Oct 14 from the sheet export (12,211 zips: 3,306 / 2,380 / 6,525
+  by tier, 217 paused with their county). Settings `zip_rules` (the
+  numbers) and `zip_rounds` ({state: round}).
+- **Rules** (`edge/zips.js`; owners change the numbers on Rules & data
+  health, `ruleText` lists every rule for the page): 10 zips per request,
+  3 automatic requests per rep per week (Mon–Sun Arizona; owner
+  assignments don't count), held 30 days then released (lazily, on every
+  API call). A zip handed out is "used" for its state's round until owners
+  approve a new round or reuse it. Pick (`pickZips`): active, unheld,
+  unflagged, unused this round; counties the rep already holds first, then
+  county tier, sheet order, zip tier. Tier 1 + 2 only until 80% of the
+  state's tier 1 + 2 are used (`tier3At`), then up to 3 tier 3 per request
+  (`tier3Mix`) with the rest, all tier 3 once 1 + 2 run out. Counties the
+  old sheet pulled for a rep stay theirs for 30 days (`sheetPullDays`).
+  Reps request only in states they have a sub-account in (subaccounts.json).
+  Focus cities per state: not built — Luke will send the cities.
+- **Running out**: a request gives what's left and is logged short; the
+  state shows "Out of zips" and data health flags it; owners "Approve new
+  round" (everything not held becomes available) or select zips → "Release
+  & reuse".
+- **API** `functions/api/zips/index.js`: GET (rep: their holds, week count,
+  rules; owners / managers / TC also per-state summary, holds, request log,
+  flags, `health`); `?state=` (a rep only their states, and other holders
+  shown as "someone"); POST actions request (rep_id needed), release (own;
+  owners any; reuse owners), flag (reasons `FLAG_REASONS`), and owners only:
+  assign, status, newRound, rules. No writes while viewing as. Every change
+  in `edit_log` (`zips.*`). Tests: node:sqlite shim + signed JWTs.
+- **Pages**: **My zips** (team, manager): state picker, "Get 10 zips",
+  requests left this week, held zips with days left, Flag bad data,
+  Release, Copy all zips. **All zips** (owner, manager, TC; changes owners
+  only): At a glance, Needs attention (with Approve new round / Clear flag /
+  Exclude), States table (tier 1 + 2 used with the 80% tick, phase,
+  available, flags, round), a state's counties with zip chips (held in the
+  rep's colour, used grey, flagged red, paused struck through; owners
+  select → assign / release & reuse / active / pause / exclude), Who holds
+  what, Request log. **Rules & data health** (everyone sees the rules;
+  data health + playbook for owners / managers / TC): `health()` sorted
+  Fix now (state out of zips, rep flagged a zip, 3+ flags in a county,
+  short request, a rep's state with no zips) → Coming up (state running
+  low, `lowLeft` requests' worth) → Edit over time (tier 3 mixing in,
+  untiered / hand-picked zips, paused / excluded, recent sheet pulls, focus
+  cities not set), plus a "When the data looks bad — what to do" table.
 
 ## Refresh cadence
 
