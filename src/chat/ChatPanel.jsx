@@ -161,14 +161,14 @@ function Panel({ page, onClose }) {
   );
 }
 
-// The floating button: owners on Territory and Zip center; reps and managers
-// with a rep on the Zip center (the server checks again and picks the thread).
+// The floating button on the Territory pages: owners, and reps / managers with
+// a rep on the board (the server checks again and picks the thread).
 export default function AskClaude({ page = 'territory' }) {
   const me = useMe();
   const [open, setOpen] = useState(false);
   if (!me || me.viewAs) return null;
   const owner = me.role === 'owner';
-  const rep = ['team', 'manager'].includes(me.role) && me.rep_id && page === 'zips';
+  const rep = ['team', 'manager'].includes(me.role) && me.rep_id;
   if (!owner && !rep) return null;
   return (
     <>

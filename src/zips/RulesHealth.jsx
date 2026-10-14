@@ -72,7 +72,7 @@ export default function RulesHealth() {
     g.items.push(r);
   }
   const health = d.health || null;
-  const goState = (st) => navigate(`/zips/all?state=${encodeURIComponent(st)}`);
+  const goState = (st) => navigate(`/territory/zip-mgmt?state=${encodeURIComponent(st)}`);
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-5">

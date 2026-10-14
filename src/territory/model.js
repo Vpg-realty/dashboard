@@ -5,6 +5,8 @@
 // ago (history.json) and, for owners / TC, the deal tracker. Pure — the
 // page and its tests call buildModel().
 
+import { statusOf, seasonOf } from './status.js';
+
 const norm = (s) => String(s || '').trim().toLowerCase();
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 
@@ -17,14 +19,14 @@ export const SEVERITY = {
 // What each flag means — shown on the page so the rules are never a mystery.
 export const FLAG_RULES = [
   ['quiet', 'Quiet market', 'A rep has a GHL sub-account in the state but no new conversations in the last 7 days.'],
-  ['winter', 'Winter exposure', 'Half or more of a rep\'s opps this month come from states the sheet marks "Winter risk".'],
+  ['winter', 'Winter exposure', 'Half or more of a rep\'s opps this month come from states marked ❄ winter slowdown (season risk on the territory sheet).'],
   ['crowded', 'Crowded state', 'Four or more reps share one state.'],
   ['sheet', 'Sheet ≠ GHL', 'The sheet\'s Market Assignments and GHL sub-accounts disagree about who works a state.'],
   ['dispo', 'No dispo coverage', 'Reps are working a state with no dispo rep on the sheet.'],
   ['legal', 'High-risk legal', 'Reps are working a state the sheet marks "High Risk".'],
   ['close', 'Low close rate', 'A state\'s tracker close rate this year is under 60% of the company\'s (8+ contracts, most of them already closed or cancelled).'],
   ['open', 'Open seats', 'The sheet plans more reps for an active market than work it today.'],
-  ['paused', 'Paused market in use', 'The sheet marks the market Paused but a rep still has a sub-account there.'],
+  ['paused', 'Paused market in use', 'The state is Paused or Inactive but a rep still has a sub-account there.'],
 ];
 
 export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
@@ -40,7 +42,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
     const before = ago.get(`${p.repId}|${p.marketId}`);
     const convos7 = before && typeof p.convosAllTime === 'number' && typeof before.convosAllTime === 'number' ? Math.max(0, p.convosAllTime - before.convosAllTime) : null;
     const cell = {
-      abbr: p.marketId, state: st?.state || p.marketId, winter: !!st?.winter, legal: st?.legal || null,
+      abbr: p.marketId, state: st?.state || p.marketId, winter: seasonOf(st) === 'winter', season: seasonOf(st), legal: st?.legal || null,
       opps: n(p.oppsOpenedMonth), offers: n(p.offersMonth), contracts: n(p.contractsMonth), closed: n(p.dealsClosedMonth), revenue: n(p.revenueMonth),
       convos7, agents: n(p.agentsTotal), quiet: convos7 === 0,
     };
@@ -72,9 +74,9 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
       const st = byName.get(norm(d.state));
       tot.contracts += 1; if (d.status === 'COMPLETE') tot.closed += 1;
       if (!st) continue;
-      const t = st.tracker || (st.tracker = { contracts: 0, closed: 0, cancelled: 0, pending: 0, net: 0, profit: 0 });
+      const t = st.tracker || (st.tracker = { contracts: 0, closed: 0, cancelled: 0, pending: 0, net: 0, profit: 0, gross: 0, volume: 0 });
       t.contracts += 1;
-      if (d.status === 'COMPLETE') { t.closed += 1; t.net += n(d.netAssign); t.profit += n(d.netProfit); }
+      if (d.status === 'COMPLETE') { t.closed += 1; t.net += n(d.netAssign); t.profit += n(d.netProfit); t.gross += n(d.grossAssign); t.volume += n(d.finalAssign ?? d.vpgAssign); }
       else if (d.status === 'CANCELLED') t.cancelled += 1;
       else t.pending += 1;
     }
@@ -99,8 +101,8 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
     if (onlySheet.length || onlyGhl.length) add('info', 'sheet', `${st.state}: sheet and GHL disagree`, [onlySheet.length && `On the sheet only: ${onlySheet.join(', ')}`, onlyGhl.length && `In GHL only: ${onlyGhl.map((r) => r.name).join(', ')}`].filter(Boolean).join(' · '), { state: st.abbr });
     if (st.ghl.length && !st.dispo) add('med', 'dispo', `${st.state} has no dispo rep`, `${st.ghl.map(first).join(', ')} ${st.ghl.length === 1 ? 'works' : 'work'} it, but the sheet has no dispo rep for it.`, { state: st.abbr });
     if (st.ghl.length && st.legal === 'High Risk') add('info', 'legal', `${st.state} is high-risk legally`, st.legalNote || 'License required, or agents are legally restricted — confirm with an attorney before campaigns.', { state: st.abbr });
-    if (st.marketStatus === 'Paused' && st.ghl.length) add('med', 'paused', `${st.state} is paused but still worked`, `${st.ghl.map(first).join(', ')} still ${st.ghl.length === 1 ? 'has a sub-account' : 'have sub-accounts'} there.`, { state: st.abbr });
-    if (st.marketStatus === 'Active' && st.projected && st.ghl.length < st.projected) add('info', 'open', `${st.state} needs ${st.projected - st.ghl.length} more rep${st.projected - st.ghl.length === 1 ? '' : 's'}`, `Planned ${st.projected}, working today ${st.ghl.length}.${st.marketNote ? ` Sheet note: ${st.marketNote}` : ''}`, { state: st.abbr });
+    if (['Paused', 'Inactive'].includes(statusOf(st)) && st.ghl.length) add('med', 'paused', `${st.state} is ${statusOf(st).toLowerCase()} but still worked`, `${st.ghl.map(first).join(', ')} still ${st.ghl.length === 1 ? 'has a sub-account' : 'have sub-accounts'} there.`, { state: st.abbr });
+    if (statusOf(st) === 'Active' && st.projected && st.ghl.length < st.projected) add('info', 'open', `${st.state} needs ${st.projected - st.ghl.length} more rep${st.projected - st.ghl.length === 1 ? '' : 's'}`, `Planned ${st.projected}, working today ${st.ghl.length}.${st.marketNote ? ` Sheet note: ${st.marketNote}` : ''}`, { state: st.abbr });
     if (company && st.tracker && st.tracker.contracts >= 8 && st.tracker.pending * 2 < st.tracker.contracts && st.tracker.closeRate < company.closeRate * 0.6) add('med', 'close', `${st.state} closes few of its contracts`, `${st.tracker.closed} of ${st.tracker.contracts} closed this year (${Math.round(st.tracker.closeRate * 100)}% vs ${Math.round(company.closeRate * 100)}% company), ${st.tracker.cancelled} cancelled.`, { state: st.abbr });
   }
   const order = { high: 0, med: 1, info: 2 };
@@ -115,7 +117,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
       statesTotal: states.length,
       quiet: repRows.reduce((t, r) => t + r.quiet, 0),
       winterReps: repRows.filter((r) => r.winterLevel === 'high').length,
-      openSeats: states.filter((s) => s.marketStatus === 'Active' && s.projected).reduce((t, s) => t + Math.max(0, s.projected - s.ghl.length), 0),
+      openSeats: states.filter((s) => statusOf(s) === 'Active' && s.projected).reduce((t, s) => t + Math.max(0, s.projected - s.ghl.length), 0),
       act: flags.filter((f) => f.sev === 'high').length,
     },
   };

@@ -191,7 +191,7 @@ export default function AllZips() {
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Zip center</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Zip management</h1>
         <div className="text-zinc-500 text-[13px]">Every zip from the territory sheet, who has it and for how long. Reps request their own (automatic); {owner ? 'you can' : 'owners'} assign, release and approve new rounds.</div>
       </div>
 
@@ -205,7 +205,7 @@ export default function AllZips() {
         </div>
       </Panel>
 
-      <Panel title="Needs attention" sub={urgent.length ? `${urgent.length} item${urgent.length === 1 ? '' : 's'}` : ''} right={<a {...linkProps('/zips/rules')} className="text-[12.5px] text-navy-700 hover:underline">Rules & data health →</a>}>
+      <Panel title="Needs attention" sub={urgent.length ? `${urgent.length} item${urgent.length === 1 ? '' : 's'}` : ''} right={<a {...linkProps('/territory/rules')} className="text-[12.5px] text-navy-700 hover:underline">Rules & data health →</a>}>
         <HealthList items={urgent} owner={owner} onState={goState} />
       </Panel>
 

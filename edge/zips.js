@@ -38,6 +38,20 @@ export function checkZipRules(v) {
 
 export const FLAG_REASONS = ['Mostly landlines / DND', 'Few or no agents', 'Too rural', 'Outside where we buy', 'Wrong county / city', 'Other'];
 export const STATUSES = ['active', 'paused', 'excluded'];
+// A state's market status on the territory sheet (Luke, Oct 14). Reps can
+// request zips only in Active states; Exploring = owners assign by hand;
+// Paused / Inactive = no zips go out.
+export const MARKET_STATUSES = ['Active', 'Exploring', 'Paused', 'Inactive'];
+// Seasonal slowdown risk per state (the sheet's "winter risk", now editable).
+export const SEASONS = ['none', 'winter', 'summer'];
+
+// A state's market status ('Active' when the sheet has none).
+export async function marketOf(db, state) {
+  try {
+    const row = await db.prepare('SELECT data FROM terr_states WHERE state = ?').bind(state).first();
+    return row ? JSON.parse(row.data).marketStatus || 'Active' : 'Active';
+  } catch { return 'Active'; } // no territory table (tests)
+}
 
 // Every rule, in plain words, for the page. `key` = an editable number.
 export function ruleText(r = DEFAULT_RULES) {
@@ -46,7 +60,7 @@ export function ruleText(r = DEFAULT_RULES) {
     { group: 'Requests', key: 'perRequest', text: `A request gives ${r.perRequest} zips.` },
     { group: 'Requests', key: 'perWeek', text: `A rep can request ${r.perWeek} times a week (Monday–Sunday, Arizona time). Zips an owner assigns don't count.` },
     { group: 'Requests', text: 'Requests are automatic: no approval, the best available zips in that state are picked.' },
-    { group: 'Requests', text: 'A rep can only request zips in states they have a GHL sub-account in.' },
+    { group: 'Requests', text: 'A rep can only request zips in states they have a GHL sub-account in, and only while the state is Active on the territory sheet. Exploring states: owners assign zips by hand. Paused / Inactive: no zips go out.' },
     { group: 'Holding', key: 'holdDays', text: `A zip is held for ${r.holdDays} days, then released automatically. A rep can release one early.` },
     { group: 'Holding', text: 'A zip is never held by two people at the same time.' },
     { group: 'Holding', text: 'A released zip stays "used" for this round — it is not handed out again until owners start a new round or reuse it.' },
@@ -165,6 +179,8 @@ export async function request(db, user, state, { now = new Date() } = {}) {
   const repId = user.rep_id;
   if (!repId) return { status: 403, body: { error: 'your login isn\'t linked to a rep — ask an owner' } };
   if (!repStates(repId).includes(state)) return { status: 403, body: { error: `you don't have a sub-account in ${state}` } };
+  const market = await marketOf(db, state);
+  if (market !== 'Active') return { status: 403, body: { error: `${state} is ${market.toLowerCase()} right now — zips there come from an owner` } };
   const rules = await loadRules(db);
   const used = await weekRequests(db, repId, now);
   if (used >= rules.perWeek) return { status: 429, body: { error: `you've used all ${rules.perWeek} requests this week — the count resets Monday` } };
@@ -281,16 +297,21 @@ async function syncCounty(db, state, county, user) {
 // sheet"): every zip in a county, or in a whole state, at once — excluded
 // zips stay excluded. `market` (state only) also sets the sheet's market
 // status.
-export async function setAreaStatus(db, user, { state, county, status, market }) {
-  if (!['active', 'paused'].includes(status) && !market) return { status: 400, body: { error: 'status must be active or paused' } };
-  if (market && !['Active', 'Paused'].includes(market)) return { status: 400, body: { error: 'market must be Active or Paused' } };
+export async function setAreaStatus(db, user, { state, county, status, market, season }) {
+  if (!['active', 'paused'].includes(status) && !market && !season) return { status: 400, body: { error: 'status must be active or paused' } };
+  if (market && !MARKET_STATUSES.includes(market)) return { status: 400, body: { error: `market must be one of ${MARKET_STATUSES.join(', ')}` } };
+  if (season && !SEASONS.includes(season)) return { status: 400, body: { error: `season must be one of ${SEASONS.join(', ')}` } };
+  if (season && !market) market = null;
   const n = await db.prepare(`SELECT COUNT(*) n FROM zips WHERE state = ?${county ? ' AND county = ?' : ''}`).bind(...[state, county].filter(Boolean)).first();
   const now = new Date().toISOString();
-  if (market) {
-    if (county) return { status: 400, body: { error: 'market status is per state' } };
+  if (market || season) {
+    if (county) return { status: 400, body: { error: 'market status and season are per state' } };
     const row = await db.prepare('SELECT data FROM terr_states WHERE state = ?').bind(state).first();
     if (!row) return { status: 404, body: { error: 'unknown state' } };
-    await db.prepare('UPDATE terr_states SET data = ?, updated_at = ?, updated_by = ? WHERE state = ?').bind(JSON.stringify({ ...JSON.parse(row.data), marketStatus: market }), now, user.name, state).run();
+    const data = JSON.parse(row.data);
+    if (market) data.marketStatus = market;
+    if (season) { data.season = season; data.winter = season === 'winter'; }
+    await db.prepare('UPDATE terr_states SET data = ?, updated_at = ?, updated_by = ? WHERE state = ?').bind(JSON.stringify(data), now, user.name, state).run();
   }
   let changed = 0;
   if (status) {
@@ -300,7 +321,7 @@ export async function setAreaStatus(db, user, { state, county, status, market })
     const counties = county ? [county] : (await db.prepare('SELECT DISTINCT county FROM zips WHERE state = ?').bind(state).all()).results.map((c) => c.county);
     for (const c of counties) await syncCounty(db, state, c, user);
   }
-  return { status: 200, body: { state, county: county || null, status: status || null, market: market || null, changed } };
+  return { status: 200, body: { state, county: county || null, status: status || null, market: market || null, season: season || null, changed } };
 }
 
 // Owners' approval when a state runs out: every zip not held becomes available.

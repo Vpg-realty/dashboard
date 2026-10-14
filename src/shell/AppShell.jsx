@@ -35,6 +35,7 @@ import UserMenu from './UserMenu.jsx';
 import AskClaude from '../chat/ChatPanel.jsx';
 import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
 import TerritorySheet from '../territory/SheetView.jsx';
+import RepsStates from '../territory/RepsStates.jsx';
 import MyZips from '../zips/MyZips.jsx';
 import AllZips from '../zips/AllZips.jsx';
 import ZipRules from '../zips/RulesHealth.jsx';
@@ -43,7 +44,7 @@ const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
-  'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet,
+  'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
@@ -226,7 +227,7 @@ export default function AppShell({ me }) {
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={me.role} />
       {!me.viewAs && <Welcome me={me} />}
-      {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id} />}
+      {section.id === 'territory' && <AskClaude page={tab?.id?.startsWith('zip') || tab?.id === 'rules' ? 'zips' : 'territory'} />}
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );

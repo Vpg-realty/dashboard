@@ -25,12 +25,14 @@ const zipSchema = {
 };
 
 export const OWNER_ZIP_TOOLS = [
+  { name: 'available_zips', description: 'Zips that are free to hand out right now in a state (active, not held, not flagged, not used this round), ordered tier 1 first, then tier 2, then tier 3 — the best counties first within each tier. Use this whenever someone asks for new / unused / available zips.', input_schema: { type: 'object', properties: { state: { type: 'string', description: 'Full state name.' }, county: { type: 'string', description: 'Optional county.' }, limit: { type: 'integer', description: 'How many (default 30, max 200).' } }, required: ['state'], additionalProperties: false } },
   { name: 'zip_overview', description: "The zip center right now: the rules, each state's round, zips held, share of tier 1 + 2 used this round, phase (tier 3 mixing in or not), zips available, flags; who holds how many; what needs attention; the latest requests.", input_schema: { type: 'object', properties: {}, additionalProperties: false } },
   { name: 'zip_holds', description: 'Every zip currently held (who, state, county, tier, since, days left, requested or assigned by an owner). Filter by state and / or rep.', input_schema: { type: 'object', properties: { state: { type: 'string', description: 'Full state name.' }, rep: { type: 'string', description: 'Rep name or first name.' } }, additionalProperties: false } },
   { name: 'zip_lookup', description: "Zip-level status from the zip center: county, tiers, active / paused / excluded, flagged (why, by whom), held by whom until when, used this round, and the old sheet's pull. Give zips, or a state (and county).", input_schema: zipSchema },
 ];
 
 export const REP_ZIP_TOOLS = [
+  { name: 'available_zips', description: 'Zips that are free to hand out right now in a state (active, not held, not flagged, not used this round), ordered tier 1 first, then tier 2, then tier 3 — the best counties first within each tier. Use this whenever someone asks for new / unused / available zips.', input_schema: { type: 'object', properties: { state: { type: 'string', description: 'Full state name.' }, county: { type: 'string', description: 'Optional county.' }, limit: { type: 'integer', description: 'How many (default 30, max 200).' } }, required: ['state'], additionalProperties: false } },
   { name: 'zip_lookup', description: "Zips in the rep's own states: county, tier, whether available to request now, held by them (until when), held by another rep, used this round, flagged, paused. Give zips, or a state (and county).", input_schema: zipSchema },
   { name: 'state_availability', description: "For one of the rep's states: per county, how many zips are available to request now by tier, held by the rep, held by others, used this round.", input_schema: { type: 'object', properties: { state: { type: 'string', description: 'Full state name.' } }, required: ['state'], additionalProperties: false } },
 ];
@@ -39,9 +41,9 @@ export const REP_BRIEFING = `You answer one acquisition rep's questions about th
 
 How zips work: a request gives a set number of zips in one of the rep's states; reps have a few requests a week; a zip is held for a set number of days and then released; nobody else gets a zip while it's held. Tier = the zip's population (1: 20k+, 2: 8k–20k, 3: under 8k). Tier 1 + 2 go first; tier 3 joins once most of a state's tier 1 + 2 are used. A released zip stays "used" until owners start a new round. The exact numbers are in RULES below.
 
-What you can do: look up the rep's own zips and the zips in their states with your tools, and explain the rules. You can't request, release, flag or change anything — tell them to use the buttons on the My zips page (Get zips, Release, Flag bad data). You don't see other reps' names, deals, scores or anything outside the zip center; if asked, say it isn't available here.
+What you can do: look up the rep's own zips and the zips in their states with your tools, and explain the rules. Asked for new or available zips: use available_zips and list them tier 1 first, then tier 2, then tier 3 (comma-separated, by county). You can't request, release, flag or change anything — tell them to press "Get zips" on the Territory › Get zips page (it picks the best available ones and holds them for them), or to ask Luke or Jack to assign specific ones. You don't see other reps' names, deals, scores or anything outside the zip center; if asked, say it isn't available here.
 
-How to answer: short and direct, numbers from the data only — never guess. Use a small table or a comma-separated zip list when it helps (they often copy zips).`;
+How to answer: only from the dashboard's data — what's below and what your tools return. Never use outside knowledge (no populations, neighbourhoods, market opinions or zips that aren't in the zip center); if the site doesn't have it, say so. Short and direct, numbers from the data only — never guess. Use a small table or a comma-separated zip list when it helps (they often copy zips).`;
 
 function matchRep(reps, q) {
   const w = String(q || '').trim().toLowerCase();
@@ -92,6 +94,28 @@ export async function runZipTool(db, name, input, { rep = null, now = new Date()
     const lines = rows.map((z) => [z.zip, z.state, z.county, z.county_tier ?? '', `${z.tier}${z.untiered ? ' (no tier on sheet)' : ''}${z.curated ? ' (hand-picked)' : ''}`, status(z), !rep && z.sheet_for ? `sheet pulled for ${z.sheet_for} ${z.sheet_pulled}` : ''].filter((x, i) => i < 6 || x).join(' | '));
     if (missing.length) lines.push(`Not ${rep ? 'in your states / ' : ''}in the zip center: ${missing.join(', ')}`);
     return lines.length ? cut([head, ...lines]) : 'No zips match.';
+  }
+
+  if (name === 'available_zips') {
+    const st = String(input?.state || '');
+    if (rep && !myStates.includes(st)) return `${st} isn't one of your states (${myStates.join(', ')}).`;
+    const zs = await Z.stateZips(db, st);
+    if (!zs.length) return `No zips on file for ${st}.`;
+    const market = await Z.marketOf(db, st);
+    const county = input?.county ? String(input.county).replace(/ county$/i, '').toLowerCase() : null;
+    const free = zs.filter((z) => kind(z) === 'available' && (!county || z.county.toLowerCase() === county))
+      .sort((a, b) => a.tier - b.tier || (a.county_tier || 9) - (b.county_tier || 9) || (a.county_rank ?? 9999) - (b.county_rank ?? 9999) || a.zip.localeCompare(b.zip));
+    const limit = Math.min(200, Math.max(1, Number(input?.limit) || 30));
+    if (!free.length) return `No available zips in ${st}${county ? ` (${input.county})` : ''} this round.`;
+    const lines = [`${free.length} available in ${st}${county ? `, ${input.county}` : ''} (round ${Z.roundOf(rounds, st)}; state is ${market}${market !== 'Active' ? ' — reps cannot request here, owners assign' : ''}). Showing ${Math.min(limit, free.length)}, tier 1 first:`];
+    for (const tier of [1, 2, 3]) {
+      const t = free.slice(0, limit).filter((z) => z.tier === tier);
+      if (!t.length) continue;
+      const byC = new Map();
+      for (const z of t) byC.set(z.county, [...(byC.get(z.county) || []), z.zip]);
+      lines.push(`Tier ${tier}: ${[...byC].map(([c, l]) => `${c} — ${l.join(', ')}`).join(' | ')}`);
+    }
+    return lines.join('\n');
   }
 
   if (name === 'state_availability') {

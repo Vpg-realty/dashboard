@@ -8,6 +8,10 @@ import Panel from '../shell/Panel.jsx';
 import { useTerritory, useCounties, reloadTerritory } from './store.js';
 import { useStateZips, zipAction } from '../zips/store.js';
 import { useMe } from '../utils/dashApi.js';
+import { MARKET_STATUSES, STATUS_LOOK, SEASON_LOOK, statusOf, seasonOf } from './status.js';
+import { StatusChip, SeasonChip } from './badges.jsx';
+import StateControls from './StateControls.jsx';
+import CopyButton from './CopyButton.jsx';
 
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
@@ -25,7 +29,7 @@ function Zips({ label, list, cls, zs, sel, onPick }) {
   if (!list?.length) return null;
   return (
     <div>
-      <div className="text-[11.5px] font-medium text-zinc-500 mb-1">{label} · {list.length}</div>
+      <div className="text-[11.5px] font-medium text-zinc-500 mb-1 flex items-center gap-2">{label} · {list.length}<CopyButton zips={list} /></div>
       <div className="flex flex-wrap gap-1">{list.map((z) => {
         const info = zs?.get(z);
         const st = info?.status || 'active';
@@ -151,6 +155,12 @@ function FragmentRow({ r, isOpen, onToggle, cs, st, zs, owner, busy, run, onCoun
                 <span className="text-zinc-400">· struck through = paused / excluded</span>
               </div>
             )}
+            <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[12.5px] text-zinc-600">
+              <span className="font-medium text-navy-800">{r.county}: {z.length} zips</span>
+              <CopyButton zips={z} label="Copy all" />
+              {zs && <CopyButton zips={z.filter((x) => (zs.get(x)?.status || 'active') === 'active')} label="Copy active only" />}
+              <span className="text-zinc-400">· copies as "85001, 85002, …"</span>
+            </div>
             <div className="grid md:grid-cols-3 gap-4">
               {st.curated ? <Zips label="Zips" list={z} cls="bg-white ring-1 ring-tan-200" zs={zs} sel={sel} onPick={pick} /> : (
                 <>
@@ -170,20 +180,6 @@ function FragmentRow({ r, isOpen, onToggle, cs, st, zs, owner, busy, run, onCoun
   );
 }
 
-// Market status (owners): the sheet's Active / Paused for the state.
-function MarketSelect({ st }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  return (
-    <span className="inline-flex items-center gap-2">
-      <select value={st.marketStatus === 'Paused' ? 'Paused' : 'Active'} disabled={busy} onChange={async (e) => { setBusy(true); setErr(null); try { await zipAction('area', { state: st.state, market: e.target.value }); await reloadTerritory(st.state); } catch (x) { setErr(x.message); } finally { setBusy(false); } }} className={STATUS_SELECT}>
-        <option>Active</option><option>Paused</option>
-      </select>
-      {err && <span className="text-[12px] text-red-700">{err}</span>}
-    </span>
-  );
-}
-
 export default function SheetView() {
   const t = useTerritory();
   const me = useMe();
@@ -191,26 +187,26 @@ export default function SheetView() {
   const { query } = useLocation();
   if (t.status === 'error') return <div className="py-16 text-center text-zinc-500">{t.error}</div>;
   if (t.status !== 'ready') return <div className="py-16 text-center text-zinc-400">Loading territory…</div>;
-  const name = query.get('s') || t.list.find((s) => s.marketStatus === 'Active')?.state;
+  const name = query.get('s') || t.list.find((s) => statusOf(s) === 'Active')?.state;
   const st = t.list.find((s) => s.state === name) || t.list[0];
-  const groups = [['Active', t.list.filter((s) => s.marketStatus !== 'Paused')], ['Paused', t.list.filter((s) => s.marketStatus === 'Paused')]];
+  const groups = MARKET_STATUSES.map((g) => [g, t.list.filter((s) => statusOf(s) === g)]);
   const total = t.list.reduce((a, s) => ({ c: a.c + s.counties, z: a.z + s.zips }), { c: 0, z: 0 });
 
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
         <h1 className="text-lg font-semibold tracking-tight text-navy-700">Territory sheet</h1>
-        <div className="text-zinc-500 text-[13px]">The "VPG_Territory_Tracker" sheet, imported Oct 14 · {t.list.length} states · {total.c.toLocaleString()} counties · {total.z.toLocaleString()} zips. Temporary — "Who works where" and the zip center replace it.</div>
+        <div className="text-zinc-500 text-[13px]">The "VPG_Territory_Tracker" sheet, imported Oct 14 · {t.list.length} states · {total.c.toLocaleString()} counties · {total.z.toLocaleString()} zips. Pick a state on the left; open a county for its zips and copy them.</div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5 items-start">
         <Panel title="States" bodyClass="py-1">
           {groups.map(([g, list]) => list.length > 0 && (
             <div key={g}>
-              <div className="px-5 pt-2.5 pb-1 text-[11.5px] font-semibold uppercase tracking-wide text-zinc-400">{g}</div>
+              <div className="px-5 pt-2.5 pb-1 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-zinc-500" title={STATUS_LOOK[g].hint}><span className={`w-2 h-2 rounded-full ${STATUS_LOOK[g].dot}`} />{g} · {list.length}</div>
               {list.map((s) => (
                 <button key={s.state} onClick={() => setQuery({ s: s.state })} className={`w-full flex items-center gap-2 px-5 py-1.5 text-left hover:bg-tan-50 ${s.state === st.state ? 'bg-navy-50 text-navy-800 font-semibold' : 'text-zinc-800'}`}>
                   <span className="flex-1 truncate">{s.state}</span>
-                  {s.winter && <span title="Winter risk" className="text-sky-700 text-[12px]">❄</span>}
+                  {seasonOf(s) !== 'none' && <span title={SEASON_LOOK[seasonOf(s)].label} className={`rounded px-1 text-[10.5px] font-medium ring-1 ring-inset ${SEASON_LOOK[seasonOf(s)].chip}`}>{SEASON_LOOK[seasonOf(s)].icon} {SEASON_LOOK[seasonOf(s)].short}</span>}
                   <span className={`w-2 h-2 rounded-full ${s.legal === 'Clear' ? 'bg-emerald-500' : s.legal === 'Caution' ? 'bg-amber-500' : 'bg-red-500'}`} title={s.legal} />
                 </button>
               ))}
@@ -220,14 +216,17 @@ export default function SheetView() {
             <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />Clear</span>
             <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />Caution</span>
             <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />High risk</span>
-            <span>❄ winter risk</span>
+            <span className="w-full" />
+            <span className="text-sky-800">❄ winter slowdown</span>
+            <span className="text-orange-700">☀ summer slowdown</span>
           </div>
         </Panel>
         <div className="flex flex-col gap-5 min-w-0">
-          <Panel title={st.state} right={<span className="flex items-center gap-1.5"><span className={`${chip} ${LEGAL_CHIP[st.legal]}`}>{st.legal}</span>{st.winter ? <span className={`${chip} bg-sky-50 text-sky-900 ring-sky-200`}>❄ Winter risk</span> : <span className={`${chip} bg-zinc-50 text-zinc-500 ring-zinc-200`}>Year-round</span>}</span>}>
+          <Panel title={st.state} right={<span className="flex items-center gap-1.5"><StatusChip st={st} /><SeasonChip st={st} /><span className={`${chip} ${LEGAL_CHIP[st.legal]}`}>Legal: {st.legal}</span></span>}>
+            {owner && <div className="px-5 pt-4 -mb-1"><StateControls st={st} /></div>}
             <div className="p-5 grid sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-3 text-[13.5px]">
               <Info l="Legal" v={st.legalNote || st.legal} wide />
-              <Info l="Market" v={owner ? <span className="inline-flex flex-wrap items-center gap-2"><MarketSelect st={st} /><span>{[st.staffing, st.projected && `planned ${st.projected} reps`].filter(Boolean).join(' · ')}</span></span> : `${st.marketStatus || '—'}${st.staffing ? ` · ${st.staffing}` : ''}${st.projected ? ` · planned ${st.projected} reps` : ''}`} />
+              <Info l="Staffing" v={[statusOf(st), st.staffing, st.projected && `planned ${st.projected} reps`].filter(Boolean).join(' · ')} />
               <Info l="Reps on the sheet" v={st.sheetReps?.length ? st.sheetReps.join(', ') : '—'} />
               <Info l="Dispo" v={st.dispo ? `${st.dispo}${st.dispoBackup ? ` · backup ${st.dispoBackup}` : ''}` : 'Not on the dispo list yet'} />
               <Info l={st.curated ? 'Areas · zips' : 'Counties · zips'} v={`${st.counties} · ${st.zips.toLocaleString()}`} />

@@ -107,6 +107,13 @@ export default function CelebrationBanner() {
   }, [current]);
 
   if (!current) return null;
+  // Luke, Oct 14: an X to close a celebration right away (the next one, if
+  // any, shows straight after).
+  const dismiss = () => setQueue((q) => q.slice(1));
+  const closeBtn = (
+    <button type="button" onClick={dismiss} aria-label="Close" title="Close"
+      className="pointer-events-auto absolute top-3 right-3 w-11 h-11 grid place-items-center rounded-full bg-black/35 text-white text-3xl leading-none hover:bg-black/55 ring-2 ring-white/70">×</button>
+  );
   const rep = REPS.find((r) => r.id === current.repId);
   const market = MARKETS.find((m) => m.id === current.marketId);
   const first = rep?.name.split(' ')[0] || 'Someone';
@@ -121,9 +128,10 @@ export default function CelebrationBanner() {
         <Fireworks />
         <div className="absolute inset-0 flex items-center justify-center p-6">
           <div
-            className="w-[min(1100px,90vw)] rounded-3xl border-4 border-white shadow-2xl text-white text-center px-10 py-10 animate-pop"
+            className="relative pointer-events-auto w-[min(1100px,90vw)] rounded-3xl border-4 border-white shadow-2xl text-white text-center px-10 py-10 animate-pop"
             style={{ background: `linear-gradient(120deg, ${rep?.color || '#2a78d6'}, #10b981)` }}
           >
+            {closeBtn}
             <div className="text-[min(7rem,12vh)] leading-none">🎉</div>
             <div className="mt-3 text-xl uppercase tracking-[0.4em] font-bold opacity-90">Deal closed</div>
             <div className="mt-2 text-[min(4.5rem,8vh)] font-extrabold leading-tight">{look.line}</div>
@@ -142,10 +150,11 @@ export default function CelebrationBanner() {
     <div key={`${current.id}:${current.kind}`} className="absolute inset-x-0 top-24 z-40 flex justify-center pointer-events-none">
       <div className="w-[min(1100px,92vw)] animate-celebrate">
         <div
-          className="rounded-2xl shadow-2xl border-4 border-white overflow-hidden"
+          className="relative pointer-events-auto rounded-2xl shadow-2xl border-4 border-white overflow-hidden"
           style={{ background: `linear-gradient(110deg, ${rep?.color || '#2a78d6'}, ${look.accent})` }}
         >
-          <div className="px-8 py-5 flex items-center gap-6 text-white">
+          {closeBtn}
+          <div className="px-8 py-5 pr-16 flex items-center gap-6 text-white">
             <div className="text-6xl">{look.icon}</div>
             <div className="min-w-0 flex-1">
               <div className="text-sm uppercase tracking-[0.3em] font-bold opacity-90">{look.label}</div>
