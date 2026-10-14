@@ -12,6 +12,9 @@ import PipelineView from '../views/PipelineView.jsx';
 import TeamHub from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
+import ActiveView from '../deals/ActiveView.jsx';
+import AllDealsView from '../deals/AllDealsView.jsx';
+import SummaryView from '../deals/SummaryView.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import SubAccountsPanel from '../components/SubAccountsPanel.jsx';
@@ -24,6 +27,7 @@ import Icon from './icons.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
+  'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -33,9 +37,14 @@ function ago(iso) {
   return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`;
 }
 
+// The Valley Property Group "V" mark (navy + tan), from the company logo
+// Luke sent on Oct 14.
 function Logo({ small }) {
   return (
-    <span className={`${small ? 'w-6 h-6' : 'w-7 h-7'} rounded-[7px] bg-gradient-to-br from-blue-900 to-blue-600 text-white grid place-items-center text-[9px] font-bold shrink-0`}>VPG</span>
+    <svg viewBox="0 0 600 781" className={`${small ? 'h-6' : 'h-7'} w-auto shrink-0`} aria-label="Valley Property Group">
+      <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#1b385f" />
+      <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
+    </svg>
   );
 }
 
@@ -99,7 +108,7 @@ export default function AppShell({ me }) {
       <aside className={`hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
           <Logo />
-          {!collapsed && <span className="font-semibold text-[13.5px] truncate">Valley Property</span>}
+          {!collapsed && <span className="font-semibold text-[13.5px] tracking-tight truncate text-[#1b385f]">Valley Property</span>}
           {!collapsed && (
             <button onClick={() => setCollapsed(true)} className="ml-auto text-zinc-400 hover:text-zinc-700" title="Collapse sidebar"><Icon name="sidebar" size={15} /></button>
           )}
@@ -168,8 +177,8 @@ export default function AppShell({ me }) {
 
         {section.id === 'board' && <AlertStrip />}
 
-        <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4'}`}>
-          {section.id === 'home' ? <HomeView me={me} /> : (
+        <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : tab?.scroll ? 'overflow-y-auto px-4 md:px-6 py-5 pb-24 md:pb-8' : 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4'}`}>
+          {section.id === 'home' ? <HomeView me={me} /> : tab?.scroll ? <View /> : (
             <div className="h-(--ph) min-w-(--pw) md:h-full md:min-w-0" style={{ '--ph': `${tab?.phone?.h || 900}px`, '--pw': `${tab?.phone?.w || 0}px` }}>
               <View repId={rep} onPickRep={pickRep} onBack={() => pickRep(null)} />
             </div>

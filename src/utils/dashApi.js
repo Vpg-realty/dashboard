@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 
 const BASE = import.meta.env.BASE_URL || '/';
 
-async function call(path, opts = {}) {
+export async function call(path, opts = {}) {
   const r = await fetch(`${BASE}api/${path}`, { cache: 'no-store', credentials: 'same-origin', ...opts });
   const type = r.headers.get('content-type') || '';
   if (!type.includes('json')) throw Object.assign(new Error('not available'), { status: 0 });

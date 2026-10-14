@@ -31,6 +31,16 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
+    // sees everything except commission and profit — enforced server-side).
+    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
+    tabs: [
+      { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
+      { id: 'all', label: 'All deals', view: 'deals-all', phone: DESK },
+      { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true },
+    ],
+  },
+  {
     id: 'team', label: 'Team', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
