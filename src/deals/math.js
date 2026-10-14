@@ -89,13 +89,33 @@ export function addDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
+// Commission rules can change over time (Luke, Oct 14: "it should only
+// impact deals in the future, not ones that have cancelled or closed
+// already … what date these will start on"). `rules` is either one rule set
+// or { versions: [{ from: 'YYYY-MM-DD', rules }] } (oldest first). A deal
+// uses the version in effect on its COE (commissions are paid at closing);
+// a deal with no COE yet uses the newest; a cancelled deal uses the version
+// in effect on its contract date, so a change never reaches deals that are
+// already done.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export function pickRules(rules, deal) {
+  const vs = rules?.versions;
+  if (!Array.isArray(vs) || !vs.length) return rules || {};
+  const cancelled = String(deal?.status || '').toUpperCase() === 'CANCELLED';
+  const date = cancelled && ISO_DATE.test(deal?.accepted || '') ? deal.accepted : ISO_DATE.test(deal?.coe || '') ? deal.coe : null;
+  if (!date) return vs[vs.length - 1].rules;
+  let pick = vs[0];
+  for (const v of vs) if (v.from <= date) pick = v;
+  return pick.rules;
+}
+
 // The sheet's formulas, column by column (AE … AT, Q, V, W). `rules` and
 // `lists` come from D1. Returns the deal with every computed field filled.
 export function compute(deal, rules, lists) {
   const d = { ...deal };
   const fx = deal.fixed || {};
   const set = (k, v) => { d[k] = k in fx ? fx[k] : v; };
-  const r = rules || {};
+  const r = pickRules(rules, deal);
   const cancelled = is(d.status, 'CANCELLED');
   const finders = is(d.dealType, "FINDER'S FEE");
 
@@ -141,7 +161,7 @@ export function compute(deal, rules, lists) {
 // manager, dispo → the dispo member, manager → rules.manager.name, override
 // → rules.override.name, TC → rules.tcName.
 export function payouts(d, rules) {
-  const r = rules || {};
+  const r = pickRules(rules, d);
   return [
     ['acq', d.acq, d.acqComm], ['dispo', d.dispoMember, d.dispoComm],
     ['manager', r.manager?.name, d.mgrComm], ['override', r.override?.name, d.override], ['tc', r.tcName, d.tcComm],

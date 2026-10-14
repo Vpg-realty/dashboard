@@ -139,9 +139,14 @@ Enforced on the server too: `functions/_middleware.js` refuses
 `data-mgr.json`, `scorecards.json`, `messaging-review.json` and
 `month-log.json` to anyone but owners, managers and the build's service
 token (`role: 'service'` — a verified Access JWT with `common_name`, no
-email; it can read but not grade). `dist-cf/_routes.json` (written by
-deploy-cloudflare.mjs) sends only `/api/*` and those four files through the
-functions, so page loads and the TV's polling stay plain static files.
+email; it can read but not grade). Since Oct 14 (before the Access policy
+went from a 13-email list to the whole @valleypropertygroup.com domain) the
+board data — `data.json`, `history.json`, `opp-state.json` — is refused
+(403 "not set up yet") to anyone signed in but not in D1 `users`, so a new
+company email sees nothing until it's added in Settings → People.
+`dist-cf/_routes.json` (written by deploy-cloudflare.mjs) sends only
+`/api/*` and those seven files through the functions; page loads and the
+app code stay plain static files.
 `scripts/split-private-data.mjs` (first in `npm run build`, after snapshot
 and history have used the full file) moves each pair's `crm`, `messaging`,
 `calls`, `callsError` out of data.json into `data-mgr.json` (data.json
@@ -195,7 +200,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   this month (closed + assigned-this-month vs goal, not for the TC), Deal
   tracker (owners / TC: active, act now, attention, closing ≤ 7d), Pipeline
   by stage, Wins, and "This week by rep" (owners: everyone, managers: their
-  pod).
+  pod). Pace tints (Luke, Oct 14: "highlight the boxes … on pace, close to
+  pace, or off pace … throughout the whole site"): the number boxes, the
+  Revenue card and every "This week by rep" cell are tinted green / amber /
+  red by pace (`paceBadge`: ≥ 100% / ≥ 70% of where they should be by
+  now), like the TV boxes and the Team pages already were.
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
   average yes, manager notes no): sidebar section for team + managers
   (`MyScorecardView.jsx` → `RepView` with `self`: no rep picker, plus
@@ -233,8 +242,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `public/brand/vpg-logo.png` (rendered from the logo in Montserrat; served
   publicly from raw.githubusercontent.com, since the login page shows before
   sign-in) with navy / tan colours, set in Zero Trust → Settings → Custom
-  pages (Access organization `login_design`). `public/favicon.svg` is the V
-  mark. dashboard.valleypropertygroup.com is a Squarespace forward (301) to
+  pages (Access organization `login_design`). `public/favicon.svg` (plus
+  `apple-touch-icon.png`, `icon-512.png`) is the navy / tan V on a white
+  square — the same icon as the website and GHL (Luke, Oct 14: "uniform
+  across everywhere"); tab titles read "<page> · Valley Property Group". dashboard.valleypropertygroup.com is a Squarespace forward (301) to
   vpg-dashboard.pages.dev — the domain's DNS stays at Squarespace (Luke,
   Oct 14: don't touch DNS / email).
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
@@ -263,8 +274,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   be on the Cloudflare Access allow-list to sign in (signed in but not in
   `users` → a "not set up yet" page, App.jsx, instead of the TV board).
   **Commission rules** — D1 `settings.deal_rules` as a form, with the
-  effect on existing deals shown before saving (deals recalculated,
-  closed ones called out; pending deals with no buyer left out).
+  effect on existing deals shown before saving (pending deals with no buyer
+  left out). Rules are versioned (Luke, Oct 14: a change only affects
+  future deals): `{versions: [{from, rules}]}`, each save takes a "New rules
+  start on" date; `pickRules` (math.js) picks the version by the deal's COE
+  (a cancelled deal: its contract date; no date: the latest), so closed and
+  cancelled deals keep the rules they had. A flat rule set still works (one
+  version). Settings shows the rule history.
   **Dropdown lists** — `settings.deal_lists` and Reports to. API
   `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
   owners only, never while viewing as; values checked; every save in

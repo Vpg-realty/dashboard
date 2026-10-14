@@ -92,7 +92,7 @@ export default function AppShell({ me }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => { document.title = `${tab ? `${tab.label} · ` : ''}${section.label} · VPG`; }, [section, tab]);
+  useEffect(() => { document.title = `${tab ? tab.label : section.label} · Valley Property Group`; }, [section, tab]);
 
   const View = tab ? VIEWS[tab.view] : null;
   const rep = query.get('rep');

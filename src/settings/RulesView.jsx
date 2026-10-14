@@ -1,12 +1,14 @@
 // Settings › Commission rules (owners): the rates and names the deal
 // tracker's commission columns use (D1 settings.deal_rules — never in the
-// public repo). Before saving, shows what the change does to existing deals:
-// every deal whose commissions are calculated (not typed by hand) is
-// recalculated with the new rules.
+// public repo). Changes take effect from a start date (Luke, Oct 14: "only
+// impact deals in the future, not ones that have cancelled or closed
+// already"): each save adds a version; a deal uses the version in effect on
+// its COE (math.js pickRules). Before saving, shows which deals change.
 import { useEffect, useMemo, useState } from 'react';
 import { readSetting, writeSetting } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute } from '../deals/math.js';
+import { laToday } from '../utils/historyRange.js';
 import { money } from '../deals/format.js';
 
 const signed = (x) => `${x >= 0 ? '+' : '−'}${money(Math.abs(x))}`;
@@ -48,35 +50,48 @@ export default function RulesView() {
   const [meta, setMeta] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
-  useEffect(() => { readSetting('deal-rules').then((x) => { setSaved(x.value); setR(structuredClone(x.value)); setMeta(x); }).catch((e) => setMsg({ error: true, text: e.message })); }, []);
+  const [from, setFrom] = useState(laToday());
+  // Older settings are one rule set: treat it as the version in effect since
+  // the tracker began.
+  const norm = (v) => (Array.isArray(v?.versions) ? v : { versions: [{ from: '2000-01-01', rules: v }] });
+  useEffect(() => { readSetting('deal-rules').then((x) => { const n0 = norm(x.value); setSaved(n0); setR(structuredClone(n0.versions[n0.versions.length - 1].rules)); setMeta(x); }).catch((e) => setMsg({ error: true, text: e.message })); }, []);
+  const latest = saved?.versions?.[saved.versions.length - 1];
+  // The rule set as it would be after saving (or an error).
+  const next = useMemo(() => {
+    if (!saved || !r) return null;
+    if (from < latest.from) return { error: `The start date can't be before ${latest.from} (the newest rules' start).` };
+    const versions = from === latest.from ? [...saved.versions.slice(0, -1), { ...latest, rules: r }] : [...saved.versions, { from, rules: r }];
+    return { versions };
+  }, [saved, r, from, latest]);
   const people = useMemo(() => [...new Set([...(s.lists?.acqTeam || []), ...(s.lists?.dispoMembers || [])])].sort(), [s.lists]);
 
   // What the change does to the deals on file.
   const impact = useMemo(() => {
-    if (!saved || !r || !s.raw.length) return null;
+    if (!saved || !next?.versions || !s.raw.length) return null;
     let deals = 0; let closed = 0; let delta = 0; let closedDelta = 0;
     for (const d of s.raw) {
       const before = compute(d, saved, s.lists);
       // Pending deals with no buyer yet have a negative base in the sheet's
       // formulas — no commission is really owed on them, so leave them out.
       if (n(before.commBase) < 0) continue;
-      const a = total(before); const b = total(compute(d, r, s.lists));
+      const a = total(before); const b = total(compute(d, next, s.lists));
       if (Math.abs(a - b) < 0.005) continue;
       deals++; delta += b - a;
       if (d.status === 'COMPLETE') { closed++; closedDelta += b - a; }
     }
     return { deals, closed, delta, closedDelta };
-  }, [saved, r, s.raw, s.lists]);
+  }, [saved, next, s.raw, s.lists]);
 
   if (!r) return <div className="py-16 text-center text-zinc-400">{msg?.text || 'Loading…'}</div>;
   const set = (patch) => setR((x) => ({ ...x, ...patch }));
-  const dirty = JSON.stringify(r) !== JSON.stringify(saved);
+  const dirty = JSON.stringify(r) !== JSON.stringify(latest?.rules);
   const save = async () => {
     if (impact?.closed && !window.confirm(`This changes commissions on ${impact.closed} closed deal${impact.closed === 1 ? '' : 's'} (${signed(impact.closedDelta)} in total). Save anyway?`)) return;
+    if (next?.error) { setMsg({ error: true, text: next.error }); return; }
     setBusy(true); setMsg(null);
     try {
-      const x = await writeSetting('deal-rules', r);
-      setSaved(structuredClone(r)); setMeta(x); setMsg({ text: 'Saved — every deal now uses the new rules.' });
+      const x = await writeSetting('deal-rules', next);
+      setSaved(structuredClone(next)); setMeta(x); setMsg({ text: `Saved — deals closing on or after ${from} use the new rules.` });
       loadDeals();
     } catch (e) { setMsg({ error: true, text: e.message }); } finally { setBusy(false); }
   };
@@ -144,8 +159,19 @@ export default function RulesView() {
           <Field label="Paid when the deal is"><Statuses value={r.tcCommStatuses || []} onChange={(v) => set({ tcCommStatuses: v })} /></Field>
         </div>
       </Section>
-      <SaveBar dirty={dirty} busy={busy} onSave={save} onReset={() => { setR(structuredClone(saved)); setMsg(null); }}
-        msg={msg || (dirty && impact ? { text: impact.deals ? `Changes commissions on ${impact.deals} deal${impact.deals === 1 ? '' : 's'}: ${signed(impact.delta)} in total${impact.closed ? `, of which ${impact.closed} already closed: ${signed(impact.closedDelta)}` : ''}.` : 'No deal changes with these rules.' } : null)} />
+      <Section title="When the change starts" sub="Deals use the rules in effect on their COE (commission is paid at closing). Deals that closed before this date — and cancelled deals contracted before it — keep the rules they had.">
+        <div className="flex flex-wrap items-end gap-6">
+          <Field label="New rules start on"><input type="date" value={from} min={latest.from} onChange={(e) => setFrom(e.target.value || laToday())} className={`${inputCls} w-48`} /></Field>
+          <div className="text-[13px] text-zinc-600">
+            <div className="font-medium text-navy-700 mb-1">Rule history</div>
+            {[...saved.versions].reverse().map((v, i) => (
+              <div key={v.from}>{v.from === '2000-01-01' ? 'Since the tracker began' : `From ${new Date(`${v.from}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}{i === 0 ? ' — current' : ''}</div>
+            ))}
+          </div>
+        </div>
+      </Section>
+      <SaveBar dirty={dirty} busy={busy} onSave={save} onReset={() => { setR(structuredClone(latest.rules)); setMsg(null); }}
+        msg={msg || (next?.error ? { error: true, text: next.error } : null) || (dirty && impact ? { text: impact.deals ? `Changes commissions on ${impact.deals} deal${impact.deals === 1 ? '' : 's'}: ${signed(impact.delta)} in total${impact.closed ? `, of which ${impact.closed} already closed: ${signed(impact.closedDelta)}` : ''}.` : 'No deal changes with these rules.' } : null)} />
     </div>
   );
 }

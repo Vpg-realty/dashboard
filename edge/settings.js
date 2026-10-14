@@ -39,7 +39,20 @@ const num = (x, lo, hi) => typeof x === 'number' && Number.isFinite(x) && x >= l
 const names = (a) => Array.isArray(a) && a.length <= 40 && a.every((n) => typeof n === 'string' && n.length <= 60);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const STATUSES = ['PENDING', 'COMPLETE', 'CANCELLED'];
-export function checkRules(r) {
+// A rule set, or { versions: [{ from, rules, by?, at? }] } oldest first.
+export function checkRules(v) {
+  if (!Array.isArray(v?.versions)) return checkRuleSet(v);
+  if (!v.versions.length || v.versions.length > 50) return 'no rule versions';
+  for (let i = 0; i < v.versions.length; i++) {
+    const x = v.versions[i];
+    if (!DATE.test(x?.from || '')) return 'every version needs a start date';
+    if (i && x.from <= v.versions[i - 1].from) return 'start dates must go forward in time';
+    const e = checkRuleSet(x.rules);
+    if (e) return `${x.from}: ${e}`;
+  }
+  return null;
+}
+function checkRuleSet(r) {
   if (!r || typeof r !== 'object') return 'rules missing';
   if (!num(r.tcFee, 0, 10000) || !num(r.tcComm, 0, 10000)) return 'TC fee / commission must be dollar amounts';
   if (!num(r.acqRate, 0, 1) || !num(r.dispoRate, 0, 1)) return 'rates must be between 0% and 100%';

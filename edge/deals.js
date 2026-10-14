@@ -72,7 +72,8 @@ export function shape(deal, user) {
 // TC fee (which feeds net assignment / wire expected), never commission rates.
 export function rulesFor(rules, user) {
   if (isOwner(user)) return rules;
-  return { tcFee: rules?.tcFee, tcFeeStatuses: rules?.tcFeeStatuses };
+  const fee = (r) => ({ tcFee: r?.tcFee, tcFeeStatuses: r?.tcFeeStatuses });
+  return Array.isArray(rules?.versions) ? { versions: rules.versions.map((v) => ({ from: v.from, rules: fee(v.rules) })) } : fee(rules);
 }
 
 // Apply { fields, fixed } to a deal for this user. Returns { deal, changes } or { error }.

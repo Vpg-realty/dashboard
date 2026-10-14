@@ -35,13 +35,22 @@ function Avatar({ rep, size = 20 }) {
   );
 }
 
+// On pace / Near pace / Behind: label, badge colours, the box's tint
+// (Luke, Oct 14: highlight boxes by pace across the site).
+function paceBadge(ratio) {
+  if (ratio == null) return null;
+  if (ratio >= 1) return ['On pace', 'bg-emerald-100 text-emerald-800 ring-emerald-300', 'bg-emerald-50'];
+  if (ratio >= 0.7) return ['Near pace', 'bg-amber-100 text-amber-900 ring-amber-300', 'bg-amber-50'];
+  return ['Behind', 'bg-red-100 text-red-800 ring-red-300', 'bg-red-50'];
+}
+
 function Stat({ label, value, target, color, period }) {
   const pct = target ? Math.min(100, Math.round((100 * value) / target)) : null;
   const pace = target && period ? paceFraction(period) : null;
   const ratio = pace ? value / (target * Math.max(pace, 0.05)) : null;
-  const badge = ratio == null ? null : ratio >= 1 ? ['On pace', 'bg-emerald-50 text-emerald-700 ring-emerald-200'] : ratio >= 0.7 ? ['Near pace', 'bg-amber-50 text-amber-800 ring-amber-200'] : ['Behind', 'bg-red-50 text-red-700 ring-red-200'];
+  const badge = paceBadge(ratio);
   return (
-    <div className="px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r">
+    <div className={`px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${badge ? badge[2] : ''}`}>
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] text-zinc-500 font-medium">{label}</span>
         {badge && <span className={`ml-auto rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${badge[1]}`}>{badge[0]}</span>}
@@ -59,9 +68,9 @@ function Stat({ label, value, target, color, period }) {
   );
 }
 
-function Card({ title, right, children, className = '' }) {
+function Card({ title, right, children, className = '', tint = 'bg-white' }) {
   return (
-    <section className={`rounded-xl border border-tan-200 bg-white p-5 shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${className}`}>
+    <section className={`rounded-xl border border-tan-200 ${tint} p-5 shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${className}`}>
       <div className="flex items-center gap-2 mb-3">
         <h2 className="text-[14.5px] font-semibold text-navy-700">{title}</h2>
         <span className="ml-auto">{right}</span>
@@ -79,8 +88,9 @@ function RevenueCard({ m, n }) {
   const goal = T.revenuePerRepMonth * n;
   const pace = paceFraction('month');
   const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
+  const badge = paceBadge(goal ? m.projected / (goal * Math.max(pace, 0.05)) : null);
   return (
-    <Card title="Revenue · this month" right={more('/board/overview', 'Overview')}>
+    <Card title="Revenue · this month" tint={badge ? badge[2] : undefined} right={<span className="flex items-center gap-3">{badge && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${badge[1]}`}>{badge[0]}</span>}{more('/board/overview', 'Overview')}</span>}>
       <div className="flex items-baseline gap-2">
         <span className="text-[30px] leading-none font-semibold tracking-tight text-navy-800 tabular-nums">{formatCompactCurrency(m.projected)}</span>
         <span className="text-zinc-500">projected of {formatCompactCurrency(goal)}</span>
@@ -149,8 +159,12 @@ function Leaderboard({ reps }) {
     const m = metrics(PAIRS.filter((p) => p.repId === r.id));
     return { r, m };
   }).sort((a, b) => b.m.contractsW - a.m.contractsW || b.m.offersW - a.m.offersW || b.m.oppsW - a.m.oppsW);
-  const pace = paceFraction('week');
-  const cell = (v, t) => <span className={`tabular-nums font-semibold ${v >= t * pace ? 'text-emerald-700' : v >= t * pace * 0.7 ? 'text-amber-700' : 'text-red-700'}`}>{v}<span className="text-zinc-400 font-normal"> / {t}</span></span>;
+  const wk = paceFraction('week');
+  const mo = paceFraction('month');
+  const cell = (v, t, frac = wk) => {
+    const b = paceBadge(v / (t * Math.max(frac, 0.05)));
+    return <span className={`inline-block min-w-[64px] rounded-md px-2 py-0.5 tabular-nums font-semibold ring-1 ring-inset ${b[1]}`}>{v}<span className="opacity-60 font-normal"> / {t}</span></span>;
+  };
   return (
     <Card title="This week by rep" right={more('/team/scorecard', 'Scorecard')} >
       <div className="overflow-x-auto">
@@ -165,8 +179,8 @@ function Leaderboard({ reps }) {
                 <td className="py-2.5 text-right">{cell(m.contractsW, T.contractsPerWeek)}</td>
                 <td className="py-2.5 text-right">{cell(m.offersW, T.offersPerWeek)}</td>
                 <td className="py-2.5 text-right">{cell(m.oppsW, T.oppsOpenedPerWeek)}</td>
-                <td className="py-2.5 text-right tabular-nums">{m.contractsM}<span className="text-zinc-400"> / {T.contractsPerMonth}</span></td>
-                <td className="py-2.5 text-right tabular-nums">{m.closedM}<span className="text-zinc-400"> / {T.dealsClosedPerMonth}</span></td>
+                <td className="py-2.5 text-right">{cell(m.contractsM, T.contractsPerMonth, mo)}</td>
+                <td className="py-2.5 text-right">{cell(m.closedM, T.dealsClosedPerMonth, mo)}</td>
               </tr>
             ))}
           </tbody>

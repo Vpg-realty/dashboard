@@ -74,12 +74,14 @@ function main() {
   for (const f of fs.readdirSync(path.join(root, 'dist'))) {
     if (f.endsWith('.json')) fs.copyFileSync(path.join(root, 'dist', f), path.join(out, f));
   }
-  // Only the API and the manager-only files go through the server functions
-  // (functions/_middleware.js gates the files); everything else stays a plain
-  // static file, so page loads and the TV's 30-second polling cost nothing.
+  // Only the API and the data files go through the server functions
+  // (functions/_middleware.js gates them: the board data to people on the
+  // list, the manager files to managers / owners); page code and images stay
+  // plain static files. The TV's 30-second data.json poll is one small
+  // function call each (well inside the free 100k a day).
   fs.writeFileSync(path.join(out, '_routes.json'), JSON.stringify({
     version: 1,
-    include: ['/api/*', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
+    include: ['/api/*', '/data.json', '/history.json', '/opp-state.json', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
     exclude: [],
   }));
   run('npx', ['-y', 'wrangler@4', 'pages', 'deploy', 'dist-cf', '--project-name', PROJECT, '--branch', 'main', '--commit-dirty=true'],
