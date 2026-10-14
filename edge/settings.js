@@ -4,6 +4,7 @@
 // in edit_log.
 import { currentUser, json } from './auth.js';
 import roster from '../subaccounts.json' with { type: 'json' };
+import { isTimelines, timelinesError, changeDates, rulesAt } from '../src/deals/rules.js';
 
 export const ROLES = ['owner', 'manager', 'tc', 'team', 'tv'];
 export const REP_IDS = new Set(roster.reps.map((r) => r.id));
@@ -39,8 +40,19 @@ const num = (x, lo, hi) => typeof x === 'number' && Number.isFinite(x) && x >= l
 const names = (a) => Array.isArray(a) && a.length <= 40 && a.every((n) => typeof n === 'string' && n.length <= 60);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const STATUSES = ['PENDING', 'COMPLETE', 'CANCELLED'];
-// A rule set, or { versions: [{ from, rules, by?, at? }] } oldest first.
+// A rule set, the older { versions: [{ from, rules, by?, at? }] } oldest
+// first, or per-rule timelines { since, timelines } (src/deals/rules.js):
+// the shape is checked, then the rule set in effect on every start date.
 export function checkRules(v) {
+  if (isTimelines(v)) {
+    const e = timelinesError(v);
+    if (e) return e;
+    for (const d of [...changeDates(v), null]) {
+      const e2 = checkRuleSet({ acqOfNet: {}, ...rulesAt(v, d) });
+      if (e2) return d ? `${d}: ${e2}` : e2;
+    }
+    return null;
+  }
   if (!Array.isArray(v?.versions)) return checkRuleSet(v);
   if (!v.versions.length || v.versions.length > 50) return 'no rule versions';
   for (let i = 0; i < v.versions.length; i++) {

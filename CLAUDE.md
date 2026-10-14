@@ -330,12 +330,28 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `users` → a "not set up yet" page, App.jsx, instead of the TV board).
   **Commission rules** — D1 `settings.deal_rules` as a form, with the
   effect on existing deals shown before saving (pending deals with no buyer
-  left out). Rules are versioned (Luke, Oct 14: a change only affects
-  future deals): `{versions: [{from, rules}]}`, each save takes a "New rules
-  start on" date; `pickRules` (math.js) picks the version by the deal's COE
-  (a cancelled deal: its contract date; no date: the latest), so closed and
-  cancelled deals keep the rules they had. A flat rule set still works (one
-  version). Settings shows the rule history.
+  left out). Each rule has its own start date (Luke, Oct 14: a change only
+  affects future deals; then "have each rule editable … enter a date for
+  when this will take effect"): every rule row shows its value today,
+  "since <date>", any change still to come and its own history (value,
+  takes effect, changed by, when; dated changes can be removed), plus a
+  "Changes by start date" list. Edit asks for the value and "Takes effect
+  on" and saves just that rule (`POST /api/settings/deal-rules {change:
+  {key, from, value}}` or `{key, from, remove: true}`; `changeRule` in
+  dashApi). Storage (`src/deals/rules.js`): `{since, timelines: {key:
+  [{from, value, by, at}]}}` — keys are top-level rule fields,
+  `manager.<f>` / `override.<f>` and `acqOfNet:<name>` (one per person,
+  `null` = not paid on net from that date); every timeline starts on
+  `since`. `pickRules` (math.js) composes, rule by rule, what was in effect
+  on the deal's COE (a cancelled deal: its contract date; no date: the
+  newest), so closed and cancelled deals keep the rules they had. Older
+  shapes still read — a flat rule set and `{versions: [{from, rules}]}` (one
+  date for the whole form, what D1 held until the first per-rule save);
+  `toTimelines` converts them on the first change (logged as
+  `settings.deal_rules.change` with the old value), with identical
+  results for every deal. `checkRules` checks the shape and the rule set in
+  effect on every start date; `rulesFor` gives the TC only the TC-fee
+  timelines.
   **Dropdown lists** — `settings.deal_lists` and Reports to. API
   `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
   owners only, never while viewing as; values checked; every save in

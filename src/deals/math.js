@@ -7,6 +7,7 @@
 // A deal is { id, ...fields, fixed: { field: value } }: `fixed` holds the
 // numbers typed by hand in the sheet that no formula would give (older rows
 // were pasted as values); a fixed number always wins over the formula.
+import { isTimelines, rulesAt } from './rules.js';
 
 export const FIELDS = [
   // key, label, group, type, (calc = computed), (secret = owner only)
@@ -92,18 +93,23 @@ export function addDays(iso, n) {
 
 // Commission rules can change over time (Luke, Oct 14: "it should only
 // impact deals in the future, not ones that have cancelled or closed
-// already … what date these will start on"). `rules` is either one rule set
-// or { versions: [{ from: 'YYYY-MM-DD', rules }] } (oldest first). A deal
-// uses the version in effect on its COE (commissions are paid at closing);
-// a deal with no COE yet uses the newest; a cancelled deal uses the version
-// in effect on its contract date, so a change never reaches deals that are
+// already … what date these will start on"; then: each rule with its own
+// start date). `rules` is one rule set, the older { versions: [{ from,
+// rules }] }, or per-rule timelines { since, timelines } (rules.js). A deal
+// uses the rules in effect on its COE (commissions are paid at closing); a
+// deal with no COE yet uses the newest; a cancelled deal uses the rules in
+// effect on its contract date, so a change never reaches deals that are
 // already done.
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export function ruleDate(deal) {
+  const cancelled = String(deal?.status || '').toUpperCase() === 'CANCELLED';
+  return cancelled && ISO_DATE.test(deal?.accepted || '') ? deal.accepted : ISO_DATE.test(deal?.coe || '') ? deal.coe : null;
+}
 export function pickRules(rules, deal) {
+  if (isTimelines(rules)) return rulesAt(rules, ruleDate(deal));
   const vs = rules?.versions;
   if (!Array.isArray(vs) || !vs.length) return rules || {};
-  const cancelled = String(deal?.status || '').toUpperCase() === 'CANCELLED';
-  const date = cancelled && ISO_DATE.test(deal?.accepted || '') ? deal.accepted : ISO_DATE.test(deal?.coe || '') ? deal.coe : null;
+  const date = ruleDate(deal);
   if (!date) return vs[vs.length - 1].rules;
   let pick = vs[0];
   for (const v of vs) if (v.from <= date) pick = v;

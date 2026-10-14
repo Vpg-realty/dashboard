@@ -10,6 +10,7 @@
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
 import { FIELD, FIELDS, SECRET_KEYS, forTc, forRep, repSees } from '../src/deals/math.js';
+import { isTimelines } from '../src/deals/rules.js';
 
 import roster from '../subaccounts.json' with { type: 'json' };
 
@@ -73,6 +74,11 @@ export function shape(deal, user) {
 export function rulesFor(rules, user) {
   if (isOwner(user)) return rules;
   const fee = (r) => ({ tcFee: r?.tcFee, tcFeeStatuses: r?.tcFeeStatuses });
+  if (isTimelines(rules)) {
+    const keep = Object.entries(rules.timelines).filter(([k]) => k === 'tcFee' || k === 'tcFeeStatuses')
+      .map(([k, tl]) => [k, tl.map((e) => ({ from: e.from, value: e.value }))]);
+    return { since: rules.since, timelines: Object.fromEntries(keep) };
+  }
   return Array.isArray(rules?.versions) ? { versions: rules.versions.map((v) => ({ from: v.from, rules: fee(v.rules) })) } : fee(rules);
 }
 
