@@ -15,6 +15,56 @@ const LIST_OF = {
   emdPaidBy: 'emdPaidBy', dispoTeam: 'dispoTeam', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
 };
 const FIXED_LISTS = { retrade: ['Y', 'N'] };
+// Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
+// "Custom" to type it in.
+const PICK_FROM_PAST = new Set(['buyer', 'title']);
+const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// Every distinct value used on any deal, most-used first.
+function pastValues(deals, key) {
+  const m = new Map();
+  for (const d of deals) {
+    const v = typeof d[key] === 'string' ? d[key].trim() : '';
+    if (!v) continue;
+    const k = norm(v);
+    const e = m.get(k) || { value: v, n: 0 };
+    e.n += 1;
+    m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => b.n - a.n || a.value.localeCompare(b.value));
+}
+const optionLabel = (v) => { const [a, b] = v.split('\n').map((x) => x.trim()).filter(Boolean); return b ? `${a} · ${b}` : a; };
+
+function PickOrType({ value, onChange, options, base }) {
+  const current = typeof value === 'string' ? value : '';
+  const match = options.find((o) => norm(o.value) === norm(current));
+  const [custom, setCustom] = useState(!!current && !match);
+  const sel = custom ? '__custom' : match ? match.value : '';
+  return (
+    <div className="flex flex-col gap-1.5">
+      <select value={sel} onChange={(e) => {
+        const v = e.target.value;
+        if (v === '__custom') { setCustom(true); return; }
+        setCustom(false);
+        onChange(v || null);
+      }} className={`${selectCls} w-full h-8 rounded-md`}>
+        <option value="">—</option>
+        <option value="__custom">✎ Custom — type it in</option>
+        {options.length > 0 && (
+          <optgroup label="Used before">
+            {options.map((o) => <option key={o.value} value={o.value}>{optionLabel(o.value)}{o.n > 1 ? ` (${o.n} deals)` : ''}</option>)}
+          </optgroup>
+        )}
+      </select>
+      {custom ? (
+        <textarea value={current} autoFocus={!current} rows={Math.min(5, Math.max(3, current.split('\n').length))} onChange={(e) => onChange(e.target.value)}
+          placeholder={'Company\nContact name\nemail@…\nphone'} className={`${base} h-auto py-1.5 leading-snug`} />
+      ) : match && (
+        <div className="whitespace-pre-line rounded-md bg-zinc-50 px-2 py-1.5 text-[12.5px] text-zinc-600 leading-snug">{match.value}</div>
+      )}
+    </div>
+  );
+}
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.label]));
 
@@ -25,9 +75,10 @@ function show(f, v) {
   return v == null || v === '' ? '—' : String(v);
 }
 
-function Input({ f, value, onChange, lists, disabled }) {
-  const base = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 disabled:bg-zinc-50 disabled:text-zinc-500';
+function Input({ f, value, onChange, lists, disabled, past }) {
+  const base = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
   const v = value ?? '';
+  if (past) return <PickOrType value={value} onChange={onChange} options={past} base={base} />;
   if (f.type === 'longtext') {
     return <textarea value={v} disabled={disabled} rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(e.target.value)} className={`${base} h-auto py-1.5 leading-snug`} />;
   }
@@ -164,6 +215,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
   }
 
   const pay = owner ? payouts(merged, s.rules) : [];
+  const past = { buyer: pastValues(s.raw, 'buyer'), title: pastValues(s.raw, 'title') };
   const groups = GROUPS.filter(([gid]) => owner || gid !== 'pay');
 
   return (
@@ -221,8 +273,8 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                 <fieldset key={gid}>
                   <legend className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2">{glabel}</legend>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-                    {FIELDS.filter((f) => f.group === gid && (owner || !f.secret)).map((f) => {
-                      const wide = f.type === 'longtext' || f.key === 'address';
+                    {FIELDS.filter((f) => f.group === gid && (owner || !f.secret) && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
+                      const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
                       return (
@@ -239,7 +291,10 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                               {isFixed && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
                             </div>
                           ) : (
-                            <Input f={f} lists={s.lists} value={f.key in draft.fields ? draft.fields[f.key] : raw[f.key]} onChange={(v) => setField(f.key, v)} />
+                            <>
+                              <Input f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={f.key in draft.fields ? draft.fields[f.key] : raw[f.key]} onChange={(v) => setField(f.key, v)} />
+                              {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
+                            </>
                           )}
                         </label>
                       );

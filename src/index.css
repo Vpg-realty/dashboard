@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Valley Property Group colours (Luke, Oct 14: "incorporate our colors a
+   little more … so it feels like a company-wide system"), from the logo:
+   navy #1b385f and tan #ad9b7a, plus light tints for backgrounds. Used as
+   bg-navy-700, text-tan-600, etc. The TV board keeps its own colours. */
+@theme {
+  --color-navy-50: #eff3f8;
+  --color-navy-100: #dde5f0;
+  --color-navy-200: #bccbdf;
+  --color-navy-500: #3a5f8f;
+  --color-navy-600: #2a4a75;
+  --color-navy-700: #1b385f;
+  --color-navy-800: #142a48;
+  --color-navy-900: #0e1e34;
+  --color-tan-50: #f7f4ee;
+  --color-tan-100: #efe9dd;
+  --color-tan-200: #e0d5c1;
+  --color-tan-400: #c2b394;
+  --color-tan-500: #ad9b7a;
+  --color-tan-600: #8f7e5e;
+  --color-tan-700: #6f6249;
+}
+
 :root {
   color-scheme: light;
   /* Default size (Luke, Oct 13): the whole site renders like Chrome at 90%

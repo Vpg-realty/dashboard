@@ -90,9 +90,9 @@ export default function AllDealsView() {
       </div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[12.5px]">
         <span className="text-zinc-500 mr-1">Columns</span>
-        <button onClick={() => setQuery({ cols: null })} className={`rounded-full px-2.5 py-0.5 ring-1 ${!groups.length ? 'bg-zinc-900 text-white ring-zinc-900' : 'ring-zinc-200 text-zinc-600 hover:bg-zinc-100'}`}>Overview</button>
+        <button onClick={() => setQuery({ cols: null })} className={`rounded-full px-2.5 py-0.5 ring-1 ${!groups.length ? 'bg-navy-700 text-white ring-navy-700' : 'ring-zinc-200 text-zinc-600 hover:bg-zinc-100'}`}>Overview</button>
         {GROUPS.filter(([g]) => s.owner || g !== 'pay').map(([g, l]) => (
-          <button key={g} onClick={() => toggleGroup(g)} className={`rounded-full px-2.5 py-0.5 ring-1 ${groups.includes(g) ? 'bg-blue-600 text-white ring-blue-600' : 'ring-zinc-200 text-zinc-600 hover:bg-zinc-100'}`}>{l}</button>
+          <button key={g} onClick={() => toggleGroup(g)} className={`rounded-full px-2.5 py-0.5 ring-1 ${groups.includes(g) ? 'bg-navy-600 text-white ring-navy-600' : 'ring-zinc-200 text-zinc-600 hover:bg-zinc-100'}`}>{l}</button>
         ))}
       </div>
       <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-zinc-200/80 bg-white">

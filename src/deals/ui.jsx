@@ -19,7 +19,7 @@ export function PageHead({ title, sub, right }) {
   return (
     <div className="flex flex-wrap items-end gap-x-4 gap-y-2 mb-4">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">{title}</h1>
         {sub && <div className="text-zinc-500 mt-0.5">{sub}</div>}
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>
@@ -30,7 +30,7 @@ export function PageHead({ title, sub, right }) {
 export function Tile({ label, value, sub, tone, onClick, active }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag onClick={onClick} className={`text-left px-4 py-3 border-zinc-200/80 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-zinc-50' : ''} ${active ? 'bg-blue-50/60' : ''}`}>
+    <Tag onClick={onClick} className={`text-left px-4 py-3 border-zinc-200/80 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-zinc-50' : ''} ${active ? 'bg-navy-50 shadow-[inset_0_-2px_0_var(--color-tan-500)]' : ''}`}>
       <div className="text-[12.5px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
       <div className={`mt-1 text-xl font-semibold tracking-tight tabular-nums ${tone || ''}`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-zinc-500 whitespace-nowrap">{sub}</div>}
@@ -53,7 +53,7 @@ export function Loading({ s }) {
 
 export function Search({ value, onChange, placeholder = 'Search address, rep, buyer, title…' }) {
   return (
-    <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-400 focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-300 w-64 max-w-full">
+    <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-400 focus-within:ring-2 focus-within:ring-navy-100 focus-within:border-navy-200 w-64 max-w-full">
       <Icon name="search" size={14} />
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1 min-w-0 outline-none text-zinc-900 placeholder:text-zinc-400 bg-transparent" />
     </label>

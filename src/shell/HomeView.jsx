@@ -124,21 +124,31 @@ export default function HomeView({ me }) {
 
   return (
     <div className="max-w-[1280px]">
-      <h1 className="text-xl md:text-2xl font-semibold tracking-tight">{greeting()}, {me?.name || 'there'}</h1>
-      <div className="text-zinc-500 mt-1">
-        {dateLabel}
-        {open.length > 0 && <> · {late.length > 0 && <span className="text-red-700 font-medium">{late.length} late</span>}{late.length > 0 && soon.length > 0 && ', '}{soon.length > 0 && <span>{soon.length} due today or tomorrow</span>}</>}
-        {scopeLabel && <span className="ml-2 text-xs border border-zinc-200 rounded-md px-1.5 py-0.5 align-middle">{scopeLabel}</span>}
+      {/* Company banner: navy with the tan "V" mark (Luke, Oct 14: our colours). */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-700 via-navy-700 to-navy-600 px-5 md:px-7 py-5 md:py-6 text-white">
+        <svg viewBox="0 0 600 781" className="absolute right-6 md:right-12 -top-6 h-[140%] opacity-[0.16] pointer-events-none" aria-hidden="true">
+          <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#fff" />
+          <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
+        </svg>
+        <div className="relative">
+          <div className="text-[10.5px] font-semibold tracking-[0.25em] text-tan-400">VALLEY PROPERTY GROUP</div>
+          <h1 className="mt-1.5 text-xl md:text-2xl font-semibold tracking-tight">{greeting()}, {me?.name || 'there'}</h1>
+          <div className="text-navy-100 mt-1">
+            {dateLabel}
+            {open.length > 0 && <> · {late.length > 0 && <span className="text-red-200 font-semibold">{late.length} late</span>}{late.length > 0 && soon.length > 0 && ', '}{soon.length > 0 && <span>{soon.length} due today or tomorrow</span>}</>}
+            {scopeLabel && <span className="ml-2 text-xs rounded-md px-1.5 py-0.5 align-middle bg-tan-500/25 text-tan-100 ring-1 ring-tan-400/40">{scopeLabel}</span>}
+          </div>
+        </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-zinc-200/80 bg-white overflow-hidden [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
+      <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
         {stats.map(([l, v, t, c]) => <Stat key={l} label={l} value={v} target={t} color={c} />)}
       </div>
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-8">
         <section>
           <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-semibold">Needs attention</h2>
+            <h2 className="text-[13px] font-semibold text-navy-700">Needs attention</h2>
             <a {...linkProps('/board/pipeline')} className="text-zinc-500 hover:text-zinc-900 font-medium flex items-center gap-1">Pipeline <Icon name="arrow" size={13} /></a>
           </div>
           {open.length === 0 ? (
@@ -152,7 +162,7 @@ export default function HomeView({ me }) {
           )}
         </section>
         <aside>
-          <h2 className="text-[13px] font-semibold">Wins this week</h2>
+          <h2 className="text-[13px] font-semibold text-navy-700">Wins this week</h2>
           {wins.length === 0 ? (
             <div className="mt-3 text-zinc-500">No new contracts or closings yet this week.</div>
           ) : wins.slice(0, 8).map((w) => (

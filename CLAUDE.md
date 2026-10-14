@@ -189,7 +189,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
-  logo Luke sent Oct 14 (drawn as an inline SVG in AppShell.jsx).
+  logo Luke sent Oct 14 (drawn as an inline SVG in AppShell.jsx), with
+  "VALLEY PROPERTY / GROUP" set like the logo.
+- **Company colours** (Luke, Oct 14: "incorporate our colors … a company
+  wide system"): `navy-*` and `tan-*` Tailwind colours in `src/index.css`
+  (`@theme`). The app uses them lightly: warm tan-50 page background and
+  tan borders, navy active nav / tabs / titles / primary buttons, a tan
+  marker on the active section, navy avatar, and a navy welcome banner with
+  the V mark on Home. Status colours (red / amber / green) and rep colours
+  stay as they were; the TV board is unchanged. The company font
+  (Montserrat) isn't used — Luke: harder to read.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app.
 - Phones: Board / Team pages are TV-sized, so each tab has a `phone` canvas
@@ -252,6 +261,11 @@ the server strips them (`forTc`) and refuses edits to them.
   COE passed while pending, EMD overdue, final below contract); GHL stage /
   IP end / COE with "use GHL's" when the COE differs; owners see who is
   owed what on the deal (`payouts`). ⌘K finds tracker deals for owners / TC.
+  Buyer and Title agency (Luke, Oct 14): a dropdown of every entry used on
+  an earlier deal (most-used first, "Company · contact (N deals)", full text
+  shown under it) with "✎ Custom — type it in" at the top. Retrade = Y
+  shows **Original contracted price** beside it (`originalPrice`, the price
+  before the retrade — reference only, no formula uses it).
 - Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
   overwrites site edits. Commission payments (Owed → Approved → Paid),

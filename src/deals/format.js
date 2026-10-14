@@ -26,9 +26,9 @@ const STATE_CODES = {
 const STATUS_LABEL = { PENDING: 'Pending', COMPLETE: 'Closed', CANCELLED: 'Cancelled' };
 export const statusLabel = (s) => STATUS_LABEL[String(s || '').toUpperCase()] || s || '—';
 
-export const selectCls = 'h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px] text-zinc-800 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-100';
+export const selectCls = 'h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px] text-zinc-800 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100';
 export const btnCls = 'h-8 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50';
-export const primaryCls = 'h-8 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 font-medium text-white hover:bg-zinc-800 disabled:opacity-50';
+export const primaryCls = 'h-8 inline-flex items-center gap-1.5 rounded-lg bg-navy-700 px-3 font-medium text-white hover:bg-navy-800 disabled:opacity-50';
 
 // CSV download of rows × columns ({ label, get }).
 export function downloadCsv(name, cols, rows) {

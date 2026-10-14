@@ -20,6 +20,9 @@ export const FIELDS = [
   ['status', 'Deal status', 'contract', 'list'],
   ['price', 'Contracted price', 'contract', 'money'],
   ['retrade', 'Retrade', 'contract', 'list'],
+  // Luke, Oct 14: a retrade changes the price; the price before it is kept
+  // for reference only (shown when Retrade = Y; no formula uses it).
+  ['originalPrice', 'Original contracted price', 'contract', 'money'],
   ['title', 'Title agency', 'title', 'longtext'],
   ['escrow', 'Escrow #', 'title', 'text'],
   ['emd', 'EMD amount', 'emd', 'money'],
