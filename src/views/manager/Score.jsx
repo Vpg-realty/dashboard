@@ -51,13 +51,13 @@ export function ScoreBreakdown({ m, crm = null }) {
     shown[i] += Math.sign(diff); diff -= Math.sign(diff);
   }
   // Speed: share answered within 15 min (full points at 75%).
-  const speedLine = (p) => (p.pending ? 'no texts checked yet' : !p.total ? 'no agent texts' : `${Math.round((p.have / p.total) * 100)}% · ${p.have} of ${p.total} texts`);
+  const speedLine = (p) => (p.pending ? 'not checked yet' : !p.total ? 'no agent texts' : `${Math.round((p.have / p.total) * 100)}% · ${p.have} of ${p.total} texts`);
   const fmt = (p, v) => (p.key === 'projected' ? formatCompactCurrency(v) : Math.round(v * 10) / 10);
   return (
     <div className="space-y-1.5">
       {parts.map((p, i) => (
-        <div key={p.key} className="grid grid-cols-[9.5rem_1fr_8.5rem_3.5rem] items-center gap-2 text-sm">
-          <span className="flex items-center gap-1.5 font-semibold whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: p.color }} />{p.label}</span>
+        <div key={p.key} className="grid grid-cols-[10.5rem_1fr_10.5rem_3.5rem] items-center gap-2 text-sm">
+          <span className="flex items-center gap-1.5 font-semibold whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color }} />{p.label}</span>
           <span className="h-2 rounded-sm bg-zinc-200 overflow-hidden" style={p.pending ? { background: HATCH } : undefined}>{!p.pending && <span className="block h-full" style={{ width: `${p.share * 100}%`, background: p.color }} />}</span>
           <span className="text-zinc-500 tabular-nums text-right whitespace-nowrap">{p.key === 'speed' ? speedLine(p) : p.pending ? 'not graded yet' : `${fmt(p, p.have)} of ${fmt(p, p.want)}${p.partial ? ` · ${p.known} of 5 items` : ''}`}</span>
           <span className="font-bold tabular-nums text-right">{p.pending ? '—' : shown[i]}<span className="text-zinc-400 font-semibold">/{p.pending ? p.weight : full(p)}</span></span>

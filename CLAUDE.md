@@ -235,12 +235,21 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   average line yes, manager notes no, no other rep's scores or team rates):
   sidebar section for team + managers, a scrolling page
   (`MyScorecardView.jsx`): score ring + Contracts / Offers this week and
-  Projected this month boxes tinted by pace, "the one thing that moves your
-  score most" (the part with the most points left), "Fix these N things"
-  (each CRM item below 2 with the deals / texts behind it, the rest folded
+  Projected this month boxes tinted by pace, plus an **Answered ≤ 15 min**
+  box (Luke, Oct 14: speed % + "N of M", green ≥ 75% / amber ≥ 56% / red;
+  "not checked yet" when no messaging check ran), "See how your N adds
+  up" (opens `ScoreBreakdown`, speed's points included), "the one thing
+  that moves your score most" (the part with the most points left), "Fix
+  these N things" (each CRM item below 2 with the deals / texts behind it —
+  first 3, then "Show all N" expands the whole list in place (Luke, Oct 14:
+  "+9 more" wasn't clickable; `autoCrm(pairs, monday, Infinity)` keeps every
+  flagged deal, `badN` = how many in all); speed below 75% adds a row with
+  each slow / unanswered agent text; the rest folded
   into one "all good" row), and the weekly score over 8 weeks with the
   dashed team average for reference. "Show the full breakdown" opens
-  `RepView` with `self breakdown`: any period, the six tiles, points per
+  `RepView` with `self breakdown`: any period, the six tiles (+ a Speed tile
+  for a week: live, or a past week's frozen `speedOk` / `speedTotal` — every
+  RepView shows it), points per
   part by week (`RepProgress pointsOnly`), their funnel ("your biggest
   drop", no team %) and states (no team colouring). `MyCrmCard.jsx` is no
   longer used on it. Data from

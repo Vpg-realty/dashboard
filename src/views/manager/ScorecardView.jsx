@@ -76,7 +76,7 @@ function autoLine(d) {
 // agent texts answered within 15 min, coloured like the Coaching tab (green at
 // the 75% target, amber from 56%).
 function SpeedCell({ ok, total, bg = 'bg-zinc-50' }) {
-  if (total == null) return <div className={`rounded-md h-full flex items-center justify-center border border-zinc-200 text-zinc-300 ${bg}`} title="Not checked this week">–</div>;
+  if (total == null) return <div className={`rounded-md h-full flex items-center justify-center border border-zinc-200 text-zinc-300 ${bg}`} title="Speed not checked yet this week (no messaging check has run for this rep)"><span className="text-[10px] font-semibold text-zinc-400 leading-tight text-center">not checked<br />yet</span></div>;
   const r = total ? ok / total : null;
   const cls = r == null ? 'bg-zinc-50 border-zinc-200 text-zinc-500' : r >= 0.75 ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : r >= 0.56 ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-rose-50 border-rose-300 text-rose-700';
   return (

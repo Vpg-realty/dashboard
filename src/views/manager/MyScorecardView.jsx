@@ -9,11 +9,12 @@ import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
 import { REPS } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
-import { CRM_ITEMS, autoCrm } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, autoCrm, SPEED_WEIGHTS } from '../../../scripts/scorecard-lib.mjs';
+import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import RepView from './RepView.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
 import LineChart from './LineChart.jsx';
-import { ScoreHelp } from './Score.jsx';
+import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
 import { T, metrics, repPairs, scoreParts, scoreTone, paceTone } from './metrics.js';
@@ -77,8 +78,68 @@ function oneThing(parts, m, scale) {
   return text ? { text, gain: left.gain } : null;
 }
 
-function FixList({ pairs, monday, crm, manual }) {
-  const auto = autoCrm(pairs, monday);
+// Speed to response box (Luke, Oct 14: "no numbers on his response time %"):
+// agent texts answered within 15 min this week, coloured like the Coaching
+// tab's SPEED column — green at the 75% standard, amber from 56%, red below.
+function SpeedKpi({ ok, total }) {
+  const r = total ? ok / total : null;
+  const tone = total == null ? null : r == null || r >= SPEED_TARGET ? 'good' : r >= SPEED_TARGET * 0.75 ? 'close' : 'bad';
+  const cls = { good: ['border-emerald-200 bg-emerald-50', 'text-emerald-700', '#059669'], close: ['border-amber-200 bg-amber-50', 'text-amber-700', '#d97706'], bad: ['border-red-200 bg-red-50', 'text-red-700', '#dc2626'] }[tone] || ['border-zinc-200 bg-zinc-50', 'text-zinc-500', '#a1a1aa'];
+  const word = tone == null ? '' : r == null ? 'No agent texts' : tone === 'good' ? 'On target' : tone === 'close' ? 'Near target' : 'Below target';
+  return (
+    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${cls[0]}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · worth ${SPEED_WEIGHTS.speed} points`}>
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-medium text-zinc-600 whitespace-nowrap">Answered ≤ {ANSWER_WITHIN_MIN} min</span>
+        <span className={`ml-auto text-[11.5px] font-semibold ${cls[1]}`}>{word}</span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span className={`leading-none font-bold tabular-nums ${tone ? 'text-[30px] text-navy-800' : 'text-[20px] text-zinc-400'}`}>{tone == null ? 'not checked yet' : r == null ? '—' : `${Math.round(r * 100)}%`}</span>
+        <span className="text-zinc-500 tabular-nums">{total ? `${ok} of ${total} texts` : total === 0 ? 'none this week' : ''}</span>
+      </div>
+      <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
+        {r > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: cls[2] }} />}
+        <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${SPEED_TARGET * 100}%` }} title={`Target ${Math.round(SPEED_TARGET * 100)}%`} />
+      </div>
+    </div>
+  );
+}
+
+// Agent texts not answered within 15 min (Claude's "no answer needed" left
+// out), newest first.
+const azFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+function slowTexts(pairs) {
+  return pairs.flatMap((p) => {
+    const sp = p.messaging?.speed;
+    if (!sp?.slow) return [];
+    const skip = new Set(sp.notNeeded || []);
+    return sp.slow.filter((b) => !skip.has(b.id)).map((b) => ({ id: `s${b.id}`, at: b.at, addr: `Agent text · ${azFmt.format(new Date(b.at))} · ${p.marketId}`, why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }));
+  }).sort((a, b) => b.at - a.at);
+}
+
+// A list of flagged deals / texts: the first 3, then "Show all N" opens the
+// rest in place (Luke, Oct 14: reps couldn't see what "+9 more" were).
+const SHOW = 3;
+function BadList({ bad, total }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? bad : bad.slice(0, SHOW);
+  const hidden = total - bad.length; // flagged but not kept (25 per state)
+  return (
+    <>
+      <ul className="mt-1 space-y-0.5 text-[13.5px]">
+        {shown.map((b, i) => <li key={`${b.id || ''}${i}`}><span className="font-medium">{b.addr}</span> <span className="text-zinc-600">— {b.why}</span></li>)}
+      </ul>
+      {open && hidden > 0 && <div className="mt-1 text-[12.5px] text-zinc-500">…and {hidden} more like these (only the first 25 per state are listed).</div>}
+      {bad.length > SHOW && (
+        <button onClick={() => setOpen((v) => !v)} className="mt-1.5 text-[13px] font-semibold text-navy-700 hover:text-navy-900 hover:underline">
+          {open ? 'Show less ▴' : `Show all ${total} ▾`}
+        </button>
+      )}
+    </>
+  );
+}
+
+function FixList({ pairs, monday, crm, manual, m }) {
+  const auto = autoCrm(pairs, monday, Infinity);
   const rows = [];
   const good = [];
   CRM_ITEMS.forEach((it, i) => {
@@ -86,24 +147,27 @@ function FixList({ pairs, monday, crm, manual }) {
     const d = auto?.detail?.[it.key];
     const byManager = Array.isArray(manual) && manual[i] != null;
     if (g === 2) { good.push(it.short); return; }
-    rows.push({ it, g, bad: byManager ? [] : d?.bad || [], more: byManager ? 0 : Math.max(0, (d?.badN || d?.bad?.length || 0) - 3), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
+    const bad = byManager ? [] : d?.bad || [];
+    rows.push({ key: it.key, label: it.label, help: it.help, g, bad, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
   });
+  // Speed to response is its own part of the score: below the standard, the
+  // texts behind it are listed here too.
+  if (m.speedTotal && m.speedOk / m.speedTotal < SPEED_TARGET) {
+    const bad = slowTexts(pairs);
+    const r = m.speedOk / m.speedTotal;
+    rows.push({ key: 'speed', label: `Answer agent texts within ${ANSWER_WITHIN_MIN} minutes`, help: '', g: r >= SPEED_TARGET * 0.75 ? 1 : 0, bad, total: Math.max(bad.length, m.speedTotal - m.speedOk), note: `${m.speedOk} of ${m.speedTotal} answered in time (${Math.round(r * 100)}%, target ${Math.round(SPEED_TARGET * 100)}%)` });
+  }
   const badge = (g) => (g == null ? 'bg-zinc-200 text-zinc-500' : g === 1 ? 'bg-amber-500 text-white' : 'bg-red-600 text-white');
   return (
     <section className={card}>
       <PanelHead title={rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'} />
       <div className="p-5 flex flex-col gap-2.5">
-        {rows.map(({ it, g, bad, more, note }) => (
-          <div key={it.key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
-            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
-            <div className="min-w-0">
-              <div className="font-semibold text-zinc-900">{it.label} <span className="font-normal text-zinc-500">· {note}</span></div>
-              {bad.length > 0 ? (
-                <ul className="mt-1 space-y-0.5 text-[13.5px]">
-                  {bad.slice(0, 3).map((b) => <li key={b.id || `${b.addr}${b.why}`}><span className="font-medium">{b.addr}</span> <span className="text-zinc-600">— {b.why}</span></li>)}
-                  {more > 0 && <li className="text-zinc-500">+{more} more</li>}
-                </ul>
-              ) : <div className="mt-0.5 text-[13.5px] text-zinc-600">{it.help}</div>}
+        {rows.map(({ key, label, help, g, bad, total, note }) => (
+          <div key={key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
+            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{key === 'speed' ? '!' : g ?? '–'}</span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-zinc-900">{label} <span className="font-normal text-zinc-500">· {note}</span></div>
+              {bad.length > 0 ? <BadList bad={bad} total={total} /> : <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}
             </div>
           </div>
         ))}
@@ -175,6 +239,7 @@ export default function MyScorecardView() {
   const me = useMe();
   const sc = useScorecards();
   const [full, setFull] = useState(false);
+  const [how, setHow] = useState(false);
   const rep = REPS.find((r) => r.id === me?.rep_id);
   if (!me) return null;
   if (!rep) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet.</div>;
@@ -201,16 +266,19 @@ export default function MyScorecardView() {
       <section className={`${card} p-5`}>
         <div className="flex flex-col md:flex-row gap-5 md:items-center">
           <Ring score={sp.score} estimate={sp.estimate} />
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 min-w-0">
             <Kpi label="Contracts this week" v={m.contractsW} t={T.contractsPerWeek} frac={wk} />
             <Kpi label="Offers this week" v={m.offersW} t={T.offersPerWeek} frac={wk} />
             <Kpi label="Projected this month" v={m.projected} t={T.revenuePerRepMonth} frac={mo} money />
+            <SpeedKpi ok={m.speedOk} total={m.speedTotal} />
           </div>
         </div>
+        <button onClick={() => setHow((v) => !v)} className="mt-4 text-[13.5px] font-semibold text-navy-700 hover:underline">{how ? 'Hide how your score adds up ▴' : `See how your ${sp.score} adds up — points for each part ▾`}</button>
+        {how && <div className="mt-3 max-w-[46rem] rounded-lg border border-tan-200 bg-tan-50/40 p-4"><ScoreBreakdown m={m} crm={crm} /></div>}
         {thing && <div className="mt-4 text-[14px] text-zinc-600">The one thing that moves your score most this week: <span className="font-semibold text-navy-800">{thing.text}</span> (worth up to {thing.gain} points).</div>}
       </section>
 
-      <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} />
+      <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} m={m} />
       <Trend sc={sc} rep={rep} />
 
       <button onClick={() => setFull((v) => !v)} className={`${card} px-5 py-3.5 flex items-center gap-3 text-left hover:bg-tan-50 ${full ? 'bg-navy-700 hover:bg-navy-800 border-navy-700' : ''}`}>
