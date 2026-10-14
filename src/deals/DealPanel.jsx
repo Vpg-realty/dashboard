@@ -8,111 +8,10 @@ import { FIELDS, GROUPS, compute, payouts } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
-import { money, shortDate, btnCls, primaryCls, selectCls, NEEDS_BUYER, noBuyer } from './format.js';
+import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
-
-const LIST_OF = {
-  listing: 'listing', state: 'states', dealType: 'dealTypes', status: 'status', cfar: 'yesNo', emdStatus: 'emdStatus',
-  emdPaidBy: 'emdPaidBy', dispoTeam: 'dispoTeam', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
-};
-const FIXED_LISTS = { retrade: ['Y', 'N'] };
-// Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
-// "Custom" to type it in.
-const PICK_FROM_PAST = new Set(['buyer', 'title']);
-const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
-// Every distinct value used on any deal, most-used first.
-function pastValues(deals, key) {
-  const m = new Map();
-  for (const d of deals) {
-    const v = typeof d[key] === 'string' ? d[key].trim() : '';
-    if (!v) continue;
-    const k = norm(v);
-    const e = m.get(k) || { value: v, n: 0 };
-    e.n += 1;
-    m.set(k, e);
-  }
-  return [...m.values()].sort((a, b) => b.n - a.n || a.value.localeCompare(b.value));
-}
-const optionLabel = (v) => { const [a, b] = v.split('\n').map((x) => x.trim()).filter(Boolean); return b ? `${a} · ${b}` : a; };
-
-function PickOrType({ value, onChange, options, base }) {
-  const current = typeof value === 'string' ? value : '';
-  const match = options.find((o) => norm(o.value) === norm(current));
-  const [custom, setCustom] = useState(!!current && !match);
-  const sel = custom ? '__custom' : match ? match.value : '';
-  return (
-    <div className="flex flex-col gap-1.5">
-      <select value={sel} onChange={(e) => {
-        const v = e.target.value;
-        if (v === '__custom') { setCustom(true); return; }
-        setCustom(false);
-        onChange(v || null);
-      }} className={`${selectCls} w-full h-8 rounded-md`}>
-        <option value="">—</option>
-        <option value="__custom">✎ Custom — type it in</option>
-        {options.length > 0 && (
-          <optgroup label="Used before">
-            {options.map((o) => <option key={o.value} value={o.value}>{optionLabel(o.value)}{o.n > 1 ? ` (${o.n} deals)` : ''}</option>)}
-          </optgroup>
-        )}
-      </select>
-      {custom ? (
-        <textarea value={current} autoFocus={!current} rows={Math.min(5, Math.max(3, current.split('\n').length))} onChange={(e) => onChange(e.target.value)}
-          placeholder={'Company\nContact name\nemail@…\nphone'} className={`${base} h-auto py-1.5 leading-snug`} />
-      ) : match && (
-        <div className="whitespace-pre-line rounded-md bg-zinc-50 px-2 py-1.5 text-[12.5px] text-zinc-600 leading-snug">{match.value}</div>
-      )}
-    </div>
-  );
-}
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.label]));
-
-function show(f, v) {
-  if (f.type === 'money') return money(v, { cents: true });
-  if (f.type === 'percent') return typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
-  if (f.type === 'date') return shortDate(v, { year: true });
-  return v == null || v === '' ? '—' : String(v);
-}
-
-function Input({ f, value, onChange, lists, disabled, past }) {
-  const base = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
-  const v = value ?? '';
-  if (past) return <PickOrType value={value} onChange={onChange} options={past} base={base} />;
-  if (f.type === 'longtext') {
-    return <textarea value={v} disabled={disabled} rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(e.target.value)} className={`${base} h-auto py-1.5 leading-snug`} />;
-  }
-  if (f.type === 'money' || f.type === 'number') {
-    return (
-      <div className="relative">
-        {f.type === 'money' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400">$</span>}
-        <input type="number" step="any" inputMode="decimal" disabled={disabled} value={typeof v === 'number' ? v : v === '' ? '' : ''} placeholder={typeof v === 'string' && v ? v : ''}
-          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} className={`${base} tabular-nums ${f.type === 'money' ? 'pl-5' : ''}`} />
-      </div>
-    );
-  }
-  if (f.type === 'date') {
-    const text = v && !ISO.test(v);
-    return (
-      <div className="flex items-center gap-1.5">
-        {text && <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">{v}</span>}
-        <input type="date" disabled={disabled} value={ISO.test(v) ? v : ''} onChange={(e) => onChange(e.target.value || null)} className={base} />
-      </div>
-    );
-  }
-  const opts = FIXED_LISTS[f.key] || lists?.[LIST_OF[f.key]];
-  if (opts) {
-    const all = v && !opts.includes(v) ? [...opts, v] : opts;
-    return (
-      <select value={v} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={`${selectCls} w-full h-8 rounded-md`}>
-        <option value="">—</option>
-        {all.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    );
-  }
-  return <input value={v} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={base} />;
-}
+import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
+import { Input } from './fields.jsx';
 
 // Plain-language warnings for what looks wrong (never blocks a save).
 function checks(d) {
@@ -233,7 +132,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
               <h2 className="text-lg font-semibold tracking-tight truncate">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <StatusChip status={merged.status} />
-                {!isNew && <StepPill step={step} />}
+                {!isNew && !step.done && <StepPill step={step} />}
                 <GhlChip g={g} />
                 {merged.coe && <span className="text-xs text-zinc-500">COE {shortDate(merged.coe, { year: true })}</span>}
               </div>
@@ -289,9 +188,10 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
                             {!isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] text-zinc-400">auto</span>}
+                            {f.type === 'ghl' && <span className="text-[10.5px] text-violet-600">from GHL</span>}
                             {isFixed && <span className="text-[10.5px] rounded bg-amber-100 text-amber-800 px-1" title="Typed by hand (in the sheet or here) — doesn't recalculate">typed</span>}
                           </span>
-                          {f.calc ? (
+                          {f.calc || f.type === 'ghl' ? (
                             <div className="flex items-center gap-2 h-8">
                               <span className={`tabular-nums ${isFixed ? 'text-amber-900' : 'text-zinc-800'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400">no buyer yet</span> : show(f, merged[f.key])}</span>
                               {isFixed && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}

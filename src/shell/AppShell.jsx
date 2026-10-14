@@ -104,7 +104,7 @@ export default function AppShell({ me }) {
   };
 
   return (
-    <div className="h-app flex bg-tan-50 text-[13px] text-zinc-950 antialiased">
+    <div className="h-app flex bg-tan-50 text-[14px] text-zinc-950 antialiased">
       {/* Sidebar (desktop) */}
       <aside className={`hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
@@ -122,7 +122,7 @@ export default function AppShell({ me }) {
         <button onClick={() => setPalette(true)} title="Search (⌘K)"
           className={`flex items-center gap-2 h-8 mb-4 rounded-lg border border-tan-200 bg-white text-zinc-400 hover:text-zinc-600 shadow-[0_1px_1px_rgba(0,0,0,0.02)] ${collapsed ? 'justify-center' : 'px-2.5'}`}>
           <Icon name="search" size={14} />
-          {!collapsed && <>Search or jump to…<kbd className="ml-auto text-[10.5px] font-medium text-zinc-500 border border-zinc-200 rounded px-1 bg-zinc-50">⌘K</kbd></>}
+          {!collapsed && <><span className="text-[13px] whitespace-nowrap truncate">Search or jump to…</span><kbd className="ml-auto text-[10.5px] font-medium text-zinc-500 border border-zinc-200 rounded px-1 bg-zinc-50">⌘K</kbd></>}
         </button>
         <nav className="flex flex-col gap-0.5">{sections.map(navItem)}</nav>
         <div className="flex-1" />

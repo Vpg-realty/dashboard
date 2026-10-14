@@ -5,7 +5,7 @@
 // tracker yet, one click to add (fields filled from GHL).
 import { useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.js';
-import { PageHead, Tile, Tiles, Loading, Search, StepPill } from './ui.jsx';
+import { PageHead, Tile, Tiles, Loading, Search, StepPill, SyncNote } from './ui.jsx';
 import { money, compact, shortDate, firstName, stateCode, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import { laToday } from '../utils/historyRange.js';
@@ -102,7 +102,7 @@ export default function ActiveView() {
 
   return (
     <div className="max-w-[1400px]">
-      <PageHead title="Active deals" sub="Everything pending, with the next step. Click a deal to open it." right={<>
+      <PageHead title="Active deals" sub={<>Everything pending, with the next step. Click a deal to open it. <SyncNote sync={s.sync} /></>} right={<>
         <Search value={q} onChange={setQ} />
         <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', dispoTeam: 'PENDING', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>
       </>} />

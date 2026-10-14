@@ -5,7 +5,7 @@ import { statusLabel } from './format.js';
 import { TONES } from './status.js';
 
 const STATUS_STYLE = {
-  PENDING: 'bg-blue-50 text-blue-700 ring-blue-200', COMPLETE: 'bg-emerald-50 text-emerald-700 ring-emerald-200', CANCELLED: 'bg-zinc-100 text-zinc-500 ring-zinc-200',
+  PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
 };
 export function StatusChip({ status }) {
   const k = String(status || '').toUpperCase();
@@ -68,3 +68,13 @@ export function StepPill({ step }) {
   return <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12.5px] font-medium ring-1 ring-inset ${t.pill}`}><span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />{step.text}</span>;
 }
 
+
+// "Synced with GHL 6 min ago · 2 added" (scripts/sync-deals.mjs leaves its
+// last run in D1 settings 'ghl_sync').
+const minutesSince = (iso) => Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+export function SyncNote({ sync }) {
+  if (!sync?.at) return <span className="text-zinc-400">GHL sync hasn't run yet.</span>;
+  const m = minutesSince(sync.at);
+  const ago = m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+  return <span className={m > 90 ? 'text-amber-700' : 'text-zinc-500'}>Synced with GHL {ago}.</span>;
+}

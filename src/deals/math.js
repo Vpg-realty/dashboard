@@ -11,6 +11,8 @@
 export const FIELDS = [
   // key, label, group, type, (calc = computed), (secret = owner only)
   ['address', 'Address', 'contract', 'text'],
+  // Mirrors the deal's stage in GoHighLevel (set by the GHL sync only).
+  ['ghlStage', 'GHL stage', 'contract', 'ghl'],
   ['acq', 'Acq. manager', 'contract', 'person'],
   ['coe', 'COE', 'contract', 'date'],
   ['accepted', 'Contract acceptance', 'contract', 'date'],

@@ -4,6 +4,10 @@
 // against target for that scope (pipeline counts for the TC). Left: deals
 // whose key date (IP end for Under Contract / Dispo, COE for Assigned) is
 // past or within 3 days, worst first. Right: this week's wins.
+// Oct 14 (Luke: "everything feels a little small or empty"): uses the full
+// width, bigger numbers with pace badges, and a right-hand column of cards —
+// revenue this month, the pipeline by stage, the deal tracker (owners / TC),
+// wins — plus a weekly leaderboard for owners and managers.
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
@@ -11,6 +15,9 @@ import { formatCompactCurrency } from '../utils/format.js';
 import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
+import { paceFraction } from '../utils/pace.js';
+import { useDeals } from '../deals/store.js';
+import { nextStep } from '../deals/status.js';
 import Icon from './icons.jsx';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
@@ -38,16 +45,144 @@ function Avatar({ rep, size = 20 }) {
   );
 }
 
-function Stat({ label, value, target, color }) {
+function Stat({ label, value, target, color, period }) {
   const pct = target ? Math.min(100, Math.round((100 * value) / target)) : null;
+  const pace = target && period ? paceFraction(period) : null;
+  const ratio = pace ? value / (target * Math.max(pace, 0.05)) : null;
+  const badge = ratio == null ? null : ratio >= 1 ? ['On pace', 'bg-emerald-50 text-emerald-700 ring-emerald-200'] : ratio >= 0.7 ? ['Near pace', 'bg-amber-50 text-amber-800 ring-amber-200'] : ['Behind', 'bg-red-50 text-red-700 ring-red-200'];
   return (
-    <div className="px-4 py-3.5 border-zinc-200/80 [&:not(:last-child)]:border-r">
-      <div className="text-[13px] text-zinc-500 font-medium">{label}</div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
-        {value}{target != null && <span className="text-sm text-zinc-400 font-medium"> / {target}</span>}
+    <div className="px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r">
+      <div className="flex items-center gap-2">
+        <span className="text-[13.5px] text-zinc-500 font-medium">{label}</span>
+        {badge && <span className={`ml-auto rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${badge[1]}`}>{badge[0]}</span>}
       </div>
-      {pct != null && <div className="mt-2.5 h-1 rounded bg-zinc-100 overflow-hidden"><div className="h-full rounded" style={{ width: `${Math.max(pct, 2)}%`, background: color }} /></div>}
+      <div className="mt-2 text-[34px] leading-none font-semibold tracking-tight tabular-nums text-navy-800">
+        {value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}
+      </div>
+      {pct != null && (
+        <div className="relative mt-3.5 h-1.5 rounded bg-zinc-100">
+          <div className="h-full rounded" style={{ width: `${Math.max(pct, 2)}%`, background: color }} />
+          {pace != null && pace < 1 && <span className="absolute -top-1 bottom-[-4px] w-0.5 rounded bg-zinc-700/70" style={{ left: `${pace * 100}%` }} title="Where you should be by now" />}
+        </div>
+      )}
     </div>
+  );
+}
+
+function Card({ title, right, children, className = '' }) {
+  return (
+    <section className={`rounded-xl border border-tan-200 bg-white p-5 shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${className}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-[14.5px] font-semibold text-navy-700">{title}</h2>
+        <span className="ml-auto">{right}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-zinc-500 hover:text-navy-700 font-medium flex items-center gap-1">{text} <Icon name="arrow" size={13} /></a>;
+
+// Revenue this month for the scope: closed + Assigned with a COE this month
+// = projected, against the per-rep goal × people (same rule as Overview).
+function RevenueCard({ m, n }) {
+  const goal = T.revenuePerRepMonth * n;
+  const pace = paceFraction('month');
+  const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
+  return (
+    <Card title="Revenue · this month" right={more('/board/overview', 'Overview')}>
+      <div className="flex items-baseline gap-2">
+        <span className="text-[30px] leading-none font-semibold tracking-tight text-navy-800 tabular-nums">{formatCompactCurrency(m.projected)}</span>
+        <span className="text-zinc-500">projected of {formatCompactCurrency(goal)}</span>
+      </div>
+      <div className="relative mt-4 h-3 rounded-full bg-zinc-100 overflow-hidden">
+        <div className="absolute inset-y-0 left-0 bg-emerald-600" style={{ width: w(m.revenueM) }} />
+        <div className="absolute inset-y-0 bg-emerald-300 [background-image:repeating-linear-gradient(45deg,transparent_0_4px,rgba(255,255,255,.45)_4px_8px)]" style={{ left: w(m.revenueM), width: w(m.assigned) }} />
+        <span className="absolute top-0 bottom-0 w-0.5 bg-zinc-800/70" style={{ left: `${pace * 100}%` }} title="Pace today" />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 text-[13px]">
+        <div><div className="text-zinc-500 flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-emerald-600" />Closed</div><div className="font-semibold tabular-nums">{formatCompactCurrency(m.revenueM)} · {m.closedM} deal{m.closedM === 1 ? '' : 's'}</div></div>
+        <div><div className="text-zinc-500 flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-emerald-300" />Assigned, COE this month</div><div className="font-semibold tabular-nums">{formatCompactCurrency(m.assigned)}</div></div>
+      </div>
+    </Card>
+  );
+}
+
+const STAGE_ORDER = [['under_contract', 'Under contract', '#3b82f6'], ['dispo', 'Dispo active', '#8b5cf6'], ['assigned', 'Assigned', '#10b981'], ['closed', 'Closed this month', '#1b385f']];
+function PipelineCard({ deals }) {
+  const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
+  return (
+    <Card title="Pipeline" right={more('/board/pipeline', 'Open')}>
+      <div className="flex flex-col gap-2.5">
+        {STAGE_ORDER.map(([k, label, color]) => {
+          const list = deals.filter((d) => d.stage === k);
+          const value = list.reduce((a, d) => a + (d.value || 0), 0);
+          return (
+            <div key={k} className="grid grid-cols-[120px_minmax(0,1fr)_112px] items-center gap-3">
+              <span className="text-[13px] text-zinc-600">{label}</span>
+              <span className="h-2.5 rounded-full bg-zinc-100 overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${(100 * list.length) / max}%`, background: color }} /></span>
+              <span className="text-right text-[13px] tabular-nums whitespace-nowrap"><span className="font-semibold">{list.length}</span>{value ? <span className="text-zinc-500"> · {formatCompactCurrency(value)}</span> : ''}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// Owners and the TC: the deal tracker at a glance.
+function TrackerCard() {
+  const s = useDeals();
+  if (s.status === 'error') return null;
+  const act = s.deals.filter((d) => d.status === 'PENDING').map((d) => nextStep(d));
+  const count = (tone) => act.filter((x) => x.tone === tone).length;
+  const tiles = [['Active', act.length, 'text-navy-800'], ['Act now', count('red'), 'text-red-700'], ['Attention', count('amber'), 'text-amber-700'], ['Closing ≤ 7d', count('blue'), 'text-blue-700']];
+  return (
+    <Card title="Deal tracker" right={more('/deals/active', 'Active deals')}>
+      {s.status !== 'ready' && s.status !== 'refreshing' ? <div className="text-zinc-400">Loading…</div> : (
+        <div className="grid grid-cols-4 gap-2">
+          {tiles.map(([l, v, c]) => (
+            <a key={l} {...linkProps('/deals/active')} className="rounded-lg bg-tan-50 hover:bg-tan-100 px-3 py-2.5">
+              <div className={`text-2xl font-semibold tabular-nums ${v ? c : 'text-zinc-300'}`}>{v}</div>
+              <div className="text-[11.5px] text-zinc-500 mt-0.5 whitespace-nowrap">{l}</div>
+            </a>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// Owners and managers: who is moving this week (contracts, then offers, opps).
+function Leaderboard({ reps }) {
+  const rows = reps.map((r) => {
+    const m = metrics(PAIRS.filter((p) => p.repId === r.id));
+    return { r, m };
+  }).sort((a, b) => b.m.contractsW - a.m.contractsW || b.m.offersW - a.m.offersW || b.m.oppsW - a.m.oppsW);
+  const pace = paceFraction('week');
+  const cell = (v, t) => <span className={`tabular-nums font-semibold ${v >= t * pace ? 'text-emerald-700' : v >= t * pace * 0.7 ? 'text-amber-700' : 'text-red-700'}`}>{v}<span className="text-zinc-400 font-normal"> / {t}</span></span>;
+  return (
+    <Card title="This week by rep" right={more('/team/scorecard', 'Scorecard')} >
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13.5px]">
+          <thead className="text-[11.5px] uppercase tracking-wide text-zinc-500"><tr>
+            <th className="py-2 font-semibold">Rep</th><th className="py-2 font-semibold text-right">Contracts</th><th className="py-2 font-semibold text-right">Offers</th><th className="py-2 font-semibold text-right">Opps opened</th><th className="py-2 font-semibold text-right">Contracts · month</th><th className="py-2 font-semibold text-right">Closed · month</th>
+          </tr></thead>
+          <tbody>
+            {rows.map(({ r, m }, i) => (
+              <tr key={r.id} className="border-t border-zinc-100">
+                <td className="py-2.5"><span className="flex items-center gap-2.5"><span className="w-5 text-zinc-400 tabular-nums">{i + 1}</span><Avatar rep={r} size={24} /><span className="font-medium">{r.name}</span></span></td>
+                <td className="py-2.5 text-right">{cell(m.contractsW, T.contractsPerWeek)}</td>
+                <td className="py-2.5 text-right">{cell(m.offersW, T.offersPerWeek)}</td>
+                <td className="py-2.5 text-right">{cell(m.oppsW, T.oppsOpenedPerWeek)}</td>
+                <td className="py-2.5 text-right tabular-nums">{m.contractsM}<span className="text-zinc-400"> / {T.contractsPerMonth}</span></td>
+                <td className="py-2.5 text-right tabular-nums">{m.closedM}<span className="text-zinc-400"> / {T.dealsClosedPerMonth}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
@@ -62,7 +197,7 @@ function dueText(days, key) {
 function DealRow({ d, showRep }) {
   const due = dueText(d.days, d.key);
   return (
-    <a {...linkProps('/board/pipeline')} className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_150px_110px_150px] items-center gap-x-3 gap-y-1 min-h-10 py-2 md:py-0 px-1 border-t border-zinc-100 hover:bg-zinc-50 rounded-sm">
+    <a {...linkProps('/board/pipeline')} className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_120px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
       <span className="font-medium truncate">{d.address}</span>
       <span className={`md:order-last text-right text-xs font-semibold whitespace-nowrap ${due.cls}`}>{due.text}</span>
       {showRep ? (
@@ -111,28 +246,31 @@ export default function HomeView({ me }) {
   const count = (st) => deals.filter((d) => d.stage === st).length;
   const stats = isTc
     ? [['Under contract', count('under_contract')], ['Dispo', count('dispo')], ['Assigned', count('assigned')], ['Closed this month', m.closedM]]
-    : [['Contracts this week', m.contractsW, T.contractsPerWeek * n, '#2563eb'], ['Offers this week', m.offersW, T.offersPerWeek * n, '#7c3aed'], ['Opps opened this week', m.oppsW, T.oppsOpenedPerWeek * n, '#d97706'], ['Contracts this month', m.contractsM, T.contractsPerMonth * n, '#0d9488']];
+    : [['Contracts this week', m.contractsW, T.contractsPerWeek * n, '#2563eb', 'week'], ['Offers this week', m.offersW, T.offersPerWeek * n, '#7c3aed', 'week'], ['Opps opened this week', m.oppsW, T.oppsOpenedPerWeek * n, '#d97706', 'week'], ['Contracts this month', m.contractsM, T.contractsPerMonth * n, '#0d9488', 'month']];
   const scopeLabel = !scope ? 'Everyone' : me?.role === 'manager' ? `Your pod · ${n} people` : null;
+  const showMoney = !isTc;
+  // Leaderboard: owners see every rep, a manager their pod.
+  const leaders = me?.role === 'owner' ? REPS : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;
   const dateLabel = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', month: 'long', day: 'numeric' });
 
   const group = (title, dot, list) => list.length > 0 && (
     <div key={title}>
-      <div className="flex items-center gap-2 pt-4 pb-1.5 text-xs font-medium text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{title}<span className="text-zinc-400">{list.length}</span></div>
+      <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{title}<span className="text-zinc-400">{list.length}</span></div>
       {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} />)}
     </div>
   );
 
   return (
-    <div className="max-w-[1280px]">
+    <div className="max-w-[1720px] mx-auto">
       {/* Company banner: navy with the tan "V" mark (Luke, Oct 14: our colours). */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-700 via-navy-700 to-navy-600 px-5 md:px-7 py-5 md:py-6 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy-700 via-navy-700 to-navy-600 px-5 md:px-8 py-6 md:py-8 text-white">
         <svg viewBox="0 0 600 781" className="absolute right-6 md:right-12 -top-6 h-[140%] opacity-[0.16] pointer-events-none" aria-hidden="true">
           <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#fff" />
           <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
         </svg>
         <div className="relative">
           <div className="text-[10.5px] font-semibold tracking-[0.25em] text-tan-400">VALLEY PROPERTY GROUP</div>
-          <h1 className="mt-1.5 text-xl md:text-2xl font-semibold tracking-tight">{greeting()}, {me?.name || 'there'}</h1>
+          <h1 className="mt-1.5 text-2xl md:text-[30px] font-semibold tracking-tight">{greeting()}, {me?.name || 'there'}</h1>
           <div className="text-navy-100 mt-1">
             {dateLabel}
             {open.length > 0 && <> · {late.length > 0 && <span className="text-red-200 font-semibold">{late.length} late</span>}{late.length > 0 && soon.length > 0 && ', '}{soon.length > 0 && <span>{soon.length} due today or tomorrow</span>}</>}
@@ -141,40 +279,43 @@ export default function HomeView({ me }) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
-        {stats.map(([l, v, t, c]) => <Stat key={l} label={l} value={v} target={t} color={c} />)}
+      <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
+        {stats.map(([l, v, t, c, per]) => <Stat key={l} label={l} value={v} target={t} color={c} period={per} />)}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-8">
-        <section>
-          <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-semibold text-navy-700">Needs attention</h2>
-            <a {...linkProps('/board/pipeline')} className="text-zinc-500 hover:text-zinc-900 font-medium flex items-center gap-1">Pipeline <Icon name="arrow" size={13} /></a>
-          </div>
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
+        <Card title="Needs attention" right={more('/board/pipeline', 'Pipeline')}>
           {open.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-dashed border-zinc-200 py-8 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
+            <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
           ) : (
-            <>
+            <div className="-mt-3">
               {group('Late', '#b91c1c', late)}
               {group('Today & tomorrow', '#ea580c', soon)}
               {group('Next few days', '#a1a1aa', later)}
-            </>
+            </div>
           )}
-        </section>
-        <aside>
-          <h2 className="text-[13px] font-semibold text-navy-700">Wins this week</h2>
+        </Card>
+        {leaders && <Leaderboard reps={leaders} />}
+        </div>
+        <div className="flex flex-col gap-6 min-w-0">
+        {showMoney && <RevenueCard m={m} n={n} />}
+        {(me?.role === 'owner' || me?.role === 'tc') && <TrackerCard />}
+        <PipelineCard deals={deals} />
+        <Card title="Wins this week">
           {wins.length === 0 ? (
-            <div className="mt-3 text-zinc-500">No new contracts or closings yet this week.</div>
+            <div className="text-zinc-500">No new contracts or closings yet this week.</div>
           ) : wins.slice(0, 8).map((w) => (
-            <div key={`${w.id}${w.what}`} className="flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 first-of-type:mt-1">
-              <Avatar rep={w.rep} size={26} />
+            <div key={`${w.id}${w.what}`} className="flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0">
+              <Avatar rep={w.rep} size={28} />
               <div className="min-w-0">
                 <div className="truncate"><span className="font-semibold">{w.what}</span> · {w.address}</div>
                 <div className="text-zinc-500 text-xs mt-0.5">{w.rep?.name.split(' ')[0]} · {MARKETS.find((x) => x.id === w.marketId)?.name || w.marketId}{w.what === 'Closed' && w.value ? ` · ${formatCompactCurrency(w.value)}` : ''} · {new Date(w.at).toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'short' })}</div>
               </div>
             </div>
           ))}
-        </aside>
+        </Card>
+        </div>
       </div>
     </div>
   );

@@ -25,3 +25,14 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT,
   updated_by TEXT
 );
+-- GHL → tracker sync (edge/dealSync.js): which GHL opportunity feeds which
+-- tracker deal, and the GHL values seen last run (JSON).
+CREATE TABLE IF NOT EXISTS deal_ghl (
+  ghl_id TEXT PRIMARY KEY,
+  deal_id TEXT NOT NULL,
+  location TEXT,
+  last TEXT,
+  linked_at TEXT NOT NULL,
+  updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS deal_ghl_deal ON deal_ghl (deal_id);

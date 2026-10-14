@@ -185,7 +185,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
   attention (key date late or within 3 days, Late / Today & tomorrow / Next
-  few days) and Wins this week.
+  few days) and Wins this week. Oct 14 (Luke: "everything feels a little
+  small or empty"): full width (max 1720px), app text 14px, big numbers with
+  On pace / Near pace / Behind badges and a pace tick, and cards — Revenue
+  this month (closed + assigned-this-month vs goal, not for the TC), Deal
+  tracker (owners / TC: active, act now, attention, closing ≤ 7d), Pipeline
+  by stage, Wins, and "This week by rep" (owners: everyone, managers: their
+  pod).
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
@@ -252,6 +258,40 @@ the server strips them (`forTc`) and refuses edits to them.
   net profit / margin / avg net per closed, compare-to previous period or
   same period last year, projected (pending + assigned), tables by acq
   manager, dispo member, state and month (rows drill into All deals).
+- **GHL sync** (Luke, Oct 14: "automatically add properties every time a
+  property hits dispo active … if closed, it updates … if COE / IP changes,
+  it updates. But if I update it manually here, it doesn't update there,
+  only if the update [in GHL] does it change here"). The build's
+  `extractTrackerFeed` (server/deals.js; extra fields Contracted Price,
+  Title/Escrow, Deal Type via `TRACKER_FIELD_KEYS`) puts every opp in Under
+  Contract … Closed (closed / lost only if moved in the last 60 days) on
+  the pair as `_tracker`; build-snapshot moves it to
+  `.cache/ghl-tracker.json` (never published) and `scripts/sync-deals.mjs`
+  (chained after build-snapshot in `npm run snapshot`, D1 via the deploy's
+  CLOUDFLARE_API_TOKEN, never fails the deploy) applies `planSync`
+  (`edge/dealSync.js`): an unlinked GHL deal whose address matches a tracker
+  deal (`addrKey`) is **linked** — GHL's values become the baseline, nothing
+  changes but the `ghlStage` mirror; no match and in Dispo Active / Assigned
+  (or Closed after the sync began) → **created** from GHL (address, rep,
+  state, contracted price, title, deal type Cash → WHOLESALE / Creative →
+  CREATIVE, COE, contract date = startedAt, DD days from IP end); linked and
+  GHL's stage / COE / IP end differ from the baseline → the tracker
+  **follows** (closed → status COMPLETE, lost / abandoned → CANCELLED, back
+  open → PENDING; COE; IP end → DD days, or a typed DD end without a contract
+  date) and the baseline moves. A value changed only in the tracker stays
+  until GHL's own value changes. Nothing is written to GHL. D1 `deal_ghl
+  (ghl_id, deal_id, location, last, linked_at, updated_at)`; changes are
+  logged as "GHL sync"; each run leaves `settings.ghl_sync` (since, at,
+  counts), shown as "Synced with GHL N min ago" on Active. `ghlStage` is a
+  read-only field (type 'ghl'; the API refuses edits).
+- **All deals table** (Luke, Oct 14): Address and GHL stage are separate
+  columns; status chips Pending amber / Closed green / Cancelled red, and
+  closed rows tinted green, cancelled rows red; roomier cells with a line
+  between columns and per-type minimum widths. **Every cell is editable in
+  place** (`EditableCell.jsx`: dropdowns save on pick, text / numbers /
+  dates on Enter or click-away, Esc cancels, buyer / title use the same
+  past-entries picker; one field per save, logged, same conflict check);
+  calculated and GHL cells aren't. Clicking the address opens the full deal.
 - **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
   deal profile"): `src/deals/status.js` is the one place — `nextStep()`
   (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:
