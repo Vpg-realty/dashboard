@@ -89,7 +89,10 @@ async function signedIn({ request, env }) {
   const email = typeof claims?.email === 'string' ? claims.email.toLowerCase() : (env.DEV_EMAIL ? String(env.DEV_EMAIL).toLowerCase() : null);
   if (!email) return null;
   const row = await env.DB.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(email).first();
-  return row || { email, name: email, role: 'none' };
+  // loginAt: when this Access login was issued (the JWT's iat, seconds) —
+  // a new value means they logged in again (Welcome shows the splash + card).
+  const loginAt = typeof claims?.iat === 'number' ? claims.iat : null;
+  return { ...(row || { email, name: email, role: 'none' }), loginAt };
 }
 
 export const canGrade = (u) => !!u && (u.role === 'owner' || u.role === 'manager');

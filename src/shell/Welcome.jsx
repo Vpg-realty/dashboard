@@ -7,6 +7,9 @@
 //     V mark sweeps in, "Good morning, Danni", a line about their day (wins
 //     since yesterday, closings this week, anything late) and a line for the
 //     day — then it fades out by itself (~3 s; click or Esc skips).
+//   • Every new login (Luke, Oct 14: "everytime someone relogs in"): the
+//     splash, then the welcome card. A login is new when /api/me's `loginAt`
+//     (the Access token's issue time) differs from the one stored.
 // Remembered per person in localStorage (`vpg.welcome.<email>`); never in
 // TV mode. Respects reduced motion.
 import { useEffect, useState } from 'react';
@@ -73,18 +76,22 @@ function Mark({ className = '', animate }) {
 
 export default function Welcome({ me }) {
   const key = `vpg.welcome.${me?.email || 'anon'}`;
-  const [mode] = useState(() => {
+  // What to show, in order: 'daily' = the splash, 'first' = the card.
+  const [steps, setSteps] = useState(() => {
     try {
       const seen = JSON.parse(localStorage.getItem(key) || 'null');
       const today = azToday();
-      localStorage.setItem(key, JSON.stringify({ first: seen?.first || today, last: today }));
-      if (!seen) return 'first';
-      return seen.last === today ? null : 'daily';
-    } catch { return null; } // private mode: skip it
+      const login = me?.loginAt ?? seen?.login ?? null;
+      localStorage.setItem(key, JSON.stringify({ first: seen?.first || today, last: today, login }));
+      if (!seen) return ['daily', 'first'];
+      if (me?.loginAt && seen.login !== me.loginAt) return ['daily', 'first'];
+      return seen.last === today ? [] : ['daily'];
+    } catch { return []; } // private mode: skip it
   });
-  const [open, setOpen] = useState(!!mode);
+  const mode = steps[0] || null;
+  const open = !!mode;
   const [leaving, setLeaving] = useState(false);
-  const close = () => { setLeaving(true); setTimeout(() => setOpen(false), 450); };
+  const close = () => { setLeaving(true); setTimeout(() => { setSteps((x) => x.slice(1)); setLeaving(false); }, 450); };
 
   useEffect(() => {
     if (!open) return undefined;
