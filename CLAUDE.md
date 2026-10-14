@@ -254,7 +254,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   draws as the team line.
 - **View as** (Luke, Oct 14: "log in as a rep to see what they see"):
   owners get a "View as" menu in the header (`ViewAs.jsx`, people from
-  `GET /api/users`, owners only, TV left out). The pick is kept in
+  `GET /api/users`, owners only, TV left out), grouped (Luke, Oct 14:
+  "categorize it clearly"): Owners, Managers (pod lead), Acquisitions by pod
+  (`PODS`) and no pod, Transaction coordinator — each person with an avatar
+  in their rep colour and their states. The pick is kept in
   sessionStorage `vpg.viewAs` (this tab only) and every `/api` call sends
   `X-View-As`; `currentUser` (edge/auth.js) answers reads as that person
   (`viewAs`, `realName`) and turns every write into role 'none', so nothing

@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { listUsers, setViewAs } from '../utils/dashApi.js';
 import { ROLE_LABEL } from './sections.js';
 import Icon from './icons.jsx';
+import { REPS } from '../data/config.js';
+import { PODS } from '../../scripts/scorecard-lib.mjs';
 
 export function ViewAsBanner({ me }) {
   if (!me?.viewAs) return null;
@@ -31,7 +33,20 @@ export function ViewAsButton({ me }) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open, users]);
   if (me?.role !== 'owner' && !me?.viewAs) return null;
-  const groups = ['team', 'manager', 'tc', 'owner'];
+  // Clear groups (Luke, Oct 14: "hard to read … categorize it clearly"):
+  // owners, managers, acquisitions by pod, then the TC.
+  const others = (users || []).filter((u) => u.email !== (me.realEmail || me.email));
+  const podOf = (u) => PODS.find((p) => p.reps.includes(u.rep_id));
+  const leadOf = (u) => PODS.find((p) => p.lead === u.rep_id);
+  const team = others.filter((u) => u.role === 'team');
+  const groups = [
+    { key: 'owner', title: 'Owners', note: 'Everything', list: others.filter((u) => u.role === 'owner') },
+    { key: 'manager', title: 'Managers', note: 'Their pod + Management', list: others.filter((u) => u.role === 'manager'), sub: (u) => (leadOf(u) ? `${leadOf(u).title} lead` : 'Manager') },
+    ...PODS.map((p) => ({ key: `pod${p.id}`, title: `Acquisitions · ${p.title}`, note: 'Their own numbers', list: team.filter((u) => podOf(u)?.id === p.id) })),
+    { key: 'nopod', title: PODS.length ? 'Acquisitions · no pod' : 'Acquisitions', note: 'Their own numbers', list: team.filter((u) => !podOf(u)) },
+    { key: 'tc', title: 'Transaction coordinator', note: 'Deals, no commissions', list: others.filter((u) => u.role === 'tc'), sub: () => 'TC' },
+  ].filter((g) => g.list.length);
+  const repColor = (u) => REPS.find((r) => r.id === u.rep_id)?.color || '#1b385f';
   return (
     <span ref={box} className="relative">
       <button onClick={() => setOpen((o) => !o)} title="See the dashboard as someone else"
@@ -39,24 +54,39 @@ export function ViewAsButton({ me }) {
         <Icon name="user" size={14} /><span className="hidden sm:inline">View as</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 w-64 max-h-[70vh] overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-xl py-1.5">
-          <div className="px-3 pb-1.5 text-[11.5px] text-zinc-500">See exactly what someone sees (read only).</div>
-          {!users && <div className="px-3 py-2 text-zinc-400">Loading…</div>}
-          {users && groups.map((g) => {
-            const list = users.filter((u) => u.role === g && u.email !== (me.realEmail || me.email));
-            if (!list.length) return null;
-            return (
-              <div key={g}>
-                <div className="px-3 pt-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-400">{ROLE_LABEL[g] || g}</div>
-                {list.map((u) => (
-                  <button key={u.email} onClick={() => setViewAs(u.email)} className={`w-full text-left px-3 py-1.5 hover:bg-tan-50 ${me.viewAs && me.email === u.email ? 'font-semibold text-navy-700' : ''}`}>
-                    {u.name}
-                  </button>
-                ))}
+        <div className="absolute right-0 top-full mt-1.5 z-50 w-80 max-h-[75vh] flex flex-col rounded-xl border border-tan-200 bg-white shadow-xl overflow-hidden">
+          <div className="shrink-0 bg-navy-700 text-white px-4 py-3">
+            <div className="font-semibold">View as</div>
+            <div className="text-[12px] text-navy-100 mt-0.5">See exactly what someone sees. Read only — nothing can be saved.</div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {!users && <div className="px-4 py-3 text-zinc-400">Loading…</div>}
+            {groups.map((g) => (
+              <div key={g.key} className="border-b border-tan-100 last:border-0">
+                <div className="sticky top-0 flex items-baseline gap-2 px-4 py-1.5 bg-tan-50 border-b border-tan-100">
+                  <span className="text-[12.5px] font-semibold text-navy-800">{g.title}</span>
+                  <span className="text-[11.5px] text-zinc-400">{g.list.length}</span>
+                  <span className="ml-auto text-[11px] text-zinc-500">{g.note}</span>
+                </div>
+                <div className="py-1">
+                  {g.list.map((u) => {
+                    const on = me.viewAs && me.email === u.email;
+                    return (
+                      <button key={u.email} onClick={() => setViewAs(u.email)} className={`w-full flex items-center gap-2.5 text-left px-4 py-1.5 hover:bg-tan-50 ${on ? 'bg-navy-50' : ''}`}>
+                        <span className="w-7 h-7 rounded-full grid place-items-center text-white text-[11.5px] font-semibold shrink-0" style={{ background: repColor(u) }}>{(u.name || '?').slice(0, 1)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate ${on ? 'font-semibold text-navy-800' : 'font-medium text-zinc-900'}`}>{u.name}</span>
+                          <span className="block text-[11.5px] text-zinc-500 truncate">{g.sub ? g.sub(u) : REPS.find((r) => r.id === u.rep_id)?.markets?.join(' · ') || u.email}</span>
+                        </span>
+                        {on && <span className="text-[11px] font-semibold text-navy-700">Viewing</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            );
-          })}
-          {me.viewAs && <button onClick={() => setViewAs(null)} className="mt-1 w-full text-left px-3 py-2 border-t border-zinc-100 text-navy-700 font-medium hover:bg-tan-50">← Back to {me.realName}</button>}
+            ))}
+          </div>
+          {me.viewAs && <button onClick={() => setViewAs(null)} className="shrink-0 w-full text-left px-4 py-2.5 border-t border-tan-200 bg-white text-navy-700 font-semibold hover:bg-tan-50">← Back to {me.realName}</button>}
         </div>
       )}
     </span>
