@@ -56,8 +56,8 @@ function dayFacts(me) {
 }
 
 const TIPS = {
-  team: [['Home', 'Your numbers for the week and the deals that need you today.'], ['My scorecard', 'Your score, exactly what to fix, and how you’re trending vs the team.'], ['Search', 'Press ⌘K (Ctrl K on Windows) to jump to any page or deal.']],
-  manager: [['Home', 'Your pod at a glance — numbers, deals that need attention, who’s moving.'], ['Team', 'The weekly scorecard, coaching and month in review.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
+  team: [['Home', 'Your numbers for the week and the deals that need you today.'], ['Pipeline', 'Every active deal by stage — the team’s or just yours. Click one to see it.'], ['My scorecard', 'Your score, exactly what to fix, and how you’re trending vs the team.'], ['Search', 'Press ⌘K (Ctrl K on Windows) to jump to any page or deal.']],
+  manager: [['Home', 'Your pod at a glance — numbers, deals that need attention, who’s moving.'], ['Management', 'The weekly scorecard, coaching and month in review.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
   owner: [['Home', 'The whole company at a glance — revenue, pipeline, who’s moving.'], ['Deals', 'The deal tracker: edit right in the table, GHL keeps it in sync.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
   tc: [['Home', 'Every deal that needs attention, by date.'], ['Deals', 'The deal tracker: edit right in the table, GHL keeps it in sync.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any deal.']],
 };

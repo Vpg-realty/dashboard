@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, createContext, useContext, useEffect, useRef } from 'react';
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
@@ -53,12 +53,17 @@ function deadlineTone(daysOut) {
 
 const daysFrom = (today, date) => (date ? daysInclusive(today, date) - 1 : null);
 
-export default function PipelineView() {
+// Optional (Luke, Oct 14 — the app's own Pipeline page; the board passes
+// nothing and is unchanged): `keep(deal, pair)` filters the deals,
+// `onOpen(deal)` makes cards clickable, `still` stops the TV auto-scroll.
+const PipeCtx = createContext({});
+
+export default function PipelineView({ keep, onOpen, still } = {}) {
   const today = laToday();
   const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
   const marketById = Object.fromEntries(MARKETS.map((m) => [m.id, m]));
 
-  const deals = PAIRS.flatMap((p) => (p.deals || []).map((d) => {
+  const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((d) => {
     const ipDays = daysFrom(today, d.ipEnd);
     const coeDays = daysFrom(today, d.coe);
     const keyDays = KEY_DATE[d.stage] === 'ip' ? ipDays : KEY_DATE[d.stage] === 'coe' ? coeDays : null;
@@ -79,6 +84,7 @@ export default function PipelineView() {
   const fieldIssues = PAIRS.filter((p) => !p._unconfigured && (p.dealFieldsError || p.dealFieldsMissing?.length));
 
   return (
+    <PipeCtx.Provider value={{ onOpen, still }}>
     <div className="flex flex-col gap-3 h-full min-h-0">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[0.9fr_1fr_1fr_1fr_0.72fr] gap-3 flex-1 min-h-0">
         <DueNowColumn deals={deals} today={today} />
@@ -108,6 +114,7 @@ export default function PipelineView() {
         )}
       </div>
     </div>
+    </PipeCtx.Provider>
   );
 }
 
@@ -174,10 +181,11 @@ function DueHeading({ label, count, strong }) {
 }
 
 function DueCard({ deal }) {
+  const { onOpen } = useContext(PipeCtx);
   const what = KEY_DATE[deal.stage] === 'coe' ? 'Closing' : 'IP ends';
   const t = deadlineTone(deal.keyDays);
   return (
-    <div className={`rounded-lg border px-3 py-2 shrink-0 ${t.box}`} style={{ borderLeft: `4px solid ${deal.rep?.color || '#a1a1aa'}` }}>
+    <div onClick={onOpen ? () => onOpen(deal) : undefined} className={`rounded-lg border px-3 py-2 shrink-0 ${t.box} ${onOpen ? 'cursor-pointer hover:brightness-95' : ''}`} style={{ borderLeft: `4px solid ${deal.rep?.color || '#a1a1aa'}` }}>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[16px] font-bold leading-snug truncate">{deal.address || 'No address'}</span>
         {deal.value > 0 && <span className="text-[15px] font-extrabold tabular-nums shrink-0">{formatCurrency(deal.value)}</span>}
@@ -220,10 +228,12 @@ function StageColumn({ col, deals, today }) {
 }
 
 function DealCard({ deal, closed }) {
+  const { onOpen } = useContext(PipeCtx);
   const key = KEY_DATE[deal.stage];
   return (
     <div
-      className={`rounded-lg border px-3 py-2 shrink-0 ${deal.late ? 'border-[#4c0519]/40 bg-[#4c0519]/[0.06]' : 'border-zinc-200 bg-zinc-50/60'}`}
+      onClick={onOpen ? () => onOpen(deal) : undefined}
+      className={`rounded-lg border px-3 py-2 shrink-0 ${deal.late ? 'border-[#4c0519]/40 bg-[#4c0519]/[0.06]' : 'border-zinc-200 bg-zinc-50/60'} ${onOpen ? 'cursor-pointer hover:border-navy-200 hover:bg-white' : ''}`}
       style={{ borderLeft: `4px solid ${deal.rep?.color || '#a1a1aa'}` }}
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -294,9 +304,10 @@ const PAUSE_MS = 5000;
 // TV shows every deal: glide down, pause, glide back up, pause, repeat.
 function AutoScroll({ className, children }) {
   const ref = useRef(null);
+  const { still } = useContext(PipeCtx);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return undefined;
+    if (!el || still) return undefined;
     let dir = 1;
     let pauseUntil = Date.now() + PAUSE_MS;
     const timer = setInterval(() => {
@@ -310,6 +321,6 @@ function AutoScroll({ className, children }) {
       }
     }, STEP_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [still]);
   return <div ref={ref} className={`flex-1 min-h-0 overflow-y-auto ${className}`}>{children}</div>;
 }

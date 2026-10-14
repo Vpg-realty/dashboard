@@ -179,9 +179,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `document.title` follows the page. Cloudflare Pages serves index.html for
   unknown paths (SPA fallback), so deep links work.
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
-  tab = an existing view key), who sees them. Home + Board (Overview,
-  Pipeline, Conversations, Agents, Opportunities) for everyone; Team
-  (Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
+  tab = an existing view key), who sees them. Home, **Pipeline** and **Team
+  overview** (the board: Overview, Pipeline, Conversations, Agents,
+  Opportunities; section id `board`, renamed from "Board" Oct 14) for
+  everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
+  Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
@@ -208,6 +210,25 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   now), like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
+- **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
+  the team's own page — `PipelineView` with optional `keep` (filter),
+  `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
+  passes none, so Team overview → Pipeline and the TV are unchanged. Filter
+  in the link: `?who=` all (Full team) / `me` (Mine, needs `rep_id`) / a rep
+  id (Pick a person — owners, managers, TC). A person's deals = their GHL
+  sub-accounts' deals + tracker deals where they're the dispo member.
+- **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
+  attention, Wins) or on Pipeline opens the deal panel via
+  `useGhlDealOpener` (src/deals): the tracker deal at the same address
+  (`addrKey`) in `DealPanel`; not in the tracker yet (e.g. under contract) →
+  `GhlPanel` (GHL stage, rep, IP end, COE, value; "Add to tracker now" for
+  owners / TC). ⌘K deal results go to /pipeline.
+- **Sidebar** (Luke, Oct 14): one round tan arrow on the sidebar's right
+  edge near the bottom opens / closes it (like GHL's; `vpg.sidebarCollapsed`)
+  — no more separate buttons at the top and bottom. Clicking your name
+  (bottom left; the avatar top right on a phone) opens `UserMenu.jsx`:
+  name, email and **Log out** (`/cdn-cgi/access/logout`, ends the Access
+  session).
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
   average line yes, manager notes no, no other rep's scores or team rates):
   sidebar section for team + managers, a scrolling page
