@@ -1,0 +1,77 @@
+// Settings (Luke, Oct 14: "a Settings page for you and Jack" — people and
+// roles, commission rules, dropdown lists, without going through Claude).
+// Owners only, and never while viewing as someone else. Every save is logged
+// in edit_log.
+import { currentUser, json } from './auth.js';
+import roster from '../subaccounts.json' with { type: 'json' };
+
+export const ROLES = ['owner', 'manager', 'tc', 'team', 'tv'];
+export const REP_IDS = new Set(roster.reps.map((r) => r.id));
+
+export async function owner(context) {
+  const user = await currentUser(context);
+  if (!user) return { res: json({ error: 'not signed in' }, 401) };
+  if (user.role !== 'owner' || user.viewAs) return { res: json({ error: 'owners only' }, 403) };
+  return { user };
+}
+
+export async function log(db, user, action, detail) {
+  await db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)')
+    .bind(new Date().toISOString(), user.email, action, JSON.stringify(detail)).run();
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// A person row from a request body, or { error }.
+export function cleanUser(b) {
+  const email = String(b?.email || '').trim().toLowerCase();
+  const name = String(b?.name || '').trim();
+  const role = String(b?.role || '');
+  const repId = b?.rep_id ? String(b.rep_id) : null;
+  if (!EMAIL.test(email) || email.length > 120) return { error: 'enter a valid email' };
+  if (!name || name.length > 60) return { error: 'enter a name' };
+  if (!ROLES.includes(role)) return { error: 'pick a role' };
+  if (repId && !REP_IDS.has(repId)) return { error: 'unknown rep' };
+  return { email, name, role, rep_id: repId };
+}
+
+// Commission rules: the shape compute() (src/deals/math.js) reads.
+const num = (x, lo, hi) => typeof x === 'number' && Number.isFinite(x) && x >= lo && x <= hi;
+const names = (a) => Array.isArray(a) && a.length <= 40 && a.every((n) => typeof n === 'string' && n.length <= 60);
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const STATUSES = ['PENDING', 'COMPLETE', 'CANCELLED'];
+// A rule set, or { versions: [{ from, rules, by?, at? }] } oldest first.
+export function checkRules(v) {
+  if (!Array.isArray(v?.versions)) return checkRuleSet(v);
+  if (!v.versions.length || v.versions.length > 50) return 'no rule versions';
+  for (let i = 0; i < v.versions.length; i++) {
+    const x = v.versions[i];
+    if (!DATE.test(x?.from || '')) return 'every version needs a start date';
+    if (i && x.from <= v.versions[i - 1].from) return 'start dates must go forward in time';
+    const e = checkRuleSet(x.rules);
+    if (e) return `${x.from}: ${e}`;
+  }
+  return null;
+}
+function checkRuleSet(r) {
+  if (!r || typeof r !== 'object') return 'rules missing';
+  if (!num(r.tcFee, 0, 10000) || !num(r.tcComm, 0, 10000)) return 'TC fee / commission must be dollar amounts';
+  if (!num(r.acqRate, 0, 1) || !num(r.dispoRate, 0, 1)) return 'rates must be between 0% and 100%';
+  if (![r.tcFeeStatuses, r.tcCommStatuses].every((a) => Array.isArray(a) && a.every((s) => STATUSES.includes(s)))) return 'bad statuses';
+  if (!names(r.noCommission) || !names(r.dispoAfterAcq)) return 'bad names';
+  if (typeof r.tcName !== 'string') return 'TC name missing';
+  if (!r.acqOfNet || typeof r.acqOfNet !== 'object' || !Object.entries(r.acqOfNet).every(([k, v]) => k.length <= 60 && num(v, 0, 1))) return 'bad "paid on net" rates';
+  const m = r.manager || {};
+  if (typeof m.name !== 'string' || !num(m.rate, 0, 1) || !Array.isArray(m.reps) || !m.reps.every((x) => typeof x.rep === 'string' && (!x.coeBefore || DATE.test(x.coeBefore)))) return 'bad manager commission';
+  const o = r.override || {};
+  if (typeof o.name !== 'string' || !num(o.rate, 0, 1) || (o.from && !DATE.test(o.from)) || (o.status && !STATUSES.includes(o.status))) return 'bad override';
+  return null;
+}
+export function checkLists(l) {
+  if (!l || typeof l !== 'object') return 'lists missing';
+  for (const [k, v] of Object.entries(l)) {
+    if (k === 'reportsTo') {
+      if (typeof v !== 'object' || !Object.entries(v).every(([a, b]) => typeof b === 'string' && a.length <= 60 && b.length <= 60)) return 'bad reports-to';
+    } else if (!Array.isArray(v) || v.length > 100 || !v.every((x) => typeof x === 'string' && x.length <= 80)) return `bad list ${k}`;
+  }
+  return null;
+}
