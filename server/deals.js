@@ -16,10 +16,18 @@ export const DEAL_FIELD_KEYS = {
   ipEnd: 'opportunity.ip_end_date',
 };
 
+// Extra fields the deal tracker fills from GHL (Luke, Oct 14) — read only for
+// the tracker feed, never required for the Pipeline tab.
+export const TRACKER_FIELD_KEYS = {
+  price: 'opportunity.contracted_price',
+  title: 'opportunity.titleescrow',
+  dealType: 'opportunity.deal_type',
+};
+
 // fieldKey → id, from GET /locations/{id}/customFields?model=opportunity.
 // Keys are matched case-insensitively and with or without the "opportunity."
 // prefix, since GHL has returned both forms.
-export function resolveDealFieldIds(customFields) {
+export function resolveDealFieldIds(customFields, keys = DEAL_FIELD_KEYS) {
   const byKey = {};
   for (const f of customFields || []) {
     const key = String(f.fieldKey || f.key || '').toLowerCase().replace(/^\{\{\s*|\s*\}\}$/g, '');
@@ -28,7 +36,7 @@ export function resolveDealFieldIds(customFields) {
     byKey[key.replace(/^opportunity\./, '')] = f.id;
   }
   const ids = {};
-  for (const [name, key] of Object.entries(DEAL_FIELD_KEYS)) {
+  for (const [name, key] of Object.entries(keys)) {
     ids[name] = byKey[key] || byKey[key.replace(/^opportunity\./, '')] || null;
   }
   return ids;
@@ -110,6 +118,40 @@ export function extractLost({ opportunities, stageOf, fieldIds, sinceMs }) {
       address: customValue(o, fieldIds.address) || o.name || '',
       value: Number(o.monetaryValue || 0),
       at: at || null,
+    });
+  }
+  return out;
+}
+
+// The deal tracker's feed (Luke, Oct 14: "automatically add properties every
+// time a property hits dispo active … if closed, it updates … if COE / IP
+// changes, it updates"). Every opportunity in Under Contract … Closed (closed
+// ones only if they got there since `sinceMs`), and every one that went
+// Abandoned / Lost since `sinceMs` (stage 'lost'), with the fields the
+// tracker uses. scripts/sync-deals.mjs decides what to add or change.
+// Internal — never published (build-snapshot moves it to .cache/).
+export function extractTrackerFeed({ opportunities, stageOf, fieldIds, extraIds, sinceMs }) {
+  const ts = (v) => (v ? new Date(v).getTime() : 0);
+  const out = [];
+  for (const o of opportunities || []) {
+    if (!o.id) continue;
+    const stage = stageOf(o);
+    const lost = stage === 'abandoned' || stage === 'lost' || o.status === 'abandoned' || o.status === 'lost';
+    const since = Math.max(ts(o.lastStageChangeAt), lost ? ts(o.lastStatusChangeAt) : 0);
+    if (lost) { if (since < sinceMs) continue; }
+    else if (!DEAL_STAGES.includes(stage)) continue;
+    else if (stage === 'closed' && since < sinceMs) continue;
+    const price = Number(customValue(o, extraIds?.price));
+    out.push({
+      id: o.id,
+      stage: lost ? 'lost' : stage,
+      stageSince: since || null,
+      address: String(customValue(o, fieldIds.address) || o.name || '').replace(/\s*-\s*$/, '').trim(),
+      coe: toDateStr(customValue(o, fieldIds.coe)),
+      ipEnd: toDateStr(customValue(o, fieldIds.ipEnd)),
+      price: Number.isFinite(price) && price > 0 ? price : null,
+      title: customValue(o, extraIds?.title) ? String(customValue(o, extraIds.title)).trim() : null,
+      dealType: customValue(o, extraIds?.dealType) ? String(customValue(o, extraIds.dealType)) : null,
     });
   }
   return out;

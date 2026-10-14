@@ -8,7 +8,7 @@
 //   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
 import { STAGE_ALIASES } from './config.js';
-import { extractDeals, extractLost, resolveDealFieldIds, DEAL_FIELD_KEYS } from './deals.js';
+import { extractDeals, extractLost, extractTrackerFeed, resolveDealFieldIds, DEAL_FIELD_KEYS, TRACKER_FIELD_KEYS } from './deals.js';
 
 const startOfWeek = () => {
   const d = new Date();
@@ -175,6 +175,15 @@ export function aggregatePair({
     fieldIds,
     sinceMs: lmStart.getTime(),
   });
+  // The deal tracker's GHL feed (scripts/sync-deals.mjs) — internal, moved to
+  // .cache/ by build-snapshot.mjs before data.json is written.
+  const trackerFeed = extractTrackerFeed({
+    opportunities,
+    stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
+    fieldIds,
+    extraIds: Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields, TRACKER_FIELD_KEYS) : {},
+    sinceMs: Date.now() - 60 * 86_400_000,
+  });
   // Which custom fields couldn't be resolved for this sub-account, and why —
   // surfaced on the Pipeline tab so a missing field reads as "not set up"
   // rather than silently blank.
@@ -235,6 +244,7 @@ export function aggregatePair({
     // Stripped from data.json by stickyCounts.js before it reaches the browser.
     _oppRanks: oppRanks,
     _lost: lostOpps,
+    _tracker: trackerFeed,
   };
 }
 

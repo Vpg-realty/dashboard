@@ -6,7 +6,8 @@
 //   amber = needs attention (EMD problems, no COE date)
 //   blue  = closing soon (within 7 days)
 //   green = on track / closed
-//   grey  = waiting (needs a buyer, nothing urgent) / cancelled
+//   grey  = waiting (needs a buyer, nothing urgent)
+// Cancelled deals are red, closed ones green (Luke, Oct 14).
 import { laToday } from '../utils/historyRange.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -28,7 +29,7 @@ const assigned = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
 export function nextStep(d, today = laToday()) {
   const st = String(d.status || '').toUpperCase();
   if (st === 'COMPLETE') return { text: 'Closed', tone: 'green', done: true };
-  if (st === 'CANCELLED') return { text: 'Cancelled', tone: 'zinc', done: true };
+  if (st === 'CANCELLED') return { text: 'Cancelled', tone: 'red', done: true };
   const toCoe = ISO.test(d.coe || '') ? daysBetween(today, d.coe) : null;
   const toDd = ISO.test(d.ddEnd || '') ? daysBetween(today, d.ddEnd) : null;
   const asg = assigned(d);

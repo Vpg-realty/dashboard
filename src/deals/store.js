@@ -7,7 +7,7 @@ import { compute } from './math.js';
 import { PAIRS } from '../data/source.js';
 import { REPS, MARKETS } from '../data/config.js';
 
-let state = { status: 'idle', deals: [], raw: [], lists: {}, rules: {}, owner: false, error: null };
+let state = { status: 'idle', deals: [], raw: [], lists: {}, rules: {}, owner: false, sync: null, error: null };
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 
@@ -17,7 +17,7 @@ export async function loadDeals() {
   emit({ status: state.raw.length ? 'refreshing' : 'loading', error: null });
   try {
     const r = await call('deals');
-    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner });
+    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner, sync: r.sync || null });
   } catch (e) {
     emit({ status: 'error', error: e.status === 0 ? 'The deal tracker only works on the live site.' : e.message });
   }

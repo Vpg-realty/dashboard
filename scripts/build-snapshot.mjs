@@ -182,6 +182,21 @@ fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
 fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));
 console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'seeded (first run this week/month)'} — wrote ${STATE_OUT}`);
 
+// The deal tracker's GHL feed (Luke, Oct 14) never reaches public/: it goes
+// to .cache/ghl-tracker.json for scripts/sync-deals.mjs, with each deal's
+// contract time (startedAt, kept by the sticky counts) and the sub-account.
+{
+  const feed = [];
+  for (const p of snapshot.pairs) {
+    const started = new Map((p.deals || []).map((d) => [d.id, d.startedAt || null]));
+    for (const g of p._tracker || []) feed.push({ ...g, repId: p.repId, marketId: p.marketId, startedAt: started.get(g.id) || null });
+    delete p._tracker;
+  }
+  fs.mkdirSync(THREADS_DIR, { recursive: true });
+  fs.writeFileSync(path.join(THREADS_DIR, 'ghl-tracker.json'), JSON.stringify({ generatedAt: Date.now(), feed }));
+  console.log(`[snapshot] tracker feed: ${feed.length} GHL deals → .cache/ghl-tracker.json`);
+}
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));
 

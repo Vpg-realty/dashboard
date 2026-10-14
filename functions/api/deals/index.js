@@ -15,6 +15,7 @@ export async function onRequestGet(context) {
     lists: await getSetting(db, 'deal_lists', {}),
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',
+    sync: await getSetting(db, 'ghl_sync', null),
   });
 }
 
