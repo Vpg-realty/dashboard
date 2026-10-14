@@ -182,7 +182,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   and Finance (owner) here when they're built — only working sections are
   shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js).
-- **Home** (`HomeView.jsx`): greeting, this week's numbers vs target for
+- **Home** (`HomeView.jsx`; Needs attention rows show the stage as a chip
+  in the board Pipeline's column colours — Under contract blue, Dispo amber,
+  Assigned violet, Closed green — and the due date as the board's coloured
+  date chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
   attention (key date late or within 3 days, Late / Today & tomorrow / Next
@@ -259,13 +262,19 @@ The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar
 **Deals** (owners + the TC; `src/deals/`). Aiza (tc) sees and edits
 everything except the commission / profit columns and "Commission paid" —
 the server strips them (`forTc`) and refuses edits to them.
-- **Reps and managers** (Luke, Oct 14: "each rep [gets] the deals tab but
-  ONLY … the active deals"): Deals shows them only the Active tab (tabs can
-  carry `roles` in sections.js), with only the deals they're on as acq.
-  manager or dispo member (`ownsDeal`, name from subaccounts.json via
-  `rep_id`), read-only (`readOnly` from the API; panel inputs disabled, no
-  New deal, no GHL-missing list), never commission / profit. The API
-  enforces it (other deals 404, writes 403).
+- **Reps and managers** (Luke, Oct 14: Active only; "see all active deals
+  and … filter for just their deals"): Deals shows them only the Active tab
+  (tabs can carry `roles` in sections.js) with every PENDING deal
+  (`canSeeDeal`; closed / cancelled 404), read-only (`readOnly` from the
+  API; panel inputs disabled, no New deal, no GHL-missing list), and an
+  **All active / Only mine** switch (`?mine=1`; the API marks each deal
+  `mine` when they're its acq. manager or dispo member — name from
+  subaccounts.json via `rep_id`). Writes 403.
+- **Buyer is owners only** (Luke, Oct 14: "can only be seen by Jack and
+  myself" — so reps can't take buyers' names): the `buyer` field is secret,
+  like the commission / profit columns, so the server strips it for the TC
+  and reps too (and its history entries), and the Buyer column only shows
+  for owners.
 - **Storage** (D1, `edge/deals.sql`): `deals (id, data JSON, created_*,
   updated_*, deleted)` — one row per deal, the sheet's 51 columns as fields
   (`FIELDS` in `src/deals/math.js`); `deal_log` — every change (who, when,

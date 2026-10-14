@@ -8,6 +8,7 @@ import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.j
 import { PageHead, Tile, Tiles, Loading, Search, StepPill, SyncNote } from './ui.jsx';
 import { money, compact, shortDate, stateCode, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
+import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
 import { nextStep, daysBetween, TONES, LEGEND, dueTone, DUE_KEY } from './status.js';
 import { Person } from './people.jsx';
@@ -65,12 +66,15 @@ export default function ActiveView() {
   const { open, openNew, panel } = useDealPanel();
   const [q, setQ] = useState('');
   const [only, setOnly] = useState(null);
+  // Reps (Oct 14): every active deal, or just theirs — kept in the link.
+  const { query } = useLocation();
+  const mineOnly = query.get('mine') === '1';
   const today = laToday();
 
   const { assigned, needs, tiles, missing } = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const match = (d) => !words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state}`.toLowerCase().includes(w));
-    const act = s.deals.filter((d) => d.status === 'PENDING').map((d) => ({ ...d, step: nextStep(d, today) }));
+    const act = s.deals.filter((d) => d.status === 'PENDING' && (!mineOnly || d.mine)).map((d) => ({ ...d, step: nextStep(d, today) }));
     const isAsg = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
     const emdRisk = (d) => (d.emdStatus === 'PENDING' && !d.emdPaidBy) || (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG');
     const pastCoe = (d) => ISO.test(d.coe || '') && d.coe < today;
@@ -91,7 +95,7 @@ export default function ActiveView() {
         needs: act.length - asg.length, emd: act.filter(emdRisk).length, past: act.filter(pastCoe).length, soon: act.filter(soon).length,
       },
     };
-  }, [s.deals, q, only, today]);
+  }, [s.deals, q, only, today, mineOnly]);
 
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   const tog = (k) => setOnly((o) => (o === k ? null : k));
@@ -114,7 +118,8 @@ export default function ActiveView() {
       );
     } },
     { label: 'Title', get: (d) => firstLine(d.title), cls: 'max-w-[150px] truncate text-zinc-600' },
-    { label: 'Buyer', get: (d) => firstLine(d.buyer), cls: 'max-w-[150px] truncate text-zinc-600' },
+    // Buyer names are owners only (Oct 14) — the server doesn't send them to anyone else.
+    ...(s.owner ? [{ label: 'Buyer', get: (d) => firstLine(d.buyer), cls: 'max-w-[150px] truncate text-zinc-600' }] : []),
     { label: 'Contract price', right: true, get: (d) => money(d.price) },
     { label: 'Assignment price', right: true, get: (d) => (typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? money(d.vpgAssign) : <span className="text-zinc-300">—</span>) },
     { label: 'Gross', right: true, get: (d) => (typeof d.grossAssign === 'number' && d.grossAssign >= 0 ? <span className="font-semibold">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">no buyer yet</span>) },
@@ -122,8 +127,15 @@ export default function ActiveView() {
 
   return (
     <div className="max-w-[1400px]">
-      <PageHead title={s.readOnly ? 'My active deals' : 'Active deals'} sub={s.readOnly ? 'Your deals that are still pending, with the next step. Click a deal to see it.' : <>Everything pending, with the next step. Click a deal to open it. <SyncNote sync={s.sync} /></>} right={<>
-        <Search value={q} onChange={setQ} />
+      <PageHead title="Active deals" sub={s.readOnly ? 'Every pending deal, with the next step. Click a deal to see it.' : <>Everything pending, with the next step. Click a deal to open it. <SyncNote sync={s.sync} /></>} right={<>
+        {s.readOnly && (
+          <span className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
+            {[[false, 'All active'], [true, 'Only mine']].map(([v, l]) => (
+              <button key={l} onClick={() => setQuery({ mine: v ? '1' : null })} className={`px-3 h-7 rounded-md ${mineOnly === v ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{l}</button>
+            ))}
+          </span>
+        )}
+        <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
         {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', dispoTeam: 'PENDING', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <Tiles cols={6}>

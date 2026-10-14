@@ -1,7 +1,7 @@
 // GET  /api/deals → { deals, lists, rules, me } (owners + the TC; see edge/deals.js)
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, ownsDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf } from '../../../edge/deals.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -11,7 +11,7 @@ export async function onRequestGet(context) {
   const rows = await db.prepare('SELECT * FROM deals WHERE deleted = 0').all();
   const rules = await getSetting(db, 'deal_rules', {});
   return json({
-    deals: rows.results.map(rowToDeal).filter((d) => ownsDeal(user, d)).map((d) => shape(d, user)),
+    deals: rows.results.map(rowToDeal).filter((d) => canSeeDeal(user, d)).map((d) => shape(d, user)),
     lists: await getSetting(db, 'deal_lists', {}),
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',

@@ -5,7 +5,7 @@
 // DELETE /api/deals/:id → { ok } (owners; kept in D1 as deleted, logged)
 // GET    /api/deals/:id → { deal, log } — the deal and its change history.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, ownsDeal, isOwner, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG } from '../../../edge/deals.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -16,7 +16,7 @@ async function load(context) {
   const id = context.params.id;
   if (!ID.test(id || '')) return { res: json({ error: 'bad id' }, 400) };
   const row = await context.env.DB.prepare('SELECT * FROM deals WHERE id = ? AND deleted = 0').bind(id).first();
-  if (!row || !ownsDeal(user, rowToDeal(row))) return { res: json({ error: 'no such deal' }, 404) };
+  if (!row || !canSeeDeal(user, rowToDeal(row))) return { res: json({ error: 'no such deal' }, 404) };
   if (context.request.method !== 'GET' && !canEditDeals(user)) return { res: json({ error: 'read only' }, 403) };
   return { user, id, row };
 }

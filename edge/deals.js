@@ -14,16 +14,21 @@ import { FIELD, FIELDS, SECRET_KEYS, forTc } from '../src/deals/math.js';
 import roster from '../subaccounts.json' with { type: 'json' };
 
 // Owners and the TC see and edit every deal. Reps and managers (Luke, Oct
-// 14: "each rep [gets] the deals tab but ONLY … the active deals") see only
-// the deals they're on — as acq. manager or dispo member — read-only.
+// 14: "each rep [gets] the deals tab but ONLY … the active deals", then "see
+// all active deals and … filter for just their deals") see every pending
+// deal, read-only, without commission / profit / buyer (`forTc` strips
+// every secret field).
 export const canEditDeals = (u) => u?.role === 'owner' || u?.role === 'tc';
 export const isRepView = (u) => (u?.role === 'team' || u?.role === 'manager') && !!u.rep_id;
 export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u);
 export const isOwner = (u) => u?.role === 'owner';
 const repName = (u) => roster.reps.find((r) => r.id === u?.rep_id)?.name || null;
-// Is this deal one of this person's? (always true for owners / the TC)
-export function ownsDeal(u, deal) {
-  if (!isRepView(u)) return true;
+// May this person see this deal? Owners / the TC: all; reps: pending ones.
+export function canSeeDeal(u, deal) {
+  return !isRepView(u) || String(deal.status || '').toUpperCase() === 'PENDING';
+}
+// Is the deal one of theirs (acq. manager or dispo member)? For "Only mine".
+export function isMine(u, deal) {
   const n = String(repName(u) || '').toLowerCase();
   return !!n && [deal.acq, deal.dispoMember].some((x) => String(x || '').trim().toLowerCase() === n);
 }
@@ -59,7 +64,8 @@ export function rowToDeal(r) {
 
 // What this person may receive.
 export function shape(deal, user) {
-  return isOwner(user) ? deal : forTc(deal);
+  if (isOwner(user)) return deal;
+  return isRepView(user) ? { ...forTc(deal), mine: isMine(user, deal) } : forTc(deal);
 }
 
 // The rules the browser needs: all of them for owners; for the TC only the
