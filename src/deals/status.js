@@ -9,6 +9,7 @@
 // Cancelled deals are red, closed ones green — as the sheet's Deals tab
 // colours whole rows. The Active lists, the All deals table, Home and the
 // deal panel all read the same next step from here.
+import { pretty } from './values.js';
 import { laToday } from '../utils/historyRange.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -48,10 +49,10 @@ export function nextStep(d, today = laToday()) {
 }
 
 // The sheet's EMD column on the Pipeline tab: ✓ (green), "VPG only" and
-// "Pending" (red), "Pending · <payer>" (plain).
+// "Pending" (red), "Pending · <payer>" (amber — a payer is named).
 export function emdCell(d) {
   if (d.emdStatus === 'COMPLETE') return d.emdPaidBy === 'VPG' ? { text: 'VPG only', tone: 'red' } : { text: '✓', tone: 'green' };
-  if (d.emdStatus === 'PENDING') return d.emdPaidBy && d.emdPaidBy !== 'PENDING' ? { text: `Pending · ${d.emdPaidBy}`, tone: null } : { text: 'Pending', tone: 'red' };
+  if (d.emdStatus === 'PENDING') return d.emdPaidBy && d.emdPaidBy !== 'PENDING' ? { text: `Pending · ${pretty('emdPaidBy', d.emdPaidBy)}`, tone: 'amber' } : { text: 'Pending', tone: 'red' };
   return { text: '—', tone: null };
 }
 // Its Days column: red when past, amber within 7 days.

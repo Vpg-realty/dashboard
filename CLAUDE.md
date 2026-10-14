@@ -498,7 +498,22 @@ the server strips them (`forTc`) and refuses edits to them.
   bold red, tomorrow sky (pending deals); cancelled row muted rose; closed
   row soft green; on pending deals the EMD → VPG-assignment block soft green
   (EMD complete) / soft rose (EMD pending); the status word itself green /
-  red / amber. A colour key sits above the table. Needs-info marks (red
+  red / amber. A colour key sits above the table. **Proper case + pills**
+  (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
+  the GHL stage / people chips): `src/deals/values.js` (`pretty` — the
+  words; `toneOf` / `PILL_TONE` — the colour; `PILL_KEYS` — which columns)
+  and `pills.jsx` (`ValuePill`). Stored values stay the sheet's UPPERCASE;
+  dropdown values read "Pending", "Closed", "Off-market", "VPG + Buyer",
+  "N/A" (acronyms kept), and the dropdowns themselves list them that way
+  (fields.jsx). Pills: deal status (Pending amber / Closed green / Cancelled
+  red), EMD status, EMD paid by, dispo team, CFAR, EMD returned, commission
+  paid, retrade, deal type, listing type — with a small ▾ when the cell can
+  be edited (a click opens the dropdown); acq. manager and dispo member are
+  the coloured person chips; free text (titles, escrow #, end time) stays
+  as typed. Headers read in sentence case. The sheet's green / red EMD
+  block was dropped (the EMD status pill says it), and the CFAR / EMD
+  returned cell fills too (their pills carry it). Active's EMD column is a
+  pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
   outline, "N missing" pill) use the site's red #B42318 family.
 - **All deals table**: the sheet's column order (FIELDS; GHL stage after
   the address, original contracted price after retrade), the full sheet by

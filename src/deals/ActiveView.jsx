@@ -11,6 +11,8 @@
 // Rows stay in place while you edit (useFrozenOrder); "Re-sort now" applies
 // the new order. Under the lists, deals GoHighLevel has under contract that
 // aren't in the tracker yet, one click to add (fields filled from GHL).
+import { ValuePill } from './pills.jsx';
+import { PILL_TONE } from './values.js';
 import { useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.js';
 import { PageHead, Tile, Tiles, Loading, Search, StepPill, SyncNote, ResortBar, NeedChips } from './ui.jsx';
@@ -49,7 +51,7 @@ function Legend() {
       {DUE_KEY.map(([c, l]) => <span key={l} className="flex items-center gap-1.5"><span className={`w-3 h-3 rounded-sm border ${c}`} />{l}</span>)}
       <span className="w-px h-3.5 bg-zinc-200 mx-1" />
       <span className="font-semibold text-zinc-500">EMD:</span>
-      <span className="text-[#15803D] font-semibold">✓ in</span><span className="text-[#B42318] font-semibold">Pending / VPG only</span>
+      <span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.green}`}>In</span><span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.red}`}>Pending / VPG only</span>
     </div>
   );
 }
@@ -205,7 +207,9 @@ export default function ActiveView() {
     if (n == null) return <span className="text-zinc-300">—</span>;
     return <span className={TONE_TEXT[daysTone(n)] || ''}>{n < 0 ? `${n}` : n}</span>;
   };
-  const emd = (d) => { const e = emdCell(d); return <span className={TONE_TEXT[e.tone] || 'text-zinc-700'}>{e.text}</span>; };
+  // EMD as a pill like the other statuses (Luke, Oct 14: cleaner, proper case).
+  const EMD_PILL = { green: 'green', red: 'red', amber: 'amber' };
+  const emd = (d) => { const e = emdCell(d); const t = EMD_PILL[e.tone]; return t ? <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t]}`}>{e.text === '✓' ? 'In' : e.text}</span> : <span className="text-zinc-700">{e.text}</span>; };
   const property = (d, onOpen) => (
     <span className="inline-flex items-center gap-2 max-w-[300px]">
       <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 truncate text-left" title="Open the full deal">{street(d.address)}</button>
@@ -240,7 +244,7 @@ export default function ActiveView() {
     { label: 'Days', right: true, get: daysCell },
     { label: 'EMD', get: emd },
     { label: 'DD end', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? TONE_TEXT[n < 0 ? 'red' : 'amber'] : ''}>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>; } },
-    { label: 'Dispo team', get: (d) => edit('dispoTeam', d, d.dispoTeam || '—') },
+    { label: 'Dispo team', get: (d) => edit('dispoTeam', d, <ValuePill k="dispoTeam" v={d.dispoTeam} caret={ed} />) },
     { label: 'Title', get: (d) => edit('title', d, firstLine(d.title)), cls: 'max-w-[190px] truncate text-zinc-700' },
     { label: 'Contract', right: true, get: (d) => edit('price', d, money(d.price)) },
   ];

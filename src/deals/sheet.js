@@ -6,12 +6,15 @@
 //   - group bands: navy, each group marked by a thin accent colour on its
 //     column headers (the "Dispo % loss" pair keeps its own tan band);
 //   - row status: closed = soft green, cancelled = soft rose (muted text),
-//     pending = white with an amber status word;
-//   - EMD → assignment block on pending deals: soft green when the EMD is in,
-//     soft rose while it's still pending;
-//   - single-cell checks: DD ends today (rose, bold red) / tomorrow (sky); no
-//     CFAR, extra fees, commission not paid (amber); net profit below zero
-//     (rose, bold red).
+//     pending = white (the status pill says Pending);
+//   - EMD status reads as its own pill (Complete green / Pending red) — the
+//     sheet's green / red EMD block was dropped as a second, louder copy;
+//   - single-cell checks: DD ends today (rose, bold red) / tomorrow (sky);
+//     extra fees, commission not paid (amber); net profit below zero (rose,
+//     bold red);
+//   - dropdown values (status, EMD status, CFAR, EMD returned, …) read in
+//     proper case as soft pills (values.js / pills.jsx), so a "No" on CFAR or
+//     EMD returned shows on its own pill instead of a filled cell.
 // The sheet's priority order is kept (first match wins).
 import { daysBetween } from './status.js';
 import { laToday } from '../utils/historyRange.js';
@@ -47,22 +50,13 @@ const CANCELLED = { background: '#FBF3F3', color: '#9A8F8F' };
 const CALC = { background: '#F8FAFC' };
 const up = (x) => String(x ?? '').toUpperCase();
 
-// The EMD → VPG assignment columns (the sheet's N–AC), minus the loss pair.
-const EMD_BLOCK = (f) => ['emd', 'dd', 'dispo'].includes(f.group) && !LOSS_KEYS.has(f.key);
-const STATUS_TEXT = {
-  COMPLETE: { color: '#15803D', fontWeight: 700 },
-  CANCELLED: { color: '#B42318', fontWeight: 700 },
-  PENDING: { color: '#B54708', fontWeight: 700 },
-};
 
 // Background / text colour of one cell.
 export function cellStyle(d, f, today = laToday()) {
   const k = f.key;
   const st = up(d.status);
-  const status = k === 'status' ? STATUS_TEXT[st] || {} : {};
   // Single-cell checks first, as in the sheet.
   if ((k === 'grossProfit' || k === 'netProfit') && typeof d.netProfit === 'number' && d.netProfit < 0) return ALERT;
-  if (k === 'emdReturned' && up(d.emdReturned) === 'NO') return ALERT;
   if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return CHECK;
   if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return CHECK;
   if ((k === 'ddEnd' || k === 'ddEndTime') && st === 'PENDING' && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
@@ -70,23 +64,16 @@ export function cellStyle(d, f, today = laToday()) {
     if (n === 0) return ALERT;
     if (n === 1) return SOON;
   }
-  if (k === 'cfar' && up(d.cfar) === 'NO') return CHECK;
   // Whole row by deal status.
-  if (st === 'CANCELLED') return { ...CANCELLED, ...status };
-  if (st === 'COMPLETE') return { ...GREEN, ...status };
-  // Pending: the EMD → assignment block by EMD status.
-  if (EMD_BLOCK(f)) {
-    if (up(d.emdStatus) === 'COMPLETE') return GREEN;
-    if (up(d.emdStatus) === 'PENDING') return RED;
-  }
-  if (f.calc) return { ...CALC, ...status };
-  return { background: '#FFFFFF', ...status };
+  if (st === 'CANCELLED') return CANCELLED;
+  if (st === 'COMPLETE') return GREEN;
+  if (f.calc) return CALC;
+  return { background: '#FFFFFF' };
 }
 
 // The colour key above the table, in plain words.
 export const SHEET_LEGEND = [
   [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
-  [GREEN, 'EMD in (EMD → assignment columns)'], [RED, 'EMD still pending'],
   [ALERT, 'DD ends today · net profit below zero'], [SOON, 'DD ends tomorrow'],
-  [CHECK, 'Check: no CFAR · extra fees · commission not paid'],
+  [CHECK, 'Check: extra fees · commission not paid'],
 ];

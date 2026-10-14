@@ -26,6 +26,9 @@ import { useLocation, setQuery } from '../shell/router.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import { missingKeys } from './required.js';
+import { ValuePill } from './pills.jsx';
+import { PILL_KEYS, PILL_TONE, pretty } from './values.js';
+import { Person } from './people.jsx';
 import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
 import { PanelHead } from '../shell/Panel.jsx';
@@ -33,14 +36,18 @@ import { PanelHead } from '../shell/Panel.jsx';
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 const OVERVIEW = ['address', 'ghlStage', 'acq', 'coe', 'accepted', 'state', 'status', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
 const GROUP_LABEL = { contract: 'Contract info', title: 'Title', emd: 'EMD', dd: 'Due diligence', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & profit', books: 'Bookkeeping', notes: 'Notes & links' };
-const cell = (f, v) => {
+// How a value reads in the table (Luke, Oct 14: proper case throughout;
+// dropdown values worth scanning as pills, people as their coloured chip).
+const cell = (f, v, editable) => {
   if (f.type === 'money') return money(v, { cents: true });
   if (f.type === 'percent') return typeof v === 'number' ? `${Math.round(v * 100)}%` : '';
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
-  if (f.key === 'status') return <span className="font-semibold">{v || ''}</span>;
+  if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
+  if (f.key === 'acq' || f.key === 'dispoMember') return v ? <Person name={v} full /> : '';
   if (v == null || v === '') return '';
-  return String(v).split('\n')[0];
+  const text = String(v).split('\n')[0];
+  return f.type === 'list' ? pretty(f.key, text) : text; // free text stays as typed
 };
 const isNum = (f) => f.type === 'money' || f.type === 'percent' || f.type === 'number';
 const CENTER = new Set(['date', 'list', 'number', 'percent']);
@@ -51,7 +58,7 @@ const widthOf = (f) => W[f.key] || (f.type === 'money' ? 116 : f.type === 'date'
 function GhlStage({ d, live }) {
   const label = d.ghlStage || (live ? GHL_STAGE[live.stage] : null);
   if (!label) return '';
-  return <span className="inline-flex rounded px-1 text-[11px] font-semibold text-violet-800 bg-violet-100/80">{label}</span>;
+  return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE.violet}`}>{label}</span>;
 }
 
 export default function AllDealsView() {
@@ -169,14 +176,14 @@ export default function AllDealsView() {
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[24px] px-2.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[26px] px-2.5 text-[12px] font-semibold tracking-wide whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ background: b.style.bg, color: b.style.fg, borderRight: '1px solid rgba(255,255,255,0.18)' }}>{b.label}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
                   <th key={f.key} onClick={() => sortBy(f.key)} title="Sort by this column"
-                    className={`sticky top-[24px] px-2 pt-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide leading-tight text-center cursor-pointer select-none hover:text-navy-700 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    className={`sticky top-[26px] px-2.5 pt-2 pb-1.5 text-[12px] font-semibold leading-tight ${isNum(f) ? 'text-right' : 'text-left'} cursor-pointer select-none hover:text-navy-700 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${HEAD_RULE}` }}>
                     {f.key === 'address' ? 'Address' : f.label}{sort.replace(/^-/, '') === f.key ? (sort.startsWith('-') ? ' ↓' : ' ↑') : ''}
                   </th>
@@ -195,8 +202,9 @@ export default function AllDealsView() {
                       const missing = need.has(f.key);
                       const content = f.key === 'ghlStage' ? <GhlStage d={d} live={ghl.get(addrKey(d.address))} />
                         : NEEDS_BUYER.has(f.key) && noBuyer(d) ? <span className="opacity-60 text-[11px]">no buyer yet</span>
-                          : cell(f, d[f.key]);
+                          : null;
                       const editable = !s.readOnly && !f.calc && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret);
+                      const shown = content ?? cell(f, d[f.key], editable);
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
@@ -212,8 +220,8 @@ export default function AllDealsView() {
                               )}
                             </span>
                           ) : editable ? (
-                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null}>{content}</EditableCell>
-                          ) : <span className="block truncate">{content}</span>}
+                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null}>{shown}</EditableCell>
+                          ) : <span className="block truncate">{shown}</span>}
                         </td>
                       );
                     })}

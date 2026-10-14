@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { selectCls } from './format.js';
 import { LIST_OF, FIXED_LISTS, ISO, norm, optionLabel } from './fieldLib.js';
+import { pretty } from './values.js';
 
 export function PickOrType({ value, onChange, options, base, autoFocus }) {
   const current = typeof value === 'string' ? value : '';
@@ -65,7 +66,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus }) 
     return (
       <select value={v} autoFocus={autoFocus} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={`${selectCls} w-full h-8 rounded-md disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200`}>
         <option value="">—</option>
-        {all.map((o) => <option key={o} value={o}>{o}</option>)}
+        {all.map((o) => <option key={o} value={o}>{pretty(f.key, o)}</option>)}
       </select>
     );
   }
