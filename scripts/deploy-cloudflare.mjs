@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROJECT = 'vpg-dashboard';
@@ -59,7 +60,29 @@ function writeMovedPage() {
   console.log('[cloudflare] GitHub Pages copy replaced by the "moved" notice (no data)');
 }
 
-function main() {
+// The owners' chat (functions/api/chat) calls Claude from the site's server
+// functions, so the Pages project needs the ANTHROPIC_API_KEY repo secret as
+// an encrypted variable. Set before the upload (a deployment picks up the
+// project's variables), only when it's missing or changed — the project
+// keeps a short fingerprint (ANTHROPIC_KEY_ID, first 12 hex of its SHA-256)
+// to tell. The key itself is never printed. Never fails the deploy.
+async function syncClaudeKey(creds) {
+  if (!creds.anthropic) return;
+  const fp = crypto.createHash('sha256').update(creds.anthropic).digest('hex').slice(0, 12);
+  const url = `https://api.cloudflare.com/client/v4/accounts/${creds.account}/pages/projects/${PROJECT}`;
+  const headers = { authorization: `Bearer ${creds.token}`, 'content-type': 'application/json' };
+  const cur = await fetch(url, { headers }).then((r) => r.json());
+  const vars = cur?.result?.deployment_configs?.production?.env_vars || {};
+  if (vars.ANTHROPIC_API_KEY && vars.ANTHROPIC_KEY_ID?.value === fp) return;
+  const env = { ANTHROPIC_API_KEY: { type: 'secret_text', value: creds.anthropic }, ANTHROPIC_KEY_ID: { type: 'plain_text', value: fp } };
+  // Re-send the D1 binding with it, so the update can never drop it.
+  const cfg = cur?.result?.deployment_configs || {};
+  const keep = (e) => ({ env_vars: env, ...(cfg[e]?.d1_databases ? { d1_databases: cfg[e].d1_databases } : {}) });
+  const r = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ deployment_configs: { production: keep('production'), preview: keep('preview') } }) }).then((x) => x.json());
+  console.log(r?.success ? '[cloudflare] Claude key set on the Pages project (chat)' : `[cloudflare] could not set the Claude key: ${JSON.stringify(r?.errors || []).slice(0, 200)}`);
+}
+
+async function main() {
   const file = process.env.RUNNER_TEMP && path.join(process.env.RUNNER_TEMP, 'cf-deploy.json');
   // The Access token handed over for the state loaders is no longer needed.
   if (process.env.RUNNER_TEMP) fs.rmSync(path.join(process.env.RUNNER_TEMP, 'cf-access.json'), { force: true });
@@ -84,12 +107,13 @@ function main() {
     include: ['/api/*', '/data.json', '/history.json', '/opp-state.json', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
     exclude: [],
   }));
+  try { await syncClaudeKey(creds); } catch (err) { console.warn(`[cloudflare] Claude key not synced: ${err.message}`); }
   run('npx', ['-y', 'wrangler@4', 'pages', 'deploy', 'dist-cf', '--project-name', PROJECT, '--branch', 'main', '--commit-dirty=true'],
     { CLOUDFLARE_API_TOKEN: creds.token, CLOUDFLARE_ACCOUNT_ID: creds.account, WRANGLER_SEND_METRICS: 'false' }, 300_000);
   console.log(`[cloudflare] published to https://${PROJECT}.pages.dev`);
 }
 
-try { main(); } catch (err) { console.warn(`[cloudflare] deploy skipped: ${err.message}`); }
+try { await main(); } catch (err) { console.warn(`[cloudflare] deploy skipped: ${err.message}`); }
 // Only in the GitHub deploy (never a local build), and even if the
 // Cloudflare upload failed: the public copy must never carry data again.
 if (process.env.GITHUB_ACTIONS) {

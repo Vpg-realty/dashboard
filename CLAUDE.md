@@ -531,8 +531,45 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   left (active / paused, legal dot, ❄), the state's facts, and its counties
   with search, tier filter and each county's zips by tier. Temporary (Luke:
   "will later be deleted as this replaces it").
-- Next (proposed to Luke, not built): a Claude chat on the page with shared
-  memory, and a zip center (requests, assignment, no duplicates).
+- **Ask Claude** (Luke, Oct 14: "a claude chat box … memory is stored here
+  so it compounds"; owners only): a floating button on the Territory pages
+  (`src/chat/ChatPanel.jsx`, mounted in AppShell for section `territory`)
+  opens one shared conversation for Luke and Jack, "What Claude remembers"
+  (add / remove) and this month's spend vs the cap. Server
+  `functions/api/chat/index.js` (GET thread, POST question, PATCH cap) and
+  `chat/memory.js`; logic in `edge/chat.js`; D1 `edge/chat.sql`
+  (`chat_messages`, `chat_memory`; cap = settings `chat_cap`, default $50).
+  Owners only, never while viewing as (`isChatOwner`). Each question goes to
+  `claude-opus-5-5` (effort low, `fallbacks: "default"` with beta
+  `server-side-fallback-2026-07-01`) with a fixed briefing and today's data
+  (territory sheet, reps × states from data.json via `env.ASSETS`, GHL
+  pipeline, deal tracker computed with `deal_rules`) as two cached system
+  blocks, then the last 16 messages and, in the new turn, the date, who
+  asks, the memory list and the question. Tools: `remember`, `forget`,
+  `state_counties` (counties / zips from D1). Cost per answer from `usage` at
+  Opus 5.5 prices ($4 / $20 / cache read $0.20 / write $5 per MTok); POST
+  refuses once the month's spend reaches the cap (402). The question is
+  saved together with the answer (a failed call leaves nothing).
+  **Key**: the `ANTHROPIC_API_KEY` repo secret reaches the Pages project
+  without anyone handling it — cloudflare-handoff.mjs puts it in the
+  runner-temp handoff file, deploy-cloudflare.mjs `syncClaudeKey` sets it as
+  an encrypted Pages variable (production + preview, re-sending the D1
+  binding) only when missing or changed (`ANTHROPIC_KEY_ID` = first 12 hex
+  of its SHA-256), before the upload; never printed, never fails the deploy.
+  Tests: node:sqlite shim + signed JWTs + a fake Anthropic endpoint.
+- **Zip center** — next to build. Luke's rules (Oct 14):
+  - Only owners assign reps to specific zips by hand.
+  - Reps request zips themselves, automatically (no approval): 10 zips per
+    request, at most 3 requests per week; a zip is held 30 days.
+  - No duplicates: a zip has one active holder (enforced in D1).
+  - Rounds: hand out tier 1 and tier 2 zips until 80% of them are used,
+    then phase tier 3 in alongside the remaining tier 1 / 2, so the data
+    stays good enough to work with.
+  - Some states have cities reps must stay close to — tracked per state and
+    flagged so Luke and Jack can rework the zip lists ("continually dial in
+    zip codes").
+  - When a state's zips are all out, flag it to the owners; only an owner
+    can approve releasing / reusing zips or clearing them for use again.
 
 ## Refresh cadence
 

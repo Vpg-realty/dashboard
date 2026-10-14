@@ -32,6 +32,7 @@ import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
 import PipelinePage from './PipelinePage.jsx';
 import UserMenu from './UserMenu.jsx';
+import AskClaude from '../chat/ChatPanel.jsx';
 import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
 import TerritorySheet from '../territory/SheetView.jsx';
 
@@ -221,6 +222,7 @@ export default function AppShell({ me }) {
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={me.role} />
       {!me.viewAs && <Welcome me={me} />}
+      {section.id === 'territory' && <AskClaude thread="territory" />}
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );

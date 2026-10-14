@@ -27,7 +27,9 @@ function main() {
     return;
   }
   const file = path.join(process.env.RUNNER_TEMP, 'cf-deploy.json');
-  fs.writeFileSync(file, JSON.stringify({ token, account }), { mode: 0o600 });
+  // The Claude key too, so deploy-cloudflare.mjs can give it to the site's
+  // server functions (the owners' chat) as an encrypted Pages secret.
+  fs.writeFileSync(file, JSON.stringify({ token, account, anthropic: secrets.ANTHROPIC_API_KEY || null }), { mode: 0o600 });
   console.log('[cloudflare] credentials handed to the build step');
 }
 

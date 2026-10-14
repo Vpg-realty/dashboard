@@ -75,3 +75,10 @@ export const saveUser = (p) => call('settings/users', jsonBody('POST', p));
 export const removeUser = (email) => call(`settings/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
 export const readSetting = (key) => call(`settings/${key}`);
 export const writeSetting = (key, value) => call(`settings/${key}`, jsonBody('PUT', { value }));
+
+// --- Owners' Claude chat (functions/api/chat) ----------------------------------
+export const chatLoad = (thread) => call(`chat?thread=${encodeURIComponent(thread)}`);
+export const chatAsk = (thread, question) => call('chat', jsonBody('POST', { thread, question }));
+export const chatSetCap = (cap) => call('chat', jsonBody('PATCH', { cap }));
+export const chatRemember = (text) => call('chat/memory', jsonBody('POST', { text }));
+export const chatForget = (id) => call(`chat/memory?id=${id}`, { method: 'DELETE' });
