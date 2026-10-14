@@ -142,19 +142,28 @@ export default function AppShell({ me }) {
         </button>
         <nav className="flex flex-col gap-0.5">{sections.filter((x) => !x.bottom).map(navItem)}</nav>
         <div className="flex-1" />
-        <nav className="flex flex-col gap-0.5 mb-2">
-          {sections.filter((x) => x.bottom).map(navItem)}
+        {/* Bottom of the sidebar (Luke, Oct 14): the team's screens — Team
+            Overview (the TV pages, for everyone) and TV Mode (the rotating
+            board, owners / managers) — then the owners' admin. */}
+        <nav className="flex flex-col gap-0.5 mb-2" aria-label="Team screens">
+          {!collapsed && <span className="px-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-tan-600">Team screens</span>}
+          {sections.filter((x) => x.bottom === 'screens').map(navItem)}
           {isManager && (
-            <a {...linkProps('/tv')} title="TV mode" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
-              <Icon name="tv" className="text-tan-600/80" />{!collapsed && 'TV mode'}
+            <a {...linkProps('/tv')} title="TV Mode" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
+              <Icon name="tv" className="text-tan-600/80" />{!collapsed && 'TV Mode'}
             </a>
           )}
-          {me.role === 'owner' && (
-            <button onClick={() => setSubs(true)} title="Sub-accounts" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
-              <Icon name="plug" className="text-tan-600/80" />{!collapsed && 'Sub-accounts'}
-            </button>
-          )}
         </nav>
+        {(sections.some((x) => x.bottom === 'admin') || me.role === 'owner') && (
+          <nav className="flex flex-col gap-0.5 mb-2 pt-2 border-t border-tan-200" aria-label="Admin">
+            {sections.filter((x) => x.bottom === 'admin').map(navItem)}
+            {me.role === 'owner' && (
+              <button onClick={() => setSubs(true)} title="Sub-Accounts" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
+                <Icon name="plug" className="text-tan-600/80" />{!collapsed && 'Sub-Accounts'}
+              </button>
+            )}
+          </nav>
+        )}
         <div className="border-t border-tan-200 pt-2">
           <UserMenu me={me} collapsed={collapsed} Avatar={Avatar} />
         </div>

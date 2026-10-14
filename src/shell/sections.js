@@ -11,6 +11,10 @@
 
 const PEOPLE = ['owner', 'manager', 'tc', 'team'];
 
+// Labels are Title Case (Luke, Oct 14) — they're the tab titles and the
+// browser tab's title too. Small words (of, and, &, by, in, the, to, a) stay
+// lower case unless first; acronyms (TV, GHL, CRM) stay as they are.
+
 // The Board and Team pages are laid out to fill a TV / laptop screen. On a
 // phone they get a fixed canvas instead (`phone`: h = height in px, w = min
 // width, scrolled sideways): columns that stack (Pipeline, Opportunities)
@@ -27,25 +31,13 @@ export const SECTIONS = [
     tabs: [{ id: 'all', label: 'Pipeline', view: 'team-pipeline', phone: { h: 2600 } }],
   },
   {
-    // Luke, Oct 14: "Board" renamed "Team overview" (same TV pages; URLs
-    // keep /board/…).
-    id: 'board', label: 'Team overview', icon: 'board', roles: PEOPLE,
-    tabs: [
-      { id: 'overview', label: 'Overview', view: 'master', phone: WIDE },
-      { id: 'pipeline', label: 'Pipeline', view: 'pipeline', phone: { h: 2600 } },
-      { id: 'conversations', label: 'Conversations', view: 'conversations', phone: WIDE },
-      { id: 'agents', label: 'Agents', view: 'agents', phone: WIDE },
-      { id: 'opportunities', label: 'Opportunities', view: 'opportunities', phone: { h: 2200 } },
-    ],
-  },
-  {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
     // sees everything except commission and profit — enforced server-side).
     // Reps and managers (Oct 14): Active only, their own deals, read-only.
     id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
-      { id: 'all', label: 'All deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
+      { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
       { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true, roles: ['owner', 'tc'] },
     ],
   },
@@ -58,19 +50,19 @@ export const SECTIONS = [
     // Zip center section folded in here (its links redirect, see resolve).
     id: 'territory', label: 'Territory', icon: 'map', roles: PEOPLE,
     tabs: [
-      { id: 'zips', label: 'Get zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
-      { id: 'who', label: 'Who works where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'reps', label: 'Reps × states', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'sheet', label: 'Territory sheet', view: 'terr-sheet', scroll: true },
-      { id: 'zip-mgmt', label: 'Zip management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'rules', label: 'Zip rules & data health', view: 'zips-rules', scroll: true },
+      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
+      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true },
+      { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true },
     ],
   },
   {
     // Luke, Oct 14: each rep sees their own scorecard (team average line, no
     // notes, no other rep's scores); a simple page with the full breakdown below.
-    id: 'me', label: 'My scorecard', icon: 'user', roles: ['team', 'manager'],
-    tabs: [{ id: 'scorecard', label: 'This week & trend', view: 'my-scorecard', scroll: true }],
+    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team', 'manager'],
+    tabs: [{ id: 'scorecard', label: 'This Week & Trend', view: 'my-scorecard', scroll: true }],
   },
   {
     // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…).
@@ -82,13 +74,27 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: "Board" renamed "Team Overview" (same TV pages; URLs
+    // keep /board/…). Later the same day: moved to the bottom of the sidebar
+    // for everyone, next to "TV Mode" (`bottom: 'screens'`), and its Pipeline
+    // tab dropped — the Pipeline section is the one place for it now (old
+    // /board/pipeline links redirect, see MOVED). The TV still has it.
+    id: 'board', label: 'Team Overview', icon: 'board', roles: PEOPLE, bottom: 'screens',
+    tabs: [
+      { id: 'overview', label: 'Overview', view: 'master', phone: WIDE },
+      { id: 'conversations', label: 'Conversations', view: 'conversations', phone: WIDE },
+      { id: 'agents', label: 'Agents', view: 'agents', phone: WIDE },
+      { id: 'opportunities', label: 'Opportunities', view: 'opportunities', phone: { h: 2200 } },
+    ],
+  },
+  {
     // Luke, Oct 14: one place for owners to change people, commission rules
     // and dropdowns themselves. Shown at the bottom of the sidebar.
-    id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: true,
+    id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin',
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true },
-      { id: 'commissions', label: 'Commission rules', view: 'settings-rules', scroll: true },
-      { id: 'lists', label: 'Dropdown lists', view: 'settings-lists', scroll: true },
+      { id: 'commissions', label: 'Commission Rules', view: 'settings-rules', scroll: true },
+      { id: 'lists', label: 'Dropdown Lists', view: 'settings-lists', scroll: true },
     ],
   },
 ];
@@ -101,12 +107,18 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 // '/board/pipeline' → { section, tab } for this role, falling back to the
 // section's first tab, then to Home, so an old or forbidden link never
 // shows a blank page.
-// Old links from before the Zip center moved into Territory (Oct 14).
-const MOVED = { zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } } };
+// Old links: the Zip center before it moved into Territory, and the board's
+// Pipeline tab before the Pipeline section replaced it (both Oct 14). A
+// `tabs` map moves the whole section; a 'section/tab' key moves one page.
+const MOVED = {
+  zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } },
+  'board/pipeline': { section: 'pipeline', tab: 'all' },
+};
 
 export function resolve(path, role) {
   let [sid, tid] = path.replace(/^\/+/, '').split('/');
-  if (MOVED[sid]) { tid = MOVED[sid].tabs[tid] || tid; sid = MOVED[sid].section; }
+  const one = MOVED[`${sid}/${tid}`];
+  if (one) { sid = one.section; tid = one.tab; } else if (MOVED[sid]?.tabs) { tid = MOVED[sid].tabs[tid] || tid; sid = MOVED[sid].section; }
   const allowed = sectionsFor(role);
   const section = allowed.find((s) => s.id === sid) || allowed[0] || SECTIONS[0];
   const tab = section.tabs ? section.tabs.find((t) => t.id === tid) || section.tabs[0] : null;

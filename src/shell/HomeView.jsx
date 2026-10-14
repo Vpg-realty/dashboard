@@ -18,7 +18,8 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
-import { useDeals } from '../deals/store.js';
+import { useDeals, addrKey } from '../deals/store.js';
+import { EmdPill } from '../deals/pills.jsx';
 import { nextStep, dueTone } from '../deals/status.js';
 import Icon from './icons.jsx';
 
@@ -205,10 +206,13 @@ function dueText(days, key) {
   return { what, text, cls: dueTone(days) };
 }
 
-function DealRow({ d, showRep, onOpen }) {
+// `tracked`: the deal tracker's deal at the same address (addrKey), for its
+// EMD status (Luke, Oct 14: EMD on every row) — none when the deal isn't in
+// the tracker yet, or the tracker hasn't loaded.
+function DealRow({ d, showRep, onOpen, tracked }) {
   const due = dueText(d.days, d.key);
   return (
-    <button type="button" onClick={() => onOpen(d)} className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_120px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
+    <button type="button" onClick={() => onOpen(d)} className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_140px_170px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
       <span className="font-medium truncate">{d.address}</span>
       <span className="md:order-last justify-self-end flex items-center gap-1.5 whitespace-nowrap">
         <span className="text-[11.5px] text-zinc-500">{due.what}</span>
@@ -218,6 +222,9 @@ function DealRow({ d, showRep, onOpen }) {
         <span className="flex items-center gap-2 text-zinc-600 min-w-0"><Avatar rep={d.rep} /> <span className="truncate">{d.rep?.name.split(' ')[0]} · {d.marketId}</span></span>
       ) : <span className="hidden md:block text-zinc-500">{d.marketId}</span>}
       <span className="justify-self-start"><StageChip stage={d.stage} /></span>
+      <span className="justify-self-start flex items-center gap-1.5 whitespace-nowrap">
+        {tracked && <><span className="text-[11.5px] text-zinc-500">EMD</span><EmdPill deal={tracked} /></>}
+      </span>
     </button>
   );
 }
@@ -231,6 +238,16 @@ export default function HomeView({ me }) {
   // Luke, Oct 14: a deal clicked on Home opens its details here (the deal
   // panel), not the board's Pipeline.
   const { openGhl, panel } = useGhlDealOpener();
+  // The deal tracker (already loaded for the deal panel; reps and managers
+  // get the pending deals read-only) — its deal at each address, pending
+  // first, for the EMD pill on Needs attention.
+  const tracker = useDeals();
+  const byAddr = new Map();
+  for (const t of tracker.raw || []) {
+    const k = addrKey(t.address);
+    if (k && (!byAddr.has(k) || (t.status === 'PENDING' && byAddr.get(k).status !== 'PENDING'))) byAddr.set(k, t);
+  }
+  const trackedOf = (d) => byAddr.get(addrKey(d.address || d.name)) || null;
   const scope = scopeReps(me);
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
@@ -273,7 +290,7 @@ export default function HomeView({ me }) {
   const group = (title, dot, list) => list.length > 0 && (
     <div key={title}>
       <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{title}<span className="text-zinc-400">{list.length}</span></div>
-      {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} onOpen={openGhl} />)}
+      {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} onOpen={openGhl} tracked={trackedOf(d)} />)}
     </div>
   );
 

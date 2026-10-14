@@ -26,8 +26,11 @@ const first = (id) => repOf(id).name.split(' ')[0];
 const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 const k = (v) => { const x = (v || 0) / 1000; return `$${x >= 100 || Number.isInteger(Math.round(x * 10) / 10) ? Math.round(x) : (Math.round(x * 10) / 10).toFixed(1)}K`; };
 
-const G = { gridTemplateColumns: '8.5rem 5.5rem repeat(6,minmax(0,1fr)) 0.5rem repeat(5,2.6rem) 3.2rem minmax(0,1.6fr)' };
-const head = 'text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold text-center leading-tight';
+const G = { gridTemplateColumns: '8.5rem 5.5rem repeat(6,minmax(0,1fr)) 0.5rem repeat(5,3.5rem) 3.2rem minmax(0,1.6fr)' };
+// `sc-head` / `sc-sub`: the column titles, made bigger and darker inside the
+// app (.app-team in index.css — Luke, Oct 14: "hard to read"); the TV keeps
+// its small capitals.
+const head = 'sc-head text-[10px] uppercase tracking-[0.08em] text-zinc-500 font-semibold text-center leading-tight';
 const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-300' : v === 2 ? 'bg-emerald-500 text-white' : v === 1 ? 'bg-amber-400 text-amber-950' : 'bg-rose-600 text-white');
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
@@ -408,15 +411,15 @@ export default function ScorecardView({ onPickRep }) {
         <div className="flex-1 min-h-0 rounded-xl bg-white border border-zinc-300/80 px-3 py-2 flex flex-col">
           <div className="grid gap-x-1.5 items-end pb-1 border-b border-zinc-200 shrink-0" style={G}>
             <span className={`${head} text-left`}>Rep</span><span className={`${head} text-left`}>Score</span>
-            <span className={head}>Contracts<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
-            <span className={head}>Projected $<br /><span className="normal-case tracking-normal font-normal">month to date</span></span>
-            <span className={head}>Offers<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
-            <span className={head}>Opps opened<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
-            <span className={head}>Speed<br /><span className="normal-case tracking-normal font-normal">≤15 min · wk</span></span>
-            <span className={`${head} text-rose-700`}>Cancels<br /><span className="normal-case tracking-normal font-normal">wk · mo</span></span>
+            <span className={head}>Contracts<br /><span className="sc-sub normal-case tracking-normal font-normal">wk · mo</span></span>
+            <span className={head}>Projected $<br /><span className="sc-sub normal-case tracking-normal font-normal">month to date</span></span>
+            <span className={head}>Offers<br /><span className="sc-sub normal-case tracking-normal font-normal">wk · mo</span></span>
+            <span className={head}>Opps opened<br /><span className="sc-sub normal-case tracking-normal font-normal">wk · mo</span></span>
+            <span className={head}>Speed<br /><span className="sc-sub normal-case tracking-normal font-normal">≤15 min · wk</span></span>
+            <span className={`${head} text-rose-700`}>Cancels<br /><span className="sc-sub normal-case tracking-normal font-normal">wk · mo</span></span>
             <span />
             {CRM_ITEMS.map((it, i) => (
-              <span key={it.key} className={`${head} !text-[9px]`} title={`${it.label} — ${it.help}`}>{i + 1}<br /><span className="normal-case tracking-normal font-normal">{it.short}</span></span>
+              <span key={it.key} className={`${head.replace('text-[10px]', 'text-[9px]')} sc-crm`} title={`${it.label} — ${it.help}`}>{i + 1}<br /><span className="sc-sub normal-case tracking-normal font-normal">{it.short}</span></span>
             ))}
             <span className={head}>CRM</span>
             <span className={`${head} text-left`}>Notes</span>
