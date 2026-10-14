@@ -77,8 +77,10 @@ export const readSetting = (key) => call(`settings/${key}`);
 export const writeSetting = (key, value) => call(`settings/${key}`, jsonBody('PUT', { value }));
 
 // --- Owners' Claude chat (functions/api/chat) ----------------------------------
-export const chatLoad = (thread) => call(`chat?thread=${encodeURIComponent(thread)}`);
-export const chatAsk = (thread, question) => call('chat', jsonBody('POST', { thread, question }));
+// The server picks the conversation (owners' shared one, or the rep's own);
+// `page` is only sent along for the record.
+export const chatLoad = (page) => call(`chat?page=${encodeURIComponent(page)}`);
+export const chatAsk = (page, question) => call('chat', jsonBody('POST', { page, question }));
 export const chatSetCap = (cap) => call('chat', jsonBody('PATCH', { cap }));
 export const chatRemember = (text) => call('chat/memory', jsonBody('POST', { text }));
 export const chatForget = (id) => call(`chat/memory?id=${id}`, { method: 'DELETE' });

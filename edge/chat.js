@@ -7,17 +7,27 @@
 //      week / month, the GHL pipeline and the deal tracker — cached for the
 //      15 minutes between refreshes;
 //   3. "what Claude remembers" (chat_memory) and the recent conversation.
-// Claude can save or drop a memory and look up a state's counties / zips.
+// Claude can save or drop a memory, look up a state's counties / zips and
+// the zip center's holds (edge/zipChat.js).
+// Reps (and managers, for their own zips) get a private, read-only chat
+// about their zips only (Luke, Oct 14) — see edge/zipChat.js.
 // Cost per answer is recorded; a monthly cap (settings 'chat_cap') stops it.
 import Anthropic from '@anthropic-ai/sdk';
 import { compute } from '../src/deals/math.js';
 import roster from '../subaccounts.json' with { type: 'json' };
+import { OWNER_ZIP_TOOLS, REP_ZIP_TOOLS, REP_BRIEFING, runZipTool, repContext } from './zipChat.js';
 
 export const MODEL = 'claude-opus-5-5';
 // $ per million tokens (Claude Opus 5.5): input, output, cache read, cache write (5 min).
 const PRICE = { in: 4, out: 20, read: 0.2, write: 5 };
 export const DEFAULT_CAP = 50;
 export const isChatOwner = (u) => u?.role === 'owner' && !u.viewAs;
+// Reps and managers with a rep on the board: the zip-only chat.
+export const isZipChatRep = (u) => !u?.viewAs && ['team', 'manager'].includes(u?.role) && !!u?.rep_id;
+// Owners share one thread; each rep has their own.
+export const threadFor = (u) => (isChatOwner(u) ? 'territory' : `zips:${u.rep_id}`);
+// Questions a rep can ask per Arizona day (keeps the shared budget safe).
+export const REP_DAILY = 25;
 
 export function costOf(u = {}) {
   return ((u.input_tokens || 0) * PRICE.in + (u.output_tokens || 0) * PRICE.out + (u.cache_read_input_tokens || 0) * PRICE.read + (u.cache_creation_input_tokens || 0) * PRICE.write) / 1e6;
@@ -32,6 +42,7 @@ How the business is measured:
 - Deal tracker: every contracted deal. Status PENDING / COMPLETE (closed) / CANCELLED. Gross = VPG assignment price − contracted price; net = gross after fees and splits; net profit = after commissions. Close rate = closed ÷ contracts.
 - Territory sheet: per state — legal status (Clear; Caution = a seller disclosure is required; High Risk = a license is required or agents can't help), winter risk (yes = slows in winter), counties and zips. County tier = county population (1: 150k+, 2: 40k–150k, 3: under 40k); zip tier = the zip's own population (1: 20k+, 2: 8k–20k, 3: under 8k). Market status Active or Paused, planned reps, dispo rep.
 - "Quiet market" = a rep's sub-account with no new conversations in 7 days.
+- Zip center: reps request zips automatically (a set number per request, a few requests a week); a zip is held for a set number of days, never by two reps at once; tier 1 + 2 go first, tier 3 mixes in once most of a state's tier 1 + 2 are used this round; a released zip stays "used" until owners approve a new round. Use zip_overview, zip_holds and zip_lookup for anything about zips, holds and requests — they are live.
 
 How to answer:
 - Use only the data provided and what you look up with your tools. If something isn't in the data, say so plainly — never guess or invent numbers.
@@ -104,15 +115,18 @@ async function runTool(context, user, name, input) {
       return input?.include_zips ? `${base} | t1: ${(c.t1 || []).join(' ')} | t2: ${(c.t2 || []).join(' ')} | t3: ${(c.t3 || []).join(' ')}` : base;
     }).join('\n');
   }
+  if (OWNER_ZIP_TOOLS.some((t) => t.name === name)) return runZipTool(db, name, input);
   return 'Unknown tool.';
 }
 
 // Ask Claude. Returns { text, usage, cost, tools }.
 export async function ask(context, user, { thread, question }) {
   const db = context.env.DB;
-  const memory = (await db.prepare('SELECT id, text, by_name, at FROM chat_memory WHERE deleted = 0 ORDER BY id').all()).results;
+  const owner = isChatOwner(user);
+  if (!owner && !isZipChatRep(user)) throw new Error('not allowed');
+  const memory = owner ? (await db.prepare('SELECT id, text, by_name, at FROM chat_memory WHERE deleted = 0 ORDER BY id').all()).results : [];
   const history = (await db.prepare('SELECT role, text, name, at FROM chat_messages WHERE thread = ? ORDER BY id DESC LIMIT 16').bind(thread).all()).results.reverse();
-  const data = await dataBlock(context);
+  const data = owner ? await dataBlock(context) : null;
   const today = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const messages = [];
@@ -124,7 +138,9 @@ export async function ask(context, user, { thread, question }) {
   }
   if (messages[0]?.role === 'assistant') messages.shift();
   const memText = memory.length ? memory.map((m) => `#${m.id} (${m.at.slice(0, 10)}, ${m.by_name}): ${m.text}`).join('\n') : '(nothing saved yet)';
-  const turn = `Today is ${today}. Asked by ${user.name}.\n\nWHAT YOU REMEMBER:\n${memText}\n\nQUESTION: ${question}`;
+  const turn = owner
+    ? `Today is ${today}. Asked by ${user.name}.\n\nWHAT YOU REMEMBER:\n${memText}\n\nQUESTION: ${question}`
+    : `Today is ${today}.\n\n${await repContext(db, user)}\n\nQUESTION: ${question}`;
   if (messages.length && messages[messages.length - 1].role === 'user') messages[messages.length - 1].content += `\n\n${turn}`; else messages.push({ role: 'user', content: turn });
 
   const client = new Anthropic({ apiKey: context.env.ANTHROPIC_API_KEY, maxRetries: 2 });
@@ -138,11 +154,11 @@ export async function ask(context, user, { thread, question }) {
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       output_config: { effort: 'low' },
-      system: [
+      system: owner ? [
         { type: 'text', text: BRIEFING, cache_control: { type: 'ephemeral' } },
         { type: 'text', text: data, cache_control: { type: 'ephemeral' } },
-      ],
-      tools: TOOLS,
+      ] : [{ type: 'text', text: REP_BRIEFING, cache_control: { type: 'ephemeral' } }],
+      tools: owner ? [...TOOLS, ...OWNER_ZIP_TOOLS] : REP_ZIP_TOOLS,
       messages,
     });
     for (const k of Object.keys(usage)) usage[k] += n(res.usage?.[k]);
@@ -153,7 +169,7 @@ export async function ask(context, user, { thread, question }) {
       if (b.type !== 'tool_use') continue;
       used.push(b.name);
       let out;
-      try { out = await runTool(context, user, b.name, b.input); } catch (e) { out = `Tool error: ${e.message}`; }
+      try { out = owner ? await runTool(context, user, b.name, b.input) : await runZipTool(db, b.name, b.input, { rep: user.rep_id }); } catch (e) { out = `Tool error: ${e.message}`; }
       results.push({ type: 'tool_result', tool_use_id: b.id, content: out });
     }
     messages.push({ role: 'user', content: results });
