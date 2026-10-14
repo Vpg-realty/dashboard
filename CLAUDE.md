@@ -184,7 +184,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Opportunities; section id `board`, renamed from "Board" Oct 14) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
-  for team + manager; Deals (Active,
+  for team + manager; Territory (Who works where, Territory sheet) for
+  owner / manager / tc; Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
@@ -299,6 +300,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the V mark on Home. Status colours (red / amber / green) and rep colours
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
+- **Card headers** (Luke, Oct 14: "blue headers for the charts …
+  uniform"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a light-navy
+  header band (navy-50, navy title, optional note / number / right slot),
+  the same as the deal panel's sections; used by Home cards, Deals Active /
+  Summary, My scorecard, Settings and Territory. The TV board keeps its own
+  look.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app. Team and My
   scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
@@ -487,6 +494,45 @@ the server strips them (`forTc`) and refuses edits to them.
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
   overwrites site edits. Commission payments (Owed → Approved → Paid),
   rep statements and QuickBooks come with Finance.
+
+## Territory (Luke, Oct 14)
+
+Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
+"VPG_Territory_Tracker" Google Sheet (id 1IJlJjytW8o-azY8cSCiShkcZ1H79ASFtppfZ7Fp8cQY).
+- **Storage** (D1, `edge/territory.sql`): `terr_states (state, data JSON)`
+  — legal status + note, winter risk, county / zip counts and county tiers,
+  the sheet's Market Assignments (rank, planned reps, staffing, note,
+  Active / Paused, `sheetReps`), dispo primary / backup; `terr_counties
+  (state, county, data JSON)` — tier, cities, all zips and tier 1 / 2 / 3
+  zips, assigned to, status, data last pulled, pulled for, notes (Idaho and
+  Virginia are curated zip lists: `curated`, `why` per zip). Imported Oct 14
+  from the sheet's xlsx export (22 states, 1,374 counties, 12,211 zips),
+  only into empty tables. `GET /api/territory` (states) and
+  `?state=<name>` (counties); owners / managers / TC only (node:sqlite
+  test like the other functions).
+- **Who works where** (`WhoWorksWhere.jsx`, `model.js` `buildModel`): reps
+  = GHL sub-accounts (REPS), markets = the sheet. An interactive US map
+  (`UsMap.jsx`; state shapes `usStates.json`, made once from the US
+  Census-based `us-atlas` states-albers-10m, pre-projected, no map library)
+  coloured by number of reps / winter risk / legal status, or one rep's
+  states (`?rep=`); hover for a summary, click a state (`?state=`) for its
+  reps, legal note, dispo, this month's numbers, 7-day conversations and —
+  owners / TC — the tracker's closed / contracts, close rate and avg net.
+  "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
+  page): quiet market (sub-account with no new conversations in 7 days,
+  from history.json), winter exposure (≥ 50% of a rep's opps this month in
+  the sheet's winter-risk states), crowded state (4+ reps; "Review" only
+  when under 3 opps per rep), sheet ≠ GHL, no dispo rep, high-risk legal,
+  low close rate (tracker, 8+ contracts, mostly decided), open seats, paused
+  market still worked. A reps × states grid (opps this month, 7-day
+  conversations, red = quiet, ❄ = winter state, winter share per rep) and
+  a States table. The sheet's winter / legal flags are the source of truth.
+- **Territory sheet** (`SheetView.jsx`): the sheet, cleaner — states on the
+  left (active / paused, legal dot, ❄), the state's facts, and its counties
+  with search, tier filter and each county's zips by tier. Temporary (Luke:
+  "will later be deleted as this replaces it").
+- Next (proposed to Luke, not built): a Claude chat on the page with shared
+  memory, and a zip center (requests, assignment, no duplicates).
 
 ## Refresh cadence
 
