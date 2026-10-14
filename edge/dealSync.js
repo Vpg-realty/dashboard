@@ -1,24 +1,25 @@
-// GHL → deal tracker sync (Luke, Oct 14): "automatically add properties every
-// time a property hits dispo active … each time it moves to a specific stage
-// it'll mark it as so. If closed, it updates … if COE is changed on the
-// opportunity, it updates, if IP changes, it updates. But if I update it
-// manually here, it doesn't update there, only if the update [in GHL] does it
-// change here."
+// GHL → deal tracker sync. Luke, Oct 14: "automatically add properties every
+// time a property hits dispo active". Later the same day he took back the
+// updating part: "I'd like it to create the opportunity with all provided
+// data coming from GHL custom fields. but after it is created i do not want
+// it to update based on pipeline stage … reps don't always update their
+// pipelines and if i change it on the tracker and then it reverts back, i
+// lose all of that data."
 //
 // Pure planning — scripts/sync-deals.mjs feeds it the tracker's deals, the
 // links (D1 `deal_ghl`: GHL opportunity id → tracker deal + the GHL values
 // seen last time) and this run's GHL feed, and writes what it returns.
 //   • link   — a GHL deal not linked yet whose address matches a tracker
-//              deal (addrKey): linked, today's GHL values become the baseline
-//              (nothing in the tracker changes except the GHL stage mirror).
+//              deal (addrKey): linked; only the GHL stage mirror is set.
 //   • create — not linked, no match, and in Dispo Active or Assigned (or
 //              Closed after the sync began): a new tracker deal filled from
 //              GHL's fields.
-//   • update — linked, and GHL's stage / COE / IP end differ from the
-//              baseline: GHL changed it, so the tracker follows (and the
-//              baseline moves). A value only changed in the tracker never
-//              gets overwritten while GHL's stays the same.
-// `ghlStage` always mirrors GHL. Nothing is ever written to GHL.
+//   • update — linked: ONLY the read-only `ghlStage` mirror follows GHL (and
+//              the baseline moves). Status, COE, DD and every other field
+//              are never touched again once the deal exists. A stage move in
+//              GHL shows on the Deals pages as a "Needs info" alert
+//              (src/deals/required.js) for a person to act on.
+// Nothing is ever written to GHL.
 import { zillowUrl } from '../src/deals/math.js';
 
 export const SYNC_FIELDS = ['stage', 'coe', 'ipEnd'];
@@ -46,24 +47,13 @@ function setDdEnd(d, ipEnd) {
   }
 }
 
-// The field changes one GHL change makes to a tracker deal (mutates `d`).
-export function applyGhl(d, g, prev) {
+// What GHL changes on a tracker deal that already exists (mutates `d`): the
+// GHL stage mirror, and nothing else.
+export function applyGhl(d, g) {
   const changes = [];
-  const set = (k, v) => { const old = d[k] ?? null; if (old !== v) { changes.push([k, old, v]); if (v == null) delete d[k]; else d[k] = v; } };
   const label = STAGE_LABEL[g.stage] || g.stage;
-  set('ghlStage', label);
-  if (prev && g.stage !== prev.stage) {
-    if (g.stage === 'closed') set('status', 'COMPLETE');
-    else if (g.stage === 'lost') set('status', 'CANCELLED');
-    else if (d.status === 'COMPLETE' || d.status === 'CANCELLED') set('status', 'PENDING');
-  }
-  if (prev && g.coe && g.coe !== prev.coe) set('coe', g.coe);
-  if (prev && g.ipEnd && g.ipEnd !== prev.ipEnd) {
-    const before = JSON.stringify([d.ddDays ?? null, d.fixed?.ddEnd ?? null]);
-    setDdEnd(d, g.ipEnd);
-    const after = JSON.stringify([d.ddDays ?? null, d.fixed?.ddEnd ?? null]);
-    if (before !== after) changes.push(['ddEnd', null, g.ipEnd]);
-  }
+  const old = d.ghlStage ?? null;
+  if (old !== label) { changes.push(['ghlStage', old, label]); d.ghlStage = label; }
   return changes;
 }
 
@@ -111,7 +101,7 @@ export function planSync({ deals, links, feed, names, since }) {
       const d = dealById.get(link.deal_id);
       if (!d) continue; // deleted in the tracker — leave it alone
       const next = structuredClone(d);
-      const changes = applyGhl(next, g, link.last);
+      const changes = applyGhl(next, g);
       const last = baseline(g);
       const moved = JSON.stringify(last) !== JSON.stringify(link.last);
       if (changes.length || moved) ops.push({ type: 'update', ghlId: g.id, dealId: d.id, g, prev: link.last, last, changes });
@@ -125,7 +115,7 @@ export function planSync({ deals, links, feed, names, since }) {
     if (match) {
       linkedDeals.add(match.id);
       const next = structuredClone(match);
-      const changes = applyGhl(next, g, null); // only the stage mirror
+      const changes = applyGhl(next, g); // only the stage mirror
       ops.push({ type: 'link', ghlId: g.id, dealId: match.id, g, last: baseline(g), changes });
       continue;
     }

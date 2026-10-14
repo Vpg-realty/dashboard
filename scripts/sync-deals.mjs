@@ -1,4 +1,5 @@
-// GHL → deal tracker sync (Luke, Oct 14; rules in edge/dealSync.js). Chained
+// GHL → deal tracker sync (Luke, Oct 14; rules in edge/dealSync.js: it adds
+// deals from GHL, then only mirrors GHL's stage — never edits them). Chained
 // after build-snapshot.mjs in `npm run snapshot` (the deploy step with
 // ALL_SECRETS), so it runs every deploy (~15 min). Reads this run's feed from
 // .cache/ghl-tracker.json and writes to the D1 database with the Cloudflare
@@ -37,7 +38,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
       const row = (await one('SELECT data, updated_at FROM deals WHERE id = ? AND deleted = 0', [dealId]))[0];
       if (!row) return [];
       const d = JSON.parse(row.data);
-      const changes = applyGhl(d, op.g, op.type === 'link' ? null : op.prev);
+      const changes = applyGhl(d, op.g); // the GHL stage mirror only
       if (!changes.length) return [];
       const res = await query('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ? AND updated_at = ?', [JSON.stringify(d), iso, BY, dealId, row.updated_at]);
       if ((res[0]?.meta?.changes ?? 1) > 0) {
