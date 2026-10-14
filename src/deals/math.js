@@ -7,6 +7,7 @@
 // A deal is { id, ...fields, fixed: { field: value } }: `fixed` holds the
 // numbers typed by hand in the sheet that no formula would give (older rows
 // were pasted as values); a fixed number always wins over the formula.
+import { isTimelines, rulesAt } from './rules.js';
 
 export const FIELDS = [
   // key, label, group, type, (calc = computed), (secret = owner only)
@@ -92,18 +93,23 @@ export function addDays(iso, n) {
 
 // Commission rules can change over time (Luke, Oct 14: "it should only
 // impact deals in the future, not ones that have cancelled or closed
-// already … what date these will start on"). `rules` is either one rule set
-// or { versions: [{ from: 'YYYY-MM-DD', rules }] } (oldest first). A deal
-// uses the version in effect on its COE (commissions are paid at closing);
-// a deal with no COE yet uses the newest; a cancelled deal uses the version
-// in effect on its contract date, so a change never reaches deals that are
+// already … what date these will start on"; then: each rule with its own
+// start date). `rules` is one rule set, the older { versions: [{ from,
+// rules }] }, or per-rule timelines { since, timelines } (rules.js). A deal
+// uses the rules in effect on its COE (commissions are paid at closing); a
+// deal with no COE yet uses the newest; a cancelled deal uses the rules in
+// effect on its contract date, so a change never reaches deals that are
 // already done.
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export function ruleDate(deal) {
+  const cancelled = String(deal?.status || '').toUpperCase() === 'CANCELLED';
+  return cancelled && ISO_DATE.test(deal?.accepted || '') ? deal.accepted : ISO_DATE.test(deal?.coe || '') ? deal.coe : null;
+}
 export function pickRules(rules, deal) {
+  if (isTimelines(rules)) return rulesAt(rules, ruleDate(deal));
   const vs = rules?.versions;
   if (!Array.isArray(vs) || !vs.length) return rules || {};
-  const cancelled = String(deal?.status || '').toUpperCase() === 'CANCELLED';
-  const date = cancelled && ISO_DATE.test(deal?.accepted || '') ? deal.accepted : ISO_DATE.test(deal?.coe || '') ? deal.coe : null;
+  const date = ruleDate(deal);
   if (!date) return vs[vs.length - 1].rules;
   let pick = vs[0];
   for (const v of vs) if (v.from <= date) pick = v;
@@ -174,8 +180,11 @@ export function payouts(d, rules) {
 // Net loss % (owners only). The server strips the rest.
 export const REP_GROUPS = ['contract', 'title', 'emd', 'dd', 'dispo'];
 export const REP_HIDDEN = ['netLoss'];
-// …but they do see the Zillow link (not the notes).
-export const REP_EXTRA = ['links'];
+// …but they do see the Zillow link (not the notes) and the gross assignment
+// fee (Luke, Oct 14: "gross assignment fee columns can be kept for the reps,
+// but nothing after that" — no fees, net, commission base, TC fee,
+// commissions or profit).
+export const REP_EXTRA = ['links', 'grossAssign'];
 export const repSees = (f) => ((REP_GROUPS.includes(f.group) && !REP_HIDDEN.includes(f.key)) || REP_EXTRA.includes(f.key)) && !f.secret;
 
 // Zillow's address search link (Luke, Oct 14: add the Zillow link once a

@@ -40,9 +40,39 @@ export function Tile({ label, value, sub, tone, onClick, active, dot }) {
     </Tag>
   );
 }
-const DOTS = { red: 'bg-red-500', amber: 'bg-amber-500', blue: 'bg-blue-500', green: 'bg-emerald-500', zinc: 'bg-zinc-400' };
+const DOTS = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]', green: 'bg-[#15803D]', zinc: 'bg-zinc-400', navy: 'bg-navy-700' };
+
+// "Order is out of date — Re-sort" (Luke, Oct 14: rows don't jump while you
+// edit; this button is the "it's ok to sort now").
+export function ResortBar({ stale, onResort }) {
+  if (!stale) return <span className="text-[12px] text-zinc-400">Rows stay in place while you edit.</span>;
+  return (
+    <span className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 pl-2.5 pr-1 h-8 text-[12.5px] text-amber-900">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+      Order is out of date — edited rows stayed put
+      <button type="button" onClick={onResort} className="h-6 px-2.5 rounded-md bg-navy-700 text-white font-medium hover:bg-navy-800">Re-sort now</button>
+    </span>
+  );
+}
+
+// The fields a deal still needs, as small chips (required.js). Clicking one
+// opens the deal with that field highlighted and focused.
+export function NeedChips({ fields, labels, onPick, max = 99 }) {
+  const shown = fields.slice(0, max);
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {shown.map((k) => (
+        <button key={k} type="button" onClick={(e) => { e.stopPropagation(); onPick?.(k); }}
+          className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5] whitespace-nowrap">
+          {labels[k] || k}
+        </button>
+      ))}
+      {fields.length > shown.length && <span className="text-[11.5px] text-zinc-500 self-center">+{fields.length - shown.length} more</span>}
+    </span>
+  );
+}
 export function Tiles({ children, cols = 4 }) {
-  return <div className={`grid grid-cols-2 ${cols === 6 ? 'lg:grid-cols-6' : cols === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*]:border-b lg:[&>*]:border-b-0`}>{children}</div>;
+  return <div className={`grid grid-cols-2 ${cols === 7 ? 'md:grid-cols-4 xl:grid-cols-7' : cols === 6 ? 'lg:grid-cols-6' : cols === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*]:border-b lg:[&>*]:border-b-0`}>{children}</div>;
 }
 
 export function Notice({ children, tone = 'zinc' }) {

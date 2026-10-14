@@ -136,7 +136,8 @@ function TrackerCard() {
   if (s.status === 'error') return null;
   const act = s.deals.filter((d) => d.status === 'PENDING').map((d) => nextStep(d));
   const count = (tone) => act.filter((x) => x.tone === tone).length;
-  const tiles = [['Active', act.length, 'text-navy-800'], ['Act now', count('red'), 'text-red-700'], ['Attention', count('amber'), 'text-amber-700'], ['Closing ≤ 7d', count('blue'), 'text-blue-700']];
+  // Colours from the tracker sheet (status.js): red act now, amber coming up.
+  const tiles = [['Active', act.length, 'text-navy-800'], ['Act now', count('red'), 'text-[#B42318]'], ['Coming up', count('amber'), 'text-[#B54708]'], ['Closing ≤ 7d', act.filter((x) => x.soon).length, 'text-[#B54708]']];
   return (
     <Card title="Deal tracker" right={more('/deals/active', 'Active deals')}>
       {s.status !== 'ready' && s.status !== 'refreshing' ? <div className="text-zinc-400">Loading…</div> : (

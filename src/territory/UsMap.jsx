@@ -8,11 +8,13 @@
 // a box following the cursor made it hard to see where the cursor was);
 // click to open the state.
 import { useEffect, useState } from 'react';
-import { REP_SCALE, LEGAL, OFF, fillFor, darkFill } from './mapColors.js';
+import { REP_SCALE, LEGAL, OFF, fillFor, darkFill, STATUS_LOOK, SEASON_LOOK } from './mapColors.js';
+import { statusOf, seasonOf } from './status.js';
 
 export function MapLegend({ mode, focusRep }) {
   const items = focusRep ? [['#1b385f', 'Their states'], ['#dde5f0', 'Other reps'], ['#f6f3ec', 'No reps']]
-    : mode === 'winter' ? [['#5f84b3', 'Winter risk'], ['#e8dfcd', 'Year-round']]
+    : mode === 'winter' ? Object.values(SEASON_LOOK).map((v) => [v.fill, `${v.icon ? `${v.icon} ` : ''}${v.label}`])
+      : mode === 'status' ? Object.entries(STATUS_LOOK).map(([k, v]) => [v.fill, k])
       : mode === 'legal' ? Object.entries(LEGAL).map(([k, v]) => [v, k])
         : [[REP_SCALE[0], 'No reps'], [REP_SCALE[1], '1'], [REP_SCALE[2], '2'], [REP_SCALE[3], '3'], [REP_SCALE[4], '4+']];
   return (
@@ -33,11 +35,24 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   const selectedShape = selected && geo.states.find((s) => s.id === selected);
   return (
     <div onMouseLeave={() => setHover(null)}>
-      <div className="mb-2 h-[52px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
-        {!hover ? <div className="h-full flex items-center text-zinc-500">Point at a state to see who works it · click to open it</div> : (
+      <div className="mb-2 min-h-[58px] rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
+        {!hover ? <div className="h-[44px] flex items-center text-zinc-500">Point at a state to see who works it · click it for its details and year-to-date numbers</div> : (
           <>
-            <div className="truncate"><span className="font-semibold text-navy-800 text-[13.5px] mr-2">{hover.name}</span>{hs ? <span className="text-zinc-700">{hs.ghl.length ? hs.ghl.map((r) => r.name.split(' ')[0]).join(', ') : 'No reps'}{hs.marketStatus === 'Paused' ? ' · paused' : ''}</span> : <span className="text-zinc-500">Not on the territory sheet</span>}</div>
-            {hs && <div className="truncate text-zinc-500">{hs.legal} · {hs.winter ? 'winter risk' : 'year-round'} · dispo {hs.dispo || '—'}{hs.ghl.length > 0 ? ` · ${hs.act.opps} opps this month · ${hs.act.convos7} new convos in 7 days` : ''}</div>}
+            <div className="flex items-center gap-2 truncate">
+              <span className="font-semibold text-navy-800 text-[14px]">{hover.name}</span>
+              {hs && <span className={`rounded px-1.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_LOOK[statusOf(hs)].chip}`}>{statusOf(hs)}</span>}
+              {!hs && <span className="text-zinc-500">Not on the territory sheet</span>}
+            </div>
+            {hs && (
+              <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-zinc-700">
+                <Lbl l="Reps">{hs.ghl.length ? hs.ghl.map((r) => r.name.split(' ')[0]).join(', ') : 'none'}</Lbl>
+                <Lbl l="Legal">{hs.legal || '—'}</Lbl>
+                <Lbl l="Season risk">{SEASON_LOOK[seasonOf(hs)].icon} {SEASON_LOOK[seasonOf(hs)].label}</Lbl>
+                <Lbl l="Dispo rep">{hs.dispo || 'none'}</Lbl>
+                {hs.ghl.length > 0 && <Lbl l="Opps this month">{hs.act.opps}</Lbl>}
+                {hs.ghl.length > 0 && <Lbl l="New conversations, last 7 days">{hs.act.convos7.toLocaleString()}</Lbl>}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -68,3 +83,5 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
     </div>
   );
 }
+
+const Lbl = ({ l, children }) => <span className="whitespace-nowrap"><span className="text-zinc-500">{l}:</span> <span className="font-medium text-navy-900">{children}</span></span>;

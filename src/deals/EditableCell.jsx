@@ -13,7 +13,8 @@ import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST } from './fieldLib.js';
 const instant = (f) => f.type === 'list' || f.type === 'person' || !!FIXED_LISTS[f.key] || !!LIST_OF[f.key];
 const tall = (f) => f.type === 'longtext' || PICK_FROM_PAST.has(f.key);
 
-export default function EditableCell({ deal, raw, f, lists, past, children }) {
+// `fit`: size to the content instead of truncating (Active's short cells).
+export default function EditableCell({ deal, raw, f, lists, past, children, fit }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,7 @@ export default function EditableCell({ deal, raw, f, lists, past, children }) {
   if (!editing) {
     return (
       <button type="button" onClick={start} title="Click to edit"
-        className={`w-full min-h-6 text-left rounded px-1.5 -mx-1.5 py-0.5 truncate hover:bg-white hover:ring-1 hover:ring-navy-200 cursor-text ${f.type === 'money' || f.type === 'number' ? 'text-right' : ''}`}>
+        className={`${fit ? 'min-w-full whitespace-nowrap' : 'w-full truncate'} min-h-6 text-left rounded px-1.5 -mx-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-navy-200 cursor-text ${f.type === 'money' || f.type === 'number' ? 'text-right' : ''}`}>
         {children}
       </button>
     );

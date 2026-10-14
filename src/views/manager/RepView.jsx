@@ -15,7 +15,8 @@ import useMonthLog from './useMonthLog.js';
 import { cancelsInRange, addedContractsInRange } from './monthReview.js';
 import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
-import { autoCrm } from '../../../scripts/scorecard-lib.mjs';
+import { autoCrm, SPEED_FROM } from '../../../scripts/scorecard-lib.mjs';
+import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import RepProgress from './RepProgress.jsx';
 import MyCrmCard from './MyCrmCard.jsx';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
@@ -68,6 +69,29 @@ function CancelTile({ v, na, contracts, subText, label = 'Cancels' }) {
       </div>
       <div className="h-1.5 mt-2" />
       <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{na ? 'counted from Oct 7' : subText || 'under contract → Abandoned / Lost'}</div>
+    </div>
+  );
+}
+
+// Speed to response for a week (Luke, Oct 14: "no numbers on his response
+// time %"): agent texts answered within 15 min, green at the 75% standard,
+// amber from 56%, red below — like the Coaching tab. `total` null = not
+// checked (or not on record for a past week).
+function SpeedTile({ ok, total, subText, missing = 'not checked yet' }) {
+  const r = total ? ok / total : null;
+  const tone = total == null ? null : r == null || r >= SPEED_TARGET ? ['bg-emerald-100 border-emerald-300', 'text-emerald-800', '#059669'] : r >= SPEED_TARGET * 0.75 ? ['bg-amber-100 border-amber-300', 'text-amber-900', '#d97706'] : ['bg-rose-100 border-rose-300', 'text-rose-800', '#e11d48'];
+  return (
+    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${tone ? tone[0] : 'bg-white border-zinc-300/80'}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) · target ${Math.round(SPEED_TARGET * 100)}%`}>
+      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${tone ? tone[1] : 'text-zinc-500'} opacity-80`}>Speed ≤{ANSWER_WITHIN_MIN} min · week</div>
+      <div className="flex items-baseline gap-1 mt-1 min-w-0">
+        <span className={`font-extrabold tabular-nums whitespace-nowrap leading-none ${tone ? `text-[min(1.875rem,3.4vh)] ${tone[1]}` : 'text-base text-zinc-400'}`}>{total == null ? missing : r == null ? '—' : `${Math.round(r * 100)}%`}</span>
+        {total != null && <span className={`text-sm font-bold whitespace-nowrap ${tone[1]} opacity-60`}>{total ? `${ok} of ${total}` : 'no texts'}</span>}
+      </div>
+      <div className="relative h-1.5 rounded-full bg-white/70 mt-2">
+        {r > 0 && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: tone[2] }} />}
+        <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${SPEED_TARGET * 100}% - 1px)` }} />
+      </div>
+      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{subText}</div>
     </div>
   );
 }
@@ -137,6 +161,10 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const wk = currentWeek().monday;
   const crm = reviewFor(sc, wk, rep.id, null, sc.weeks[wk] ? sc.weeks[wk].reps?.[rep.id]?.crmAuto : autoCrm(pairs, wk)).crm;
   const { score, estimate } = scoreParts(m, crm);
+  // The week's speed: live this week, a past week from its frozen scorecard.
+  const frozenWk = range?.kind === 'week' ? sc.weeks[range.from]?.reps?.[rep.id] : null;
+  const speed = !range ? { ok: m.speedOk, total: m.speedTotal } : { ok: frozenWk?.speedOk ?? null, total: frozenWk?.speedTotal ?? null };
+  const speedSub = range && !frozenWk ? 'week not on record' : range && range.from < SPEED_FROM ? 'not in the score before Oct 12' : `target ${Math.round(SPEED_TARGET * 100)}% · 10 pts`;
   const markets = rep.markets.map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,
     m: (() => {
@@ -261,7 +289,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
             month: the week's number on top, the month underneath. A past
             period: that period's total against its target. */}
         {weekView ? (
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-7 gap-3">
             <Tile label="Opps opened · week" v={wkN.opps} t={wkT.opps} frac={wkFrac} na={na('oppsM') && !!range} sub={monthSub('oppsM', T.oppsOpenedPerWeek * 4)} />
             <Tile label="Offers · week" v={wkN.offers} t={wkT.offers} frac={wkFrac} na={na('offersM') && !!range} sub={monthSub('offersM', T.offersPerWeek * 4)} />
             <Tile label="Contracts · week" v={wkN.contracts} t={wkT.contracts} frac={wkFrac} na={na('contractsM') && !!range} sub={monthSub('contractsM', T.contractsPerMonth)} />
@@ -280,6 +308,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
               </>
             )}
             <CancelTile v={wkN.cancels} na={na('cancelsM') && !!range} contracts={wkN.contracts} label="Cancels · week" subText={range ? (mtd && !mtd.untracked.has('cancelsM') ? `${mtd.cancelsM} ${mtd.label}` : 'month not on record') : `${m.cancelsM} this month`} />
+            <SpeedTile ok={speed.ok} total={speed.total} subText={speedSub} missing={range ? '—' : 'not checked yet'} />
           </div>
         ) : (
           <div className="grid grid-cols-6 gap-3">

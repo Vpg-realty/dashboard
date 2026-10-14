@@ -50,22 +50,20 @@ export const SECTIONS = [
     ],
   },
   {
-    // Luke, Oct 14: the territory tracker — who works where (map, risks,
-    // reps × states) and, for now, the old Google Sheet as its own tab.
-    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'manager', 'tc'],
+    // Luke, Oct 14: Territory is the one place for areas, states and zips —
+    // for reps too ("Territories should be the go to spot for all things
+    // related to areas, states, zips for the reps"). Reps: Get zips, the
+    // sheet (read-only) and the rules. Management also: the map, reps ×
+    // states (with the team structure review) and zip management. The old
+    // Zip center section folded in here (its links redirect, see resolve).
+    id: 'territory', label: 'Territory', icon: 'map', roles: PEOPLE,
     tabs: [
-      { id: 'who', label: 'Who works where', view: 'terr-who', scroll: true },
+      { id: 'zips', label: 'Get zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
+      { id: 'who', label: 'Who works where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'reps', label: 'Reps × states', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'sheet', label: 'Territory sheet', view: 'terr-sheet', scroll: true },
-    ],
-  },
-  {
-    // Luke, Oct 14: the zip center — reps request zips (automatic, never
-    // duplicated), owners assign / approve, everyone can read the rules.
-    id: 'zips', label: 'Zip center', icon: 'pin', roles: PEOPLE,
-    tabs: [
-      { id: 'mine', label: 'My zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
-      { id: 'all', label: 'All zips', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'rules', label: 'Rules & data health', view: 'zips-rules', scroll: true },
+      { id: 'zip-mgmt', label: 'Zip management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'rules', label: 'Zip rules & data health', view: 'zips-rules', scroll: true },
     ],
   },
   {
@@ -103,8 +101,12 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 // '/board/pipeline' → { section, tab } for this role, falling back to the
 // section's first tab, then to Home, so an old or forbidden link never
 // shows a blank page.
+// Old links from before the Zip center moved into Territory (Oct 14).
+const MOVED = { zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } } };
+
 export function resolve(path, role) {
-  const [sid, tid] = path.replace(/^\/+/, '').split('/');
+  let [sid, tid] = path.replace(/^\/+/, '').split('/');
+  if (MOVED[sid]) { tid = MOVED[sid].tabs[tid] || tid; sid = MOVED[sid].section; }
   const allowed = sectionsFor(role);
   const section = allowed.find((s) => s.id === sid) || allowed[0] || SECTIONS[0];
   const tab = section.tabs ? section.tabs.find((t) => t.id === tid) || section.tabs[0] : null;

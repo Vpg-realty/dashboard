@@ -136,7 +136,10 @@ export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / to
 // Monday 00:00 Arizona (UTC-7) of the week whose Monday is `monday`.
 export const weekStartMs = (monday) => Date.parse(`${monday}T07:00:00Z`);
 
-export function autoCrm(pairs, monday) {
+// `limit` = how many flagged deals / texts each item keeps (12 for the
+// frozen scorecard; My scorecard asks for all of them so a rep can open the
+// whole list — Luke, Oct 14). `badN` = how many were flagged in all.
+export function autoCrm(pairs, monday, limit = 12) {
   const start = weekStartMs(monday);
   const end = start + 7 * 86400000;
   const detail = {};
@@ -145,7 +148,7 @@ export function autoCrm(pairs, monday) {
     if (!have.length) continue;
     const total = have.reduce((a, c) => a + c.total, 0);
     const bad = have.reduce((a, c) => a + (c.badN ?? c.bad.length), 0);
-    detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, 12) };
+    detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, limit), badN: bad };
   }
   // Messaging (server/messaging.js + scripts/review-messaging.mjs): each
   // check a share of its team standard, capped at 1 — reply speed vs 75%
@@ -172,14 +175,14 @@ export function autoCrm(pairs, monday) {
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
       ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
     ];
-    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, 12), badN: bad.length };
+    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length };
   }
 
   // Dispo: deals that went under contract this week.
   if (pairs.some((p) => p.crm)) {
     const fresh = pairs.flatMap((p) => p.deals || []).filter((d) => d.startedAt >= start && d.startedAt < end && Array.isArray(d.missing));
     const bad = fresh.filter((d) => d.missing.length);
-    detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, bad: bad.slice(0, 12).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}` })) };
+    detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, badN: bad.length, bad: bad.slice(0, limit).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}` })) };
   }
   const grades = CRM_ITEMS.map((it) => {
     const d = detail[it.key];

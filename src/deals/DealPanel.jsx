@@ -3,7 +3,7 @@
 // sheet, grouped like its header; formulas recalculate as you type; nothing
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
@@ -12,6 +12,16 @@ import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './fo
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
+import { needsInfo } from './required.js';
+
+// Scroll to a field and put the cursor in it (Needs info → "enter it").
+function jumpTo(key) {
+  const el = document.getElementById(`deal-f-${key}`);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const input = el.querySelector('input, select, textarea');
+  if (input) setTimeout(() => input.focus({ preventScroll: true }), 250);
+}
 
 // Plain-language warnings for what looks wrong (never blocks a save).
 function checks(d) {
@@ -78,7 +88,7 @@ function History({ id }) {
   );
 }
 
-export default function DealPanel({ id, initial, onClose, onCreated }) {
+export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const s = useDeals();
   const isNew = !id;
   const found = s.raw.find((d) => d.id === id);
@@ -105,12 +115,25 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  // Opened from a Needs info alert (?focus=<field> or focus=need): jump to
+  // that field (or the first missing one) once.
+  const jumped = useRef(null);
+  useEffect(() => {
+    if (!focus || !merged || jumped.current === focus) return;
+    jumped.current = focus;
+    const key = focus === 'need' ? needsInfo(merged, { owner, readOnly: ro })[0]?.fields[0] : focus;
+    if (key) setTimeout(() => jumpTo(key), 150);
+  });
 
   if (!raw) return null;
   const g = ghlDeals().get(addrKey(merged.address));
   const warn = checks(merged);
   const step = nextStep(merged);
   const flagged = new Set(step.fields || []);
+  // What this deal still needs for its stage (required.js) — only fields
+  // this person can fill in.
+  const needs = needsInfo(merged, { owner, readOnly: ro });
+  const need = new Set(needs.flatMap((x) => x.fields));
   const setField = (k, v) => setDraft((d) => ({ ...d, fields: { ...d.fields, [k]: v } }));
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
   function close() {
@@ -206,6 +229,21 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                   </div>
                 </Notice>
               )}
+              {needs.length > 0 && (
+                <div className="rounded-lg border border-[#F5C2BD] bg-[#FDF1F0] px-3.5 py-2.5 text-[#7A271A]">
+                  <div className="font-semibold">Needs info — {need.size} field{need.size === 1 ? '' : 's'} to fill in</div>
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    {needs.map(({ cat, fields }) => (
+                      <div key={cat.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-[12.5px] font-medium">{cat.label}:</span>
+                        {fields.map((k) => (
+                          <button key={k} type="button" onClick={() => jumpTo(k)} className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5]">{LABEL[k]}</button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {warn.length > 0 && <Notice tone="amber"><ul className="list-disc pl-4 space-y-0.5">{warn.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
               {owner && pay.length > 0 && (
                 <div className="rounded-xl border border-tan-200 bg-white px-4 py-3">
@@ -230,11 +268,12 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                       const value = f.key in draft.fields ? draft.fields[f.key] : raw[f.key];
                       const text = (v) => (v == null || v === '' ? <span className="text-zinc-300">—</span> : <span className={f.type === 'longtext' || f.key === 'title' ? 'whitespace-pre-line' : ''}>{show(f, v)}</span>);
                       return (
-                        <label key={f.key} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 rounded-lg ${!isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-2 p-2` : ''}`}>
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 rounded-lg scroll-mt-24 ${need.has(f.key) ? 'bg-[#FDF1F0] ring-1 ring-[#F5C2BD] -m-2 p-2' : !isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-2 p-2` : ''}`}>
                           <span className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 mb-1">
                             {f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
-                            {!isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
+                            {need.has(f.key) && <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>}
+                            {!need.has(f.key) && !isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] font-normal text-zinc-400">auto</span>}
                             {f.type === 'ghl' && <span className="text-[10.5px] font-normal text-violet-600">from GHL</span>}
                             {isFixed && <span className="text-[10.5px] rounded bg-amber-100 text-amber-800 px-1" title="Typed by hand (in the sheet or here) — doesn't recalculate">typed</span>}

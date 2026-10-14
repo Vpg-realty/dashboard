@@ -27,7 +27,11 @@ async function mine(db, user, now) {
   if (!user.rep_id) return null;
   const holds = (await db.prepare(`SELECT a.zip, a.state, a.assigned_at, a.expires_at, a.via, a.by_name, z.county, z.tier, z.flag
     FROM zip_assignments a JOIN zips z ON z.zip = a.zip WHERE a.rep_id = ? AND a.released_at IS NULL ORDER BY a.state, z.county, z.tier, a.zip`).bind(user.rep_id).all()).results;
-  return { repId: user.rep_id, name: Z.repName(user.rep_id), states: Z.repStates(user.rep_id), holds, weekUsed: await Z.weekRequests(db, user.rep_id, now), weekStart: Z.weekStart(now) };
+  const states = Z.repStates(user.rep_id);
+  const markets = Object.fromEntries(await Promise.all(states.map(async (st) => [st, await Z.marketOf(db, st)])));
+  // Their pulls (Luke, Oct 14: "track who pulled it, when it was pulled").
+  const history = (await db.prepare('SELECT id, state, at, asked, given, via, by_name, note FROM zip_requests WHERE rep_id = ? ORDER BY at DESC LIMIT 25').bind(user.rep_id).all()).results;
+  return { repId: user.rep_id, name: Z.repName(user.rep_id), states, markets, holds, history, weekUsed: await Z.weekRequests(db, user.rep_id, now), weekStart: Z.weekStart(now) };
 }
 
 export async function onRequestGet(context) {
@@ -77,7 +81,7 @@ export async function onRequestPost(context) {
     case 'flag': if (!owner && !user.rep_id) return ownersOnly(); r = await Z.flag(db, user, b); break;
     case 'assign': if (!owner) return ownersOnly(); r = await Z.assign(db, user, b); break;
     case 'status': if (!owner) return ownersOnly(); r = await Z.setStatus(db, b, user); break;
-    case 'area': if (!owner) return ownersOnly(); r = await Z.setAreaStatus(db, user, { state: String(b.state || ''), county: b.county ? String(b.county) : null, status: b.status || null, market: b.market || null }); break;
+    case 'area': if (!owner) return ownersOnly(); r = await Z.setAreaStatus(db, user, { state: String(b.state || ''), county: b.county ? String(b.county) : null, status: b.status || null, market: b.market || null, season: b.season || null }); break;
     case 'newRound': if (!owner) return ownersOnly(); r = await Z.newRound(db, user, String(b.state || '')); break;
     case 'rules': if (!owner) return ownersOnly(); r = await Z.saveRules(db, user, b.value); break;
     default: return json({ error: 'unknown action' }, 400);

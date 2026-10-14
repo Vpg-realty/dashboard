@@ -184,9 +184,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Opportunities; section id `board`, renamed from "Board" Oct 14) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
-  for team + manager; Territory (Who works where, Territory sheet) for
-  owner / manager / tc; Zip center (My zips for team + manager, All zips
-  for owner / manager / tc, Rules & data health for everyone); Deals (Active,
+  for team + manager; **Territory** for everyone (Oct 14: the one place for
+  areas, states and zips — the separate Zip center section folded into it,
+  old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
+  manager), Who works where, Reps × states, Zip management (owner / manager
+  / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
@@ -235,12 +237,21 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   average line yes, manager notes no, no other rep's scores or team rates):
   sidebar section for team + managers, a scrolling page
   (`MyScorecardView.jsx`): score ring + Contracts / Offers this week and
-  Projected this month boxes tinted by pace, "the one thing that moves your
-  score most" (the part with the most points left), "Fix these N things"
-  (each CRM item below 2 with the deals / texts behind it, the rest folded
+  Projected this month boxes tinted by pace, plus an **Answered ≤ 15 min**
+  box (Luke, Oct 14: speed % + "N of M", green ≥ 75% / amber ≥ 56% / red;
+  "not checked yet" when no messaging check ran), "See how your N adds
+  up" (opens `ScoreBreakdown`, speed's points included), "the one thing
+  that moves your score most" (the part with the most points left), "Fix
+  these N things" (each CRM item below 2 with the deals / texts behind it —
+  first 3, then "Show all N" expands the whole list in place (Luke, Oct 14:
+  "+9 more" wasn't clickable; `autoCrm(pairs, monday, Infinity)` keeps every
+  flagged deal, `badN` = how many in all); speed below 75% adds a row with
+  each slow / unanswered agent text; the rest folded
   into one "all good" row), and the weekly score over 8 weeks with the
   dashed team average for reference. "Show the full breakdown" opens
-  `RepView` with `self breakdown`: any period, the six tiles, points per
+  `RepView` with `self breakdown`: any period, the six tiles (+ a Speed tile
+  for a week: live, or a past week's frozen `speedOk` / `speedTotal` — every
+  RepView shows it), points per
   part by week (`RepProgress pointsOnly`), their funnel ("your biggest
   drop", no team %) and states (no team colouring). `MyCrmCard.jsx` is no
   longer used on it. Data from
@@ -321,12 +332,28 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `users` → a "not set up yet" page, App.jsx, instead of the TV board).
   **Commission rules** — D1 `settings.deal_rules` as a form, with the
   effect on existing deals shown before saving (pending deals with no buyer
-  left out). Rules are versioned (Luke, Oct 14: a change only affects
-  future deals): `{versions: [{from, rules}]}`, each save takes a "New rules
-  start on" date; `pickRules` (math.js) picks the version by the deal's COE
-  (a cancelled deal: its contract date; no date: the latest), so closed and
-  cancelled deals keep the rules they had. A flat rule set still works (one
-  version). Settings shows the rule history.
+  left out). Each rule has its own start date (Luke, Oct 14: a change only
+  affects future deals; then "have each rule editable … enter a date for
+  when this will take effect"): every rule row shows its value today,
+  "since <date>", any change still to come and its own history (value,
+  takes effect, changed by, when; dated changes can be removed), plus a
+  "Changes by start date" list. Edit asks for the value and "Takes effect
+  on" and saves just that rule (`POST /api/settings/deal-rules {change:
+  {key, from, value}}` or `{key, from, remove: true}`; `changeRule` in
+  dashApi). Storage (`src/deals/rules.js`): `{since, timelines: {key:
+  [{from, value, by, at}]}}` — keys are top-level rule fields,
+  `manager.<f>` / `override.<f>` and `acqOfNet:<name>` (one per person,
+  `null` = not paid on net from that date); every timeline starts on
+  `since`. `pickRules` (math.js) composes, rule by rule, what was in effect
+  on the deal's COE (a cancelled deal: its contract date; no date: the
+  newest), so closed and cancelled deals keep the rules they had. Older
+  shapes still read — a flat rule set and `{versions: [{from, rules}]}` (one
+  date for the whole form, what D1 held until the first per-rule save);
+  `toTimelines` converts them on the first change (logged as
+  `settings.deal_rules.change` with the old value), with identical
+  results for every deal. `checkRules` checks the shape and the rule set in
+  effect on every start date; `rulesFor` gives the TC only the TC-fee
+  timelines.
   **Dropdown lists** — `settings.deal_lists` and Reports to. API
   `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
   owners only, never while viewing as; values checked; every save in
@@ -351,8 +378,11 @@ the server strips them (`forTc`) and refuses edits to them.
   `mine` when they're its acq. manager or dispo member — name from
   subaccounts.json via `rep_id`). Writes 403.
 - **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
-  Title, EMD, Due diligence and Dispositions, plus the Zillow link — not
-  Financials, Bookkeeping, Notes, nor Net loss % (owners only). `repSees` / `forRep` (math.js) — the
+  Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
+  **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
+  kept for the reps, but nothing after that" — no additional fees, TC fee,
+  net, wires, commission base, commissions or profit), not Bookkeeping,
+  Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
   server strips the rest (and its history entries, `REP_LOG`); view-only
   fields read as plain text, not greyed-out boxes.
 - **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
@@ -425,9 +455,12 @@ the server strips them (`forTc`) and refuses edits to them.
   still pending; **Avg net / closed** (net profit ÷ closed, owners) on the
   acq., dispo, state and month tables.
 - **GHL sync** (Luke, Oct 14: "automatically add properties every time a
-  property hits dispo active … if closed, it updates … if COE / IP changes,
-  it updates. But if I update it manually here, it doesn't update there,
-  only if the update [in GHL] does it change here"). The build's
+  property hits dispo active"; later the same day he took back the
+  updating: "create the opportunity with all provided data coming from GHL
+  custom fields. but after it is created i do not want it to update based
+  on pipeline stage … reps don't always update their pipelines and if i
+  change it on the tracker and then it reverts back, i lose all of that
+  data"). The build's
   `extractTrackerFeed` (server/deals.js; extra fields Contracted Price,
   Title/Escrow, Deal Type via `TRACKER_FIELD_KEYS`) puts every opp in Under
   Contract … Closed (closed / lost only if moved in the last 60 days) on
@@ -440,43 +473,113 @@ the server strips them (`forTc`) and refuses edits to them.
   changes but the `ghlStage` mirror; no match and in Dispo Active / Assigned
   (or Closed after the sync began) → **created** from GHL (address, rep,
   state, contracted price, title, deal type Cash → WHOLESALE / Creative →
-  CREATIVE, COE, contract date = startedAt, DD days from IP end); linked and
-  GHL's stage / COE / IP end differ from the baseline → the tracker
-  **follows** (closed → status COMPLETE, lost / abandoned → CANCELLED, back
-  open → PENDING; COE; IP end → DD days, or a typed DD end without a contract
-  date) and the baseline moves. A value changed only in the tracker stays
-  until GHL's own value changes. Nothing is written to GHL. D1 `deal_ghl
-  (ghl_id, deal_id, location, last, linked_at, updated_at)`; changes are
-  logged as "GHL sync"; each run leaves `settings.ghl_sync` (since, at,
-  counts), shown as "Synced with GHL N min ago" on Active. `ghlStage` is a
-  read-only field (type 'ghl'; the API refuses edits).
-- **All deals table** (Luke, Oct 14): Address and GHL stage are separate
-  columns; status chips Pending amber / Closed green / Cancelled red, and
-  closed rows tinted green, cancelled rows red; roomier cells with a line
-  between columns and per-type minimum widths. **Every cell is editable in
-  place** (`EditableCell.jsx`: dropdowns save on pick, text / numbers /
-  dates on Enter or click-away, Esc cancels, buyer / title use the same
-  past-entries picker; one field per save, logged, same conflict check);
-  calculated and GHL cells aren't. Clicking the address opens the full deal.
-- **Active columns** (Luke, Oct 14): Next step, Property, Acq → Dispo,
-  State, COE · in, Title, Buyer, Contract price, Assignment price (VPG
-  assignment), Gross — the same for both lists. COE and days-to-go are one
-  chip coloured like the board's Pipeline (`dueTone` in status.js: past due
-  maroon, today red, 1 day light red, 2 yellow, 3 blue, later plain; key in
-  the legend). Acq. and dispo people are boxed in their colour
-  (`people.jsx`: reps' board colour, others a steady palette colour).
-- **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
-  deal profile"): `src/deals/status.js` is the one place — `nextStep()`
-  (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:
-  red = act now (past COE, DD ending / expired with no buyer), amber =
-  needs attention (EMD pending with no payer, EMD VPG-only, no COE), blue =
-  closing within 7 days, green = on track / closed, grey = waiting on a
-  buyer / cancelled. Active: a colour bar on every row, the next step as a
-  coloured pill, EMD / days-to-COE / DD-end values coloured, coloured dots
-  on the tiles and a legend. All deals: a dot before each address. Deal
-  panel: the same pill in the header, a full-height bar down its left edge
-  in the tone, and the fields behind the next step (`step.fields`, e.g.
-  COE + status for "past COE") tinted with "● check this".
+  CREATIVE, COE, contract date = startedAt, DD days from IP end). Once a
+  deal exists or is linked, the sync **never changes it again** — status,
+  COE, DD and every other field stay as people left them; only the
+  read-only `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline
+  moves). A stage move in GHL shows up as a **Needs info** alert instead
+  (below) — e.g. GHL Closed / Lost while the tracker is still Pending. The
+  deal panel still offers "use GHL's" when GHL's COE differs. Nothing is
+  written to GHL. D1 `deal_ghl (ghl_id, deal_id, location, last,
+  linked_at, updated_at)`; changes are logged as "GHL sync"; each run
+  leaves `settings.ghl_sync` (since, at, counts), shown as "Synced with GHL
+  N min ago" on Active. `ghlStage` is a read-only field (type 'ghl'; the
+  API refuses edits).
+- **The tracker's colours** (Luke, Oct 14: first "come as close to the
+  style of the original tracker with color coding", then "the colors are
+  not sleek and professional … recreate in a better way that matches the
+  style of the site … still clear"): `src/deals/sheet.js` keeps every
+  signal of the original sheet, in the app's navy / tan system — navy group
+  bands (tan for the "Dispo % loss" pair), light column headers with a 3px
+  accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
+  slate; soft tints in the site's status colours, in the sheet's priority
+  order: net profit < 0 rose / bold red; commission paid NO and additional
+  fees > 0 amber "check"; DD end today rose / bold red, tomorrow sky
+  (pending deals); cancelled row muted rose; closed row soft green. A colour key sits above the table. **Proper case + pills**
+  (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
+  the GHL stage / people chips): `src/deals/values.js` (`pretty` — the
+  words; `toneOf` / `PILL_TONE` — the colour; `PILL_KEYS` — which columns)
+  and `pills.jsx` (`ValuePill`). Stored values stay the sheet's UPPERCASE;
+  dropdown values read "Pending", "Closed", "Off-market", "VPG + Buyer",
+  "N/A" (acronyms kept), and the dropdowns themselves list them that way
+  (fields.jsx). Pills: deal status (Pending amber / Closed green / Cancelled
+  red), EMD status, EMD paid by, dispo team, CFAR, EMD returned, commission
+  paid, retrade, deal type, listing type — with a small ▾ when the cell can
+  be edited (a click opens the dropdown); acq. manager and dispo member are
+  the coloured person chips; free text (titles, escrow #, end time) stays
+  as typed. Headers read in sentence case. The sheet's green / red EMD
+  block was dropped (the EMD status pill says it), and the CFAR / EMD
+  returned cell fills too (their pills carry it). Active's EMD column is a
+  pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
+  outline, "N missing" pill) use the site's red #B42318 family.
+- **All deals table**: the sheet's column order (FIELDS; GHL stage after
+  the address, original contracted price after retrade), the full sheet by
+  default (`cols=overview` for the short set, or column groups), header
+  bands + coloured headers sticky, address column sticky, dense Arial-like
+  rows, a totals row. **Every cell is editable in place**
+  (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
+  Enter or click-away, Esc cancels, buyer / title use the same past-entries
+  picker; one field per save, logged, same conflict check); calculated and
+  GHL cells aren't. The address (with a next-step dot) opens the full deal;
+  "N missing" opens it on the first missing field. **Needs info** filter
+  (`?need=1`); cells a deal still needs are outlined red.
+- **Active** = the sheet's Pipeline tab: "As of" date, tiles (Active,
+  Assigned, Needs a buyer, EMD at risk, Past COE, Closing ≤ 7 days, Needs
+  info), the green "Assigned — headed to close" and blue "Needs a buyer —
+  in due diligence" lists (in the app's Panel cards), grey column headers,
+  zebra rows, the sheet's columns — assigned: next step, property, acq →
+  dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
+  (Luke, Oct 14), gross (everyone — Luke, Oct 14: "gross assignment fee
+  columns can be kept for the reps"); needs a buyer: next step, property,
+  acq. manager, state, COE, days, EMD, DD end, dispo team, title,
+  contract. Days red when past, amber ≤ 7; EMD ✓ green, "Pending" / "VPG
+  only" red. The COE chip keeps the board's Pipeline colours (`dueTone`).
+  COE, title, buyer, prices and dispo team edit in place (owners / TC).
+  People are boxed in their colour (`people.jsx`).
+- **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
+  in its order, plus Closed / Cancelled) gives each deal the sheet's
+  Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
+  EMD VPG-only), amber = coming up (DD ending / expired without a buyer,
+  set COE, closing ≤ 7 days — `soon`), blue = find a buyer, green = on
+  track / closed; cancelled red. Active: a colour bar on every row and the
+  next step as a coloured pill; All deals: a dot before each address; deal
+  panel: the pill in the header, a bar down its left edge, and the fields
+  behind the next step (`step.fields`) tinted with "● check this". Home's
+  Deal tracker card counts the same tones.
+- **Needs info** (Luke, Oct 14: "alerts that tell me what data is missing
+  per deal based on pipeline stage or change of pipeline stage … if it
+  moves from dispo active to assigned, I need to enter all sold details …
+  if a deal or property is added and there is missing info … a new deal
+  category"): `src/deals/required.js` is the ONE place for required fields
+  per stage — `CATEGORIES`: **New deal — missing basics** (every pending
+  deal: address, acq, state, contract date, COE, deal / listing type,
+  contracted price, title agency, EMD amount (unless EMD status NA), EMD
+  status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
+  needs dispo details** (GHL stage Dispo active: dispo team, dispo member
+  if VPG, asking price); **Moved to Assigned — needs sold details** (GHL
+  stage Assigned, or an assignment price / buyer in: dispo team, dispo
+  member, buyer (if VPG; owners only), VPG and final assignment price, EMD
+  paid by — "PENDING" counts as missing); **Closed — needs closing
+  details** (closed in the tracker with COE in the last 90 days, or GHL
+  Closed while the tracker is pending — then status is flagged too: final
+  assignment, wire date / received, EMD returned (when VPG paid EMD),
+  commission paid (owners)); **Lost in GHL — confirm the cancel** (status).
+  Money must be above 0. `needsInfo(deal, {owner, readOnly})` lists only
+  fields the person can fill in (TC: no secret fields; reps / managers get
+  no alerts — view only). Shown as the Active tile + section (a tab per
+  category, a field chip per missing field), the All deals filter / red
+  outlines, and in the deal panel: a "Needs info" box, each missing field
+  tinted "● needed". `?focus=<field>` (or `focus=need`) on a deal link
+  scrolls to and focuses that field (`useDealPanel`); a newly added deal
+  opens with `focus=need`.
+- **Rows don't jump while you edit** (Luke, Oct 14: "i do not want it to
+  automatically resort … a button … 'it's ok to sort now'"):
+  `src/deals/useFrozenOrder.js` freezes the row order (and on Active which
+  list a deal is in) when a sort / filter / search / period is picked; an
+  edited row stays where it was (dimmed if it no longer matches the
+  filter), new deals join at the end, and "Order is out of date — Re-sort
+  now" appears once a fresh sort would differ. Header clicks still sort.
+  Same on Active (both lists and Needs info).
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
   `y:2026`, `q:2026-4`, `m:2026-10`, `r:2026-09-01..2026-10-14`; compare
   `prev` / `yoy`.
@@ -498,7 +601,8 @@ the server strips them (`forTc`) and refuses edits to them.
 
 ## Territory (Luke, Oct 14)
 
-Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
+Sidebar **Territory** (everyone in the app since Oct 14; reps get Get zips,
+the sheet read-only and the zip rules; `src/territory/`), replacing the
 "VPG_Territory_Tracker" Google Sheet (id 1IJlJjytW8o-azY8cSCiShkcZ1H79ASFtppfZ7Fp8cQY).
 - **Storage** (D1, `edge/territory.sql`): `terr_states (state, data JSON)`
   — legal status + note, winter risk, county / zip counts and county tiers,
@@ -509,31 +613,57 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   Virginia are curated zip lists: `curated`, `why` per zip). Imported Oct 14
   from the sheet's xlsx export (22 states, 1,374 counties, 12,211 zips),
   only into empty tables. `GET /api/territory` (states) and
-  `?state=<name>` (counties); owners / managers / TC only (node:sqlite
+  `?state=<name>` (counties); everyone in the app, not the TV (node:sqlite
   test like the other functions).
+- **State status & season** (Luke, Oct 14; `src/territory/status.js`, the
+  one place): `marketStatus` Active / Exploring / Paused / Inactive — reps
+  can request zips only in Active states (`marketOf` in edge/zips.js),
+  Exploring = owners assign by hand, Paused / Inactive = none go out; and
+  `season` none / winter / summer (the sheet's winter flag, now editable;
+  `seasonOf`; winter keeps `winter: true` for older code). Owners set both
+  with `StateControls.jsx` on the map's state panel or the sheet (`/api/zips`
+  action `area` with `market` / `season`). Shown as `StatusChip` /
+  `SeasonChip` (badges.jsx), a Status map mode, and ❄ / ☀ everywhere.
 - **Who works where** (`WhoWorksWhere.jsx`, `model.js` `buildModel`): reps
   = GHL sub-accounts (REPS), markets = the sheet. An interactive US map
   (`UsMap.jsx`; state shapes `usStates.json`, made once from the US
   Census-based `us-atlas` states-albers-10m, pre-projected, no map library)
   coloured by number of reps / winter risk / legal status, or one rep's
   states (`?rep=`); hover outlines the state in tan and shows its summary
-  in a fixed bar above the map (Luke, Oct 14: no box following the
-  cursor), click a state (`?state=`) for its
-  reps, legal note, dispo, this month's numbers, 7-day conversations and —
-  owners / TC — the tracker's closed / contracts, close rate and avg net.
+  in a fixed bar above the map with every value labelled (Reps, Legal,
+  Season risk, Dispo rep, Opps this month, New conversations last 7 days),
+  click a state (`?state=`) for its status / season (owners can change
+  them), a navy **year to date** box near the top (Luke, Oct 14: "YTD
+  numbers for that specific state … team numbers and only what is already
+  visible to them"; `ytd.js` `stateYtd`: opps, offers, contracts, closed,
+  revenue, cancels summed from each month's last history.json snapshot plus
+  this month's live pairs, each with "since <month>" because history starts
+  late June / mid-Sept; owners / TC also the tracker's contracts / closed /
+  cancelled / pending / close rate / gross, owners net profit), reps, dispo,
+  this month and 7-day conversations. "Show on map ↑" in Needs review sets
+  the state (or the rep) and scrolls the map into view.
   "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
   page): quiet market (sub-account with no new conversations in 7 days,
   from history.json), winter exposure (≥ 50% of a rep's opps this month in
   the sheet's winter-risk states), crowded state (4+ reps; "Review" only
   when under 3 opps per rep), sheet ≠ GHL, no dispo rep, high-risk legal,
   low close rate (tracker, 8+ contracts, mostly decided), open seats, paused
-  market still worked. A reps × states grid (opps this month, 7-day
-  conversations, red = quiet, ❄ = winter state, winter share per rep) and
-  a States table. The sheet's winter / legal flags are the source of truth.
+  market still worked. The grid and the States table moved to their own tab:
+- **Reps × states** (`RepsStates.jsx`, Luke Oct 14): the **team structure
+  review** (`structure.js` `structureReview`, rules in `STRUCTURE_RULES`
+  shown on the page: spread thin, dead sub-account, winter-heavy, crowded,
+  open seat, no dispo, exploring with nobody, paused-but-worked — each with
+  the numbers behind it and a suggested move), the reps × states grid
+  (column lines, a legend for what a cell means, ❄ / ☀ season columns
+  tinted, "Winter share") and the States reference table (status, a
+  hover popup listing all reps, legal, season risk explained in a key row;
+  rows open the state on the map). Shared model: `useModel.js`.
 - **Territory sheet** (`SheetView.jsx`): the sheet, cleaner — states on the
   left (active / paused, legal dot, ❄), the state's facts, and its counties
-  with search, tier filter and each county's zips by tier. Temporary (Luke:
-  "will later be deleted as this replaces it").
+  with search, tier filter and each county's zips by tier. States on the
+  left are grouped Active / Exploring / Paused / Inactive with ❄ / ☀ season
+  chips; Copy buttons (`CopyButton.jsx`) on every zip group, "Copy all" /
+  "Copy active only" per county. Reps see it read-only.
   **Status editing** (owners; Luke, Oct 14: "pause or unpause … for each
   state and zip … editable just like the deal tracker, but only status"):
   the state's Market dropdown (Active / Paused → `terr_states.marketStatus`),
@@ -586,11 +716,13 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   states, other reps' holds shown as "held by another rep"; nothing can be
   changed from the chat; `REP_DAILY` = 25 questions per Arizona day (429),
   and their cost counts toward the same monthly cap. The TC and the TV get
-  no chat.
+  no chat. Both briefings: answer only from the site's data (no outside
+  knowledge); asked for new zips → tool `available_zips` (owners and reps,
+  reps only their states) lists free zips tier 1 → 2 → 3 by county.
 
 ## Zip center (Luke, Oct 14)
 
-Sidebar **Zip center** (`src/zips/`, everyone in the app): one store of
+Territory's zip tabs (`src/zips/`; a sidebar section of its own until Oct 14): one store of
 every zip from the territory sheet, who holds which and for how long, and
 automatic requests that never hand out a zip twice.
 - **Storage** (D1, `edge/zips.sql`): `zips` (one row per zip: state,
@@ -627,9 +759,13 @@ automatic requests that never hand out a zip twice.
   owners any; reuse owners), flag (reasons `FLAG_REASONS`), and owners only:
   assign, status, newRound, rules. No writes while viewing as. Every change
   in `edit_log` (`zips.*`). Tests: node:sqlite shim + signed JWTs.
-- **Pages**: **My zips** (team, manager): state picker, "Get 10 zips",
-  requests left this week, held zips with days left, Flag bad data,
-  Release, Copy all zips. **All zips** (owner, manager, TC; changes owners
+- **Pages** (all under Territory since Oct 14): **Get zips** (team, manager;
+  `MyZips.jsx`): state picker (non-Active states marked and blocked), "Get
+  10 zips", requests left this week, **Search zips** across all their states
+  (zip / county / city; chips coloured available / yours / another rep / used
+  / paused; copy buttons), held zips with days left and copy per state, Flag
+  bad data, Release, and **Your pulls** (their request / assignment
+  history, `me.history`). **All zips** (owner, manager, TC; changes owners
   only): At a glance, Needs attention (with Approve new round / Clear flag /
   Exclude), States table (tier 1 + 2 used with the 80% tick, phase,
   available, flags, round), a state's counties with zip chips (held in the
@@ -1168,7 +1304,8 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   `vpg.celebrated`). Any tab, checked every 30s; several queue, 1 min each (Luke, Oct 7).
   Test on a screen with `?celebrate` (closed / fireworks), `?celebrate=contract`
   or `?celebrate=dispo`: plays once with a made-up "TEST — 123 Demo St" deal,
-  writes nothing (Luke, Oct 8).
+  writes nothing (Luke, Oct 8). Every banner has a round × in its top-right
+  corner to close it at once (Luke, Oct 14); the next queued one follows.
 - **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
   Opportunities team boxes are graded against target × share of the
   period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
