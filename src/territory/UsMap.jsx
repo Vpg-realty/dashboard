@@ -1,6 +1,8 @@
 // The US map for Territory (Luke, Oct 14: "who works where with an
 // interactive map"). State shapes: US Census via us-atlas, pre-projected
-// (src/territory/usStates.json, made once from us-atlas states-albers-10m).
+// (src/territory/usStates.json, made once from us-atlas states-albers-10m;
+// cx / cy = each state's label point, the spot deepest inside its main land
+// area — the polylabel method — so abbreviations sit visually centred).
 // Colour by number of reps, winter risk or legal status; hover a state to
 // outline it and show its summary in a fixed bar under the map (Luke, Oct 14:
 // a box following the cursor made it hard to see where the cursor was);
@@ -54,7 +56,7 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
         {geo.states.filter((s) => byAbbr.has(s.id)).map((s) => {
           const st = byAbbr.get(s.id);
           const dark = darkFill(fillFor(st, mode, focusRep));
-          return <text key={`t${s.id}`} x={s.cx} y={s.cy + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill={dark ? '#ffffff' : '#1b385f'} pointerEvents="none">{s.id}</text>;
+          return <text key={`t${s.id}`} x={s.cx} y={s.cy} textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="700" fill={dark ? '#ffffff' : '#1b385f'} pointerEvents="none">{s.id}</text>;
         })}
       </svg>
     </div>
