@@ -16,6 +16,7 @@
 
 import { useEffect, useReducer } from 'react';
 import { REPS, MARKETS, TIERS } from './config.js';
+import { loadMe, canGrade } from '../utils/dashApi.js';
 
 // File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
 const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 30_000);
@@ -128,6 +129,18 @@ async function fetchSnapshot() {
     if (!res.ok) throw new Error(`Snapshot responded ${res.status}`);
     const data = await res.json();
     if (!Array.isArray(data?.pairs)) throw new Error('Malformed snapshot');
+    // Managers and owners also get the manager-only fields (CRM / messaging
+    // checks, calls), which the build keeps out of data.json (Oct 14); the
+    // server refuses data-mgr.json to everyone else, so it's not even asked.
+    if (canGrade(await loadMe())) {
+      try {
+        const m = await fetch(`${BASE}data-mgr.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (m.ok && (m.headers.get('content-type') || '').includes('json')) {
+          const extra = new Map(((await m.json()).pairs || []).map((p) => [`${p.repId}|${p.marketId}`, p]));
+          data.pairs = data.pairs.map((p) => ({ ...(extra.get(`${p.repId}|${p.marketId}`) || {}), ...p }));
+        }
+      } catch { /* manager extras are optional */ }
+    }
     replacePairs(data.pairs.map(hydratePair));
     lastSync = data.generatedAt || new Date().toISOString();
     lastError = null;

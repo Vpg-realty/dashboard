@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
-import { CRM_ITEMS, REVIEWERS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
@@ -51,7 +51,7 @@ function Overview() {
   };
   return (
     <>
-      <div className="text-sm text-zinc-700">One score out of 100 per rep per week, the same scorecard the Google Sheet used. It resets every Monday and freezes Friday at 12:00 Arizona.</div>
+      <div className="text-sm text-zinc-700">One score out of 100 per rep per week (it replaced the Google Sheet scorecard). It resets every Monday and freezes Friday at 12:00 Arizona.</div>
       <div className="flex gap-[3px] h-8 mt-3 rounded overflow-hidden">
         {SCORE_PARTS.map((p) => <div key={p.key} className="flex items-center justify-center text-white text-xs font-bold whitespace-nowrap overflow-hidden" style={{ flex: p.weight, background: p.color }} title={`${p.label} · ${p.weight}`}>{p.weight < 8 ? p.weight : `${p.short || p.label} · ${p.weight}`}</div>)}
       </div>
@@ -213,7 +213,7 @@ function Week() {
       <Item title="The week">
         <Row k="Live">Monday to Friday noon the scorecard updates as numbers come in (every ~15 min, CRM every hour, messaging every 3 hours).</Row>
         <Row k="Frozen">Friday 12:00 Arizona the week's numbers and automatic CRM grades are frozen; later changes in GHL don't move it.</Row>
-        <Row k="Review">A manager ({REVIEWERS.join(', ')}) checks the grades, overrides any that are wrong, adds notes and saves with their name under "Reviewed by". Saving needs the GitHub token from Sub-Accounts on that computer.</Row>
+        <Row k="Review">A manager or owner (signed in with their own email) checks the grades, overrides any that are wrong, adds notes and saves. Saving records them as the reviewer, and every change is logged with who and when. Reps can see the scorecard but not the notes.</Row>
       </Item>
       <Item title="Pods">
         {PODS.map((p) => <Row key={p.id} k={p.title}>{p.reps.length} reps · lead {p.lead.replace(/_.*/, '').replace(/^./, (c) => c.toUpperCase())}. The totals row adds the reps' numbers against the per-rep target × reps; pod score = average of its reps.</Row>)}

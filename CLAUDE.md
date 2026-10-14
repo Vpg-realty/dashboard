@@ -111,8 +111,49 @@ ids + rep names; the Sub-Accounts panel commits it), and the git history
 of the moved files — that only goes away by making the repo private, which
 first needs the 15-min refresh off GitHub Actions (private repos pay for
 minutes). Scorecard grades / notes saved from the browser would go to the
-public repo's `scorecard-data` branch — none saved yet; they move to D1
-with the roles Worker.
+public repo's `scorecard-data` branch until Oct 14 (none were saved);
+they're in D1 now (see "Server functions & roles").
+
+## Server functions & roles (Luke, Oct 14)
+
+The private site has a small backend: Cloudflare **Pages Functions** in
+`functions/api/*` (deployed with the site by `wrangler pages deploy`, which
+picks up `functions/` from the repo root), D1 bound as `DB` on the Pages
+project (production + preview). `edge/auth.js` verifies the Access JWT
+(`Cf-Access-Jwt-Assertion` / `CF_Authorization` cookie) against the team's
+certs and the app's AUD, then looks the email up in D1 `users (email, name,
+role)`: owner (Luke, Jack), manager (Anthony, Sam), team (reps, Aiza — tc@),
+tv (info@). Never trust a plain email header. `DEV_EMAIL` is a local
+`wrangler pages dev` override only — never set it on the project.
+- `GET /api/me` → { email, name, role }.
+- `GET/POST /api/scorecard-edits` (owner / manager only; reps get 403 and
+  never receive notes): D1 `scorecard_edits (week, rep_id, crm, note,
+  updated_by, updated_at)`, `scorecard_reviews (week, reviewed_by,
+  reviewed_at)`; POST merges per rep and field and signs the week as
+  reviewed by whoever saved; every save goes to `edit_log`.
+**Who sees what** (Luke, Oct 14: "non managers and owners only see what is
+presented on the TV, nothing else"): reps, Aiza and the TV get the TV tabs
+only — no Manager group (ViewNav), no Refresh / Sub-Accounts buttons
+(Header), and App.jsx sends anyone without the role off a manager view.
+Enforced on the server too: `functions/_middleware.js` refuses
+`data-mgr.json`, `scorecards.json`, `messaging-review.json` and
+`month-log.json` to anyone but owners, managers and the build's service
+token (`role: 'service'` — a verified Access JWT with `common_name`, no
+email; it can read but not grade). `dist-cf/_routes.json` (written by
+deploy-cloudflare.mjs) sends only `/api/*` and those four files through the
+functions, so page loads and the TV's polling stay plain static files.
+`scripts/split-private-data.mjs` (first in `npm run build`, after snapshot
+and history have used the full file) moves each pair's `crm`, `messaging`,
+`calls`, `callsError` out of data.json into `data-mgr.json` (data.json
+152 → 44 KB); `liveStore.js` merges it back for managers, and
+build-snapshot's `loadPrevData` merges it back for the reuse windows.
+Browser: `src/utils/dashApi.js` (`useMe`, `loadMe`, `canGrade`). On a local
+`vite preview` there's no /api, so everyone looks like a non-manager —
+mock `/api/me` with Playwright `page.route` to see the manager tabs. Tests: the
+endpoints run in Node against node:sqlite with a locally signed JWT
+(forged / tampered / expired / wrong-app tokens rejected). Role-based tab
+visibility and the deal tracker come next; the Sub-Accounts panel still
+uses its GitHub token for now.
 
 ## Refresh cadence
 
@@ -462,14 +503,12 @@ Under `src/views/`:
       Sept 21 – Oct 5 came from the sheet (`scorecard-seed.json`, numbers +
       grades + notes + reviewed by). Keeps 60 weeks; loaded from Pages with
       the abort-don't-wipe loader like history.json.
-    - **Grades / notes / Reviewed by** are saved from the browser to
-      `scorecard-edits.json` on the **`scorecard-data` branch** (never main,
-      so a save never deploys) with the same GitHub token as the
-      Sub-Accounts panel (`readScorecardEdits` / `writeScorecardEdits` in
-      utils/githubApi.js; `useScorecards.js` merges draft > edits > sheet,
-      and retries once on a sha conflict). No token = read-only (reads the
-      branch from raw.githubusercontent). Save needs a "Reviewed by" (Jack,
-      Luke, Anthony, Sam — `REVIEWERS`).
+    - **Grades / notes** (Luke, Oct 14: the site is the one place to enter
+      them) are saved by managers and owners through `/api/scorecard-edits`
+      into D1 (see "Server functions & roles"); saving signs the week as
+      reviewed by the signed-in person (no reviewer picker). `useScorecards.js`
+      merges draft > saved edits > sheet. Reps see the scorecard read-only,
+      without notes.
     - **Automatic CRM grades** (Luke, Oct 11; `server/crm.js`): items 1, 2,
       4, 5 come from GHL, hourly (snapshot.js reuses the previous
       data.json's `pair.crm` for 55 min — the check reads each open deal's
@@ -490,7 +529,7 @@ Under `src/views/`:
       included). Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
-      why, click the CRM total for the list. Managers (with the token) set a
+      why, click the CRM total for the list. Managers and owners set a
       grade from a dropdown on each chip — Automatic / 2 / 1 / 0 (Luke,
       Oct 12: no click-to-cycle, so no accidental changes). The freeze stores `crmAuto` per
       rep. Scores: CRM items count 5 points each; with some ungraded, the
@@ -647,40 +686,16 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
   badge ON PACE / NEAR PACE / BEHIND PACE, black tick on the bar.
 
-## Weekly scorecard export (Luke, Oct 7)
+## Weekly scorecard export — retired (Luke, Oct 14)
 
-The Scorecard tab (above) is replacing the sheet; this export
-keeps running until the sheet is retired.
-
-**Trigger (Luke, Oct 9):** GitHub's cron in `scorecard.yml` (Fridays 19:00
-UTC = 12:00 Arizona) is best-effort and on Oct 9 never fired, so the real
-trigger is `scripts/auto-scorecard.mjs`, chained after build-snapshot in
-`npm run snapshot` (that deploy step has `ALL_SECRETS`, so no workflow
-edit): every deploy (~15 min) on a Friday from 12:00 Arizona it runs
-weekly-scorecard.mjs on the freshly built `public/data.json`
-(`SCORECARD_DATA_FILE`) with `SCORECARD_SKIP_IF_EXISTS=1`, so the week's
-tab is written once and then left alone. It never fails the deploy. The
-cron and manual "Run workflow" still work (they update the tab in place).
-
-`scripts/weekly-scorecard.mjs`:
-reads the deployed `data.json`, duplicates the "TEMPLATE (copy me)" tab
-of the "VPG - Weekly Score Card" Google Sheet as "Week of <Mon> <D>"
-(inserted right after the template), and writes B3 (week-of label),
-B4 (week # of month = ceil(Friday's day / 7)) and, per rep row found by
-name in column A, B:E = Contracts (week), Projected $ (MTD: revenue
-closed this month + value of Assigned-stage deals with a COE in the
-same month — Luke, Oct 8), Offers (week), Opps
-Opened (week). CRM checklist, Reviewed By and notes stay for people; all
-scores are the template's formulas. Pod leads (Anthony, Sam) have their
-own "POD LEADS" box between Pod B and the Leadership Snapshot, scored the
-same way but kept out of pod totals and pace (Luke, Oct 7). Reps not on
-the sheet (Patrick) are skipped. The job finds rows by name, so the
-template layout can change freely as long as each name appears once in
-column A and B:E keep their order. Re-runs update that week's tab in place. Manual
-"Run workflow" defaults to test mode (writes a "TEST – delete me" tab).
-Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `SCORECARD_SHEET_ID`; the sheet
-must be shared (Editor) with the service account. Pure logic lives in
-`scripts/scorecard-lib.mjs`.
+The Google Sheet ("VPG - Weekly Score Card") export is gone: the dashboard's
+Scorecard tab is the scorecard, and grades / notes are entered there.
+`auto-scorecard.mjs` was removed from `npm run snapshot`; the Sheets helpers
+left scorecard-lib. `scripts/weekly-scorecard.mjs` is a no-op stub only so
+the scheduled `scorecard.yml` (left unedited) finishes cleanly until it's
+disabled in GitHub (Actions → Weekly scorecard → Disable workflow); after
+that both can be deleted, and the secrets `GOOGLE_SERVICE_ACCOUNT_JSON` /
+`SCORECARD_SHEET_ID` too.
 
 ## Rules of the road for editing
 

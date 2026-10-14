@@ -4,6 +4,7 @@ import { hasPAT } from '../utils/githubApi.js';
 
 export default function Header({
   viewName,
+  isManager = false,
   isCycling,
   onToggleCycle,
   onFullscreen,
@@ -44,14 +45,17 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-2">
-          <RefreshButton />
-          <button
-            onClick={onAddSubaccount}
-            className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-zinc-950 hover:bg-blue-400 transition flex items-center gap-1.5"
-          >
-            <span className="hidden sm:inline">Sub-Accounts</span>
-            <span className="sm:hidden">Subs</span>
-          </button>
+          {/* Managers and owners only (Luke, Oct 14). */}
+          {isManager && <RefreshButton />}
+          {isManager && (
+            <button
+              onClick={onAddSubaccount}
+              className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-500 text-zinc-950 hover:bg-blue-400 transition flex items-center gap-1.5"
+            >
+              <span className="hidden sm:inline">Sub-Accounts</span>
+              <span className="sm:hidden">Subs</span>
+            </button>
+          )}
           {/* Compound: cycling toggle + click-to-open speed popover */}
           <CycleControl
             isCycling={isCycling}

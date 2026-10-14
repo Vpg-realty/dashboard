@@ -74,6 +74,14 @@ function main() {
   for (const f of fs.readdirSync(path.join(root, 'dist'))) {
     if (f.endsWith('.json')) fs.copyFileSync(path.join(root, 'dist', f), path.join(out, f));
   }
+  // Only the API and the manager-only files go through the server functions
+  // (functions/_middleware.js gates the files); everything else stays a plain
+  // static file, so page loads and the TV's 30-second polling cost nothing.
+  fs.writeFileSync(path.join(out, '_routes.json'), JSON.stringify({
+    version: 1,
+    include: ['/api/*', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
+    exclude: [],
+  }));
   run('npx', ['-y', 'wrangler@4', 'pages', 'deploy', 'dist-cf', '--project-name', PROJECT, '--branch', 'main', '--commit-dirty=true'],
     { CLOUDFLARE_API_TOKEN: creds.token, CLOUDFLARE_ACCOUNT_ID: creds.account, WRANGLER_SEND_METRICS: 'false' }, 300_000);
   console.log(`[cloudflare] published to https://${PROJECT}.pages.dev`);

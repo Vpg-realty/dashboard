@@ -68,6 +68,18 @@ async function loadPrevData() {
       if (!r.ok) throw new Error(`status ${r.status}`);
       const d = await r.json();
       if (!Array.isArray(d?.pairs)) throw new Error('malformed data.json');
+      // Manager-only fields (CRM / messaging checks, calls) live in
+      // data-mgr.json since Oct 14 (split-private-data.mjs); merge them back
+      // so their reuse windows and keepCallsMonotonic still see last run.
+      try {
+        const m = await fetchState('data-mgr.json');
+        if (m.ok) {
+          const extra = new Map(((await m.json()).pairs || []).map((p) => [`${p.repId}|${p.marketId}`, p]));
+          d.pairs = d.pairs.map((p) => ({ ...(extra.get(`${p.repId}|${p.marketId}`) || {}), ...p }));
+        }
+      } catch (err) {
+        console.warn(`[snapshot] previous data-mgr.json not loaded (${err.message}); CRM / messaging checks rerun this time.`);
+      }
       return d;
     } catch (err) {
       if (attempt === 2) {

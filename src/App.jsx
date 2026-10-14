@@ -14,6 +14,7 @@ import ManagerMonthView from './views/manager/MonthView.jsx';
 import PipelineView from './views/PipelineView.jsx';
 import { CYCLE_VIEWS, CYCLE_INTERVAL_MS } from './data/config.js';
 import { useDataUpdates, useDataStatus } from './data/source.js';
+import { useMe, canGrade } from './utils/dashApi.js';
 
 const VIEWS = {
   conversations: { label: 'Conversations · live',           component: ConversationsView },
@@ -103,12 +104,18 @@ export default function App() {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  const ActiveView = VIEWS[view].component;
+  // Manager tabs are for managers and owners only (Luke, Oct 14); anyone else
+  // who lands on one (an old link, a role change) goes back to the TV tabs.
+  const me = useMe();
+  const isManager = canGrade(me);
+  const shownView = !isManager && !CYCLE_VIEWS.includes(view) ? CYCLE_VIEWS[0] : view;
+  const ActiveView = VIEWS[shownView].component;
 
   return (
     <div className="relative h-app flex flex-col bg-zinc-50">
       <Header
-        viewName={VIEWS[view].label}
+        viewName={VIEWS[shownView].label}
+        isManager={isManager}
         isCycling={isCycling}
         onToggleCycle={handleToggleCycle}
         onFullscreen={handleFullscreen}
@@ -118,11 +125,11 @@ export default function App() {
         cycleIntervalMs={cycleIntervalMs}
         onCycleIntervalChange={handleCycleIntervalChange}
       />
-      <ViewNav active={view} onChange={handleViewChange} cycleIntervalMs={cycleIntervalMs} />
+      <ViewNav active={shownView} onChange={handleViewChange} cycleIntervalMs={cycleIntervalMs} />
       <AlertStrip />
       <CelebrationBanner />
 
-      <main key={view} className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
+      <main key={shownView} className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
         <div className="h-full animate-fadein">
           <ActiveView
             repId={mgrRep}
@@ -133,7 +140,7 @@ export default function App() {
       </main>
 
       <SubAccountsPanel
-        open={showModal}
+        open={showModal && isManager}
         onClose={() => setShowModal(false)}
         dataStatus={dataStatus}
         snapshotErrors={dataStatus?.errors}
