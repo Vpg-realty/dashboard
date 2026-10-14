@@ -50,6 +50,15 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: the territory tracker — who works where (map, risks,
+    // reps × states) and, for now, the old Google Sheet as its own tab.
+    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'manager', 'tc'],
+    tabs: [
+      { id: 'who', label: 'Who works where', view: 'terr-who', scroll: true },
+      { id: 'sheet', label: 'Territory sheet', view: 'terr-sheet', scroll: true },
+    ],
+  },
+  {
     // Luke, Oct 14: each rep sees their own scorecard (team average line, no
     // notes, no other rep's scores); a simple page with the full breakdown below.
     id: 'me', label: 'My scorecard', icon: 'user', roles: ['team', 'manager'],

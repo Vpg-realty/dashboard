@@ -15,6 +15,7 @@ import { formatCompactCurrency } from '../utils/format.js';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
+import { PanelHead } from './Panel.jsx';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals } from '../deals/store.js';
@@ -72,12 +73,9 @@ function Stat({ label, value, target, color, period }) {
 
 function Card({ title, right, children, className = '', tint = 'bg-white' }) {
   return (
-    <section className={`rounded-xl border border-tan-200 ${tint} p-5 shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${className}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-[14.5px] font-semibold text-navy-700">{title}</h2>
-        <span className="ml-auto">{right}</span>
-      </div>
-      {children}
+    <section className={`rounded-xl border border-tan-200 ${tint} overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${className}`}>
+      <PanelHead title={title} right={right} />
+      <div className="p-5">{children}</div>
     </section>
   );
 }

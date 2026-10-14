@@ -12,6 +12,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
 import { nextStep, daysBetween, TONES, LEGEND, dueTone, DUE_KEY } from './status.js';
 import { Person } from './people.jsx';
+import { PanelHead } from '../shell/Panel.jsx';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
@@ -32,10 +33,7 @@ function Legend() {
 function Table({ title, sub, rows, cols, onOpen, empty }) {
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <div className="flex items-baseline gap-2 px-5 py-3.5 border-b border-tan-200">
-        <h2 className="text-[15px] font-semibold text-navy-800">{title}</h2>
-        <span className="text-zinc-500">{sub}</span>
-      </div>
+      <PanelHead title={title} sub={sub} />
       {rows.length === 0 ? <div className="px-4 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[14px]">

@@ -32,11 +32,14 @@ import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
 import PipelinePage from './PipelinePage.jsx';
 import UserMenu from './UserMenu.jsx';
+import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
+import TerritorySheet from '../territory/SheetView.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
+  'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
