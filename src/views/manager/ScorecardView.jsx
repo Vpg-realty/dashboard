@@ -6,17 +6,18 @@
 //
 // The week in progress is live; from Friday 12:00 Arizona its numbers are
 // frozen (scripts/update-scorecards.mjs). Earlier weeks, including the ones
-// imported from the sheet, come from scorecards.json. CRM grades, notes and
-// "Reviewed by" are entered here and saved to the scorecard-data branch
-// (useScorecards.js) — editing needs the GitHub token from Sub-Accounts.
+// imported from the sheet, come from scorecards.json. CRM grades and notes
+// are entered here by managers and owners (signed-in role, /api/me) and saved
+// to the private database (useScorecards.js); saving signs the week as
+// reviewed by that person. Reps get a read-only view without notes.
 import { useMemo, useState } from 'react';
 import { REPS } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
-import { hasPAT } from '../../utils/githubApi.js';
+import { useMe, canGrade } from '../../utils/dashApi.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { ScoreHelp } from './Score.jsx';
 import { T, metrics, repPairs, scoreTone, paceTone } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, REVIEWERS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor } from '../../../scripts/scorecard-lib.mjs';
+import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import TrendsView from './TrendsView.jsx';
 
@@ -283,7 +284,8 @@ export default function ScorecardView({ onPickRep }) {
   const [drafts, setDrafts] = useState({});   // week → { reps: { id: { crm, note } }, reviewedBy }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const canEdit = hasPAT();
+  const me = useMe();
+  const canEdit = canGrade(me) && !sc.editsError;
 
   const frozen = sc.weeks[week];
   const isLive = !frozen && week === cur.monday;
@@ -320,7 +322,7 @@ export default function ScorecardView({ onPickRep }) {
   const reviewedBy = reviewedByFor(sc, week, draft);
   const reviewedAt = sc.edits?.weeks?.[week]?.reviewedAt;
   const graded = allRows.filter((r) => !r.s.estimate).length;
-  const dirty = !!draft && (Object.keys(draft.reps || {}).length > 0 || !!draft.reviewedBy);
+  const dirty = !!draft && Object.keys(draft.reps || {}).length > 0;
 
   const edit = (fn) => setDrafts((d) => {
     const w = structuredClone(d[week] || { reps: {} });
@@ -336,10 +338,9 @@ export default function ScorecardView({ onPickRep }) {
   });
   const onNote = (id, text) => edit((w) => { (w.reps[id] ||= {}).note = text; });
   const save = async () => {
-    if (!draft?.reviewedBy && !reviewedBy) { setError('Pick who reviewed this week first.'); return; }
     setSaving(true); setError(null);
     try {
-      await saveDraft(week, { ...draft, reviewedBy: draft?.reviewedBy || reviewedBy });
+      await saveDraft(week, draft);
       setDrafts((d) => { const c = { ...d }; delete c[week]; return c; });
     } catch (err) {
       setError(String(err?.message || err).slice(0, 160));
@@ -392,15 +393,11 @@ export default function ScorecardView({ onPickRep }) {
         {(canEdit && (dirty || error)) || !canEdit ? (
           <div className={`shrink-0 rounded-lg px-3 py-1.5 flex items-center gap-3 text-sm ${!canEdit ? 'bg-zinc-100 text-zinc-600' : error ? 'bg-rose-50 text-rose-800' : 'bg-blue-50 text-blue-900'}`}>
             {!canEdit ? (
-              <span>Read-only. To grade CRM and add notes on this computer, add your GitHub token under <b>Sub-Accounts</b> (Jack, Luke, Anthony, Sam).</span>
+              <span>{me === undefined ? 'Checking your sign-in…' : sc.editsError === 'unavailable' && canGrade(me) ? 'Grades and notes can’t be loaded right now — view only.' : 'View only. Grades and notes are entered by managers and owners.'}</span>
             ) : (
               <>
                 <span className="font-semibold">{error || 'Unsaved changes'}</span>
-                <span className="ml-auto">Reviewed by</span>
-                <select className="rounded border border-zinc-300 bg-white px-2 py-0.5" value={draft?.reviewedBy || reviewedBy || ''} onChange={(e) => edit((w) => { w.reviewedBy = e.target.value; })}>
-                  <option value="" disabled>pick…</option>
-                  {REVIEWERS.map((r) => <option key={r}>{r}</option>)}
-                </select>
+                <span className="ml-auto text-xs">Saving signs this week as reviewed by <b>{me.name}</b></span>
                 <button onClick={() => setDrafts((d) => { const c = { ...d }; delete c[week]; return c; })} className="rounded px-2 py-0.5 text-zinc-600 hover:bg-white">Discard</button>
                 <button disabled={saving} onClick={save} className="rounded bg-blue-600 text-white font-semibold px-3 py-0.5 hover:bg-blue-700 disabled:opacity-60">{saving ? 'Saving…' : 'Save'}</button>
               </>
