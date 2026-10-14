@@ -19,6 +19,7 @@
 //              baseline moves). A value only changed in the tracker never
 //              gets overwritten while GHL's stays the same.
 // `ghlStage` always mirrors GHL. Nothing is ever written to GHL.
+import { zillowUrl } from '../src/deals/math.js';
 
 export const SYNC_FIELDS = ['stage', 'coe', 'ipEnd'];
 export const STAGE_LABEL = { under_contract: 'Under contract', dispo: 'Dispo active', assigned: 'Assigned', closed: 'Closed', lost: 'Lost / abandoned' };
@@ -82,6 +83,7 @@ export function newDealFrom(g, { repName, stateName }) {
     retrade: 'N',
     emdStatus: 'PENDING',
     dispoTeam: 'PENDING',
+    links: zillowUrl(g.address),
   };
   if (g.ipEnd) setDdEnd(d, g.ipEnd);
   for (const k of Object.keys(d)) if (d[k] == null) delete d[k];

@@ -66,7 +66,8 @@ export const FIELDS = [
   ['emdReturned', 'EMD returned?', 'books', 'list'],
   ['commPaid', 'Commission paid', 'books', 'list', null, 'secret'],
   ['notes', 'Notes', 'notes', 'longtext'],
-  ['links', 'Zillow / Dropbox links', 'notes', 'longtext'],
+  // Luke, Oct 14: "Zillow link"; filled in automatically for new deals.
+  ['links', 'Zillow link', 'notes', 'longtext'],
 ].map(([key, label, group, type, calc, secret]) => ({ key, label, group, type, calc: calc === 'calc', secret: secret === 'secret' }));
 
 export const FIELD = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
@@ -173,7 +174,19 @@ export function payouts(d, rules) {
 // Net loss % (owners only). The server strips the rest.
 export const REP_GROUPS = ['contract', 'title', 'emd', 'dd', 'dispo'];
 export const REP_HIDDEN = ['netLoss'];
-export const repSees = (f) => REP_GROUPS.includes(f.group) && !f.secret && !REP_HIDDEN.includes(f.key);
+// …but they do see the Zillow link (not the notes).
+export const REP_EXTRA = ['links'];
+export const repSees = (f) => ((REP_GROUPS.includes(f.group) && !REP_HIDDEN.includes(f.key)) || REP_EXTRA.includes(f.key)) && !f.secret;
+
+// Zillow's address search link (Luke, Oct 14: add the Zillow link once a
+// deal is in the tracker). Zillow has no free lookup API, so this is the
+// address search page, which opens the home's page when Zillow knows the
+// address (and a results list when it doesn't). Nothing is fetched.
+export function zillowUrl(address) {
+  const a = String(address || '').replace(/\s+/g, ' ').trim();
+  if (!a) return null;
+  return `https://www.zillow.com/homes/${encodeURIComponent(a.replace(/ /g, '-')).replace(/%2C/g, ',')}_rb/`;
+}
 export function forRep(deal) {
   const d = forTc(deal);
   for (const f of FIELDS) if (!repSees(f)) { delete d[f.key]; delete d.fixed[f.key]; }

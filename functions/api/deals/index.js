@@ -1,6 +1,7 @@
 // GET  /api/deals → { deals, lists, rules, me } (owners + the TC; see edge/deals.js)
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
+import { zillowUrl } from '../../../src/deals/math.js';
 import { canSeeDeals, canEditDeals, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf } from '../../../edge/deals.js';
 
 export async function onRequestGet(context) {
@@ -29,6 +30,8 @@ export async function onRequestPost(context) {
   const res = applyEdit({}, { fields: body?.fields || {} }, user);
   if (res.error) return json({ error: res.error }, 400);
   if (!res.deal.address) return json({ error: 'an address is needed' }, 400);
+  // Luke, Oct 14: every new deal gets its Zillow link.
+  if (!res.deal.links) res.deal.links = zillowUrl(res.deal.address);
   const id = `d${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
   const now = new Date().toISOString();
   const db = context.env.DB;
