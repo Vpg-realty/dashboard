@@ -30,6 +30,7 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   if (!geo) return <div className="aspect-[975/610] grid place-items-center text-zinc-400">Loading map…</div>;
   const hs = hover && byAbbr.get(hover.id);
   const hoverShape = hover && geo.states.find((s) => s.id === hover.id);
+  const selectedShape = selected && geo.states.find((s) => s.id === selected);
   return (
     <div onMouseLeave={() => setHover(null)}>
       <div className="mb-2 h-[52px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
@@ -44,15 +45,20 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
         {geo.states.map((s) => {
           const st = byAbbr.get(s.id);
           const f = fillFor(st, mode, focusRep);
-          const on = selected === s.id;
           return (
-            <path key={s.id} d={s.d} fill={f} stroke={on ? '#0e1e34' : '#ffffff'} strokeWidth={on ? 2.5 : 0.8}
+            <path key={s.id} d={s.d} fill={f} stroke="#ffffff" strokeWidth={0.8}
               className={st ? 'cursor-pointer' : ''}
               onMouseEnter={() => setHover({ id: s.id, name: s.name })}
               onClick={() => st && onSelect?.(s.id)} />
           );
         })}
-        {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" pointerEvents="none" />}
+        {/* Outlines go on top of every state, or the neighbours drawn later
+            would cover half of the border. */}
+        {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" strokeLinejoin="round" pointerEvents="none" />}
+        {selectedShape && <g pointerEvents="none" fill="none" strokeLinejoin="round">
+          <path d={selectedShape.d} stroke="#ffffff" strokeWidth="5.5" />
+          <path d={selectedShape.d} stroke="#0e1e34" strokeWidth="2.5" />
+        </g>}
         {geo.states.filter((s) => byAbbr.has(s.id)).map((s) => {
           const st = byAbbr.get(s.id);
           const dark = darkFill(fillFor(st, mode, focusRep));
