@@ -473,12 +473,23 @@ the server strips them (`forTc`) and refuses edits to them.
   changes but the `ghlStage` mirror; no match and in Dispo Active / Assigned
   (or Closed after the sync began) → **created** from GHL (address, rep,
   state, contracted price, title, deal type Cash → WHOLESALE / Creative →
-  CREATIVE, COE, contract date = startedAt, DD days from IP end). Once a
-  deal exists or is linked, the sync **never changes it again** — status,
-  COE, DD and every other field stay as people left them; only the
-  read-only `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline
-  moves). A stage move in GHL shows up as a **Needs info** alert instead
-  (below) — e.g. GHL Closed / Lost while the tracker is still Pending. The
+  CREATIVE, COE, contract date = startedAt, DD days from IP end). Creating
+  needs a real property address (`hasAddress` on the feed — never a deal
+  named after the contact) and the opp must still be createable on a later
+  run ≥ 10 min after it was first seen (`SETTLE_MS`, `seen` in settings
+  `ghl_sync`) — Oct 14: an agent lead with no address was dragged into
+  Assigned for minutes by mistake and became a tracker deal; it was
+  removed and its opp excluded. Once a
+  deal exists or is linked, the sync **never changes it again** — COE, DD
+  and every other field stay as people left them; only the read-only
+  `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline moves).
+  One exception (Luke, Oct 14: a deal that was under contract / in dispo
+  and goes lost or abandoned "is considered cancelled"): the run where a
+  linked deal moves to Lost in GHL turns a Pending tracker deal
+  **Cancelled** (logged as GHL sync; only on that move, so a deal someone
+  re-opens stays as they set it). Other stage moves in GHL show up as a
+  **Needs info** alert instead (below) — e.g. GHL Closed while the tracker
+  is still Pending. The
   deal panel still offers "use GHL's" when GHL's COE differs. Nothing is
   written to GHL. D1 `deal_ghl (ghl_id, deal_id, location, last,
   linked_at, updated_at)`; changes are logged as "GHL sync"; each run
@@ -854,7 +865,10 @@ a Closed deal in the wrong rep's AZ pipeline). `server/snapshot.js` drops them
 before `aggregatePair`, so they never reach any count, the Pipeline, Wins
 or celebrations. `applyStickyCounts` (`excluded` arg) takes back, once,
 the offer/contract crossings an excluded opp already added this week /
-month (it's still in the previous run's ranks with a `started` time).
+month (it's still in the previous run's ranks with a `started` time) —
+or, when it had already gone lost before being excluded, takes back its
+contract by the cancel's `startedAt` (else its date) and drops the cancel
+(Oct 14).
 The dashboard never writes to GHL, so the opp should be fixed there too.
 
 ## Cancelled contracts (Luke, Oct 9)

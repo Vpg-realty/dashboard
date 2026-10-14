@@ -22,7 +22,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
   const since = prevStatus.since || now.getTime();
   const deals = (await one('SELECT id, data, updated_at FROM deals WHERE deleted = 0')).map((r) => ({ ...JSON.parse(r.data), id: r.id, _at: r.updated_at }));
   const links = (await one('SELECT ghl_id, deal_id, last FROM deal_ghl')).map((l) => ({ ...l, last: l.last ? JSON.parse(l.last) : null }));
-  const ops = planSync({ deals, links, feed, names, since });
+  const ops = planSync({ deals, links, feed, names, since, seen: prevStatus.seen || {}, now: now.getTime() });
   const iso = now.toISOString();
   const counts = { created: 0, linked: 0, updated: 0 };
   const log = (id, field, from, to) => query('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, iso, null, BY, field, JSON.stringify(from), JSON.stringify(to)]);
@@ -38,7 +38,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
       const row = (await one('SELECT data, updated_at FROM deals WHERE id = ? AND deleted = 0', [dealId]))[0];
       if (!row) return [];
       const d = JSON.parse(row.data);
-      const changes = applyGhl(d, op.g); // the GHL stage mirror only
+      const changes = applyGhl(d, op.g, op.prev); // the GHL stage mirror (+ Lost → Cancelled)
       if (!changes.length) return [];
       const res = await query('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ? AND updated_at = ?', [JSON.stringify(d), iso, BY, dealId, row.updated_at]);
       if ((res[0]?.meta?.changes ?? 1) > 0) {
@@ -62,7 +62,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
       else if (changed.length) counts.updated++;
     }
   }
-  const status = { since, at: iso, feed: feed.length, ...counts };
+  const status = { since, at: iso, feed: feed.length, ...counts, seen: ops.seen };
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('ghl_sync', ?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(status), iso, BY]);
   return status;
 }

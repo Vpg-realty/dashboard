@@ -105,11 +105,17 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       let undoOffersWeek = 0, undoOffersMonth = 0, undoContractsWeek = 0, undoContractsMonth = 0;
       for (const id of excluded) {
         const r = prevRanks?.[id];
-        if (r == null) continue;
-        const st = prev.started?.[id];
-        if (!st || !inContractBand(r)) continue;
-        if (st >= weekMs) { undoContractsWeek++; if (inOfferBand(r)) undoOffersWeek++; }
-        if (st >= monthMs) { undoContractsMonth++; if (inOfferBand(r)) undoOffersMonth++; }
+        let st = r != null && inContractBand(r) ? prev.started?.[id] : null;
+        // Already gone lost before it was excluded (Oct 14: an agent lead
+        // dragged into Assigned for minutes by mistake): it left the ranks
+        // but sits in `cancelled` — take back its contract (dated by its
+        // start, or by the cancel when the start wasn't kept); the cancel
+        // itself is dropped below.
+        const c = r == null ? prev.cancelled?.[id] : null;
+        if (c && !c.manual) st = c.startedAt || c.at;
+        if (!st) continue;
+        if (st >= weekMs) { undoContractsWeek++; undoOffersWeek++; }
+        if (st >= monthMs) { undoContractsMonth++; undoOffersMonth++; }
       }
       // Count upward band crossings since the previous run.
       let offerCross = 0;
@@ -177,7 +183,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // this was added. A deal that had already Closed doesn't count.
     const prevCancelled = prev?.cancelled || {};
     const cancelled = {};
-    for (const [id, c] of Object.entries(prevCancelled)) if (c.at >= keepFromMs) cancelled[id] = c;
+    for (const [id, c] of Object.entries(prevCancelled)) if (c.at >= keepFromMs && !excluded.has(id)) cancelled[id] = c;
     for (const l of p._lost || []) {
       if (prevCancelled[l.id] || cancelled[l.id]) continue;
       const before = prevRanks ? prevRanks[l.id] : undefined;
@@ -189,7 +195,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       if (fromRank == null && !wasStarted) continue;
       const at = l.at || now.getTime();
       if (at < keepFromMs) continue;
-      cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0 };
+      cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0, ...(prevStarted?.[l.id] > 0 ? { startedAt: prevStarted[l.id] } : {}) };
     }
     // Cancels entered by hand from the GHL check (manual-cancels.json):
     // added like any other, once, if they're in the kept window.
