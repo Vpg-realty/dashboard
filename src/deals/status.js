@@ -1,31 +1,33 @@
-// One colour language for deals (Luke, Oct 14: "color coding … good, bad,
-// pending … ideally it would match the full deal profile"). The Active
-// lists, the All deals table and the deal panel all read the same next step
-// and the same field flags from here, so a deal looks the same everywhere.
-//   red   = act now (past COE, DD ending / expired without a buyer)
-//   amber = needs attention (EMD problems, no COE date)
-//   blue  = closing soon (within 7 days)
+// One colour language for deals, taken from the original "2026 VPG Deal
+// Tracker" sheet (Luke, Oct 14: "come as close to the style of the original
+// tracker with color coding and everything"). The sheet's Pipeline tab
+// colours each next step:
+//   red   = act now (past COE, EMD pending with no payer, EMD VPG only)
+//   amber = coming up (DD ending / expired, set COE, closing within 7 days)
+//   blue  = find a buyer
 //   green = on track / closed
-//   grey  = waiting (needs a buyer, nothing urgent)
-// Cancelled deals are red, closed ones green (Luke, Oct 14).
+// Cancelled deals are red, closed ones green — as the sheet's Deals tab
+// colours whole rows. The Active lists, the All deals table, Home and the
+// deal panel all read the same next step from here.
 import { laToday } from '../utils/historyRange.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 
+// The sheet's own pill colours (Pipeline tab conditional formats).
 export const TONES = {
-  red: { label: 'Act now', dot: 'bg-red-500', bar: 'bg-red-500', pill: 'bg-red-50 text-red-800 ring-red-200', text: 'text-red-700', soft: 'bg-red-50/70', field: 'ring-2 ring-red-300 border-red-300' },
-  amber: { label: 'Needs attention', dot: 'bg-amber-500', bar: 'bg-amber-400', pill: 'bg-amber-50 text-amber-900 ring-amber-200', text: 'text-amber-700', soft: 'bg-amber-50/70', field: 'ring-2 ring-amber-300 border-amber-300' },
-  blue: { label: 'Closing soon', dot: 'bg-blue-500', bar: 'bg-blue-500', pill: 'bg-blue-50 text-blue-800 ring-blue-200', text: 'text-blue-700', soft: 'bg-blue-50/70', field: 'ring-2 ring-blue-200 border-blue-300' },
-  green: { label: 'On track', dot: 'bg-emerald-500', bar: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200', text: 'text-emerald-700', soft: 'bg-emerald-50/70', field: 'ring-2 ring-emerald-200 border-emerald-300' },
-  zinc: { label: 'Waiting on a buyer', dot: 'bg-zinc-400', bar: 'bg-zinc-300', pill: 'bg-zinc-100 text-zinc-700 ring-zinc-200', text: 'text-zinc-600', soft: 'bg-zinc-50', field: '' },
+  red: { label: 'Act now', dot: 'bg-[#B42318]', bar: 'bg-[#B42318]', pill: 'bg-[#FDE2E1] text-[#B42318] ring-[#F6B8B3]', text: 'text-[#B42318]', soft: 'bg-[#FDE2E1]/60' },
+  amber: { label: 'Coming up', dot: 'bg-[#DC8A0E]', bar: 'bg-[#DC8A0E]', pill: 'bg-[#FEF0C7] text-[#B54708] ring-[#F8D98A]', text: 'text-[#B54708]', soft: 'bg-[#FEF0C7]/70' },
+  blue: { label: 'Find a buyer', dot: 'bg-[#1D4ED8]', bar: 'bg-[#1D4ED8]', pill: 'bg-[#DCEBFE] text-[#1D4ED8] ring-[#B5D0FB]', text: 'text-[#1D4ED8]', soft: 'bg-[#DCEBFE]/60' },
+  green: { label: 'On track', dot: 'bg-[#15803D]', bar: 'bg-[#15803D]', pill: 'bg-[#DCFCE7] text-[#15803D] ring-[#A7E8BD]', text: 'text-[#15803D]', soft: 'bg-[#DCFCE7]/60' },
 };
-export const LEGEND = ['red', 'amber', 'blue', 'green', 'zinc'];
+export const LEGEND = ['red', 'amber', 'blue', 'green'];
 
 const assigned = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
 
-// The deal's next step, by the sheet's Pipeline-tab rules in its order, plus
-// closed / cancelled for deals that are done.
+// The deal's next step, by the sheet's Pipeline-tab rules in its order (and
+// its colours), plus closed / cancelled for deals that are done. `soon` =
+// closing within 7 days (the "Closing ≤ 7 days" tile).
 export function nextStep(d, today = laToday()) {
   const st = String(d.status || '').toUpperCase();
   if (st === 'COMPLETE') return { text: 'Closed', tone: 'green', done: true };
@@ -34,27 +36,29 @@ export function nextStep(d, today = laToday()) {
   const toDd = ISO.test(d.ddEnd || '') ? daysBetween(today, d.ddEnd) : null;
   const asg = assigned(d);
   if (toCoe != null && toCoe < 0) return { text: `Past COE by ${-toCoe}d — update status`, tone: 'red', fields: ['coe', 'status'] };
-  if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'amber', fields: ['emdStatus', 'emdPaidBy'] };
-  if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'amber', fields: ['emdPaidBy'] };
-  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'red', fields: ['ddEnd', 'vpgAssign'] };
-  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'red', fields: ['ddEnd', 'vpgAssign'] };
-  if (!asg) return { text: 'Find buyer', tone: 'zinc', fields: ['vpgAssign'] };
+  if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdStatus', 'emdPaidBy'] };
+  if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
+  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
+  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
+  if (!asg) return { text: 'Find buyer', tone: 'blue', fields: ['vpgAssign'] };
   if (toCoe == null) return { text: 'Set COE date', tone: 'amber', fields: ['coe'] };
-  if (toCoe === 0) return { text: 'Closing today — confirm title', tone: 'blue', fields: ['coe', 'title'] };
-  if (toCoe <= 7) return { text: `Closing in ${toCoe}d — confirm title`, tone: 'blue', fields: ['coe', 'title'] };
+  if (toCoe === 0) return { text: 'Closing today — confirm title', tone: 'amber', soon: true, fields: ['coe', 'title'] };
+  if (toCoe <= 7) return { text: `Closing in ${toCoe}d — confirm title`, tone: 'amber', soon: true, fields: ['coe', 'title'] };
   return { text: 'On track', tone: 'green' };
 }
 
-// Colour for single values shown in lists (EMD, days to COE, DD end).
-export function emdTone(d) {
-  if (d.emdStatus === 'COMPLETE') return d.emdPaidBy === 'VPG' ? 'amber' : 'green';
-  if (d.emdStatus === 'PENDING') return d.emdPaidBy ? 'zinc' : 'amber';
-  return null;
+// The sheet's EMD column on the Pipeline tab: ✓ (green), "VPG only" and
+// "Pending" (red), "Pending · <payer>" (plain).
+export function emdCell(d) {
+  if (d.emdStatus === 'COMPLETE') return d.emdPaidBy === 'VPG' ? { text: 'VPG only', tone: 'red' } : { text: '✓', tone: 'green' };
+  if (d.emdStatus === 'PENDING') return d.emdPaidBy && d.emdPaidBy !== 'PENDING' ? { text: `Pending · ${d.emdPaidBy}`, tone: null } : { text: 'Pending', tone: 'red' };
+  return { text: '—', tone: null };
 }
+// Its Days column: red when past, amber within 7 days.
 export function daysTone(n) {
   if (n == null) return null;
   if (n < 0) return 'red';
-  if (n <= 7) return 'blue';
+  if (n <= 7) return 'amber';
   return null;
 }
 
