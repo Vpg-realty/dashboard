@@ -406,6 +406,16 @@ the server strips them (`forTc`) and refuses edits to them.
   net profit / margin / avg net per closed, compare-to previous period or
   same period last year, projected (pending + assigned), tables by acq
   manager, dispo member, state and month (rows drill into All deals).
+  Summary look (Luke, Oct 14: "match the style of the rest of the site …
+  number visibility … color coding … without over crowding"): the top
+  numbers in three labelled groups — Deal flow (navy dot), Money in ·
+  closed deals (green), Profit · owners only (tan) — with big navy numbers,
+  closed green, cancelled red, and compare-to changes as small green / red
+  chips; full-width tables in the Active-table style with a Total row;
+  cancels red when any; close rate shaded green (≥ 10% above the period's
+  company rate) or red (≥ 25% below), left plain when most of the row is
+  still pending; **Avg net / closed** (net profit ÷ closed, owners) on the
+  acq., dispo, state and month tables.
 - **GHL sync** (Luke, Oct 14: "automatically add properties every time a
   property hits dispo active … if closed, it updates … if COE / IP changes,
   it updates. But if I update it manually here, it doesn't update there,

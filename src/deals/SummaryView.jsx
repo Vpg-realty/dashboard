@@ -39,30 +39,48 @@ function Delta({ now, then, pct, money: isMoney, lowerIsBetter }) {
   const up = diff > 0;
   const good = lowerIsBetter ? !up : up;
   const text = pct ? `${Math.round(Math.abs(diff) * 100)} pts` : isMoney ? compact(Math.abs(diff)) : Math.abs(diff);
-  return <span className={good ? 'text-emerald-700' : 'text-red-700'}>{up ? '▲' : '▼'} {text}</span>;
+  return <span className={`inline-flex items-center rounded px-1.5 py-px font-semibold ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
 }
 
-function Kpi({ label, value, now, then, pct, isMoney, sub, lowerIsBetter }) {
+// One number in a group (Luke, Oct 14: "improve number visibility").
+function Kpi({ label, value, now, then, pct, isMoney, sub, lowerIsBetter, tone }) {
   return (
-    <div className="px-4 py-3 border-zinc-200/80 [&:not(:last-child)]:border-r">
-      <div className="text-[12.5px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
-      <div className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{value}</div>
-      <div className="mt-0.5 text-xs whitespace-nowrap">{then != null ? <><Delta now={now} then={then} pct={pct} money={isMoney} lowerIsBetter={lowerIsBetter} /> <span className="text-zinc-400">vs {pct ? `${Math.round(then * 100)}%` : isMoney ? compact(then) : then}</span></> : <span className="text-zinc-500">{sub || ' '}</span>}</div>
+    <div className="px-5 py-4 border-tan-100 [&:not(:last-child)]:border-r min-w-0">
+      <div className="text-[13px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
+      <div className={`mt-1.5 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${tone || 'text-navy-800'}`}>{value}</div>
+      <div className="mt-2 text-xs whitespace-nowrap">{then != null ? <><Delta now={now} then={then} pct={pct} money={isMoney} lowerIsBetter={lowerIsBetter} /> <span className="text-zinc-400">vs {pct ? `${Math.round(then * 100)}%` : isMoney ? compact(then) : then}</span></> : <span className="text-zinc-500">{sub || '\u00a0'}</span>}</div>
     </div>
   );
 }
 
-function Breakdown({ title, rows, cols }) {
+// A labelled group of numbers (Luke: the top "categories … hard to
+// differentiate"): a small coloured marker + name, then the numbers.
+function Group({ title, dot, cols, children }) {
   return (
-    <section className="rounded-xl border border-zinc-200/80 bg-white overflow-hidden">
-      <h2 className="px-4 py-3 border-b border-zinc-100 font-semibold">{title}</h2>
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      <div className="flex items-center gap-2 px-5 py-2.5 border-b border-tan-100 bg-tan-50/60">
+        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
+        <span className="text-[12.5px] font-semibold text-navy-800">{title}</span>
+      </div>
+      <div className={`grid grid-cols-2 ${cols}`}>{children}</div>
+    </section>
+  );
+}
+
+function Breakdown({ title, sub, rows, cols }) {
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      <div className="flex items-baseline gap-2 px-5 py-3.5 border-b border-tan-200">
+        <h2 className="text-[15px] font-semibold text-navy-800">{title}</h2>
+        {sub && <span className="text-zinc-500 text-[13px]">{sub}</span>}
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="text-[11.5px] text-zinc-500"><tr>{cols.map((c) => <th key={c.label} className={`px-3 py-2 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr></thead>
+        <table className="w-full text-left text-[14px]">
+          <thead className="text-[12px] text-zinc-500 bg-tan-50/60"><tr>{cols.map((c, i) => <th key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr></thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} onClick={r.onClick} className={`border-t border-zinc-100 ${r.onClick ? 'hover:bg-zinc-50 cursor-pointer' : ''} ${r.total ? 'font-semibold bg-zinc-50' : ''}`}>
-                {cols.map((c) => <td key={c.label} className={`px-3 py-2 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''}`}>{c.get(r)}</td>)}
+              <tr key={r.key} onClick={r.onClick} className={`border-t border-tan-100 ${r.onClick ? 'hover:bg-tan-50 cursor-pointer' : ''} ${r.total ? 'font-semibold bg-tan-50/70 text-navy-900' : ''}`}>
+                {cols.map((c, i) => <td key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''}`}>{c.get(r)}</td>)}
               </tr>
             ))}
             {rows.length === 0 && <tr><td colSpan={cols.length} className="px-3 py-6 text-center text-zinc-500">No deals in this period.</td></tr>}
@@ -75,6 +93,18 @@ function Breakdown({ title, rows, cols }) {
 
 const pctTxt = (x) => `${Math.round(x * 100)}%`;
 const title = (s) => String(s || '—').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+// Quiet colour only where it helps read the table: cancels red when any,
+// close rate shaded against the company's rate for the same period.
+const cancelCell = (v) => (v ? <span className="font-semibold text-red-700">{v}</span> : <span className="text-zinc-300">0</span>);
+function RateCell({ r, avg }) {
+  if (!r.contracts) return <span className="text-zinc-300">—</span>;
+  const rel = avg ? r.closeRate / avg : 1;
+  // Mostly still pending → too early to judge, so no colour.
+  const cls = r.pending > r.closed + r.cancelled ? 'text-zinc-600' : rel >= 1.1 ? 'bg-emerald-50 text-emerald-800' : rel <= 0.75 ? 'bg-red-50 text-red-700' : 'text-zinc-700';
+  return <span className={`inline-block min-w-[48px] rounded px-1.5 py-px text-center ${cls}`}>{pctTxt(r.closeRate)}</span>;
+}
+const strong = (v) => <span className="font-semibold text-navy-900">{v}</span>;
+const avgNetOf = (r) => (r.closed ? money(r.avgNet) : <span className="text-zinc-300">—</span>);
 
 export default function SummaryView() {
   const s = useDeals();
@@ -109,60 +139,69 @@ export default function SummaryView() {
   return (
     <div className="max-w-[1720px] mx-auto">
       <PageHead title="Deal summary" sub={`${period.label} · by ${DATE_BY[by]}`} right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
-      <div className="grid grid-cols-2 lg:grid-cols-4 rounded-t-xl border border-zinc-200/80 bg-white overflow-hidden [&>*]:border-b lg:[&>*]:border-b-0">
-        <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still pending`} />
-        <Kpi label="Closed" value={now.closed} now={now.closed} then={t('closed')} />
-        <Kpi label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter />
-        <Kpi label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct />
-      </div>
-      <div className={`grid grid-cols-2 ${owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'} rounded-b-xl border border-t-0 border-zinc-200/80 bg-white overflow-hidden [&>*]:border-b lg:[&>*]:border-b-0`}>
-        <Kpi label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney />
-        <Kpi label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-        <Kpi label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney />
-        {owner && <Kpi label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney />}
-        {owner && <Kpi label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct />}
-        {owner && <Kpi label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney />}
+      <div className={`grid grid-cols-1 ${owner ? 'xl:grid-cols-[4fr_3fr_3fr]' : 'xl:grid-cols-[4fr_3fr]'} gap-4`}>
+        <Group title="Deal flow" dot="#1b385f" cols="lg:grid-cols-4">
+          <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still pending`} />
+          <Kpi label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-700" />
+          <Kpi label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
+          <Kpi label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct />
+        </Group>
+        <Group title="Money in · closed deals" dot="#059669" cols="lg:grid-cols-3">
+          <Kpi label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
+          <Kpi label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
+          <Kpi label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney />
+        </Group>
+        {owner && (
+          <Group title="Profit · owners only" dot="#ad9b7a" cols="lg:grid-cols-3">
+            <Kpi label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney />
+            <Kpi label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />
+            <Kpi label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closed deal" />
+          </Group>
+        )}
       </div>
       {compare && !then && <div className="mt-3 text-zinc-500">No deals on file for {compare.label}, so there's nothing to compare with.</div>}
       {now.projCount > 0 && (
-        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/60 px-3.5 py-2.5 text-blue-950">
+        <div className="mt-4 rounded-xl border border-navy-100 bg-navy-50/70 px-5 py-3 text-navy-900">
           <span className="font-semibold">Projected:</span> {now.projCount} pending deal{now.projCount === 1 ? '' : 's'} already assigned · {money(now.projGross)} gross · {money(now.projNet)} net{owner && <> · {money(now.projProfit)} net profit</>} if they close.
         </div>
       )}
 
-      <div className="mt-5 grid grid-cols-1 2xl:grid-cols-2 gap-5">
-        <Breakdown title="Acquisition managers" rows={data.acq.map((r) => ({ ...r, onClick: drill({ acq: r.key }) }))} cols={[
-          { label: 'Manager', get: (r) => <span className="font-medium">{r.key}</span> },
+      <div className="mt-5 grid grid-cols-1 gap-5">
+        <Breakdown title="Acquisition managers" sub="click a row for their deals" rows={[...data.acq.map((r) => ({ ...r, onClick: drill({ acq: r.key }) })), { key: 'total', total: true, ...now }]} cols={[
+          { label: 'Manager', get: (r) => (r.total ? 'Total' : <span className="font-medium text-zinc-900">{r.key}</span>) },
           { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Cancelled', right: true, get: (r) => r.cancelled }, { label: 'Close rate', right: true, get: (r) => pctTxt(r.closeRate) },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => money(r.net) },
-          ...(owner ? [{ label: 'Acq. comm.', right: true, get: (r) => money(r.acqComm) }, { label: 'Mgr. / override', right: true, get: (r) => money(r.mgrComm) }] : []),
+          { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
+          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
+          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Acq. comm.', right: true, get: (r) => (r.total ? '' : money(r.acqComm)) }, { label: 'Mgr. / override', right: true, get: (r) => (r.total ? '' : money(r.mgrComm)) }] : []),
         ]} />
         <Breakdown title="Disposition managers" rows={data.dispo} cols={[
-          { label: 'Dispo member', get: (r) => <span className="font-medium">{r.key}</span> },
+          { label: 'Dispo member', get: (r) => <span className="font-medium text-zinc-900">{r.key}</span> },
           { label: 'Deals', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => money(r.net) },
-          ...(owner ? [{ label: 'Dispo comm.', right: true, get: (r) => money(r.dispoComm) }] : []),
+          { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
+          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
+          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Dispo comm.', right: true, get: (r) => money(r.dispoComm) }] : []),
         ]} />
-        <Breakdown title="By state" rows={data.states.map((r) => ({ ...r, onClick: drill({ state: r.key }) }))} cols={[
-          { label: 'State', get: (r) => <span className="font-medium">{title(r.key)}</span> },
+        <Breakdown title="By state" sub="click a row for its deals" rows={[...data.states.map((r) => ({ ...r, onClick: drill({ state: r.key }) })), { key: 'total', total: true, ...now }]} cols={[
+          { label: 'State', get: (r) => (r.total ? 'Total' : <span className="font-medium text-zinc-900">{title(r.key)}</span>) },
           { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Cancelled', right: true, get: (r) => r.cancelled }, { label: 'Sold volume', right: true, get: (r) => money(r.volume) },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => money(r.net) },
-          ...(owner ? [{ label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
+          { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
+          { label: 'Sold volume', right: true, get: (r) => money(r.volume) },
+          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
+          // Luke, Oct 14: "average net / closed deal as a column so we can see per state data".
+          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
         ]} />
         {data.months && (
-          <Breakdown title={`Month by month · ${period.from.slice(0, 4)}`} rows={[...data.months.map((r) => ({ ...r, onClick: () => setQuery({ p: `m:${r.key}` }) })), { key: 'total', name: 'Total', total: true, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(period.from.slice(0, 4)))) }]} cols={[
-            { label: 'Month', get: (r) => <span className="font-medium">{r.name}</span> },
+          <Breakdown title={`Month by month · ${period.from.slice(0, 4)}`} sub="click a month to open it" rows={[...data.months.map((r) => ({ ...r, onClick: () => setQuery({ p: `m:${r.key}` }) })), { key: 'total', name: 'Total', total: true, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(period.from.slice(0, 4)))) }]} cols={[
+            { label: 'Month', get: (r) => (r.total ? 'Total' : <span className={`font-medium ${r.contracts ? 'text-zinc-900' : 'text-zinc-400'}`}>{r.name}</span>) },
             { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-            { label: 'Cancelled', right: true, get: (r) => r.cancelled }, { label: 'Close rate', right: true, get: (r) => (r.contracts ? pctTxt(r.closeRate) : '—') },
+            { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
             { label: 'Net assignment', get: (r) => (
               <span className="flex items-center gap-2 justify-end">
-                {!r.total && <span className="w-24 h-1.5 rounded bg-zinc-100 overflow-hidden"><span className="block h-full bg-blue-500 rounded" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>}
-                <span className="tabular-nums w-24 text-right">{money(r.net)}</span>
+                {!r.total && <span className="w-24 h-2 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full bg-navy-600 rounded-full" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>}
+                <span className="tabular-nums w-24 text-right font-semibold text-navy-900">{money(r.net)}</span>
               </span>
             ) },
-            ...(owner ? [{ label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
+            ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
           ]} />
         )}
       </div>
