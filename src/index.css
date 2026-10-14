@@ -86,3 +86,21 @@ html, body, #root {
 @media (prefers-reduced-motion: reduce) {
   .vpg-sweep-a, .vpg-sweep-b, .vpg-rise, .vpg-pop { animation: none; }
 }
+
+/* Team pages inside the app (Luke, Oct 14: "restyle the Team pages" to
+   match Home / Deals). The views were built TV-first; rather than fork them,
+   this scope (set by AppShell on Team and My scorecard) softens the TV look:
+   normal-case labels instead of tiny spaced capitals, lighter weights, the
+   brand's tan borders and navy headings. The TV board never gets it. */
+.app-team .uppercase { text-transform: none; }
+.app-team [class*="tracking-[0."] { letter-spacing: 0.005em; }
+.app-team .font-extrabold { font-weight: 700; }
+.app-team .text-\[9px\], .app-team .text-\[10px\] { font-size: 11.5px; }
+.app-team .text-\[11px\] { font-size: 12.5px; }
+.app-team .uppercase.text-zinc-500, .app-team .uppercase.text-zinc-400 { color: var(--color-navy-600); font-weight: 600; }
+.app-team .border-zinc-300\/80, .app-team .border-zinc-300, .app-team .border-zinc-200 { border-color: var(--color-tan-200); }
+.app-team .rounded-xl.bg-white { box-shadow: 0 1px 2px rgba(27, 56, 95, 0.04); }
+.app-team .text-blue-600 { color: var(--color-navy-600); }
+.app-team .bg-zinc-900 { background-color: var(--color-navy-700); }
+.app-team .font-bold { font-weight: 600; }
+.app-team .bg-zinc-50 { background-color: var(--color-tan-50); }

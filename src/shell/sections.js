@@ -54,6 +54,16 @@ export const SECTIONS = [
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
     ],
   },
+  {
+    // Luke, Oct 14: one place for owners to change people, commission rules
+    // and dropdowns themselves. Shown at the bottom of the sidebar.
+    id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: true,
+    tabs: [
+      { id: 'people', label: 'People', view: 'settings-people', scroll: true },
+      { id: 'commissions', label: 'Commission rules', view: 'settings-rules', scroll: true },
+      { id: 'lists', label: 'Dropdown lists', view: 'settings-lists', scroll: true },
+    ],
+  },
 ];
 
 // The sections this role sees, each with only the tabs it may open (a tab

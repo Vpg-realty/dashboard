@@ -67,3 +67,11 @@ export function loadMyScorecard() {
 }
 
 export const listUsers = () => call('users');
+
+// --- Settings (owners) ---------------------------------------------------------
+const jsonBody = (method, value) => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
+export const settingsUsers = () => call('settings/users');
+export const saveUser = (p) => call('settings/users', jsonBody('POST', p));
+export const removeUser = (email) => call(`settings/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+export const readSetting = (key) => call(`settings/${key}`);
+export const writeSetting = (key, value) => call(`settings/${key}`, jsonBody('PUT', { value }));

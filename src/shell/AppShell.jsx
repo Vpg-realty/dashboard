@@ -25,6 +25,9 @@ import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import Welcome from './Welcome.jsx';
+import PeopleView from '../settings/PeopleView.jsx';
+import RulesView from '../settings/RulesView.jsx';
+import ListsView from '../settings/ListsView.jsx';
 import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
 
@@ -32,6 +35,7 @@ const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
   'my-scorecard': MyScorecardView,
+  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -128,9 +132,10 @@ export default function AppShell({ me }) {
           <Icon name="search" size={14} />
           {!collapsed && <><span className="text-[13px] whitespace-nowrap truncate">Search or jump to…</span><kbd className="ml-auto text-[10.5px] font-medium text-zinc-500 border border-zinc-200 rounded px-1 bg-zinc-50">⌘K</kbd></>}
         </button>
-        <nav className="flex flex-col gap-0.5">{sections.map(navItem)}</nav>
+        <nav className="flex flex-col gap-0.5">{sections.filter((x) => !x.bottom).map(navItem)}</nav>
         <div className="flex-1" />
         <nav className="flex flex-col gap-0.5 mb-2">
+          {sections.filter((x) => x.bottom).map(navItem)}
           {isManager && (
             <a {...linkProps('/tv')} title="TV mode" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
               <Icon name="tv" className="text-tan-600/80" />{!collapsed && 'TV mode'}
@@ -191,7 +196,7 @@ export default function AppShell({ me }) {
 
         <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : tab?.scroll ? 'overflow-y-auto px-4 md:px-6 py-5 pb-24 md:pb-8' : 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4'}`}>
           {section.id === 'home' ? <HomeView me={me} /> : tab?.scroll ? <View /> : (
-            <div className="h-(--ph) min-w-(--pw) md:h-full md:min-w-0" style={{ '--ph': `${tab?.phone?.h || 900}px`, '--pw': `${tab?.phone?.w || 0}px` }}>
+            <div className={`h-(--ph) min-w-(--pw) md:h-full md:min-w-0 ${section.id === 'team' || section.id === 'me' ? 'app-team' : ''}`} style={{ '--ph': `${tab?.phone?.h || 900}px`, '--pw': `${tab?.phone?.w || 0}px` }}>
               <View repId={rep} onPickRep={pickRep} onBack={() => pickRep(null)} />
             </div>
           )}

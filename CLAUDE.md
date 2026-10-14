@@ -251,7 +251,25 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
-  blue "Manager view" strip isn't needed inside the app.
+  blue "Manager view" strip isn't needed inside the app. Team and My
+  scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
+  in index.css that gives the TV-first views the app's look (normal-case
+  labels, lighter weights, tan borders, navy headings and team cells) —
+  Luke, Oct 14; the TV board never gets it.
+- **Settings** (owners; Luke, Oct 14: change things without going through
+  Claude): bottom of the sidebar (`bottom: true` in sections.js),
+  `src/settings/`. **People** — D1 `users` (name, role, rep on the board),
+  add / remove; can't change yourself, always one owner; a person must also
+  be on the Cloudflare Access allow-list to sign in (signed in but not in
+  `users` → a "not set up yet" page, App.jsx, instead of the TV board).
+  **Commission rules** — D1 `settings.deal_rules` as a form, with the
+  effect on existing deals shown before saving (deals recalculated,
+  closed ones called out; pending deals with no buyer left out).
+  **Dropdown lists** — `settings.deal_lists` and Reports to. API
+  `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
+  owners only, never while viewing as; values checked; every save in
+  `edit_log`). KPI targets and Sub-accounts still live in code / the
+  GitHub-token panel.
 - Phones: Board / Team pages are TV-sized, so each tab has a `phone` canvas
   in sections.js (Pipeline / Opportunities stack into a tall scroll; the
   wide ones keep the desktop layout and scroll sideways).
