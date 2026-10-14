@@ -17,7 +17,7 @@ export async function loadDeals() {
   emit({ status: state.raw.length ? 'refreshing' : 'loading', error: null });
   try {
     const r = await call('deals');
-    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner, sync: r.sync || null });
+    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner, readOnly: !!r.readOnly, sync: r.sync || null });
   } catch (e) {
     emit({ status: 'error', error: e.status === 0 ? 'The deal tracker only works on the live site.' : e.message });
   }

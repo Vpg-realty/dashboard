@@ -208,6 +208,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   CRM / messaging fields) and `useScorecards` (cache with only their rows,
   `self`, `liveTeamAvg`); `weekSeries` carries `teamAvg`, which RepProgress
   draws as the team line.
+- **View as** (Luke, Oct 14: "log in as a rep to see what they see"):
+  owners get a "View as" menu in the header (`ViewAs.jsx`, people from
+  `GET /api/users`, owners only, TV left out). The pick is kept in
+  sessionStorage `vpg.viewAs` (this tab only) and every `/api` call sends
+  `X-View-As`; `currentUser` (edge/auth.js) answers reads as that person
+  (`viewAs`, `realName`) and turns every write into role 'none', so nothing
+  is saved under someone else's name. A tan banner says who you're viewing
+  as, with Exit. Static data files load as before (the client simply doesn't
+  ask for the manager files when the person can't see them). No welcome
+  splash while viewing as.
 - **Welcome** (`Welcome.jsx`, Luke, Oct 14: "a graphic or something fun"
   on first login / first visit of the day): first time on a device → a
   welcome card with three tips for their role; first visit each Arizona day
@@ -249,6 +259,13 @@ The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar
 **Deals** (owners + the TC; `src/deals/`). Aiza (tc) sees and edits
 everything except the commission / profit columns and "Commission paid" —
 the server strips them (`forTc`) and refuses edits to them.
+- **Reps and managers** (Luke, Oct 14: "each rep [gets] the deals tab but
+  ONLY … the active deals"): Deals shows them only the Active tab (tabs can
+  carry `roles` in sections.js), with only the deals they're on as acq.
+  manager or dispo member (`ownsDeal`, name from subaccounts.json via
+  `rep_id`), read-only (`readOnly` from the API; panel inputs disabled, no
+  New deal, no GHL-missing list), never commission / profit. The API
+  enforces it (other deals 404, writes 403).
 - **Storage** (D1, `edge/deals.sql`): `deals (id, data JSON, created_*,
   updated_*, deleted)` — one row per deal, the sheet's 51 columns as fields
   (`FIELDS` in `src/deals/math.js`); `deal_log` — every change (who, when,
@@ -324,6 +341,13 @@ the server strips them (`forTc`) and refuses edits to them.
   dates on Enter or click-away, Esc cancels, buyer / title use the same
   past-entries picker; one field per save, logged, same conflict check);
   calculated and GHL cells aren't. Clicking the address opens the full deal.
+- **Active columns** (Luke, Oct 14): Next step, Property, Acq → Dispo,
+  State, COE · in, Title, Buyer, Contract price, Assignment price (VPG
+  assignment), Gross — the same for both lists. COE and days-to-go are one
+  chip coloured like the board's Pipeline (`dueTone` in status.js: past due
+  maroon, today red, 1 day light red, 2 yellow, 3 blue, later plain; key in
+  the legend). Acq. and dispo people are boxed in their colour
+  (`people.jsx`: reps' board colour, others a steady palette colour).
 - **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
   deal profile"): `src/deals/status.js` is the one place — `nextStep()`
   (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:

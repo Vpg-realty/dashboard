@@ -57,3 +57,21 @@ export function daysTone(n) {
   if (n <= 7) return 'blue';
   return null;
 }
+
+// Date colours from the board's Pipeline tab (Luke, Oct 14: "match what we
+// have on the board pipeline … brownish for past due, red for today, light
+// red for 1 day out, yellow for 2 days out, blue for 3 days out, nothing for
+// anything above that").
+export function dueTone(days) {
+  if (days == null) return 'border-zinc-200 bg-white text-zinc-400';
+  if (days < 0) return 'border-[#2a0509] bg-[#4c0519] text-white';
+  if (days === 0) return 'border-red-700 bg-red-600 text-white';
+  if (days === 1) return 'border-red-300 bg-red-100 text-red-800';
+  if (days === 2) return 'border-yellow-300 bg-yellow-100 text-yellow-900';
+  if (days === 3) return 'border-sky-300 bg-sky-100 text-sky-900';
+  return 'border-zinc-200 bg-white text-zinc-700';
+}
+export const DUE_KEY = [
+  ['border-[#2a0509] bg-[#4c0519]', 'Past due'], ['border-red-700 bg-red-600', 'Today'], ['border-red-300 bg-red-100', '1 day out'],
+  ['border-yellow-300 bg-yellow-100', '2 days out'], ['border-sky-300 bg-sky-100', '3 days out'],
+];
