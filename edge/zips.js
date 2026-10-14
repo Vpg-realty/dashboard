@@ -247,15 +247,60 @@ export async function flag(db, user, { zip, reason, note }) {
 }
 
 // Owners: status active / paused / excluded, and clear a flag.
-export async function setStatus(db, { zips, status, clearFlag }) {
+export async function setStatus(db, { zips, status, clearFlag }, user) {
   const list = [...new Set((zips || []).map(String))];
-  if (!list.length || list.length > 2000) return { status: 400, body: { error: 'pick zips' } };
+  if (!list.length || list.length > 3000) return { status: 400, body: { error: 'pick zips' } };
   if (status && !STATUSES.includes(status)) return { status: 400, body: { error: 'bad status' } };
   const now = new Date().toISOString();
   const ph = list.map(() => '?').join(',');
   if (status) await db.prepare(`UPDATE zips SET status = ?, updated_at = ? WHERE zip IN (${ph})`).bind(status, now, ...list).run();
   if (clearFlag || status === 'excluded') await db.prepare(`UPDATE zips SET flag = NULL, flag_note = NULL, flag_by = NULL, flag_at = NULL, updated_at = ? WHERE zip IN (${ph})`).bind(now, ...list).run();
+  if (status) {
+    const areas = (await db.prepare(`SELECT DISTINCT state, county FROM zips WHERE zip IN (${ph})`).bind(...list).all()).results;
+    for (const a of areas) await syncCounty(db, a.state, a.county, user);
+  }
   return { status: 200, body: { zips: list, status } };
+}
+
+// The territory sheet's county status follows its zips: Paused when every
+// zip that isn't excluded is paused, Active otherwise.
+async function syncCounty(db, state, county, user) {
+  try {
+    const r = await db.prepare("SELECT SUM(status = 'paused') p, SUM(status != 'excluded') n FROM zips WHERE state = ? AND county = ?").bind(state, county).first();
+    const row = await db.prepare('SELECT data FROM terr_counties WHERE state = ? AND county = ?').bind(state, county).first();
+    if (!row) return;
+    const data = JSON.parse(row.data);
+    const next = r?.n && r.p === r.n ? 'Paused' : 'Active';
+    if (data.status === next) return;
+    await db.prepare('UPDATE terr_counties SET data = ?, updated_at = ?, updated_by = ? WHERE state = ? AND county = ?')
+      .bind(JSON.stringify({ ...data, status: next }), new Date().toISOString(), user?.name || null, state, county).run();
+  } catch { /* no territory tables (tests) */ }
+}
+
+// Owners (Luke, Oct 14: pause / make active "for each state and zip on the
+// sheet"): every zip in a county, or in a whole state, at once — excluded
+// zips stay excluded. `market` (state only) also sets the sheet's market
+// status.
+export async function setAreaStatus(db, user, { state, county, status, market }) {
+  if (!['active', 'paused'].includes(status) && !market) return { status: 400, body: { error: 'status must be active or paused' } };
+  if (market && !['Active', 'Paused'].includes(market)) return { status: 400, body: { error: 'market must be Active or Paused' } };
+  const n = await db.prepare(`SELECT COUNT(*) n FROM zips WHERE state = ?${county ? ' AND county = ?' : ''}`).bind(...[state, county].filter(Boolean)).first();
+  const now = new Date().toISOString();
+  if (market) {
+    if (county) return { status: 400, body: { error: 'market status is per state' } };
+    const row = await db.prepare('SELECT data FROM terr_states WHERE state = ?').bind(state).first();
+    if (!row) return { status: 404, body: { error: 'unknown state' } };
+    await db.prepare('UPDATE terr_states SET data = ?, updated_at = ?, updated_by = ? WHERE state = ?').bind(JSON.stringify({ ...JSON.parse(row.data), marketStatus: market }), now, user.name, state).run();
+  }
+  let changed = 0;
+  if (status) {
+    if (!n?.n) return { status: 404, body: { error: 'no zips there' } };
+    const r = await db.prepare(`UPDATE zips SET status = ?, updated_at = ? WHERE state = ?${county ? ' AND county = ?' : ''} AND status != 'excluded' AND status != ?`).bind(status, now, ...[state, county].filter(Boolean), status).run();
+    changed = Number(r.meta?.changes ?? r.changes ?? 0);
+    const counties = county ? [county] : (await db.prepare('SELECT DISTINCT county FROM zips WHERE state = ?').bind(state).all()).results.map((c) => c.county);
+    for (const c of counties) await syncCounty(db, state, c, user);
+  }
+  return { status: 200, body: { state, county: county || null, status: status || null, market: market || null, changed } };
 }
 
 // Owners' approval when a state runs out: every zip not held becomes available.
