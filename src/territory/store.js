@@ -9,12 +9,12 @@ const listeners = new Set();
 const emit = () => listeners.forEach((f) => f({}));
 
 async function loadStates() {
-  states = { ...states, status: 'loading' };
+  if (states.status !== 'ready') states = { ...states, status: 'loading' };
   try { const r = await call('territory'); states = { status: 'ready', list: r.states, error: null }; } catch (e) { states = { status: 'error', list: [], error: e.status === 0 ? 'Territory only works on the live site.' : e.message }; }
   emit();
 }
 async function loadCounties(state) {
-  counties.set(state, { status: 'loading', list: [] }); emit();
+  if (counties.get(state)?.status !== 'ready') { counties.set(state, { status: 'loading', list: [] }); emit(); } // a refresh keeps showing the old rows
   try { const r = await call(`territory?state=${encodeURIComponent(state)}`); counties.set(state, { status: 'ready', list: r.counties }); } catch (e) { counties.set(state, { status: 'error', list: [], error: e.message }); }
   emit();
 }
@@ -34,4 +34,9 @@ export function useCounties(state) {
   useTick();
   useEffect(() => { if (state && !counties.has(state)) loadCounties(state); }, [state]);
   return (state && counties.get(state)) || { status: state ? 'loading' : 'idle', list: [] };
+}
+
+// After an owner changes a status: re-read the states and that state's counties.
+export async function reloadTerritory(state) {
+  await Promise.all([loadStates(), state ? loadCounties(state) : null]);
 }

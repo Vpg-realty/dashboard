@@ -10,6 +10,8 @@
 //   flag     { zip, reason, note? }  bad data, a zip in your states (owners any)
 //   assign   { repId, zips }         owners
 //   status   { zips, status?, clearFlag? } owners
+//   area     { state, county?, status?, market? } owners: pause / activate every
+//            zip in a county or state; market = the sheet's Active / Paused
 //   newRound { state }               owners (approval when a state runs out)
 //   rules    { value }               owners
 // Every write is refused while viewing as someone else (role 'none').
@@ -74,7 +76,8 @@ export async function onRequestPost(context) {
     case 'release': if (!owner && !user.rep_id) return ownersOnly(); r = await Z.release(db, user, b); break;
     case 'flag': if (!owner && !user.rep_id) return ownersOnly(); r = await Z.flag(db, user, b); break;
     case 'assign': if (!owner) return ownersOnly(); r = await Z.assign(db, user, b); break;
-    case 'status': if (!owner) return ownersOnly(); r = await Z.setStatus(db, b); break;
+    case 'status': if (!owner) return ownersOnly(); r = await Z.setStatus(db, b, user); break;
+    case 'area': if (!owner) return ownersOnly(); r = await Z.setAreaStatus(db, user, { state: String(b.state || ''), county: b.county ? String(b.county) : null, status: b.status || null, market: b.market || null }); break;
     case 'newRound': if (!owner) return ownersOnly(); r = await Z.newRound(db, user, String(b.state || '')); break;
     case 'rules': if (!owner) return ownersOnly(); r = await Z.saveRules(db, user, b.value); break;
     default: return json({ error: 'unknown action' }, 400);

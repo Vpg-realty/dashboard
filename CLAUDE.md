@@ -534,6 +534,19 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   left (active / paused, legal dot, ❄), the state's facts, and its counties
   with search, tier filter and each county's zips by tier. Temporary (Luke:
   "will later be deleted as this replaces it").
+  **Status editing** (owners; Luke, Oct 14: "pause or unpause … for each
+  state and zip … editable just like the deal tracker, but only status"):
+  the state's Market dropdown (Active / Paused → `terr_states.marketStatus`),
+  "Pause all" / "Make all active" for the state's zips, a status dropdown
+  per county row (Active / Paused; shows "Partly paused (n of m)" from the
+  zips), and in an open county: click zips to select → Pause / Make
+  active / Exclude. All through the zip center (`/api/zips` actions `area`
+  and `status`, `setAreaStatus` in edge/zips.js), so requests follow at
+  once; excluded zips stay excluded; a county's sheet status follows its
+  zips (`syncCounty`: Paused when every non-excluded zip is paused). Zips
+  already held stay with the rep. Statuses come from `/api/zips?state=`;
+  managers / TC see them read-only. The territory store refreshes in place
+  (an open county stays open).
 - **Ask Claude** (Luke, Oct 14: "a claude chat box … memory is stored here
   so it compounds"; owners only): a floating button on the Territory pages
   (`src/chat/ChatPanel.jsx`, mounted in AppShell for section `territory`)
