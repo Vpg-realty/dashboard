@@ -63,7 +63,7 @@ export function NeedChips({ fields, labels, onPick, max = 99 }) {
     <span className="inline-flex flex-wrap gap-1">
       {shown.map((k) => (
         <button key={k} type="button" onClick={(e) => { e.stopPropagation(); onPick?.(k); }}
-          className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FFC7CE] text-[#9C0006] ring-1 ring-inset ring-[#F4A3AE] hover:bg-[#ffb3bd] whitespace-nowrap">
+          className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5] whitespace-nowrap">
           {labels[k] || k}
         </button>
       ))}

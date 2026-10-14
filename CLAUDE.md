@@ -378,8 +378,11 @@ the server strips them (`forTc`) and refuses edits to them.
   `mine` when they're its acq. manager or dispo member — name from
   subaccounts.json via `rep_id`). Writes 403.
 - **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
-  Title, EMD, Due diligence and Dispositions, plus the Zillow link — not
-  Financials, Bookkeeping, Notes, nor Net loss % (owners only). `repSees` / `forRep` (math.js) — the
+  Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
+  **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
+  kept for the reps, but nothing after that" — no additional fees, TC fee,
+  net, wires, commission base, commissions or profit), not Bookkeeping,
+  Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
   server strips the rest (and its history entries, `REP_LOG`); view-only
   fields read as plain text, not greyed-out boxes.
 - **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
@@ -482,18 +485,21 @@ the server strips them (`forTc`) and refuses edits to them.
   leaves `settings.ghl_sync` (since, at, counts), shown as "Synced with GHL
   N min ago" on Active. `ghlStage` is a read-only field (type 'ghl'; the
   API refuses edits).
-- **The sheet's look** (Luke, Oct 14: "super hard to follow and not
-  intuitive … come as close to the style of the original tracker with color
-  coding and everything"): `src/deals/sheet.js` holds the original sheet's
-  colours, read from its Deals tab — dark slate band over each column group
-  (orange "Dispo % loss" band over final assignment + net loss), coloured
-  column headers per group, per-column body fills, and its conditional
-  formats in its priority order: net profit < 0 red; EMD returned NO red;
-  commission paid NO → commission cells yellow; additional fees > 0 yellow;
-  DD end today yellow / red text, tomorrow cyan; CFAR NO yellow; cancelled
-  row red; closed row green; EMD status COMPLETE / PENDING → the EMD …
-  VPG-assignment block green / red; pending → contract + title block amber.
-  A colour key sits above the table.
+- **The tracker's colours** (Luke, Oct 14: first "come as close to the
+  style of the original tracker with color coding", then "the colors are
+  not sleek and professional … recreate in a better way that matches the
+  style of the site … still clear"): `src/deals/sheet.js` keeps every
+  signal of the original sheet, in the app's navy / tan system — navy group
+  bands (tan for the "Dispo % loss" pair), light column headers with a 3px
+  accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
+  slate; soft tints in the site's status colours, in the sheet's priority
+  order: net profit < 0 and EMD returned NO rose / bold red; commission paid
+  NO, additional fees > 0 and CFAR NO amber "check"; DD end today rose /
+  bold red, tomorrow sky (pending deals); cancelled row muted rose; closed
+  row soft green; on pending deals the EMD → VPG-assignment block soft green
+  (EMD complete) / soft rose (EMD pending); the status word itself green /
+  red / amber. A colour key sits above the table. Needs-info marks (red
+  outline, "N missing" pill) use the site's red #B42318 family.
 - **All deals table**: the sheet's column order (FIELDS; GHL stage after
   the address, original contracted price after retrade), the full sheet by
   default (`cols=overview` for the short set, or column groups), header
@@ -511,7 +517,8 @@ the server strips them (`forTc`) and refuses edits to them.
   in due diligence" lists (in the app's Panel cards), grey column headers,
   zebra rows, the sheet's columns — assigned: next step, property, acq →
   dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
-  (Luke, Oct 14), gross (owners / TC); needs a buyer: next step, property,
+  (Luke, Oct 14), gross (everyone — Luke, Oct 14: "gross assignment fee
+  columns can be kept for the reps"); needs a buyer: next step, property,
   acq. manager, state, COE, days, EMD, DD end, dispo team, title,
   contract. Days red when past, amber ≤ 7; EMD ✓ green, "Pending" / "VPG
   only" red. The COE chip keeps the board's Pipeline colours (`dueTone`).

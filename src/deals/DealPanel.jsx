@@ -230,14 +230,14 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                 </Notice>
               )}
               {needs.length > 0 && (
-                <div className="rounded-lg border border-[#F4A3AE] bg-[#FFF1F3] px-3.5 py-2.5 text-[#7A0510]">
+                <div className="rounded-lg border border-[#F5C2BD] bg-[#FDF1F0] px-3.5 py-2.5 text-[#7A271A]">
                   <div className="font-semibold">Needs info — {need.size} field{need.size === 1 ? '' : 's'} to fill in</div>
                   <div className="mt-1.5 flex flex-col gap-1.5">
                     {needs.map(({ cat, fields }) => (
                       <div key={cat.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="text-[12.5px] font-medium">{cat.label}:</span>
                         {fields.map((k) => (
-                          <button key={k} type="button" onClick={() => jumpTo(k)} className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FFC7CE] text-[#9C0006] ring-1 ring-inset ring-[#F4A3AE] hover:bg-[#ffb3bd]">{LABEL[k]}</button>
+                          <button key={k} type="button" onClick={() => jumpTo(k)} className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5]">{LABEL[k]}</button>
                         ))}
                       </div>
                     ))}
@@ -268,11 +268,11 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       const value = f.key in draft.fields ? draft.fields[f.key] : raw[f.key];
                       const text = (v) => (v == null || v === '' ? <span className="text-zinc-300">—</span> : <span className={f.type === 'longtext' || f.key === 'title' ? 'whitespace-pre-line' : ''}>{show(f, v)}</span>);
                       return (
-                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 rounded-lg scroll-mt-24 ${need.has(f.key) ? 'bg-[#FFF1F3] ring-1 ring-[#F4A3AE] -m-2 p-2' : !isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-2 p-2` : ''}`}>
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 rounded-lg scroll-mt-24 ${need.has(f.key) ? 'bg-[#FDF1F0] ring-1 ring-[#F5C2BD] -m-2 p-2' : !isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-2 p-2` : ''}`}>
                           <span className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 mb-1">
                             {f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
-                            {need.has(f.key) && <span className="text-[10.5px] font-semibold text-[#9C0006]">● needed</span>}
+                            {need.has(f.key) && <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>}
                             {!need.has(f.key) && !isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] font-normal text-zinc-400">auto</span>}
                             {f.type === 'ghl' && <span className="text-[10.5px] font-normal text-violet-600">from GHL</span>}

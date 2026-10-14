@@ -1,81 +1,92 @@
-// The look of the original "2026 VPG Deal Tracker" sheet (Luke, Oct 14:
-// "come as close to the style of the original tracker with color coding and
-// everything"). Colours are the sheet's own, read from its Deals tab:
-// header bands, per-column header and body fills, and its conditional
-// formats in the sheet's priority order (first match wins).
+// The tracker's colour coding (Luke, Oct 14). First pass copied the original
+// "2026 VPG Deal Tracker" sheet's fills exactly; Luke then asked for the same
+// clarity "in a better way that matches the style of the site" — so every
+// signal the sheet had is still here, in the app's navy / tan system with
+// soft status tints instead of the sheet's saturated fills:
+//   - group bands: navy, each group marked by a thin accent colour on its
+//     column headers (the "Dispo % loss" pair keeps its own tan band);
+//   - row status: closed = soft green, cancelled = soft rose (muted text),
+//     pending = white with an amber status word;
+//   - EMD → assignment block on pending deals: soft green when the EMD is in,
+//     soft rose while it's still pending;
+//   - single-cell checks: DD ends today (rose, bold red) / tomorrow (sky); no
+//     CFAR, extra fees, commission not paid (amber); net profit below zero
+//     (rose, bold red).
+// The sheet's priority order is kept (first match wins).
 import { daysBetween } from './status.js';
 import { laToday } from '../utils/historyRange.js';
 
-// Band over each column group (row 2 of the sheet): dark slate, except the
-// "Dispo % loss" pair (final assignment, net loss), which is orange.
-export const BAND = { bg: '#2A3542', fg: '#FFFFFF' };
-export const BAND_LOSS = { bg: '#FFC000', fg: '#3A2A00' };
+const NAVY = '#1b385f';
+const TAN = '#ad9b7a';
+export const BAND = { bg: NAVY, fg: '#FFFFFF' };
+export const BAND_LOSS = { bg: TAN, fg: '#FFFFFF' };
 export const LOSS_KEYS = new Set(['finalAssign', 'netLoss']);
-export const TITLE_BAR = '#0F2942';
+export const TITLE_BAR = NAVY;
+export const BORDER = '#E3E8EF';
+export const HEAD_RULE = '#C9D3E0';
 
-// Column header colour by group (row 3 of the sheet).
-const HEAD_BY_GROUP = {
-  contract: '#DEEAF6', title: '#B4C6E7', emd: '#FBE4D5', dd: '#F7CAAC', dispo: '#F4B083',
-  money: '#FFE598', pay: '#FFE598', books: '#BF9000', notes: '#DEEAF6',
+// One accent per column group: a 3px rule on top of its headers, so the
+// groups read apart without coloured blocks.
+export const GROUP_ACCENT = {
+  contract: '#1b385f', title: '#4F6D95', emd: '#0F766E', dd: '#7C5CBF', dispo: '#ad9b7a',
+  money: '#15803D', pay: '#B7791F', books: '#64748B', notes: '#94A3B8',
 };
 export function headStyle(f) {
-  if (LOSS_KEYS.has(f.key)) return { background: '#FFC000', color: '#FF0000' };
-  return { background: HEAD_BY_GROUP[f.group] || '#DEEAF6', color: '#000000' };
+  const accent = LOSS_KEYS.has(f.key) ? TAN : GROUP_ACCENT[f.group] || NAVY;
+  return { background: '#F4F6FA', color: '#334155', boxShadow: `inset 0 3px 0 ${accent}` };
 }
 
-// Body fills the sheet gives a column regardless of the row.
-const CREAM = '#FEF2CB';
-const BASE = {
-  finalAssign: '#FFC000', netLoss: '#FFC000', grossAssign: '#E2EFDA', netAssign: '#A9D08E', commBase: '#DDEBF7',
-  acqComm: '#EDEDED', dispoComm: '#EDEDED', grossProfit: '#EDEDED', netProfit: '#EDEDED',
-};
-const CREAM_GROUPS = new Set(['emd', 'dd', 'dispo']);
-// The sheet's columns B–M (contract + title) and N–AC (EMD → VPG assignment).
-const B_TO_M = new Set(['contract', 'title']);
-const N_TO_AC = (f) => CREAM_GROUPS.has(f.group) && !LOSS_KEYS.has(f.key);
-
-export const RED = { background: '#FFC7CE', color: '#9C0006' };
-export const GREEN = { background: '#C6EFCE', color: '#006100' };
-export const AMBER = { background: '#FFEB9C', color: '#9C5700' };
-const YELLOW = { background: '#FFFF00' };
-const TODAY_DD = { background: '#FFFF00', color: '#C00000' };
-const TOMORROW_DD = { background: '#00B0F0' };
+// Soft tints in the site's status colours.
+export const GREEN = { background: '#EEF8F1', color: '#14532D' };
+export const RED = { background: '#FDF1F0', color: '#7A271A' };
+export const AMBER = { background: '#FFF8E6', color: '#7A4A06' };
+const CHECK = { background: '#FFF4D6', color: '#7A4A06', fontWeight: 600 };
+const ALERT = { background: '#FDECEA', color: '#B42318', fontWeight: 700 };
+const SOON = { background: '#EAF5FD', color: '#075985', fontWeight: 600 };
+const CANCELLED = { background: '#FBF3F3', color: '#9A8F8F' };
+const CALC = { background: '#F8FAFC' };
 const up = (x) => String(x ?? '').toUpperCase();
 
-// Background / text colour of one cell, as the sheet would draw it.
+// The EMD → VPG assignment columns (the sheet's N–AC), minus the loss pair.
+const EMD_BLOCK = (f) => ['emd', 'dd', 'dispo'].includes(f.group) && !LOSS_KEYS.has(f.key);
+const STATUS_TEXT = {
+  COMPLETE: { color: '#15803D', fontWeight: 700 },
+  CANCELLED: { color: '#B42318', fontWeight: 700 },
+  PENDING: { color: '#B54708', fontWeight: 700 },
+};
+
+// Background / text colour of one cell.
 export function cellStyle(d, f, today = laToday()) {
   const k = f.key;
   const st = up(d.status);
-  // 1–7: single-cell warnings.
-  if ((k === 'grossProfit' || k === 'netProfit') && typeof d.netProfit === 'number' && d.netProfit < 0) return RED;
-  if (k === 'emdReturned' && up(d.emdReturned) === 'NO') return RED;
-  if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return YELLOW;
-  if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return YELLOW;
-  if ((k === 'ddEnd' || k === 'ddEndTime') && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
+  const status = k === 'status' ? STATUS_TEXT[st] || {} : {};
+  // Single-cell checks first, as in the sheet.
+  if ((k === 'grossProfit' || k === 'netProfit') && typeof d.netProfit === 'number' && d.netProfit < 0) return ALERT;
+  if (k === 'emdReturned' && up(d.emdReturned) === 'NO') return ALERT;
+  if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return CHECK;
+  if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return CHECK;
+  if ((k === 'ddEnd' || k === 'ddEndTime') && st === 'PENDING' && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
     const n = daysBetween(today, d.ddEnd);
-    if (n === 0) return TODAY_DD;
-    if (n === 1) return TOMORROW_DD;
+    if (n === 0) return ALERT;
+    if (n === 1) return SOON;
   }
-  if (k === 'cfar' && up(d.cfar) === 'NO') return YELLOW;
-  // 8–9: whole row by deal status.
-  if (st === 'CANCELLED') return RED;
-  if (st === 'COMPLETE') return GREEN;
-  // 10–11: EMD → assignment block by EMD status.
-  if (N_TO_AC(f)) {
+  if (k === 'cfar' && up(d.cfar) === 'NO') return CHECK;
+  // Whole row by deal status.
+  if (st === 'CANCELLED') return { ...CANCELLED, ...status };
+  if (st === 'COMPLETE') return { ...GREEN, ...status };
+  // Pending: the EMD → assignment block by EMD status.
+  if (EMD_BLOCK(f)) {
     if (up(d.emdStatus) === 'COMPLETE') return GREEN;
     if (up(d.emdStatus) === 'PENDING') return RED;
   }
-  // 12: pending deals' contract + title block.
-  if (st === 'PENDING' && B_TO_M.has(f.group)) return AMBER;
-  if (BASE[k]) return { background: BASE[k] };
-  if (N_TO_AC(f)) return { background: CREAM };
-  return { background: '#FFFFFF' };
+  if (f.calc) return { ...CALC, ...status };
+  return { background: '#FFFFFF', ...status };
 }
 
-// The colour key shown above the table, in plain words.
+// The colour key above the table, in plain words.
 export const SHEET_LEGEND = [
-  [AMBER, 'Pending deal'], [GREEN, 'Closed'], [RED, 'Cancelled'],
+  [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
   [GREEN, 'EMD in (EMD → assignment columns)'], [RED, 'EMD still pending'],
-  [TODAY_DD, 'DD ends today'], [TOMORROW_DD, 'DD ends tomorrow'],
-  [YELLOW, 'Check: no CFAR · extra fees · commission not paid'],
+  [ALERT, 'DD ends today · net profit below zero'], [SOON, 'DD ends tomorrow'],
+  [CHECK, 'Check: no CFAR · extra fees · commission not paid'],
 ];

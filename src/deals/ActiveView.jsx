@@ -33,7 +33,7 @@ const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : '—');
 const street = (a) => String(a || '').split(',')[0];
 const TONE_TEXT = { red: 'text-[#B42318] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-[#15803D] font-semibold' };
 const isAsg = (d) => typeof d.grossAssign === 'number' && d.grossAssign >= 0;
-// The sheet's section bands.
+// The two lists, each marked with its colour dot (green = assigned, blue = needs a buyer).
 const SECTION = {
   assigned: { title: 'Assigned — headed to close', band: '#15803D' },
   needs: { title: 'Needs a buyer — in due diligence', band: '#1D4ED8' },
@@ -60,7 +60,7 @@ function Section({ id, rows, cols, sub, onOpen, empty }) {
   const sec = SECTION[id];
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title={<span className="inline-flex items-center rounded px-2.5 py-1 text-[12.5px] font-bold uppercase tracking-wide text-white" style={{ background: sec.band }}>{sec.title}</span>} sub={sub} />
+      <PanelHead title={<span className="inline-flex items-center gap-2 text-navy-800"><span className="w-2.5 h-2.5 rounded-full" style={{ background: sec.band }} />{sec.title}</span>} sub={sub} />
       {rows.length === 0 ? <div className="px-5 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">
@@ -97,15 +97,15 @@ function NeedsInfo({ groups, onOpen, total }) {
   const cur = groups.find((g) => g.cat.id === pick) || groups.find((g) => g.cat.id === 'assigned') || groups[0];
   const items = all ? cur.items : cur.items.slice(0, SHORT);
   return (
-    <section id="needs-info" className="rounded-xl border border-[#F4A3AE] bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <PanelHead title={<span className="inline-flex items-center rounded px-2.5 py-1 text-[12.5px] font-bold uppercase tracking-wide text-white bg-[#9C0006]">Needs info</span>}
+    <section id="needs-info" className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
+      <PanelHead title={<span className="inline-flex items-center gap-2 text-navy-800"><span className="w-2 h-2 rounded-full bg-[#B42318]" />Needs info</span>}
         sub={`${total} deal${total === 1 ? '' : 's'} missing something their stage needs · click a red field to fill it in`} />
       <div className="flex flex-wrap gap-1.5 px-5 pt-3">
         {groups.map(({ cat, items: its }) => (
           <button key={cat.id} type="button" onClick={() => { setPick(cat.id); setAll(false); }}
             className={`inline-flex items-center gap-2 rounded-lg px-3 h-8 text-[13px] font-medium ring-1 ${cur.cat.id === cat.id ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50'}`}>
             <span className={`w-2 h-2 rounded-full ${CAT_DOT[cat.tone]}`} />{cat.label}
-            <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${cur.cat.id === cat.id ? 'bg-white/20' : 'bg-[#FFC7CE] text-[#9C0006]'}`}>{its.length}</span>
+            <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${cur.cat.id === cat.id ? 'bg-white/20' : 'bg-[#FDECEA] text-[#B42318]'}`}>{its.length}</span>
           </button>
         ))}
       </div>
@@ -209,7 +209,7 @@ export default function ActiveView() {
   const property = (d, onOpen) => (
     <span className="inline-flex items-center gap-2 max-w-[300px]">
       <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 truncate text-left" title="Open the full deal">{street(d.address)}</button>
-      {ed && d._needs.length > 0 && <button type="button" onClick={() => onOpen(d.id, 'need')} title="What's missing" className="shrink-0 rounded px-1 text-[10.5px] font-bold bg-[#E5484D] text-white">{new Set(d._needs.flatMap((x) => x.fields)).size} missing</button>}
+      {ed && d._needs.length > 0 && <button type="button" onClick={() => onOpen(d.id, 'need')} title="What's missing" className="shrink-0 rounded px-1 text-[10.5px] font-bold bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD]">{new Set(d._needs.flatMap((x) => x.fields)).size} missing</button>}
     </span>
   );
   // The sheet's Pipeline-tab columns. Assigned: next step, property, acq →
@@ -228,8 +228,8 @@ export default function ActiveView() {
     ...(s.owner ? [{ label: 'Buyer', get: (d) => edit('buyer', d, firstLine(d.buyer)), cls: 'max-w-[190px] truncate text-zinc-700' }] : []),
     { label: 'Contract', right: true, get: (d) => edit('price', d, money(d.price)) },
     { label: 'Assignment', right: true, get: (d) => edit('vpgAssign', d, typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? money(d.vpgAssign) : <span className="text-zinc-300">—</span>) },
-    // Gross is a Financials number — owners and the TC only.
-    ...(s.readOnly ? [] : [{ label: 'Gross', right: true, get: (d) => (isAsg(d) ? <span className="font-bold text-[#15803D]">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">no buyer yet</span>) }]),
+    // Gross assignment: everyone (Luke, Oct 14 — reps keep the gross fee, nothing after it).
+    ...([{ label: 'Gross', right: true, get: (d) => (isAsg(d) ? <span className="font-bold text-[#15803D]">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">no buyer yet</span>) }]),
   ];
   const needsCols = [
     { label: 'Next step', get: (d) => <StepPill step={d.step} /> },
@@ -268,19 +268,19 @@ export default function ActiveView() {
       </>} />
       <Tiles cols={ed ? 7 : 6}>
         <Tile label="Active deals" value={tiles.active} onClick={() => setOnly(null)} active={!only} />
-        <Tile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={s.readOnly ? 'headed to close' : `${compact(tiles.assignedGross)} gross`} />
+        <Tile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={`${compact(tiles.assignedGross)} gross`} />
         <Tile label="Needs a buyer" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" />
         <Tile label="EMD at risk" value={tiles.emd} dot={tiles.emd ? 'red' : null} tone={tiles.emd ? 'text-[#B42318]' : ''} onClick={() => tog('emd')} active={only === 'emd'} />
         <Tile label="Past COE" value={tiles.past} dot={tiles.past ? 'red' : null} tone={tiles.past ? 'text-[#B42318]' : ''} onClick={() => tog('past')} active={only === 'past'} />
         <Tile label="Closing ≤ 7 days" value={tiles.soon} dot={tiles.soon ? 'amber' : null} tone={tiles.soon ? 'text-[#B54708]' : ''} onClick={() => tog('soon')} active={only === 'soon'} />
-        {ed && <Tile label="Needs info" value={tiles.need} dot={tiles.need ? 'red' : null} tone={tiles.need ? 'text-[#9C0006]' : ''} sub="missing for its stage" onClick={() => { setOnly(null); document.getElementById('needs-info')?.scrollIntoView({ behavior: 'smooth' }); }} />}
+        {ed && <Tile label="Needs info" value={tiles.need} dot={tiles.need ? 'red' : null} tone={tiles.need ? 'text-[#B42318]' : ''} sub="missing for its stage" onClick={() => { setOnly(null); document.getElementById('needs-info')?.scrollIntoView({ behavior: 'smooth' }); }} />}
       </Tiles>
       {only && <div className="mt-3 text-zinc-500">Showing only: {{ emd: 'EMD at risk', past: 'past COE', soon: 'closing within 7 days' }[only]} · <button onClick={() => setOnly(null)} className="text-blue-600 hover:underline">show all</button></div>}
       <div className="mt-4 flex flex-wrap items-center gap-3"><Legend /><span className="ml-auto"><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
       <div className="mt-3 flex flex-col gap-5">
         {ed && needGroups.length > 0 && <NeedsInfo groups={needGroups} onOpen={open} total={needFrozen.rows.length} />}
         <Section id="assigned" rows={assigned} cols={assignedCols} onOpen={open} empty="No assigned deals."
-          sub={s.readOnly ? `${assigned.length} deals` : `${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (isAsg(d) ? d.grossAssign : 0), 0))} gross assignment`} />
+          sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (isAsg(d) ? d.grossAssign : 0), 0))} gross assignment`} />
         <Section id="needs" rows={needs} cols={needsCols} onOpen={open} empty="Every pending deal has a buyer."
           sub={`${needs.length} deals · not yet assigned`} />
         {ed && missing.length > 0 && (

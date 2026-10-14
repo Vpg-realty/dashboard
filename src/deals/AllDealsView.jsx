@@ -26,7 +26,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import { missingKeys } from './required.js';
-import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND } from './sheet.js';
+import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
 import { PanelHead } from '../shell/Panel.jsx';
 
@@ -47,7 +47,6 @@ const CENTER = new Set(['date', 'list', 'number', 'percent']);
 // Column widths like the sheet's (a little roomier).
 const W = { address: 300, acq: 150, title: 210, buyer: 200, notes: 280, links: 190, ghlStage: 120, dispoMember: 140 };
 const widthOf = (f) => W[f.key] || (f.type === 'money' ? 116 : f.type === 'date' ? 92 : f.type === 'longtext' ? 200 : f.type === 'number' ? 74 : 108);
-const BORDER = '#D7DEE6';
 
 function GhlStage({ d, live }) {
   const label = d.ghlStage || (live ? GHL_STAGE[live.stage] : null);
@@ -141,8 +140,8 @@ export default function AllDealsView() {
           <option value="">All states</option>{opts('state').map((x) => <option key={x} value={x}>{x[0] + x.slice(1).toLowerCase()}</option>)}
         </select>
         {!s.readOnly && (
-          <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#9C0006] text-white ring-[#9C0006]' : 'bg-[#FFF1F3] text-[#9C0006] ring-[#F4A3AE] hover:bg-[#FFE4E8]'}`}>
-            Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FFC7CE]'}`}>{needCount}</span>
+          <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#B42318] text-white ring-[#B42318]' : 'bg-white text-[#B42318] ring-[#F5C2BD] hover:bg-[#FDF1F0]'}`}>
+            Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>
           </button>
         )}
       </div>
@@ -157,28 +156,28 @@ export default function AllDealsView() {
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} /></span>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-[11.5px] text-zinc-600">
-        <span className="font-semibold text-zinc-500">Colours (as in the sheet):</span>
-        {SHEET_LEGEND.map(([st, l]) => <span key={l} className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm border border-black/10" style={{ background: st.background }} />{l}</span>)}
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm ring-2 ring-inset ring-[#E5484D] bg-white" />Needed for its stage</span>
+        <span className="font-semibold text-zinc-500">Colour key:</span>
+        {SHEET_LEGEND.map(([st, l]) => <span key={l} className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm ring-1 ring-inset ring-black/10" style={{ background: st.background }} />{l}</span>)}
+        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm ring-2 ring-inset ring-[#D92D20] bg-white" />Needed for its stage</span>
         <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#B42318]" /><span className="w-2 h-2 rounded-full bg-[#DC8A0E]" /><span className="w-2 h-2 rounded-full bg-[#1D4ED8]" /><span className="w-2 h-2 rounded-full bg-[#15803D]" />next step (before the address)</span>
       </div>
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
         <PanelHead title="2026 VPG Deals" sub={`as of ${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`} />
         <div className="flex-1 min-h-0 overflow-auto">
-          <table className="text-left border-separate border-spacing-0 text-[12.5px] text-[#0E2941]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+          <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
             <colgroup>{cols.map((f) => <col key={f.key} style={{ width: widthOf(f), minWidth: widthOf(f) }} />)}</colgroup>
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[22px] px-2 text-[10.5px] font-bold uppercase tracking-wide whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ background: b.style.bg, color: b.style.fg, borderRight: '1px solid #4A5563' }}>{b.label}</th>
+                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[24px] px-2.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    style={{ background: b.style.bg, color: b.style.fg, borderRight: '1px solid rgba(255,255,255,0.18)' }}>{b.label}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
                   <th key={f.key} onClick={() => sortBy(f.key)} title="Sort by this column"
-                    className={`sticky top-[22px] px-2 py-1.5 text-[10.5px] font-bold uppercase leading-tight text-center cursor-pointer select-none hover:underline ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: '2px solid #2A3542' }}>
+                    className={`sticky top-[24px] px-2 pt-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide leading-tight text-center cursor-pointer select-none hover:text-navy-700 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${HEAD_RULE}` }}>
                     {f.key === 'address' ? 'Address' : f.label}{sort.replace(/^-/, '') === f.key ? (sort.startsWith('-') ? ' ↓' : ' ↑') : ''}
                   </th>
                 ))}
@@ -201,7 +200,7 @@ export default function AllDealsView() {
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
-                          className={`px-2 py-[3px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#E5484D]' : ''}`}
+                          className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
                           style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, maxWidth: widthOf(f) + 60 }}>
                           {f.key === 'address' ? (
                             <span className="flex items-center gap-1.5 min-w-0">
@@ -209,7 +208,7 @@ export default function AllDealsView() {
                               <button type="button" onClick={() => open(d.id)} title={`${step.text} — open the full deal`} className="truncate text-left hover:underline underline-offset-2">{d.address}</button>
                               {d._need.length > 0 && (
                                 <button type="button" onClick={() => open(d.id, 'need')} title={`Needs: ${d._need.map((k) => LABEL[k]).join(', ')}`}
-                                  className="ml-auto shrink-0 rounded px-1 text-[10.5px] font-bold bg-[#E5484D] text-white not-italic">{d._need.length} missing</button>
+                                  className="ml-auto shrink-0 rounded-full px-1.5 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] not-italic">{d._need.length} missing</button>
                               )}
                             </span>
                           ) : editable ? (
@@ -226,7 +225,7 @@ export default function AllDealsView() {
             {rows.length > 0 && (
               <tfoot className="font-bold">
                 <tr>
-                  {cols.map((f, i) => { const t = total(f); return <td key={f.key} className={`sticky bottom-0 px-2 py-1.5 whitespace-nowrap ${t != null ? 'text-right tabular-nums' : ''} ${i === 0 ? 'left-0 z-30' : 'z-20'}`} style={{ background: '#DEEAF6', borderTop: '2px solid #2A3542', borderRight: `1px solid ${BORDER}` }}>{i === 0 ? `Total · ${rows.length}` : t != null ? money(t, { cents: true }) : ''}</td>; })}
+                  {cols.map((f, i) => { const t = total(f); return <td key={f.key} className={`sticky bottom-0 px-2 py-1.5 whitespace-nowrap ${t != null ? 'text-right tabular-nums' : ''} ${i === 0 ? 'left-0 z-30' : 'z-20'}`} style={{ background: '#EEF2F8', color: '#1b385f', borderTop: `2px solid #1b385f`, borderRight: `1px solid ${BORDER}` }}>{i === 0 ? `Total · ${rows.length}` : t != null ? money(t, { cents: true }) : ''}</td>; })}
                 </tr>
               </tfoot>
             )}
