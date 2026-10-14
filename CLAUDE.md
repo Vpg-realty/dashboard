@@ -516,7 +516,9 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   (`UsMap.jsx`; state shapes `usStates.json`, made once from the US
   Census-based `us-atlas` states-albers-10m, pre-projected, no map library)
   coloured by number of reps / winter risk / legal status, or one rep's
-  states (`?rep=`); hover for a summary, click a state (`?state=`) for its
+  states (`?rep=`); hover outlines the state in tan and shows its summary
+  in a fixed bar above the map (Luke, Oct 14: no box following the
+  cursor), click a state (`?state=`) for its
   reps, legal note, dispo, this month's numbers, 7-day conversations and —
   owners / TC — the tracker's closed / contracts, close rate and avg net.
   "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
@@ -558,6 +560,20 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   binding) only when missing or changed (`ANTHROPIC_KEY_ID` = first 12 hex
   of its SHA-256), before the upload; never printed, never fails the deploy.
   Tests: node:sqlite shim + signed JWTs + a fake Anthropic endpoint.
+  **Zips in the chat** (Luke, Oct 14: "add zip holds to the chat … the chat
+  can be there for reps but only to pull existing zip data";
+  `edge/zipChat.js`): the button is also on the Zip center pages. Owners
+  (same shared thread) get live tools `zip_overview`, `zip_holds` (by state
+  / rep) and `zip_lookup`. Reps and managers with a `rep_id`
+  (`isZipChatRep`) get their own private thread `zips:<rep_id>`
+  (`threadFor`; the server picks it, the client's thread is ignored): system
+  prompt `REP_BRIEFING` only, no dashboard data, no memory, no spend shown;
+  each question carries `repContext` (their states, holds, requests used,
+  rules); tools `zip_lookup` / `state_availability` limited to their
+  states, other reps' holds shown as "held by another rep"; nothing can be
+  changed from the chat; `REP_DAILY` = 25 questions per Arizona day (429),
+  and their cost counts toward the same monthly cap. The TC and the TV get
+  no chat.
 
 ## Zip center (Luke, Oct 14)
 

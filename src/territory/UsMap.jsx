@@ -1,7 +1,9 @@
 // The US map for Territory (Luke, Oct 14: "who works where with an
 // interactive map"). State shapes: US Census via us-atlas, pre-projected
 // (src/territory/usStates.json, made once from us-atlas states-albers-10m).
-// Colour by number of reps, winter risk or legal status; hover for a summary,
+// Colour by number of reps, winter risk or legal status; hover a state to
+// outline it and show its summary in a fixed bar under the map (Luke, Oct 14:
+// a box following the cursor made it hard to see where the cursor was);
 // click to open the state.
 import { useEffect, useState } from 'react';
 import { REP_SCALE, LEGAL, OFF, fillFor, darkFill } from './mapColors.js';
@@ -25,8 +27,17 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   useEffect(() => { let on = true; import('./usStates.json').then((m) => on && setGeo(m.default)); return () => { on = false; }; }, []);
   if (!geo) return <div className="aspect-[975/610] grid place-items-center text-zinc-400">Loading map…</div>;
   const hs = hover && byAbbr.get(hover.id);
+  const hoverShape = hover && geo.states.find((s) => s.id === hover.id);
   return (
-    <div className="relative" onMouseLeave={() => setHover(null)}>
+    <div onMouseLeave={() => setHover(null)}>
+      <div className="mb-2 h-[52px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
+        {!hover ? <div className="h-full flex items-center text-zinc-500">Point at a state to see who works it · click to open it</div> : (
+          <>
+            <div className="truncate"><span className="font-semibold text-navy-800 text-[13.5px] mr-2">{hover.name}</span>{hs ? <span className="text-zinc-700">{hs.ghl.length ? hs.ghl.map((r) => r.name.split(' ')[0]).join(', ') : 'No reps'}{hs.marketStatus === 'Paused' ? ' · paused' : ''}</span> : <span className="text-zinc-500">Not on the territory sheet</span>}</div>
+            {hs && <div className="truncate text-zinc-500">{hs.legal} · {hs.winter ? 'winter risk' : 'year-round'} · dispo {hs.dispo || '—'}{hs.ghl.length > 0 ? ` · ${hs.act.opps} opps this month · ${hs.act.convos7} new convos in 7 days` : ''}</div>}
+          </>
+        )}
+      </div>
       <svg viewBox={`0 0 ${geo.w} ${geo.h}`} className="w-full h-auto block" role="img" aria-label="Map of the states we work">
         {geo.states.map((s) => {
           const st = byAbbr.get(s.id);
@@ -34,29 +45,18 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
           const on = selected === s.id;
           return (
             <path key={s.id} d={s.d} fill={f} stroke={on ? '#0e1e34' : '#ffffff'} strokeWidth={on ? 2.5 : 0.8}
-              className={st ? 'cursor-pointer transition-[filter] hover:brightness-95' : ''}
-              onMouseMove={(e) => { const box = e.currentTarget.ownerSVGElement.getBoundingClientRect(); setHover({ id: s.id, x: e.clientX - box.left, y: e.clientY - box.top, name: s.name }); }}
+              className={st ? 'cursor-pointer' : ''}
+              onMouseEnter={() => setHover({ id: s.id, name: s.name })}
               onClick={() => st && onSelect?.(s.id)} />
           );
         })}
+        {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" pointerEvents="none" />}
         {geo.states.filter((s) => byAbbr.has(s.id)).map((s) => {
           const st = byAbbr.get(s.id);
           const dark = darkFill(fillFor(st, mode, focusRep));
           return <text key={`t${s.id}`} x={s.cx} y={s.cy + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill={dark ? '#ffffff' : '#1b385f'} pointerEvents="none">{s.id}</text>;
         })}
       </svg>
-      {hover && (
-        <div className="pointer-events-none absolute z-10 w-60 rounded-lg border border-tan-200 bg-white shadow-lg px-3 py-2 text-[12.5px]" style={{ left: Math.min(hover.x + 14, 9999), top: hover.y + 14 }}>
-          <div className="font-semibold text-navy-800">{hover.name}</div>
-          {!hs ? <div className="text-zinc-500">Not on the territory sheet.</div> : (
-            <>
-              <div className="text-zinc-600 mt-0.5">{hs.ghl.length ? hs.ghl.map((r) => r.name.split(' ')[0]).join(', ') : 'No reps'}{hs.marketStatus === 'Paused' ? ' · paused' : ''}</div>
-              <div className="text-zinc-500 mt-0.5">{hs.legal} · {hs.winter ? 'winter risk' : 'year-round'} · dispo {hs.dispo || '—'}</div>
-              {hs.ghl.length > 0 && <div className="text-zinc-500 mt-0.5">{hs.act.opps} opps this month · {hs.act.convos7} new convos in 7 days</div>}
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
