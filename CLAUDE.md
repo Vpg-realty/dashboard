@@ -270,7 +270,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   welcome card with three tips for their role; first visit each Arizona day
   → a ~3 s navy splash (the V mark sweeps in, greeting, their day — closed /
   new contracts since yesterday, closings this week, needing attention — and
-  a line for the day; Monday / Friday have their own). Click / Esc skips;
+  a line for the day; Monday / Friday have their own); every new login
+  (Luke, Oct 14: "everytime someone relogs in") → the splash, then the
+  welcome card — /api/me's `loginAt` (the Access JWT's `iat`, set in
+  edge/auth.js) differs from the one stored. Click / Esc skips;
   stored per email in localStorage `vpg.welcome.<email>`; reduced motion
   respected; never in TV mode. Home's `scopeReps` moved to `shell/scope.js`.
 - **Login page & icons**: the Access login page uses the logo at
