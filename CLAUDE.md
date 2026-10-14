@@ -452,9 +452,12 @@ the server strips them (`forTc`) and refuses edits to them.
   still pending; **Avg net / closed** (net profit ÷ closed, owners) on the
   acq., dispo, state and month tables.
 - **GHL sync** (Luke, Oct 14: "automatically add properties every time a
-  property hits dispo active … if closed, it updates … if COE / IP changes,
-  it updates. But if I update it manually here, it doesn't update there,
-  only if the update [in GHL] does it change here"). The build's
+  property hits dispo active"; later the same day he took back the
+  updating: "create the opportunity with all provided data coming from GHL
+  custom fields. but after it is created i do not want it to update based
+  on pipeline stage … reps don't always update their pipelines and if i
+  change it on the tracker and then it reverts back, i lose all of that
+  data"). The build's
   `extractTrackerFeed` (server/deals.js; extra fields Contracted Price,
   Title/Escrow, Deal Type via `TRACKER_FIELD_KEYS`) puts every opp in Under
   Contract … Closed (closed / lost only if moved in the last 60 days) on
@@ -467,43 +470,97 @@ the server strips them (`forTc`) and refuses edits to them.
   changes but the `ghlStage` mirror; no match and in Dispo Active / Assigned
   (or Closed after the sync began) → **created** from GHL (address, rep,
   state, contracted price, title, deal type Cash → WHOLESALE / Creative →
-  CREATIVE, COE, contract date = startedAt, DD days from IP end); linked and
-  GHL's stage / COE / IP end differ from the baseline → the tracker
-  **follows** (closed → status COMPLETE, lost / abandoned → CANCELLED, back
-  open → PENDING; COE; IP end → DD days, or a typed DD end without a contract
-  date) and the baseline moves. A value changed only in the tracker stays
-  until GHL's own value changes. Nothing is written to GHL. D1 `deal_ghl
-  (ghl_id, deal_id, location, last, linked_at, updated_at)`; changes are
-  logged as "GHL sync"; each run leaves `settings.ghl_sync` (since, at,
-  counts), shown as "Synced with GHL N min ago" on Active. `ghlStage` is a
-  read-only field (type 'ghl'; the API refuses edits).
-- **All deals table** (Luke, Oct 14): Address and GHL stage are separate
-  columns; status chips Pending amber / Closed green / Cancelled red, and
-  closed rows tinted green, cancelled rows red; roomier cells with a line
-  between columns and per-type minimum widths. **Every cell is editable in
-  place** (`EditableCell.jsx`: dropdowns save on pick, text / numbers /
-  dates on Enter or click-away, Esc cancels, buyer / title use the same
-  past-entries picker; one field per save, logged, same conflict check);
-  calculated and GHL cells aren't. Clicking the address opens the full deal.
-- **Active columns** (Luke, Oct 14): Next step, Property, Acq → Dispo,
-  State, COE · in, Title, Buyer, Contract price, Assignment price (VPG
-  assignment), Gross — the same for both lists. COE and days-to-go are one
-  chip coloured like the board's Pipeline (`dueTone` in status.js: past due
-  maroon, today red, 1 day light red, 2 yellow, 3 blue, later plain; key in
-  the legend). Acq. and dispo people are boxed in their colour
-  (`people.jsx`: reps' board colour, others a steady palette colour).
-- **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
-  deal profile"): `src/deals/status.js` is the one place — `nextStep()`
-  (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:
-  red = act now (past COE, DD ending / expired with no buyer), amber =
-  needs attention (EMD pending with no payer, EMD VPG-only, no COE), blue =
-  closing within 7 days, green = on track / closed, grey = waiting on a
-  buyer / cancelled. Active: a colour bar on every row, the next step as a
-  coloured pill, EMD / days-to-COE / DD-end values coloured, coloured dots
-  on the tiles and a legend. All deals: a dot before each address. Deal
-  panel: the same pill in the header, a full-height bar down its left edge
-  in the tone, and the fields behind the next step (`step.fields`, e.g.
-  COE + status for "past COE") tinted with "● check this".
+  CREATIVE, COE, contract date = startedAt, DD days from IP end). Once a
+  deal exists or is linked, the sync **never changes it again** — status,
+  COE, DD and every other field stay as people left them; only the
+  read-only `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline
+  moves). A stage move in GHL shows up as a **Needs info** alert instead
+  (below) — e.g. GHL Closed / Lost while the tracker is still Pending. The
+  deal panel still offers "use GHL's" when GHL's COE differs. Nothing is
+  written to GHL. D1 `deal_ghl (ghl_id, deal_id, location, last,
+  linked_at, updated_at)`; changes are logged as "GHL sync"; each run
+  leaves `settings.ghl_sync` (since, at, counts), shown as "Synced with GHL
+  N min ago" on Active. `ghlStage` is a read-only field (type 'ghl'; the
+  API refuses edits).
+- **The sheet's look** (Luke, Oct 14: "super hard to follow and not
+  intuitive … come as close to the style of the original tracker with color
+  coding and everything"): `src/deals/sheet.js` holds the original sheet's
+  colours, read from its Deals tab — dark slate band over each column group
+  (orange "Dispo % loss" band over final assignment + net loss), coloured
+  column headers per group, per-column body fills, and its conditional
+  formats in its priority order: net profit < 0 red; EMD returned NO red;
+  commission paid NO → commission cells yellow; additional fees > 0 yellow;
+  DD end today yellow / red text, tomorrow cyan; CFAR NO yellow; cancelled
+  row red; closed row green; EMD status COMPLETE / PENDING → the EMD …
+  VPG-assignment block green / red; pending → contract + title block amber.
+  A colour key sits above the table.
+- **All deals table**: the sheet's column order (FIELDS; GHL stage after
+  the address, original contracted price after retrade), the full sheet by
+  default (`cols=overview` for the short set, or column groups), header
+  bands + coloured headers sticky, address column sticky, dense Arial-like
+  rows, a totals row. **Every cell is editable in place**
+  (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
+  Enter or click-away, Esc cancels, buyer / title use the same past-entries
+  picker; one field per save, logged, same conflict check); calculated and
+  GHL cells aren't. The address (with a next-step dot) opens the full deal;
+  "N missing" opens it on the first missing field. **Needs info** filter
+  (`?need=1`); cells a deal still needs are outlined red.
+- **Active** = the sheet's Pipeline tab: "As of" date, tiles (Active,
+  Assigned, Needs a buyer, EMD at risk, Past COE, Closing ≤ 7 days, Needs
+  info), the green "Assigned — headed to close" and blue "Needs a buyer —
+  in due diligence" lists (in the app's Panel cards), grey column headers,
+  zebra rows, the sheet's columns — assigned: next step, property, acq →
+  dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
+  (Luke, Oct 14), gross (owners / TC); needs a buyer: next step, property,
+  acq. manager, state, COE, days, EMD, DD end, dispo team, title,
+  contract. Days red when past, amber ≤ 7; EMD ✓ green, "Pending" / "VPG
+  only" red. The COE chip keeps the board's Pipeline colours (`dueTone`).
+  COE, title, buyer, prices and dispo team edit in place (owners / TC).
+  People are boxed in their colour (`people.jsx`).
+- **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
+  in its order, plus Closed / Cancelled) gives each deal the sheet's
+  Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
+  EMD VPG-only), amber = coming up (DD ending / expired without a buyer,
+  set COE, closing ≤ 7 days — `soon`), blue = find a buyer, green = on
+  track / closed; cancelled red. Active: a colour bar on every row and the
+  next step as a coloured pill; All deals: a dot before each address; deal
+  panel: the pill in the header, a bar down its left edge, and the fields
+  behind the next step (`step.fields`) tinted with "● check this". Home's
+  Deal tracker card counts the same tones.
+- **Needs info** (Luke, Oct 14: "alerts that tell me what data is missing
+  per deal based on pipeline stage or change of pipeline stage … if it
+  moves from dispo active to assigned, I need to enter all sold details …
+  if a deal or property is added and there is missing info … a new deal
+  category"): `src/deals/required.js` is the ONE place for required fields
+  per stage — `CATEGORIES`: **New deal — missing basics** (every pending
+  deal: address, acq, state, contract date, COE, deal / listing type,
+  contracted price, title agency, EMD amount (unless EMD status NA), EMD
+  status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
+  needs dispo details** (GHL stage Dispo active: dispo team, dispo member
+  if VPG, asking price); **Moved to Assigned — needs sold details** (GHL
+  stage Assigned, or an assignment price / buyer in: dispo team, dispo
+  member, buyer (if VPG; owners only), VPG and final assignment price, EMD
+  paid by — "PENDING" counts as missing); **Closed — needs closing
+  details** (closed in the tracker with COE in the last 90 days, or GHL
+  Closed while the tracker is pending — then status is flagged too: final
+  assignment, wire date / received, EMD returned (when VPG paid EMD),
+  commission paid (owners)); **Lost in GHL — confirm the cancel** (status).
+  Money must be above 0. `needsInfo(deal, {owner, readOnly})` lists only
+  fields the person can fill in (TC: no secret fields; reps / managers get
+  no alerts — view only). Shown as the Active tile + section (a tab per
+  category, a field chip per missing field), the All deals filter / red
+  outlines, and in the deal panel: a "Needs info" box, each missing field
+  tinted "● needed". `?focus=<field>` (or `focus=need`) on a deal link
+  scrolls to and focuses that field (`useDealPanel`); a newly added deal
+  opens with `focus=need`.
+- **Rows don't jump while you edit** (Luke, Oct 14: "i do not want it to
+  automatically resort … a button … 'it's ok to sort now'"):
+  `src/deals/useFrozenOrder.js` freezes the row order (and on Active which
+  list a deal is in) when a sort / filter / search / period is picked; an
+  edited row stays where it was (dimmed if it no longer matches the
+  filter), new deals join at the end, and "Order is out of date — Re-sort
+  now" appears once a fresh sort would differ. Header clicks still sort.
+  Same on Active (both lists and Needs info).
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
   `y:2026`, `q:2026-4`, `m:2026-10`, `r:2026-09-01..2026-10-14`; compare
   `prev` / `yoy`.
