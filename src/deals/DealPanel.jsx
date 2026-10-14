@@ -4,7 +4,7 @@
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
 import { useEffect, useMemo, useState } from 'react';
-import { FIELDS, GROUPS, compute, payouts, repSees } from './math.js';
+import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
@@ -24,6 +24,27 @@ function checks(d) {
   if (d.status === 'PENDING' && d.emdStatus === 'PENDING' && ISO.test(d.emdDue || '') && d.emdDue < t) out.push(`EMD was due ${shortDate(d.emdDue)} and is still pending.`);
   if (typeof d.finalAssign === 'number' && typeof d.price === 'number' && d.finalAssign > 0 && d.finalAssign < d.price) out.push('Final assignment price is below the contracted price.');
   return out;
+}
+
+// The Zillow link field: its URLs as links; with none yet, Zillow's search
+// for the address (and, for editors, a button to save it as the link).
+const URL_RE = /https?:\/\/\S+/g;
+const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'link'; } };
+function LinkList({ value, address, onUse, small }) {
+  const urls = String(value || '').match(URL_RE) || [];
+  const z = zillowUrl(address);
+  const a = 'text-blue-700 hover:underline underline-offset-2 break-all';
+  if (urls.length) {
+    if (small) return <span className="flex flex-wrap gap-x-3 mt-1 text-[12.5px]">{urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer" className={a}>{/zillow\.com/.test(u) ? 'Open on Zillow ↗' : `Open ${host(u)} ↗`}</a>)}</span>;
+    return <div className="flex flex-col gap-0.5 text-[14px] font-medium">{urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer" className={a}>{/zillow\.com/.test(u) ? 'Open on Zillow ↗' : u}</a>)}</div>;
+  }
+  if (!z) return small ? null : <span className="text-zinc-300">—</span>;
+  return (
+    <span className={`flex flex-wrap items-center gap-x-3 ${small ? 'mt-1 text-[12.5px]' : 'text-[14px] font-medium'}`}>
+      <a href={z} target="_blank" rel="noreferrer" className={a}>Search Zillow for this address ↗</a>
+      {onUse && <button type="button" onClick={(e) => { e.preventDefault(); onUse(z); }} className="text-zinc-600 hover:text-navy-800 underline underline-offset-2">use as the link</button>}
+    </span>
+  );
 }
 
 function History({ id }) {
@@ -199,7 +220,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                 <section key={gid} className="rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)] overflow-hidden">
                   <h3 className="flex items-center gap-2.5 px-4 py-2.5 bg-navy-50/70 border-b border-tan-200">
                     <span className="grid place-items-center w-6 h-6 rounded-full bg-navy-800 text-white text-[11.5px] font-semibold tabular-nums">{gi + 1}</span>
-                    <span className="text-[14px] font-semibold text-navy-800">{glabel}</span>
+                    <span className="text-[14px] font-semibold text-navy-800">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
                   <div className={`grid grid-cols-2 gap-x-5 ${ro ? 'gap-y-3.5' : 'gap-y-4'} px-4 py-4`}>
                     {FIELDS.filter((f) => f.group === gid && visible(f) && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
@@ -223,11 +244,14 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                               <span className={`tabular-nums ${ro ? 'text-[14.5px] font-semibold' : 'text-[14px] font-medium'} ${isFixed ? 'text-amber-900' : ro ? 'text-navy-900' : 'text-zinc-900'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400 font-normal">no buyer yet</span> : show(f, merged[f.key])}</span>
                               {isFixed && !ro && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
                             </div>
+                          ) : f.key === 'links' && ro ? (
+                            <LinkList value={value} address={merged.address} />
                           ) : ro ? (
                             <div className="text-[14.5px] font-semibold text-navy-900 tabular-nums">{text(value)}</div>
                           ) : (
                             <>
                               <Input f={f} lists={s.lists} disabled={ro} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />
+                              {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>
                           )}

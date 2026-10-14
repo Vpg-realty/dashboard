@@ -316,8 +316,8 @@ the server strips them (`forTc`) and refuses edits to them.
   `mine` when they're its acq. manager or dispo member — name from
   subaccounts.json via `rep_id`). Writes 403.
 - **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
-  Title, EMD, Due diligence and Dispositions — not Financials, Bookkeeping,
-  Notes, nor Net loss % (owners only). `repSees` / `forRep` (math.js) — the
+  Title, EMD, Due diligence and Dispositions, plus the Zillow link — not
+  Financials, Bookkeeping, Notes, nor Net loss % (owners only). `repSees` / `forRep` (math.js) — the
   server strips the rest (and its history entries, `REP_LOG`); view-only
   fields read as plain text, not greyed-out boxes.
 - **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
@@ -325,6 +325,14 @@ the server strips them (`forTc`) and refuses edits to them.
   assignment price, gross for owners / TC, COE chip, DD end), each group a
   numbered white card with a navy title on a tan background. Deals pages
   are full width (max 1720px) with bigger tiles and roomier rows.
+- **Zillow link** (Luke, Oct 14; the field `links`, renamed from "Zillow /
+  Dropbox links"): every new deal — added on the site (POST /api/deals) or
+  created by the GHL sync (`newDealFrom`) — gets `zillowUrl(address)`
+  (math.js), Zillow's address search link
+  (`zillow.com/homes/<address>_rb/`), which opens the home's page when
+  Zillow knows the address. Zillow has no free lookup API and nothing is
+  fetched. The panel shows "Open on Zillow ↗"; a deal with no link shows
+  "Search Zillow for this address ↗" (+ "use as the link" for editors).
 - **Buyer is owners only** (Luke, Oct 14: "can only be seen by Jack and
   myself" — so reps can't take buyers' names): the `buyer` field is secret,
   like the commission / profit columns, so the server strips it for the TC
