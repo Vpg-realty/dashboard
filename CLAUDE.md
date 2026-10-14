@@ -131,8 +131,25 @@ tv (info@). Never trust a plain email header. `DEV_EMAIL` is a local
   updated_by, updated_at)`, `scorecard_reviews (week, reviewed_by,
   reviewed_at)`; POST merges per rep and field and signs the week as
   reviewed by whoever saved; every save goes to `edit_log`.
-Browser: `src/utils/dashApi.js` (`useMe`, `canGrade`); on a local `vite
-preview` there's no /api and the Scorecard stays read-only. Tests: the
+**Who sees what** (Luke, Oct 14: "non managers and owners only see what is
+presented on the TV, nothing else"): reps, Aiza and the TV get the TV tabs
+only — no Manager group (ViewNav), no Refresh / Sub-Accounts buttons
+(Header), and App.jsx sends anyone without the role off a manager view.
+Enforced on the server too: `functions/_middleware.js` refuses
+`data-mgr.json`, `scorecards.json`, `messaging-review.json` and
+`month-log.json` to anyone but owners, managers and the build's service
+token (`role: 'service'` — a verified Access JWT with `common_name`, no
+email; it can read but not grade). `dist-cf/_routes.json` (written by
+deploy-cloudflare.mjs) sends only `/api/*` and those four files through the
+functions, so page loads and the TV's polling stay plain static files.
+`scripts/split-private-data.mjs` (first in `npm run build`, after snapshot
+and history have used the full file) moves each pair's `crm`, `messaging`,
+`calls`, `callsError` out of data.json into `data-mgr.json` (data.json
+152 → 44 KB); `liveStore.js` merges it back for managers, and
+build-snapshot's `loadPrevData` merges it back for the reuse windows.
+Browser: `src/utils/dashApi.js` (`useMe`, `loadMe`, `canGrade`). On a local
+`vite preview` there's no /api, so everyone looks like a non-manager —
+mock `/api/me` with Playwright `page.route` to see the manager tabs. Tests: the
 endpoints run in Node against node:sqlite with a locally signed JWT
 (forged / tampered / expired / wrong-app tokens rejected). Role-based tab
 visibility and the deal tracker come next; the Sub-Accounts panel still

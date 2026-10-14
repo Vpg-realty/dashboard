@@ -34,8 +34,10 @@ function tokenFrom(request) {
   return m ? m[1] : null;
 }
 
-// The verified email on the request, or null.
-export async function verifiedEmail(request) {
+// The verified token's claims on the request, or null. A person's token has
+// `email`; the build's service token ("dashboard-build") has `common_name`
+// (its client id) and no email.
+export async function verifiedClaims(request) {
   const token = tokenFrom(request);
   if (!token) return null;
   const [h, p, s] = token.split('.');
@@ -52,24 +54,32 @@ export async function verifiedEmail(request) {
     const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
     if (!aud.includes(AUD) || payload.iss !== TEAM) return null;
     if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
-    return typeof payload.email === 'string' ? payload.email.toLowerCase() : null;
+    return payload;
   } catch {
     return null;
   }
 }
 
 // { email, name, role } for the signed-in person; role 'none' if they got
-// past Access but aren't in the users table. null = not signed in.
+// past Access but aren't in the users table; role 'service' for the build's
+// service token. null = not signed in.
 // DEV_EMAIL is for `wrangler pages dev` on a laptop only — it is never set
 // on the live site.
 export async function currentUser({ request, env }) {
-  const email = (await verifiedEmail(request)) || (env.DEV_EMAIL ? String(env.DEV_EMAIL).toLowerCase() : null);
+  const claims = await verifiedClaims(request);
+  if (claims && !claims.email && typeof claims.common_name === 'string' && claims.common_name) {
+    return { email: null, name: 'build', role: 'service' };
+  }
+  const email = typeof claims?.email === 'string' ? claims.email.toLowerCase() : (env.DEV_EMAIL ? String(env.DEV_EMAIL).toLowerCase() : null);
   if (!email) return null;
   const row = await env.DB.prepare('SELECT email, name, role FROM users WHERE email = ?').bind(email).first();
   return row || { email, name: email, role: 'none' };
 }
 
 export const canGrade = (u) => !!u && (u.role === 'owner' || u.role === 'manager');
+// Manager-level data files: owners, managers, and the build (which reads its
+// own previous files back).
+export const canSeeManagerData = (u) => canGrade(u) || u?.role === 'service';
 
 export const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,

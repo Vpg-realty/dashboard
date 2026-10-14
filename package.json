@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/deploy-cloudflare.mjs",
+    "build": "node scripts/split-private-data.mjs && vite build && node scripts/deploy-cloudflare.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "snapshot": "node scripts/cloudflare-handoff.mjs && node scripts/load-private-files.mjs && node scripts/build-snapshot.mjs && node scripts/review-messaging.mjs",

@@ -19,13 +19,16 @@ async function call(path, opts = {}) {
 let me;            // undefined = not loaded, null = unknown / not available
 let meLoading = null;
 const meListeners = new Set();
+// Resolves once with the signed-in person (or null); shared by every caller.
+export function loadMe() {
+  if (!meLoading) meLoading = call('me').catch(() => null).then((u) => { me = u; meListeners.forEach((f) => f(u)); return u; });
+  return meLoading;
+}
 export function useMe() {
   const [state, setState] = useState(me);
   useEffect(() => {
     meListeners.add(setState);
-    if (me === undefined && !meLoading) {
-      meLoading = call('me').catch(() => null).then((u) => { me = u; meListeners.forEach((f) => f(u)); });
-    }
+    if (me === undefined) loadMe();
     return () => meListeners.delete(setState);
   }, []);
   return state;

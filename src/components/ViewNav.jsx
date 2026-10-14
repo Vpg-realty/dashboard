@@ -1,4 +1,5 @@
 import { CYCLE_VIEWS, MANAGER_VIEWS } from '../data/config.js';
+import { useMe, canGrade } from '../utils/dashApi.js';
 
 const LABELS = {
   conversations: 'Conversations',
@@ -13,8 +14,11 @@ const LABELS = {
 
 // Two groups (Luke, Oct 8): the TV tabs, which rotate, then the Manager
 // tabs — blue, behind a "Manager" label — which are click-only and never
-// shown in the rotation. They replaced the Advanced tab.
+// shown in the rotation. They replaced the Advanced tab. Only managers and
+// owners get the Manager group (Luke, Oct 14: everyone else, the TV
+// included, sees what the TV shows and nothing else).
 export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
+  const showManager = canGrade(useMe());
   const tab = (v, manager) => (
     <button
       key={v}
@@ -32,9 +36,13 @@ export default function ViewNav({ active, onChange, cycleIntervalMs = 10000 }) {
     <nav className="flex items-center gap-1 px-6 py-2.5 border-b border-zinc-300/80 bg-zinc-50 overflow-x-auto">
       <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 pr-1 shrink-0">TV ▸</span>
       {CYCLE_VIEWS.map((v) => tab(v, false))}
-      <span className="mx-2 h-6 w-px bg-zinc-300 shrink-0" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600 pr-1 shrink-0">Manager ▸</span>
-      {MANAGER_VIEWS.map((v) => tab(v, true))}
+      {showManager && (
+        <>
+          <span className="mx-2 h-6 w-px bg-zinc-300 shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600 pr-1 shrink-0">Manager ▸</span>
+          {MANAGER_VIEWS.map((v) => tab(v, true))}
+        </>
+      )}
       <div className="ml-auto text-[10px] uppercase tracking-widest text-zinc-400 hidden 2xl:block shrink-0">
         TV tabs rotate every {Math.round(cycleIntervalMs / 1000)}s
       </div>
