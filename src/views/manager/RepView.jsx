@@ -79,7 +79,10 @@ const pickCls = 'rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibo
 
 // `self` (Oct 14): a rep's own page ("My scorecard") — no rep picker, no
 // way back to the full scorecard, plus their CRM checklist.
-export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
+export default function RepView({ repId, onPickRep, onBack, withTeam, self, breakdown }) {
+  // `breakdown` (My scorecard's "full breakdown", Luke Oct 14): only the
+  // rep's own numbers — no team rates in the funnel / states.
+  const solo = !!breakdown;
   const rep = REPS.find((r) => r.id === repId) || REPS[0];
   const pairs = repPairs(rep.id);
   const history = historyEntries();
@@ -213,8 +216,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
   );
 
   return (
-    <ManagerFrame title={self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
-      <div className={`h-full grid ${self ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
+    <ManagerFrame title={breakdown ? 'Full breakdown' : self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : breakdown ? 'Only your own numbers — pick any week, month or dates' : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
+      <div className={`h-full grid ${self && !breakdown ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
         <div className="flex items-center gap-4 rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5">
           {!self && <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline whitespace-nowrap">← Scorecard</button>}
           <span className="w-4 h-4 rounded-full" style={{ background: rep.color }} />
@@ -243,7 +246,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
           )}
           {leak && (
             <span className="ml-4 rounded-full bg-orange-100 text-orange-800 px-3 py-1 text-sm font-bold">
-              ⚠ Leak: {leak.s.label} — {pct(leak.r)} vs team {pct(teamRates[leak.i])}
+              ⚠ {solo ? 'Biggest drop' : 'Leak'}: {leak.s.label} — {pct(leak.r)}{solo ? '' : ` vs team ${pct(teamRates[leak.i])}`}
             </span>
           )}
           {!range && (
@@ -288,8 +291,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
             <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} subText={when} />
           </div>
         )}
-        {self && <MyCrmCard pairs={pairs} monday={wk} crm={crm} manual={reviewFor(sc, wk, rep.id, null).manual} />}
-        <RepProgress sc={sc} rep={rep} />
+        {self && !breakdown && <MyCrmCard pairs={pairs} monday={wk} crm={crm} manual={reviewFor(sc, wk, rep.id, null).manual} />}
+        <RepProgress sc={sc} rep={rep} pointsOnly={solo} />
         <div className="grid grid-cols-[1.1fr_1.4fr] gap-3 min-h-0">
           <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
             <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Funnel · {when}</div>
@@ -302,7 +305,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
                   <div key={label}>
                     {i > 0 && (
                       <div className={`text-sm font-semibold pl-32 ${isLeak ? 'text-orange-700' : 'text-zinc-500'}`}>
-                        {st ? <>↓ {pct(rate(m, st))} <span className="font-normal">(team {pct(teamRates[i - 1])})</span>{isLeak ? ' ⚠ biggest leak' : ''}</> : <span className="font-normal text-zinc-400">↓ closings mostly come from earlier months' contracts</span>}
+                        {st ? <>↓ {pct(rate(m, st))}{solo ? ' moved on' : <span className="font-normal"> (team {pct(teamRates[i - 1])})</span>}{isLeak ? (solo ? ' ⚠ your biggest drop' : ' ⚠ biggest leak') : ''}</> : <span className="font-normal text-zinc-400">↓ closings mostly come from earlier months' contracts</span>}
                       </div>
                     )}
                     <div className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-2">
@@ -340,11 +343,11 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
                   <span className={`text-lg font-bold ${mm.cancelsM ? 'text-rose-700' : 'text-zinc-300'}`}>{mm.untracked?.has('cancelsM') ? '—' : mm.cancelsM || 0}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('closedM') ? '—' : mm.closedM}</span>
                   <span className="text-lg font-bold">{mm.untracked?.has('projected') ? '—' : formatCompactCurrency(mm.projected)}</span>
-                  <span className={`rounded-md py-1 text-center text-base font-bold ${convCls(rate(mm, STEPS[0]), teamRates[0])}`}>{pct(rate(mm, STEPS[0]))}</span>
+                  <span className={`rounded-md py-1 text-center text-base font-bold ${solo ? 'bg-zinc-100 text-zinc-700' : convCls(rate(mm, STEPS[0]), teamRates[0])}`}>{pct(rate(mm, STEPS[0]))}</span>
                 </div>
               ))}
             </div>
-            <div className="text-xs text-zinc-500 pt-2 border-t border-zinc-200">States share the rep's targets, so they show counts and conversion, not targets. Convo→Opp coloured vs the team rate.</div>
+            <div className="text-xs text-zinc-500 pt-2 border-t border-zinc-200">{solo ? 'Your states share your targets, so they show counts and conversion, not targets.' : "States share the rep's targets, so they show counts and conversion, not targets. Convo→Opp coloured vs the team rate."}</div>
           </div>
         </div>
       </div>

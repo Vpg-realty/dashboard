@@ -31,23 +31,23 @@ function Legend() {
 
 function Table({ title, sub, rows, cols, onOpen, empty }) {
   return (
-    <section className="rounded-xl border border-zinc-200/80 bg-white overflow-hidden">
-      <div className="flex items-baseline gap-2 px-4 py-3 border-b border-zinc-100">
-        <h2 className="font-semibold">{title}</h2>
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      <div className="flex items-baseline gap-2 px-5 py-3.5 border-b border-tan-200">
+        <h2 className="text-[15px] font-semibold text-navy-800">{title}</h2>
         <span className="text-zinc-500">{sub}</span>
       </div>
       {rows.length === 0 ? <div className="px-4 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="text-[11.5px] text-zinc-500">
-              <tr>{cols.map((c) => <th key={c.label} className={`px-2.5 py-2 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr>
+          <table className="w-full text-left text-[14px]">
+            <thead className="text-[12px] text-zinc-500 bg-tan-50/60">
+              <tr>{cols.map((c, i) => <th key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((d) => (
-                <tr key={d.id} onClick={() => onOpen(d.id)} className="border-t border-zinc-100 hover:bg-zinc-50 cursor-pointer">
+                <tr key={d.id} onClick={() => onOpen(d.id)} className="border-t border-tan-100 hover:bg-tan-50 cursor-pointer">
                   {cols.map((c, i) => (
-                    <td key={c.label} className={`${i === 0 ? 'relative pl-4' : ''} px-2.5 py-2 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>
-                      {i === 0 && <span className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-r ${TONES[d.step.tone].bar}`} />}
+                    <td key={c.label} className={`${i === 0 ? 'relative pl-5' : ''} px-3 py-3 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>
+                      {i === 0 && <span className={`absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r ${TONES[d.step.tone].bar}`} />}
                       {c.get(d)}
                     </td>
                   ))}
@@ -104,7 +104,7 @@ export default function ActiveView() {
   // buyer, contract price, assignment price, gross.
   const cols = [
     { label: 'Next step', get: (d) => <StepPill step={d.step} /> },
-    { label: 'Property', get: (d) => <span className="font-medium text-zinc-900">{street(d.address)}</span>, cls: 'max-w-[190px] truncate' },
+    { label: 'Property', get: (d) => <span className="font-medium text-zinc-900">{street(d.address)}</span>, cls: 'max-w-[280px] truncate' },
     { label: 'Acq → Dispo', get: (d) => <span className="inline-flex items-center gap-1.5"><Person name={d.acq} /><span className="text-zinc-400">→</span><Person name={d.dispoMember} /></span> },
     { label: 'State', get: (d) => stateCode(d.state) },
     { label: 'COE · in', get: (d) => {
@@ -117,16 +117,16 @@ export default function ActiveView() {
         </span>
       );
     } },
-    { label: 'Title', get: (d) => firstLine(d.title), cls: 'max-w-[150px] truncate text-zinc-600' },
+    { label: 'Title', get: (d) => firstLine(d.title), cls: 'max-w-[220px] truncate text-zinc-600' },
     // Buyer names are owners only (Oct 14) — the server doesn't send them to anyone else.
-    ...(s.owner ? [{ label: 'Buyer', get: (d) => firstLine(d.buyer), cls: 'max-w-[150px] truncate text-zinc-600' }] : []),
+    ...(s.owner ? [{ label: 'Buyer', get: (d) => firstLine(d.buyer), cls: 'max-w-[220px] truncate text-zinc-600' }] : []),
     { label: 'Contract price', right: true, get: (d) => money(d.price) },
     { label: 'Assignment price', right: true, get: (d) => (typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? money(d.vpgAssign) : <span className="text-zinc-300">—</span>) },
     { label: 'Gross', right: true, get: (d) => (typeof d.grossAssign === 'number' && d.grossAssign >= 0 ? <span className="font-semibold">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">no buyer yet</span>) },
   ];
 
   return (
-    <div className="max-w-[1400px]">
+    <div className="max-w-[1720px] mx-auto">
       <PageHead title="Active deals" sub={s.readOnly ? 'Every pending deal, with the next step. Click a deal to see it.' : <>Everything pending, with the next step. Click a deal to open it. <SyncNote sync={s.sync} /></>} right={<>
         {s.readOnly && (
           <span className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">

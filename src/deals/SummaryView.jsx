@@ -107,7 +107,7 @@ export default function SummaryView() {
   const maxNet = data.months ? Math.max(1, ...data.months.map((m) => m.net)) : 1;
 
   return (
-    <div className="max-w-[1400px]">
+    <div className="max-w-[1720px] mx-auto">
       <PageHead title="Deal summary" sub={`${period.label} · by ${DATE_BY[by]}`} right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
       <div className="grid grid-cols-2 lg:grid-cols-4 rounded-t-xl border border-zinc-200/80 bg-white overflow-hidden [&>*]:border-b lg:[&>*]:border-b-0">
         <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still pending`} />

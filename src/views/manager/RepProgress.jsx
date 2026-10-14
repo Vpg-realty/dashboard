@@ -15,7 +15,9 @@ function partPts(r, key) {
 }
 const cellCls = (share) => (share == null ? 'bg-zinc-50 text-zinc-300' : share >= 1 ? 'bg-emerald-100 text-emerald-800' : share >= 0.6 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800');
 
-export default function RepProgress({ sc, rep }) {
+// `pointsOnly` (My scorecard's breakdown): just the points table — the
+// score chart is already on the page above it.
+export default function RepProgress({ sc, rep, pointsOnly }) {
   const weeks = weekSeries(sc, 8);
   const mine = weeks.map((w) => w.reps[rep.id]?.s.score ?? null);
   const team = weeks.map((w) => w.teamAvg ?? avgOf(Object.values(w.reps).map((r) => r.s.score)));
@@ -46,15 +48,15 @@ export default function RepProgress({ sc, rep }) {
     <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5 flex flex-col min-h-0">
       <div className="flex items-baseline gap-3 shrink-0">
         <span className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Progress · last {weeks.length} weeks</span>
-        <span className="text-lg font-bold">Is {rep.name.split(' ')[0]} improving?</span>
-        <span className="ml-auto flex items-center gap-4 text-[11px] text-zinc-600">
+        <span className="text-lg font-bold">{pointsOnly ? 'Points earned, week by week' : `Is ${rep.name.split(' ')[0]} improving?`}</span>
+        {!pointsOnly && <span className="ml-auto flex items-center gap-4 text-[11px] text-zinc-600">
           <span className="inline-flex items-center gap-1 font-semibold"><span className="w-4 h-1 rounded" style={{ background: rep.color }} />{rep.name.split(' ')[0]}</span>
           <span className="inline-flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-zinc-500" />Team average</span>
           <span>{onFile} of {weeks.length} weeks on file</span>
-        </span>
+        </span>}
       </div>
-      <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_10.5rem] gap-4 pt-1">
-        <div className="min-h-0">
+      <div className={`flex-1 min-h-0 grid ${pointsOnly ? 'grid-cols-1' : 'grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_10.5rem]'} gap-4 pt-1`}>
+        {!pointsOnly && <div className="min-h-0">
           <LineChart
             labels={weeks.map((w) => w.label)}
             autoFrom={autoFrom}
@@ -63,7 +65,7 @@ export default function RepProgress({ sc, rep }) {
               { name: rep.name, color: rep.color, bold: true, showValues: true, values: mine },
             ]}
           />
-        </div>
+        </div>}
         <div className="min-h-0 flex flex-col">
           <div className="grid gap-1 text-[10px] uppercase tracking-[0.06em] text-zinc-500 font-semibold pb-0.5" style={{ gridTemplateColumns: `8.5rem repeat(${weeks.length}, minmax(0,1fr))` }}>
             <span>Points earned</span>
@@ -93,7 +95,7 @@ export default function RepProgress({ sc, rep }) {
             </div>
           </div>
         </div>
-        <div className="min-h-0 flex flex-col justify-around border-l border-zinc-200 pl-4">
+        {!pointsOnly && <div className="min-h-0 flex flex-col justify-around border-l border-zinc-200 pl-4">
           {facts.map(([l, v]) => (
             <div key={l}>
               <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold">{l}</div>
@@ -101,7 +103,7 @@ export default function RepProgress({ sc, rep }) {
             </div>
           ))}
           <div className="text-[10px] text-zinc-400 leading-tight">* CRM scaled to its full points while some items aren't graded. Weeks before Oct 12 used the old weights (CRM 25, opps 10, no speed).</div>
-        </div>
+        </div>}
       </div>
     </div>
   );
