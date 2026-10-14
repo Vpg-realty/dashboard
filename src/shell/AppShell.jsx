@@ -35,12 +35,16 @@ import UserMenu from './UserMenu.jsx';
 import AskClaude from '../chat/ChatPanel.jsx';
 import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
 import TerritorySheet from '../territory/SheetView.jsx';
+import MyZips from '../zips/MyZips.jsx';
+import AllZips from '../zips/AllZips.jsx';
+import ZipRules from '../zips/RulesHealth.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet,
+  'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };

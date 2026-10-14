@@ -59,6 +59,16 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: the zip center — reps request zips (automatic, never
+    // duplicated), owners assign / approve, everyone can read the rules.
+    id: 'zips', label: 'Zip center', icon: 'pin', roles: PEOPLE,
+    tabs: [
+      { id: 'mine', label: 'My zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
+      { id: 'all', label: 'All zips', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      { id: 'rules', label: 'Rules & data health', view: 'zips-rules', scroll: true },
+    ],
+  },
+  {
     // Luke, Oct 14: each rep sees their own scorecard (team average line, no
     // notes, no other rep's scores); a simple page with the full breakdown below.
     id: 'me', label: 'My scorecard', icon: 'user', roles: ['team', 'manager'],
