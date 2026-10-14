@@ -12,29 +12,19 @@ import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { formatCompactCurrency } from '../utils/format.js';
-import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
+import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals } from '../deals/store.js';
-import { nextStep } from '../deals/status.js';
+import { nextStep, dueTone } from '../deals/status.js';
 import Icon from './icons.jsx';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
 const KEY_LABEL = { ipEnd: 'IP end', coe: 'COE' };
-const STAGE = { under_contract: 'Under contract', dispo: 'Dispo', assigned: 'Assigned', closed: 'Closed' };
+const STAGE = { under_contract: 'Under contract', dispo: 'Dispo active', assigned: 'Assigned', closed: 'Closed' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
 const DAY = 86_400_000;
-
-// Which reps this person's Home covers; null = everyone.
-function scopeReps(me) {
-  if (!me || me.role === 'owner' || me.role === 'tc') return null;
-  if (me.role === 'manager') {
-    const pod = PODS.find((p) => p.lead === me.rep_id);
-    return [me.rep_id, ...(pod?.reps || [])].filter(Boolean);
-  }
-  return me.rep_id ? [me.rep_id] : [];
-}
 
 function Avatar({ rep, size = 20 }) {
   const initials = (rep?.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('');
@@ -108,7 +98,7 @@ function RevenueCard({ m, n }) {
   );
 }
 
-const STAGE_ORDER = [['under_contract', 'Under contract', '#3b82f6'], ['dispo', 'Dispo active', '#8b5cf6'], ['assigned', 'Assigned', '#10b981'], ['closed', 'Closed this month', '#1b385f']];
+const STAGE_ORDER = [['under_contract', 'Under contract', '#2563eb'], ['dispo', 'Dispo active', '#d97706'], ['assigned', 'Assigned', '#7c3aed'], ['closed', 'Closed this month', '#059669']];
 function PipelineCard({ deals }) {
   const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
   return (
@@ -186,12 +176,18 @@ function Leaderboard({ reps }) {
   );
 }
 
+// Stage chips in the board Pipeline's column colours, and the due date as
+// the same coloured chip as the board / Deals (Luke, Oct 14: "deal status
+// color coded … easy to read").
+const STAGE_COLOR = { under_contract: '#2563eb', dispo: '#d97706', assigned: '#7c3aed', closed: '#059669' };
+function StageChip({ stage }) {
+  const c = STAGE_COLOR[stage] || '#71717a';
+  return <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap" style={{ color: c, background: `${c}14`, boxShadow: `inset 0 0 0 1px ${c}40` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />{STAGE[stage] || stage}</span>;
+}
 function dueText(days, key) {
   const what = KEY_LABEL[key];
-  if (days < 0) return { text: `${what} · ${-days}d late`, cls: 'text-red-700' };
-  if (days === 0) return { text: `${what} · Today`, cls: 'text-orange-700' };
-  if (days === 1) return { text: `${what} · Tomorrow`, cls: 'text-zinc-700' };
-  return { text: `${what} · in ${days}d`, cls: 'text-zinc-500' };
+  const text = days < 0 ? `${-days}d late` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`;
+  return { what, text, cls: dueTone(days) };
 }
 
 function DealRow({ d, showRep }) {
@@ -199,11 +195,14 @@ function DealRow({ d, showRep }) {
   return (
     <a {...linkProps('/board/pipeline')} className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_120px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
       <span className="font-medium truncate">{d.address}</span>
-      <span className={`md:order-last text-right text-xs font-semibold whitespace-nowrap ${due.cls}`}>{due.text}</span>
+      <span className="md:order-last justify-self-end flex items-center gap-1.5 whitespace-nowrap">
+        <span className="text-[11.5px] text-zinc-500">{due.what}</span>
+        <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${due.cls}`}>{due.text}</span>
+      </span>
       {showRep ? (
         <span className="flex items-center gap-2 text-zinc-600 min-w-0"><Avatar rep={d.rep} /> <span className="truncate">{d.rep?.name.split(' ')[0]} · {d.marketId}</span></span>
       ) : <span className="hidden md:block text-zinc-500">{d.marketId}</span>}
-      <span className="justify-self-start text-xs text-zinc-600 border border-zinc-200 rounded-md px-1.5 py-0.5 whitespace-nowrap">{STAGE[d.stage]}</span>
+      <span className="justify-self-start"><StageChip stage={d.stage} /></span>
     </a>
   );
 }

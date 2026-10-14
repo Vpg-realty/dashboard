@@ -18,7 +18,7 @@ const cellCls = (share) => (share == null ? 'bg-zinc-50 text-zinc-300' : share >
 export default function RepProgress({ sc, rep }) {
   const weeks = weekSeries(sc, 8);
   const mine = weeks.map((w) => w.reps[rep.id]?.s.score ?? null);
-  const team = weeks.map((w) => avgOf(Object.values(w.reps).map((r) => r.s.score)));
+  const team = weeks.map((w) => w.teamAvg ?? avgOf(Object.values(w.reps).map((r) => r.s.score)));
   const lastI = weeks.length - 1;
   const now = mine[lastI];
   const prev = mine[lastI - 1];

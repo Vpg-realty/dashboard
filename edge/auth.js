@@ -65,7 +65,23 @@ export async function verifiedClaims(request) {
 // service token. null = not signed in.
 // DEV_EMAIL is for `wrangler pages dev` on a laptop only — it is never set
 // on the live site.
-export async function currentUser({ request, env }) {
+//
+// "View as" (Luke, Oct 14: "log in as a rep to see what they see"): an owner
+// can send `X-View-As: <email>`; every read then answers as that person
+// (`viewAs: true`, `realName`), and every write is refused (role 'none'), so
+// nothing is ever saved under someone else's name. `{ real: true }` ignores
+// it (the people list for the picker).
+export async function currentUser({ request, env }, { real = false } = {}) {
+  const me = await signedIn({ request, env });
+  const as = request.headers.get('X-View-As');
+  if (real || !as || me?.role !== 'owner') return me;
+  const target = await env.DB.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(String(as).toLowerCase()).first();
+  if (!target || target.role === 'tv') return me;
+  const write = !['GET', 'HEAD'].includes(request.method);
+  return { ...target, ...(write ? { role: 'none' } : {}), viewAs: true, realName: me.name, realEmail: me.email };
+}
+
+async function signedIn({ request, env }) {
   const claims = await verifiedClaims(request);
   if (claims && !claims.email && typeof claims.common_name === 'string' && claims.common_name) {
     return { email: null, name: 'build', role: 'service' };

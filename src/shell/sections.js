@@ -33,12 +33,18 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
     // sees everything except commission and profit — enforced server-side).
-    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
+    // Reps and managers (Oct 14): Active only, their own deals, read-only.
+    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
-      { id: 'all', label: 'All deals', view: 'deals-all', phone: DESK },
-      { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true },
+      { id: 'all', label: 'All deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
+      { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true, roles: ['owner', 'tc'] },
     ],
+  },
+  {
+    // Luke, Oct 14: each rep sees their own scorecard (team average, no notes).
+    id: 'me', label: 'My scorecard', icon: 'user', roles: ['team', 'manager'],
+    tabs: [{ id: 'scorecard', label: 'This week & trend', view: 'my-scorecard', phone: DESK }],
   },
   {
     id: 'team', label: 'Team', icon: 'team', roles: ['owner', 'manager'],
@@ -50,7 +56,10 @@ export const SECTIONS = [
   },
 ];
 
-export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(role));
+// The sections this role sees, each with only the tabs it may open (a tab
+// without `roles` is open to everyone who sees the section).
+export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(role))
+  .map((s) => (s.tabs ? { ...s, tabs: s.tabs.filter((t) => !t.roles || t.roles.includes(role)) } : s));
 
 // '/board/pipeline' → { section, tab } for this role, falling back to the
 // section's first tab, then to Home, so an old or forbidden link never

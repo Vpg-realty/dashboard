@@ -12,6 +12,7 @@ import PipelineView from '../views/PipelineView.jsx';
 import TeamHub from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
+import MyScorecardView from '../views/manager/MyScorecardView.jsx';
 import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
@@ -23,11 +24,14 @@ import { sectionsFor, resolve, hrefOf, ROLE_LABEL } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
+import Welcome from './Welcome.jsx';
+import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
+  'my-scorecard': MyScorecardView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -149,12 +153,14 @@ export default function AppShell({ me }) {
 
       {/* Page */}
       <div className="flex-1 min-w-0 flex flex-col md:my-2 md:mr-2 md:rounded-xl md:border md:border-tan-200 bg-white overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.05)]">
+        <ViewAsBanner me={me} />
         <header className="h-12 shrink-0 flex items-center gap-3 px-4 md:px-5 border-b border-zinc-100">
           <span className="md:hidden"><Logo small /></span>
           <div className="min-w-0 truncate text-zinc-500">
             {tab ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <ViewAsButton me={me} />
             {status?.lastSync && <span className="hidden sm:inline text-xs text-zinc-400" title={new Date(status.lastSync).toLocaleString()}>Updated {ago(status.lastSync)}</span>}
             {isManager && (
               <button onClick={refresh} disabled={refreshing} title="Pull fresh numbers from GHL now"
@@ -204,6 +210,7 @@ export default function AppShell({ me }) {
 
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={me.role} />
+      {!me.viewAs && <Welcome me={me} />}
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );

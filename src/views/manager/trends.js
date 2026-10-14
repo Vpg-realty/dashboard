@@ -17,7 +17,7 @@ export function weekSeries(sc, max = 8) {
     const w = sc.weeks?.[monday];
     const live = !w && monday === cur.monday;
     const reps = {};
-    for (const r of REPS) {
+    for (const r of REPS.filter((x) => !sc.self || x.id === sc.self)) {
       let n = w?.reps?.[r.id] || null;
       let auto = n?.crmAuto || null;
       if (live) {
@@ -30,7 +30,8 @@ export function weekSeries(sc, max = 8) {
       const crm = mergeCrm(manual, auto);
       reps[r.id] = { n, crm, s: scoreWeek(n, crm, w?.weekOfMonth ?? cur.weekOfMonth, monday) };
     }
-    return { monday, label: w?.label || cur.weekOfLabel, live, source: w?.source || (live ? 'live' : 'dashboard'), reps };
+    // teamAvg: sent by the server to a rep, who only has their own rows.
+    return { monday, label: w?.label || cur.weekOfLabel, live, source: w?.source || (live ? 'live' : 'dashboard'), reps, teamAvg: w?.teamAvg ?? (live ? sc.liveTeamAvg ?? undefined : undefined) };
   });
 }
 

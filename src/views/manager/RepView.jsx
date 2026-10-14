@@ -17,6 +17,7 @@ import { ScorePill, ScoreBar, ScoreBreakdown, ScoreHelp } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import RepProgress from './RepProgress.jsx';
+import MyCrmCard from './MyCrmCard.jsx';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
@@ -76,7 +77,9 @@ const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 
 
 const pickCls = 'rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold';
 
-export default function RepView({ repId, onPickRep, onBack, withTeam }) {
+// `self` (Oct 14): a rep's own page ("My scorecard") — no rep picker, no
+// way back to the full scorecard, plus their CRM checklist.
+export default function RepView({ repId, onPickRep, onBack, withTeam, self }) {
   const rep = REPS.find((r) => r.id === repId) || REPS[0];
   const pairs = repPairs(rep.id);
   const history = historyEntries();
@@ -181,10 +184,12 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   };
   const picker = (
     <>
-      <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
-        {withTeam && <option value="__team">Full team (scorecard)</option>}
-        {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-      </select>
+      {!self && (
+        <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
+          {withTeam && <option value="__team">Full team (scorecard)</option>}
+          {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+      )}
       <select className={pickCls} value={period} onChange={(e) => setPeriod(e.target.value)}>
         {/* Luke, Oct 12: custom range at the top, then the weeks (opens on
             this week), months at the bottom. */}
@@ -208,10 +213,10 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
   );
 
   return (
-    <ManagerFrame title="Rep" subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : "One rep's week and month, funnel and states"} right={picker}>
-      <div className="h-full grid grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)] gap-3 min-h-0 overflow-y-auto">
+    <ManagerFrame title={self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
+      <div className={`h-full grid ${self ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
         <div className="flex items-center gap-4 rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5">
-          <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline whitespace-nowrap">← Scorecard</button>
+          {!self && <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline whitespace-nowrap">← Scorecard</button>}
           <span className="w-4 h-4 rounded-full" style={{ background: rep.color }} />
           <span className="text-2xl font-extrabold whitespace-nowrap">{rep.name}</span>
           <span className="text-sm text-zinc-500">{rep.markets.length} market{rep.markets.length === 1 ? '' : 's'}</span>
@@ -283,6 +288,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam }) {
             <CancelTile v={m.cancelsM} na={na('cancelsM')} contracts={m.contractsM} subText={when} />
           </div>
         )}
+        {self && <MyCrmCard pairs={pairs} monday={wk} crm={crm} manual={reviewFor(sc, wk, rep.id, null).manual} />}
         <RepProgress sc={sc} rep={rep} />
         <div className="grid grid-cols-[1.1fr_1.4fr] gap-3 min-h-0">
           <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">

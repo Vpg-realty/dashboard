@@ -40,7 +40,9 @@ export const FIELDS = [
   ['ddEndTime', 'End time', 'dd', 'text'],
   ['dispoTeam', 'Dispo team', 'dispo', 'list'],
   ['dispoMember', 'Dispo member (if VPG)', 'dispo', 'person'],
-  ['buyer', 'Buyer (if VPG)', 'dispo', 'longtext'],
+  // Owners only (Luke, Oct 14: buyer names are for Jack and Luke, so they
+  // can't walk out the door with the reps).
+  ['buyer', 'Buyer (if VPG)', 'dispo', 'longtext', null, 'secret'],
   ['asking', 'Asking price', 'dispo', 'money'],
   ['vpgAssign', 'VPG assignment price', 'dispo', 'money'],
   ['finalAssign', 'Final assignment price', 'dispo', 'money'],

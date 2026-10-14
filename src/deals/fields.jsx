@@ -16,7 +16,7 @@ export function PickOrType({ value, onChange, options, base, autoFocus }) {
         if (v === '__custom') { setCustom(true); return; }
         setCustom(false);
         onChange(v || null);
-      }} className={`${selectCls} w-full h-8 rounded-md`}>
+      }} className={`${selectCls} w-full h-8 rounded-md disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200`}>
         <option value="">—</option>
         <option value="__custom">✎ Custom — type it in</option>
         {options.length > 0 && (
@@ -63,7 +63,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus }) 
   if (opts) {
     const all = v && !opts.includes(v) ? [...opts, v] : opts;
     return (
-      <select value={v} autoFocus={autoFocus} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={`${selectCls} w-full h-8 rounded-md`}>
+      <select value={v} autoFocus={autoFocus} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={`${selectCls} w-full h-8 rounded-md disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200`}>
         <option value="">—</option>
         {all.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>

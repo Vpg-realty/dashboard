@@ -175,13 +175,17 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
   tab = an existing view key), who sees them. Home + Board (Overview,
   Pipeline, Conversations, Agents, Opportunities) for everyone; Team
-  (Scorecard, Coaching, Month in Review) for owner / manager; Deals (Active,
+  (Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
+  for team + manager; Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
   shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js).
-- **Home** (`HomeView.jsx`): greeting, this week's numbers vs target for
+- **Home** (`HomeView.jsx`; Needs attention rows show the stage as a chip
+  in the board Pipeline's column colours — Under contract blue, Dispo amber,
+  Assigned violet, Closed green — and the due date as the board's coloured
+  date chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
   attention (key date late or within 3 days, Late / Today & tomorrow / Next
@@ -192,6 +196,47 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   tracker (owners / TC: active, act now, attention, closing ≤ 7d), Pipeline
   by stage, Wins, and "This week by rep" (owners: everyone, managers: their
   pod).
+- **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
+  average yes, manager notes no): sidebar section for team + managers
+  (`MyScorecardView.jsx` → `RepView` with `self`: no rep picker, plus
+  `MyCrmCard.jsx` "What to fix" — each CRM item's grade, manager's wins, and
+  the deals / texts behind the automatic checks). Data from
+  `functions/api/my-scorecard.js` (needs `users.rep_id`): their own rows of
+  scorecards.json, their CRM grades from D1 (never notes), their pairs'
+  data-mgr.json fields, and the team's average score per week (frozen weeks
+  from scorecards.json + D1 grades; the live week from data.json +
+  data-mgr.json via `freezeNumbers` / `scoreWeek`), read through
+  `env.ASSETS`. Nobody else's rows leave the server. Browser: `dashApi`
+  `loadMyScorecard` (5-min memo), used by `liveStore` (merges their own
+  CRM / messaging fields) and `useScorecards` (cache with only their rows,
+  `self`, `liveTeamAvg`); `weekSeries` carries `teamAvg`, which RepProgress
+  draws as the team line.
+- **View as** (Luke, Oct 14: "log in as a rep to see what they see"):
+  owners get a "View as" menu in the header (`ViewAs.jsx`, people from
+  `GET /api/users`, owners only, TV left out). The pick is kept in
+  sessionStorage `vpg.viewAs` (this tab only) and every `/api` call sends
+  `X-View-As`; `currentUser` (edge/auth.js) answers reads as that person
+  (`viewAs`, `realName`) and turns every write into role 'none', so nothing
+  is saved under someone else's name. A tan banner says who you're viewing
+  as, with Exit. Static data files load as before (the client simply doesn't
+  ask for the manager files when the person can't see them). No welcome
+  splash while viewing as.
+- **Welcome** (`Welcome.jsx`, Luke, Oct 14: "a graphic or something fun"
+  on first login / first visit of the day): first time on a device → a
+  welcome card with three tips for their role; first visit each Arizona day
+  → a ~3 s navy splash (the V mark sweeps in, greeting, their day — closed /
+  new contracts since yesterday, closings this week, needing attention — and
+  a line for the day; Monday / Friday have their own). Click / Esc skips;
+  stored per email in localStorage `vpg.welcome.<email>`; reduced motion
+  respected; never in TV mode. Home's `scopeReps` moved to `shell/scope.js`.
+- **Login page & icons**: the Access login page uses the logo at
+  `public/brand/vpg-logo.png` (rendered from the logo in Montserrat; served
+  publicly from raw.githubusercontent.com, since the login page shows before
+  sign-in) with navy / tan colours, set in Zero Trust → Settings → Custom
+  pages (Access organization `login_design`). `public/favicon.svg` is the V
+  mark. dashboard.valleypropertygroup.com is a Squarespace forward (301) to
+  vpg-dashboard.pages.dev — the domain's DNS stays at Squarespace (Luke,
+  Oct 14: don't touch DNS / email).
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
@@ -217,6 +262,19 @@ The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar
 **Deals** (owners + the TC; `src/deals/`). Aiza (tc) sees and edits
 everything except the commission / profit columns and "Commission paid" —
 the server strips them (`forTc`) and refuses edits to them.
+- **Reps and managers** (Luke, Oct 14: Active only; "see all active deals
+  and … filter for just their deals"): Deals shows them only the Active tab
+  (tabs can carry `roles` in sections.js) with every PENDING deal
+  (`canSeeDeal`; closed / cancelled 404), read-only (`readOnly` from the
+  API; panel inputs disabled, no New deal, no GHL-missing list), and an
+  **All active / Only mine** switch (`?mine=1`; the API marks each deal
+  `mine` when they're its acq. manager or dispo member — name from
+  subaccounts.json via `rep_id`). Writes 403.
+- **Buyer is owners only** (Luke, Oct 14: "can only be seen by Jack and
+  myself" — so reps can't take buyers' names): the `buyer` field is secret,
+  like the commission / profit columns, so the server strips it for the TC
+  and reps too (and its history entries), and the Buyer column only shows
+  for owners.
 - **Storage** (D1, `edge/deals.sql`): `deals (id, data JSON, created_*,
   updated_*, deleted)` — one row per deal, the sheet's 51 columns as fields
   (`FIELDS` in `src/deals/math.js`); `deal_log` — every change (who, when,
@@ -292,6 +350,13 @@ the server strips them (`forTc`) and refuses edits to them.
   dates on Enter or click-away, Esc cancels, buyer / title use the same
   past-entries picker; one field per save, logged, same conflict check);
   calculated and GHL cells aren't. Clicking the address opens the full deal.
+- **Active columns** (Luke, Oct 14): Next step, Property, Acq → Dispo,
+  State, COE · in, Title, Buyer, Contract price, Assignment price (VPG
+  assignment), Gross — the same for both lists. COE and days-to-go are one
+  chip coloured like the board's Pipeline (`dueTone` in status.js: past due
+  maroon, today red, 1 day light red, 2 yellow, 3 blue, later plain; key in
+  the legend). Acq. and dispo people are boxed in their colour
+  (`people.jsx`: reps' board colour, others a steady palette colour).
 - **Colour coding** (Luke, Oct 14: "good, bad, pending … match the full
   deal profile"): `src/deals/status.js` is the one place — `nextStep()`
   (the sheet's rules, plus Closed / Cancelled) gives each deal a tone:

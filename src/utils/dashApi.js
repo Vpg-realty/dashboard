@@ -6,8 +6,18 @@ import { useEffect, useState } from 'react';
 
 const BASE = import.meta.env.BASE_URL || '/';
 
+// "View as" (owners): the person picked in the header, for this browser tab.
+export const VIEW_AS_KEY = 'vpg.viewAs';
+export function viewingAs() { try { return sessionStorage.getItem(VIEW_AS_KEY); } catch { return null; } }
+export function setViewAs(email) {
+  try { if (email) sessionStorage.setItem(VIEW_AS_KEY, email); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* private mode */ }
+  window.location.href = `${BASE}`;
+}
+
 export async function call(path, opts = {}) {
-  const r = await fetch(`${BASE}api/${path}`, { cache: 'no-store', credentials: 'same-origin', ...opts });
+  const as = viewingAs();
+  const headers = { ...(opts.headers || {}), ...(as ? { 'X-View-As': as } : {}) };
+  const r = await fetch(`${BASE}api/${path}`, { cache: 'no-store', credentials: 'same-origin', ...opts, headers });
   const type = r.headers.get('content-type') || '';
   if (!type.includes('json')) throw Object.assign(new Error('not available'), { status: 0 });
   const data = await r.json();
@@ -42,3 +52,18 @@ export const saveScorecardWeek = (week, reps) => call('scorecard-edits', {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ week, reps }),
 });
+
+// --- a rep's own scorecard (functions/api/my-scorecard.js) --------------------
+// Shared by the live store (their own CRM / messaging fields) and the
+// scorecard hook; re-asked at most every 5 minutes.
+let mine = null;
+let mineAt = 0;
+export function loadMyScorecard() {
+  if (!mine || Date.now() - mineAt > 5 * 60_000) {
+    mineAt = Date.now();
+    mine = call('my-scorecard').catch((e) => { mine = null; throw e; });
+  }
+  return mine;
+}
+
+export const listUsers = () => call('users');

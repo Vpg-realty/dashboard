@@ -68,6 +68,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
   const [err, setErr] = useState(null);
   const [base, setBase] = useState(raw?.updatedAt);
   const owner = s.owner;
+  const ro = s.readOnly; // reps / managers: their own deals, view only
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -128,7 +129,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
         <header className="shrink-0 px-5 pt-4 pb-0 border-b border-zinc-200">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-zinc-500">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}</div>
+              <div className="text-xs text-zinc-500">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && ' · view only'}</div>
               <h2 className="text-lg font-semibold tracking-tight truncate">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <StatusChip status={merged.status} />
@@ -157,9 +158,9 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                   <div className="text-[12.5px] mt-0.5">
                     IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
                     {g.coe && ISO.test(merged.coe || '') && g.coe !== merged.coe && (
-                      <> · <span className="font-semibold">COE differs from the tracker</span>{' '}<button onClick={() => setField('coe', g.coe)} className="underline">use GHL's</button></>
+                      <> · <span className="font-semibold">COE differs from the tracker</span>{' '}{!ro && <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's</button>}</>
                     )}
-                    {g.coe && !ISO.test(merged.coe || '') && <> · <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's COE</button></>}
+                    {g.coe && !ro && !ISO.test(merged.coe || '') && <> · <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's COE</button></>}
                   </div>
                 </Notice>
               )}
@@ -194,11 +195,11 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
                           {f.calc || f.type === 'ghl' ? (
                             <div className="flex items-center gap-2 h-8">
                               <span className={`tabular-nums ${isFixed ? 'text-amber-900' : 'text-zinc-800'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400">no buyer yet</span> : show(f, merged[f.key])}</span>
-                              {isFixed && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
+                              {isFixed && !ro && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
                             </div>
                           ) : (
                             <>
-                              <Input f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={f.key in draft.fields ? draft.fields[f.key] : raw[f.key]} onChange={(v) => setField(f.key, v)} />
+                              <Input f={f} lists={s.lists} disabled={ro} past={PICK_FROM_PAST.has(f.key) && !ro ? past[f.key] : null} value={f.key in draft.fields ? draft.fields[f.key] : raw[f.key]} onChange={(v) => setField(f.key, v)} />
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>
                           )}
@@ -218,7 +219,7 @@ export default function DealPanel({ id, initial, onClose, onCreated }) {
           )}
         </div>
 
-        {(dirty || err) && tab === 'details' && (
+        {(dirty || err) && !ro && tab === 'details' && (
           <footer className="shrink-0 border-t border-zinc-200 px-5 py-3 flex items-center gap-3 bg-zinc-50/80">
             {err ? <span className="text-red-700 text-[12.5px] flex-1">{err}</span> : <span className="text-zinc-500 flex-1">{isNew ? 'New deal — not saved yet' : `${nChanges} unsaved change${nChanges === 1 ? '' : 's'}`}</span>}
             {!isNew && <button onClick={() => { setDraft({ fields: {}, fixed: {} }); setErr(null); }} className={btnCls}>Discard</button>}
