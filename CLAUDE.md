@@ -184,9 +184,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Opportunities; section id `board`, renamed from "Board" Oct 14) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
-  for team + manager; Territory (Who works where, Territory sheet) for
-  owner / manager / tc; Zip center (My zips for team + manager, All zips
-  for owner / manager / tc, Rules & data health for everyone); Deals (Active,
+  for team + manager; **Territory** for everyone (Oct 14: the one place for
+  areas, states and zips — the separate Zip center section folded into it,
+  old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
+  manager), Who works where, Reps × states, Zip management (owner / manager
+  / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
@@ -523,7 +525,8 @@ the server strips them (`forTc`) and refuses edits to them.
 
 ## Territory (Luke, Oct 14)
 
-Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
+Sidebar **Territory** (everyone in the app since Oct 14; reps get Get zips,
+the sheet read-only and the zip rules; `src/territory/`), replacing the
 "VPG_Territory_Tracker" Google Sheet (id 1IJlJjytW8o-azY8cSCiShkcZ1H79ASFtppfZ7Fp8cQY).
 - **Storage** (D1, `edge/territory.sql`): `terr_states (state, data JSON)`
   — legal status + note, winter risk, county / zip counts and county tiers,
@@ -534,31 +537,57 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   Virginia are curated zip lists: `curated`, `why` per zip). Imported Oct 14
   from the sheet's xlsx export (22 states, 1,374 counties, 12,211 zips),
   only into empty tables. `GET /api/territory` (states) and
-  `?state=<name>` (counties); owners / managers / TC only (node:sqlite
+  `?state=<name>` (counties); everyone in the app, not the TV (node:sqlite
   test like the other functions).
+- **State status & season** (Luke, Oct 14; `src/territory/status.js`, the
+  one place): `marketStatus` Active / Exploring / Paused / Inactive — reps
+  can request zips only in Active states (`marketOf` in edge/zips.js),
+  Exploring = owners assign by hand, Paused / Inactive = none go out; and
+  `season` none / winter / summer (the sheet's winter flag, now editable;
+  `seasonOf`; winter keeps `winter: true` for older code). Owners set both
+  with `StateControls.jsx` on the map's state panel or the sheet (`/api/zips`
+  action `area` with `market` / `season`). Shown as `StatusChip` /
+  `SeasonChip` (badges.jsx), a Status map mode, and ❄ / ☀ everywhere.
 - **Who works where** (`WhoWorksWhere.jsx`, `model.js` `buildModel`): reps
   = GHL sub-accounts (REPS), markets = the sheet. An interactive US map
   (`UsMap.jsx`; state shapes `usStates.json`, made once from the US
   Census-based `us-atlas` states-albers-10m, pre-projected, no map library)
   coloured by number of reps / winter risk / legal status, or one rep's
   states (`?rep=`); hover outlines the state in tan and shows its summary
-  in a fixed bar above the map (Luke, Oct 14: no box following the
-  cursor), click a state (`?state=`) for its
-  reps, legal note, dispo, this month's numbers, 7-day conversations and —
-  owners / TC — the tracker's closed / contracts, close rate and avg net.
+  in a fixed bar above the map with every value labelled (Reps, Legal,
+  Season risk, Dispo rep, Opps this month, New conversations last 7 days),
+  click a state (`?state=`) for its status / season (owners can change
+  them), a navy **year to date** box near the top (Luke, Oct 14: "YTD
+  numbers for that specific state … team numbers and only what is already
+  visible to them"; `ytd.js` `stateYtd`: opps, offers, contracts, closed,
+  revenue, cancels summed from each month's last history.json snapshot plus
+  this month's live pairs, each with "since <month>" because history starts
+  late June / mid-Sept; owners / TC also the tracker's contracts / closed /
+  cancelled / pending / close rate / gross, owners net profit), reps, dispo,
+  this month and 7-day conversations. "Show on map ↑" in Needs review sets
+  the state (or the rep) and scrolls the map into view.
   "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
   page): quiet market (sub-account with no new conversations in 7 days,
   from history.json), winter exposure (≥ 50% of a rep's opps this month in
   the sheet's winter-risk states), crowded state (4+ reps; "Review" only
   when under 3 opps per rep), sheet ≠ GHL, no dispo rep, high-risk legal,
   low close rate (tracker, 8+ contracts, mostly decided), open seats, paused
-  market still worked. A reps × states grid (opps this month, 7-day
-  conversations, red = quiet, ❄ = winter state, winter share per rep) and
-  a States table. The sheet's winter / legal flags are the source of truth.
+  market still worked. The grid and the States table moved to their own tab:
+- **Reps × states** (`RepsStates.jsx`, Luke Oct 14): the **team structure
+  review** (`structure.js` `structureReview`, rules in `STRUCTURE_RULES`
+  shown on the page: spread thin, dead sub-account, winter-heavy, crowded,
+  open seat, no dispo, exploring with nobody, paused-but-worked — each with
+  the numbers behind it and a suggested move), the reps × states grid
+  (column lines, a legend for what a cell means, ❄ / ☀ season columns
+  tinted, "Winter share") and the States reference table (status, a
+  hover popup listing all reps, legal, season risk explained in a key row;
+  rows open the state on the map). Shared model: `useModel.js`.
 - **Territory sheet** (`SheetView.jsx`): the sheet, cleaner — states on the
   left (active / paused, legal dot, ❄), the state's facts, and its counties
-  with search, tier filter and each county's zips by tier. Temporary (Luke:
-  "will later be deleted as this replaces it").
+  with search, tier filter and each county's zips by tier. States on the
+  left are grouped Active / Exploring / Paused / Inactive with ❄ / ☀ season
+  chips; Copy buttons (`CopyButton.jsx`) on every zip group, "Copy all" /
+  "Copy active only" per county. Reps see it read-only.
   **Status editing** (owners; Luke, Oct 14: "pause or unpause … for each
   state and zip … editable just like the deal tracker, but only status"):
   the state's Market dropdown (Active / Paused → `terr_states.marketStatus`),
@@ -611,11 +640,13 @@ Sidebar **Territory** (owner, manager, tc; `src/territory/`), replacing the
   states, other reps' holds shown as "held by another rep"; nothing can be
   changed from the chat; `REP_DAILY` = 25 questions per Arizona day (429),
   and their cost counts toward the same monthly cap. The TC and the TV get
-  no chat.
+  no chat. Both briefings: answer only from the site's data (no outside
+  knowledge); asked for new zips → tool `available_zips` (owners and reps,
+  reps only their states) lists free zips tier 1 → 2 → 3 by county.
 
 ## Zip center (Luke, Oct 14)
 
-Sidebar **Zip center** (`src/zips/`, everyone in the app): one store of
+Territory's zip tabs (`src/zips/`; a sidebar section of its own until Oct 14): one store of
 every zip from the territory sheet, who holds which and for how long, and
 automatic requests that never hand out a zip twice.
 - **Storage** (D1, `edge/zips.sql`): `zips` (one row per zip: state,
@@ -652,9 +683,13 @@ automatic requests that never hand out a zip twice.
   owners any; reuse owners), flag (reasons `FLAG_REASONS`), and owners only:
   assign, status, newRound, rules. No writes while viewing as. Every change
   in `edit_log` (`zips.*`). Tests: node:sqlite shim + signed JWTs.
-- **Pages**: **My zips** (team, manager): state picker, "Get 10 zips",
-  requests left this week, held zips with days left, Flag bad data,
-  Release, Copy all zips. **All zips** (owner, manager, TC; changes owners
+- **Pages** (all under Territory since Oct 14): **Get zips** (team, manager;
+  `MyZips.jsx`): state picker (non-Active states marked and blocked), "Get
+  10 zips", requests left this week, **Search zips** across all their states
+  (zip / county / city; chips coloured available / yours / another rep / used
+  / paused; copy buttons), held zips with days left and copy per state, Flag
+  bad data, Release, and **Your pulls** (their request / assignment
+  history, `me.history`). **All zips** (owner, manager, TC; changes owners
   only): At a glance, Needs attention (with Approve new round / Clear flag /
   Exclude), States table (tier 1 + 2 used with the 80% tick, phase,
   available, flags, round), a state's counties with zip chips (held in the
@@ -1193,7 +1228,8 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   `vpg.celebrated`). Any tab, checked every 30s; several queue, 1 min each (Luke, Oct 7).
   Test on a screen with `?celebrate` (closed / fireworks), `?celebrate=contract`
   or `?celebrate=dispo`: plays once with a made-up "TEST — 123 Demo St" deal,
-  writes nothing (Luke, Oct 8).
+  writes nothing (Luke, Oct 8). Every banner has a round × in its top-right
+  corner to close it at once (Luke, Oct 14); the next queued one follows.
 - **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
   Opportunities team boxes are graded against target × share of the
   period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
