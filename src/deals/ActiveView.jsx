@@ -5,32 +5,24 @@
 // tracker yet, one click to add (fields filled from GHL).
 import { useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.js';
-import { PageHead, Tile, Tiles, Loading, Search } from './ui.jsx';
+import { PageHead, Tile, Tiles, Loading, Search, StepPill } from './ui.jsx';
 import { money, compact, shortDate, firstName, stateCode, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import { laToday } from '../utils/historyRange.js';
+import { nextStep, daysBetween, TONES, LEGEND, emdTone, daysTone } from './status.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
-
-function nextStep(d, today) {
-  const toCoe = ISO.test(d.coe || '') ? days(today, d.coe) : null;
-  const toDd = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null;
-  const assigned = typeof d.grossAssign === 'number' && d.grossAssign >= 0;
-  if (toCoe != null && toCoe < 0) return { text: `Past COE by ${-toCoe}d — update status`, tone: 'red' };
-  if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'amber' };
-  if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'amber' };
-  if (!assigned && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'red' };
-  if (!assigned && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'red' };
-  if (!assigned) return { text: 'Find buyer', tone: 'zinc' };
-  if (toCoe == null) return { text: 'Set COE date', tone: 'amber' };
-  if (toCoe === 0) return { text: 'Closing today — confirm title', tone: 'blue' };
-  if (toCoe <= 7) return { text: `Closing in ${toCoe}d — confirm title`, tone: 'blue' };
-  return { text: 'On track', tone: 'green' };
-}
-const TONE = { red: 'text-red-700', amber: 'text-amber-700', blue: 'text-blue-700', green: 'text-emerald-700', zinc: 'text-zinc-600' };
+const days = daysBetween;
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : '—');
 const street = (a) => String(a || '').split(',')[0];
+
+function Legend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+      {LEGEND.map((k) => <span key={k} className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${TONES[k].dot}`} />{TONES[k].label}</span>)}
+    </div>
+  );
+}
 
 function Table({ title, sub, rows, cols, onOpen, empty }) {
   return (
@@ -48,7 +40,12 @@ function Table({ title, sub, rows, cols, onOpen, empty }) {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.id} onClick={() => onOpen(d.id)} className="border-t border-zinc-100 hover:bg-zinc-50 cursor-pointer">
-                  {cols.map((c) => <td key={c.label} className={`px-3 py-2 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>{c.get(d)}</td>)}
+                  {cols.map((c, i) => (
+                    <td key={c.label} className={`${i === 0 ? 'relative pl-4' : ''} px-3 py-2 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.cls || ''}`}>
+                      {i === 0 && <span className={`absolute left-0 top-1 bottom-1 w-[3px] rounded-r ${TONES[d.step.tone].bar}`} />}
+                      {c.get(d)}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -94,12 +91,12 @@ export default function ActiveView() {
 
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   const tog = (k) => setOnly((o) => (o === k ? null : k));
-  const step = { label: 'Next step', get: (d) => <span className={`font-medium ${TONE[d.step.tone]}`}>{d.step.text}</span> };
+  const step = { label: 'Next step', get: (d) => <StepPill step={d.step} /> };
   const prop = { label: 'Property', get: (d) => <span className="font-medium text-zinc-900">{street(d.address)}</span>, cls: 'max-w-[220px] truncate' };
   const st = { label: 'St', get: (d) => stateCode(d.state) };
   const coe = { label: 'COE', get: (d) => shortDate(d.coe) };
-  const inD = { label: 'In', right: true, get: (d) => (ISO.test(d.coe || '') ? `${days(today, d.coe)}d` : '—') };
-  const emd = { label: 'EMD', get: (d) => (d.emdStatus === 'COMPLETE' ? (d.emdPaidBy === 'VPG' ? 'VPG only' : '✓') : d.emdStatus === 'PENDING' ? (d.emdPaidBy ? `Pending · ${d.emdPaidBy}` : 'Pending') : '—') };
+  const inD = { label: 'In', right: true, get: (d) => { const n = ISO.test(d.coe || '') ? days(today, d.coe) : null; return n == null ? '—' : <span className={`font-medium ${daysTone(n) ? TONES[daysTone(n)].text : ''}`}>{n}d</span>; } };
+  const emd = { label: 'EMD', get: (d) => { const t = emdTone(d); const txt = d.emdStatus === 'COMPLETE' ? (d.emdPaidBy === 'VPG' ? 'VPG only' : '✓ In') : d.emdStatus === 'PENDING' ? (d.emdPaidBy ? `Pending · ${d.emdPaidBy}` : 'Pending · no payer') : '—'; return t ? <span className={`font-medium ${TONES[t].text}`}>{txt}</span> : txt; } };
   const contract = { label: 'Contract', right: true, get: (d) => money(d.price) };
   const titleCo = { label: 'Title co.', get: (d) => firstLine(d.title), cls: 'max-w-[180px] truncate text-zinc-600' };
 
@@ -111,19 +108,20 @@ export default function ActiveView() {
       </>} />
       <Tiles cols={6}>
         <Tile label="Active deals" value={tiles.active} onClick={() => setOnly(null)} active={!only} />
-        <Tile label="Assigned" value={tiles.assigned} sub={`${compact(tiles.assignedGross)} gross`} />
-        <Tile label="Needs a buyer" value={tiles.needs} />
-        <Tile label="EMD at risk" value={tiles.emd} tone={tiles.emd ? 'text-amber-700' : ''} onClick={() => tog('emd')} active={only === 'emd'} />
-        <Tile label="Past COE" value={tiles.past} tone={tiles.past ? 'text-red-700' : ''} onClick={() => tog('past')} active={only === 'past'} />
-        <Tile label="Closing ≤ 7 days" value={tiles.soon} onClick={() => tog('soon')} active={only === 'soon'} />
+        <Tile label="Assigned" value={tiles.assigned} dot="green" sub={`${compact(tiles.assignedGross)} gross`} />
+        <Tile label="Needs a buyer" value={tiles.needs} dot="zinc" />
+        <Tile label="EMD at risk" value={tiles.emd} dot={tiles.emd ? 'amber' : null} tone={tiles.emd ? 'text-amber-700' : ''} onClick={() => tog('emd')} active={only === 'emd'} />
+        <Tile label="Past COE" value={tiles.past} dot={tiles.past ? 'red' : null} tone={tiles.past ? 'text-red-700' : ''} onClick={() => tog('past')} active={only === 'past'} />
+        <Tile label="Closing ≤ 7 days" value={tiles.soon} dot={tiles.soon ? 'blue' : null} tone={tiles.soon ? 'text-blue-700' : ''} onClick={() => tog('soon')} active={only === 'soon'} />
       </Tiles>
       {only && <div className="mt-3 text-zinc-500">Showing only: {{ emd: 'EMD at risk', past: 'past COE', soon: 'closing within 7 days' }[only]} · <button onClick={() => setOnly(null)} className="text-blue-600 hover:underline">show all</button></div>}
-      <div className="mt-5 flex flex-col gap-5">
+      <div className="mt-4"><Legend /></div>
+      <div className="mt-3 flex flex-col gap-5">
         <Table title="Assigned — headed to close" sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + d.grossAssign, 0))} gross assignment`} rows={assigned} onOpen={open} empty="No assigned deals."
           cols={[step, prop, { label: 'Acq → Dispo', get: (d) => `${firstName(d.acq)} → ${d.dispoMember ? firstName(d.dispoMember) : '—'}` }, st, coe, inD, emd,
             { label: 'Gross', right: true, get: (d) => money(d.grossAssign) }, { label: 'Buyer', get: (d) => firstLine(d.buyer), cls: 'max-w-[160px] truncate text-zinc-600' }, titleCo, contract]} />
         <Table title="Needs a buyer — in due diligence" sub={`${needs.length} deals · not yet assigned`} rows={needs} onOpen={open} empty="Every pending deal has a buyer."
-          cols={[step, prop, { label: 'Acq. manager', get: (d) => d.acq || '—' }, st, coe, inD, emd, { label: 'DD ends', get: (d) => shortDate(d.ddEnd) },
+          cols={[step, prop, { label: 'Acq. manager', get: (d) => d.acq || '—' }, st, coe, inD, emd, { label: 'DD ends', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? `font-medium ${TONES.red.text}` : ''}>{shortDate(d.ddEnd)}</span>; } },
             { label: 'Dispo team', get: (d) => d.dispoTeam || '—' }, titleCo, contract]} />
         {missing.length > 0 && (
           <section className="rounded-xl border border-violet-200 bg-violet-50/40 overflow-hidden">

@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { FIELDS, GROUPS } from './math.js';
 import { useDeals, ghlDeals, addrKey } from './store.js';
 import { StatusChip, GhlChip, PageHead, Loading, Search } from './ui.jsx';
+import { nextStep, TONES } from './status.js';
 import { money, shortDate, stateCode, statusLabel, selectCls, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
@@ -111,7 +112,7 @@ export default function AllDealsView() {
               <tr key={d.id} onClick={() => open(d.id)} className="group border-t border-zinc-100 hover:bg-zinc-50 cursor-pointer">
                 {cols.map((f) => (
                   <td key={f.key} className={`px-3 py-1.5 whitespace-nowrap ${f.type === 'money' || f.type === 'percent' ? 'text-right tabular-nums' : ''} ${f.key === 'address' ? 'sticky left-0 bg-white group-hover:bg-zinc-50 font-medium max-w-[280px] truncate' : 'max-w-[220px] truncate'} ${d.fixed && f.key in d.fixed && d.fixed[f.key] != null ? 'text-amber-900' : ''}`}>
-                    {f.key === 'address' ? <span className="flex items-center gap-2"><span className="truncate">{d.address}</span>{d.status === 'PENDING' && <GhlChip g={ghl.get(addrKey(d.address))} />}</span> : NEEDS_BUYER.has(f.key) && noBuyer(d) ? <span className="text-zinc-400 text-xs">no buyer yet</span> : cell(f, d[f.key])}
+                    {f.key === 'address' ? <span className="flex items-center gap-2" title={nextStep(d).text}><span className={`shrink-0 w-2 h-2 rounded-full ${TONES[nextStep(d).tone].dot}`} /><span className="truncate">{d.address}</span>{d.status === 'PENDING' && <GhlChip g={ghl.get(addrKey(d.address))} />}</span> : NEEDS_BUYER.has(f.key) && noBuyer(d) ? <span className="text-zinc-400 text-xs">no buyer yet</span> : cell(f, d[f.key])}
                   </td>
                 ))}
               </tr>
