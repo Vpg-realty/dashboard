@@ -1,11 +1,225 @@
-// "My scorecard" (Luke, Oct 14): a rep's own Rep page — their numbers,
-// score, what to fix, and their trend against the team average. The data
-// behind it comes from /api/my-scorecard, which only ever sends their own.
+// "My scorecard" (Luke, Oct 14 — #4, "simple" version): a rep's own week at
+// a glance — the score, the three numbers that move it most, what to fix in
+// the CRM, and their weekly score over the last 8 weeks with the team
+// average line for reference. "Show the full breakdown" opens the full Rep
+// page (any period, points by week, funnel, by state) with only their own
+// numbers — no team rates. The data comes from /api/my-scorecard, which
+// only ever sends their own rows plus the team average.
+import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
+import { REPS } from '../../data/config.js';
+import { paceFraction } from '../../utils/pace.js';
+import { CRM_ITEMS, autoCrm } from '../../../scripts/scorecard-lib.mjs';
 import RepView from './RepView.jsx';
+import LineChart from './LineChart.jsx';
+import { ScoreHelp } from './Score.jsx';
+import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
+import { weekSeries, avgOf } from './trends.js';
+import { T, metrics, repPairs, scoreParts, scoreTone, paceTone } from './metrics.js';
+
+const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
+const card = 'rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
+
+function Ring({ score, estimate }) {
+  const t = scoreTone(score);
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative w-[124px] h-[124px] shrink-0" title={estimate ? 'Estimated — some CRM items not graded yet' : undefined}>
+      <svg viewBox="0 0 124 124" className="absolute inset-0 -rotate-90">
+        <circle cx="62" cy="62" r={r} fill="none" stroke="#f1f0ec" strokeWidth="11" />
+        <circle cx="62" cy="62" r={r} fill="none" stroke={t.c} strokeWidth="11" strokeLinecap="round" strokeDasharray={`${(c * Math.min(100, score)) / 100} ${c}`} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-[34px] leading-none font-bold tabular-nums ${t.text}`}>{score}</span>
+        <span className={`mt-1 text-[11px] font-bold uppercase tracking-[0.1em] ${t.text}`}>{t.label}{estimate ? ' · est.' : ''}</span>
+      </div>
+    </div>
+  );
+}
+
+function Kpi({ label, v, t, frac, money }) {
+  const tone = paceTone(v, t, frac);
+  const word = tone.key === 'good' ? 'On pace' : tone.key === 'close' ? 'Near pace' : 'Behind';
+  return (
+    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${tone.box}`}>
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-medium text-zinc-600">{label}</span>
+        <span className={`ml-auto text-[11.5px] font-semibold ${tone.text}`}>{word}</span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span className="text-[30px] leading-none font-bold tabular-nums text-navy-800">{money ? kMoney(v) : v}</span>
+        <span className="text-zinc-500 tabular-nums">/ {money ? kMoney(t) : t}</span>
+      </div>
+      <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
+        {v > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, (100 * v) / t)}%`, background: tone.bar }} />}
+        {frac < 1 && <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${frac * 100}%` }} title="Where you should be by now" />}
+      </div>
+    </div>
+  );
+}
+
+// The part of the score with the most points still on the table.
+function oneThing(parts, m, scale) {
+  const left = parts.filter((p) => !p.pending && p.max > 0 && p.pts < p.max).map((p) => ({ p, gain: Math.round((p.max - p.pts) * scale) })).sort((a, b) => b.gain - a.gain)[0];
+  if (!left || left.gain < 1) return null;
+  const n = Math.max(1, Math.ceil((left.p.want || 0) - (left.p.have || 0)));
+  const s = (x, w) => `${x} ${w}${x === 1 ? '' : 's'}`;
+  const text = {
+    contracts: `get ${s(n, 'contract')}`,
+    offers: `send ${s(n, 'more offer')}`,
+    opps: `open ${s(n, 'more opp')}`,
+    projected: `line up ${kMoney(Math.max(0, (left.p.want || 0) - (m.projected || 0)))} more assigned this month`,
+    speed: 'answer agent texts within 15 minutes',
+    crm: 'fix the CRM items below',
+  }[left.p.key];
+  return text ? { text, gain: left.gain } : null;
+}
+
+function FixList({ pairs, monday, crm, manual }) {
+  const auto = autoCrm(pairs, monday);
+  const rows = [];
+  const good = [];
+  CRM_ITEMS.forEach((it, i) => {
+    const g = crm?.[i];
+    const d = auto?.detail?.[it.key];
+    const byManager = Array.isArray(manual) && manual[i] != null;
+    if (g === 2) { good.push(it.short); return; }
+    rows.push({ it, g, bad: byManager ? [] : d?.bad || [], more: byManager ? 0 : Math.max(0, (d?.badN || d?.bad?.length || 0) - 3), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
+  });
+  const badge = (g) => (g == null ? 'bg-zinc-200 text-zinc-500' : g === 1 ? 'bg-amber-500 text-white' : 'bg-red-600 text-white');
+  return (
+    <section className={`${card} p-5`}>
+      <h2 className="text-[15px] font-semibold text-navy-800">{rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'}</h2>
+      <div className="mt-3 flex flex-col gap-2.5">
+        {rows.map(({ it, g, bad, more, note }) => (
+          <div key={it.key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
+            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
+            <div className="min-w-0">
+              <div className="font-semibold text-zinc-900">{it.label} <span className="font-normal text-zinc-500">· {note}</span></div>
+              {bad.length > 0 ? (
+                <ul className="mt-1 space-y-0.5 text-[13.5px]">
+                  {bad.slice(0, 3).map((b) => <li key={b.id || `${b.addr}${b.why}`}><span className="font-medium">{b.addr}</span> <span className="text-zinc-600">— {b.why}</span></li>)}
+                  {more > 0 && <li className="text-zinc-500">+{more} more</li>}
+                </ul>
+              ) : <div className="mt-0.5 text-[13.5px] text-zinc-600">{it.help}</div>}
+            </div>
+          </div>
+        ))}
+        {good.length > 0 && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 flex items-center gap-3">
+            <span className="w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 bg-emerald-600 text-white">2</span>
+            <span><span className="font-semibold text-zinc-900">{good.join(', ').replace(/, ([^,]*)$/, ' and $1')}</span> <span className="text-zinc-600">{good.length === 1 ? 'is' : 'are'} all good — nothing to fix.</span></span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Trend({ sc, rep }) {
+  const weeks = weekSeries(sc, 8);
+  const mine = weeks.map((w) => w.reps[rep.id]?.s.score ?? null);
+  const team = weeks.map((w) => w.teamAvg ?? null);
+  const lastI = weeks.length - 1;
+  const now = mine[lastI];
+  const prev = mine[lastI - 1];
+  const before = mine.slice(0, lastI).filter((v) => v != null);
+  let best = null;
+  mine.forEach((v, i) => { if (v != null && (best == null || v > best.v)) best = { v, i }; });
+  const d = (a, b) => (a == null || b == null ? null : Math.round(a - b));
+  const delta = (v) => (v == null ? <span className="text-zinc-300">—</span> : v === 0 ? <span className="text-zinc-500">±0</span> : <span className={v > 0 ? 'text-emerald-700' : 'text-red-700'}>{v > 0 ? '▲' : '▼'} {Math.abs(v)}</span>);
+  const tint = (v) => (v == null || v === 0 ? 'border-tan-200 bg-white' : v > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50');
+  const dWk = d(now, prev);
+  const dAvg = before.length ? d(now, avgOf(before)) : null;
+  const stats = [
+    ['This week so far', <span key="n" className="text-navy-800">{now ?? '—'}</span>, 'border-tan-200 bg-white'],
+    ['vs last week', delta(dWk), tint(dWk)],
+    [`vs your ${before.length}-week average`, delta(dAvg), tint(dAvg)],
+    ['Best week', best ? <span key="b" className="text-navy-800">{best.v} <span className="text-base font-medium text-zinc-500">{weeks[best.i].label}</span></span> : '—', 'border-tan-200 bg-white'],
+  ];
+  return (
+    <section className={`${card} p-5`}>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <h2 className="text-[15px] font-semibold text-navy-800">Your weekly score, last {weeks.length} weeks</h2>
+        <span className="ml-auto flex items-center gap-4 text-[12.5px] text-zinc-600">
+          <span className="inline-flex items-center gap-1.5 font-medium"><span className="w-5 h-1 rounded bg-navy-700" />You</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" />Team average</span>
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map(([l, v, c]) => (
+          <div key={l} className={`rounded-xl border px-4 py-3 ${c}`}>
+            <div className="text-[13px] text-zinc-500 font-medium">{l}</div>
+            <div className="mt-1.5 text-[28px] leading-none font-bold tabular-nums">{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 h-[300px]">
+        <LineChart
+          labels={weeks.map((w) => w.label)}
+          series={[
+            { name: 'Team average', color: '#a1a1aa', dash: true, values: team },
+            { name: rep.name, color: '#1b385f', bold: true, showValues: true, values: mine },
+          ]}
+        />
+      </div>
+      <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Friday noon); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed line is the team's average score, for reference.</div>
+    </section>
+  );
+}
 
 export default function MyScorecardView() {
   const me = useMe();
-  if (!me?.rep_id) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet.</div>;
-  return <RepView repId={me.rep_id} self />;
+  const sc = useScorecards();
+  const [full, setFull] = useState(false);
+  const rep = REPS.find((r) => r.id === me?.rep_id);
+  if (!me) return null;
+  if (!rep) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet.</div>;
+  const pairs = repPairs(rep.id);
+  const m = metrics(pairs);
+  const { monday, weekOfLabel } = currentWeek();
+  const { manual, crm } = reviewFor(sc, monday, rep.id, null, sc.weeks[monday] ? sc.weeks[monday].reps?.[rep.id]?.crmAuto : autoCrm(pairs, monday));
+  const sp = scoreParts(m, crm);
+  const thing = oneThing(sp.parts, m, sp.scale);
+  const wk = paceFraction('week');
+  const mo = paceFraction('month');
+  const frozen = !!sc.weeks[monday];
+
+  return (
+    <div className="max-w-[1600px] mx-auto flex flex-col gap-4 overflow-x-auto">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-navy-800">My scorecard</h1>
+          <div className="text-zinc-500 mt-0.5">{weekOfLabel ? `Week of ${weekOfLabel}` : 'This week'} · {frozen ? 'final (frozen Friday noon)' : 'live until Friday noon'}</div>
+        </div>
+        <span className="ml-auto"><ScoreHelp /></span>
+      </div>
+
+      <section className={`${card} p-5`}>
+        <div className="flex flex-col md:flex-row gap-5 md:items-center">
+          <Ring score={sp.score} estimate={sp.estimate} />
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0">
+            <Kpi label="Contracts this week" v={m.contractsW} t={T.contractsPerWeek} frac={wk} />
+            <Kpi label="Offers this week" v={m.offersW} t={T.offersPerWeek} frac={wk} />
+            <Kpi label="Projected this month" v={m.projected} t={T.revenuePerRepMonth} frac={mo} money />
+          </div>
+        </div>
+        {thing && <div className="mt-4 text-[14px] text-zinc-600">The one thing that moves your score most this week: <span className="font-semibold text-navy-800">{thing.text}</span> (worth up to {thing.gain} points).</div>}
+      </section>
+
+      <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} />
+      <Trend sc={sc} rep={rep} />
+
+      <button onClick={() => setFull((v) => !v)} className={`${card} px-5 py-3.5 flex items-center gap-3 text-left hover:bg-tan-50 ${full ? 'bg-navy-700 hover:bg-navy-800 border-navy-700' : ''}`}>
+        <span className={`font-semibold ${full ? 'text-white' : 'text-navy-800'}`}>{full ? 'Full breakdown' : 'Show the full breakdown'}</span>
+        <span className={`ml-auto text-[13px] ${full ? 'text-white/80' : 'text-zinc-500'}`}>{full ? 'hide ▴' : 'any week or month, every number, points by week, funnel, states ▾'}</span>
+      </button>
+      {full && (
+        <div className="app-team h-[1060px] min-w-[1100px]">
+          <RepView repId={rep.id} self breakdown />
+        </div>
+      )}
+    </div>
+  );
 }

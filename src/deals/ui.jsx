@@ -2,7 +2,9 @@
 import Icon from '../shell/icons.jsx';
 import { GHL_STAGE } from './store.js';
 import { statusLabel } from './format.js';
-import { TONES } from './status.js';
+import { TONES, dueTone, daysBetween } from './status.js';
+import { shortDate } from './format.js';
+import { laToday } from '../utils/historyRange.js';
 
 const STATUS_STYLE = {
   PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
@@ -31,16 +33,16 @@ export function PageHead({ title, sub, right }) {
 export function Tile({ label, value, sub, tone, onClick, active, dot }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag onClick={onClick} className={`text-left px-4 py-3 border-zinc-200/80 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-zinc-50' : ''} ${active ? 'bg-navy-50 shadow-[inset_0_-2px_0_var(--color-tan-500)]' : ''}`}>
-      <div className="text-[12.5px] text-zinc-500 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOTS[dot]}`} />}{label}</div>
-      <div className={`mt-1 text-xl font-semibold tracking-tight tabular-nums ${tone || ''}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-zinc-500 whitespace-nowrap">{sub}</div>}
+    <Tag onClick={onClick} className={`text-left px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-tan-50' : ''} ${active ? 'bg-navy-50 shadow-[inset_0_-2px_0_var(--color-tan-500)]' : ''}`}>
+      <div className="text-[13px] text-zinc-500 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOTS[dot]}`} />}{label}</div>
+      <div className={`mt-1.5 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${tone || 'text-navy-800'}`}>{value}</div>
+      {sub && <div className="mt-1.5 text-xs text-zinc-500 whitespace-nowrap">{sub}</div>}
     </Tag>
   );
 }
 const DOTS = { red: 'bg-red-500', amber: 'bg-amber-500', blue: 'bg-blue-500', green: 'bg-emerald-500', zinc: 'bg-zinc-400' };
 export function Tiles({ children, cols = 4 }) {
-  return <div className={`grid grid-cols-2 ${cols === 6 ? 'lg:grid-cols-6' : cols === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} rounded-xl border border-zinc-200/80 bg-white overflow-hidden [&>*]:border-b lg:[&>*]:border-b-0`}>{children}</div>;
+  return <div className={`grid grid-cols-2 ${cols === 6 ? 'lg:grid-cols-6' : cols === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*]:border-b lg:[&>*]:border-b-0`}>{children}</div>;
 }
 
 export function Notice({ children, tone = 'zinc' }) {
@@ -77,4 +79,16 @@ export function SyncNote({ sync }) {
   const m = minutesSince(sync.at);
   const ago = m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
   return <span className={m > 90 ? 'text-amber-700' : 'text-zinc-500'}>Synced with GHL {ago}.</span>;
+}
+
+// COE with days to go, one chip coloured like the board's Pipeline.
+export function CoeChip({ coe, today = laToday() }) {
+  if (!coe) return <span className="text-zinc-300">—</span>;
+  const n = /^\d{4}-\d{2}-\d{2}$/.test(coe) ? daysBetween(today, coe) : null;
+  return (
+    <span className={`inline-flex items-center rounded-md border overflow-hidden text-[12.5px] font-semibold whitespace-nowrap ${dueTone(n)}`}>
+      <span className="px-2 py-0.5">{shortDate(coe)}</span>
+      {n != null && <span className="px-1.5 py-0.5 border-l border-current/25 tabular-nums">{n < 0 ? `${-n}d late` : n === 0 ? 'today' : `${n}d`}</span>}
+    </span>
+  );
 }

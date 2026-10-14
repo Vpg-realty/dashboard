@@ -168,6 +168,18 @@ export function payouts(d, rules) {
   ].filter(([, who, amt]) => who && typeof amt === 'number' && amt !== 0).map(([part, who, amount]) => ({ part, who, amount }));
 }
 
+// Reps and managers (Luke, Oct 14) see only Contract, Title, EMD, Due
+// diligence and Dispositions — not Financials, Bookkeeping or Notes, and not
+// Net loss % (owners only). The server strips the rest.
+export const REP_GROUPS = ['contract', 'title', 'emd', 'dd', 'dispo'];
+export const REP_HIDDEN = ['netLoss'];
+export const repSees = (f) => REP_GROUPS.includes(f.group) && !f.secret && !REP_HIDDEN.includes(f.key);
+export function forRep(deal) {
+  const d = forTc(deal);
+  for (const f of FIELDS) if (!repSees(f)) { delete d[f.key]; delete d.fixed[f.key]; }
+  return d;
+}
+
 // Strip what the TC may not see (commission and profit columns, and any
 // hand-typed numbers in them).
 export function forTc(deal) {

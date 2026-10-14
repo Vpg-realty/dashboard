@@ -39,9 +39,9 @@ function Avatar({ rep, size = 20 }) {
 // (Luke, Oct 14: highlight boxes by pace across the site).
 function paceBadge(ratio) {
   if (ratio == null) return null;
-  if (ratio >= 1) return ['On pace', 'bg-emerald-100 text-emerald-800 ring-emerald-300', 'bg-emerald-50'];
-  if (ratio >= 0.7) return ['Near pace', 'bg-amber-100 text-amber-900 ring-amber-300', 'bg-amber-50'];
-  return ['Behind', 'bg-red-100 text-red-800 ring-red-300', 'bg-red-50'];
+  if (ratio >= 1) return ['On pace', 'bg-emerald-100 text-emerald-800 ring-emerald-300', 'bg-emerald-50', '#059669'];
+  if (ratio >= 0.7) return ['Near pace', 'bg-amber-100 text-amber-900 ring-amber-300', 'bg-amber-50', '#d97706'];
+  return ['Behind', 'bg-red-100 text-red-800 ring-red-300', 'bg-red-50', '#dc2626'];
 }
 
 function Stat({ label, value, target, color, period }) {
@@ -58,12 +58,13 @@ function Stat({ label, value, target, color, period }) {
       <div className="mt-2 text-[34px] leading-none font-semibold tracking-tight tabular-nums text-navy-800">
         {value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}
       </div>
-      {pct != null && (
-        <div className="relative mt-3.5 h-1.5 rounded bg-zinc-100">
-          <div className="h-full rounded" style={{ width: `${Math.max(pct, 2)}%`, background: color }} />
-          {pace != null && pace < 1 && <span className="absolute -top-1 bottom-[-4px] w-0.5 rounded bg-zinc-700/70" style={{ left: `${pace * 100}%` }} title="Where you should be by now" />}
+      {pct != null && (<>
+        <div className="relative mt-3.5 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
+          {pct > 0 && <div className="h-full rounded-full" style={{ width: `${pct}%`, background: badge ? badge[3] : color }} />}
+          {pace != null && pace < 1 && <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${pace * 100}%` }} title="Where you should be by now" />}
         </div>
-      )}
+        {pace != null && pace < 1 && <div className="mt-1.5 text-[11.5px] text-zinc-500 tabular-nums">Should be at {Math.round(target * pace)} by now</div>}
+      </>)}
     </div>
   );
 }

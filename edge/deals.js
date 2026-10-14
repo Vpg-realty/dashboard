@@ -9,7 +9,7 @@
 //             not in the public repo
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
-import { FIELD, FIELDS, SECRET_KEYS, forTc } from '../src/deals/math.js';
+import { FIELD, FIELDS, SECRET_KEYS, forTc, forRep, repSees } from '../src/deals/math.js';
 
 import roster from '../subaccounts.json' with { type: 'json' };
 
@@ -65,7 +65,7 @@ export function rowToDeal(r) {
 // What this person may receive.
 export function shape(deal, user) {
   if (isOwner(user)) return deal;
-  return isRepView(user) ? { ...forTc(deal), mine: isMine(user, deal) } : forTc(deal);
+  return isRepView(user) ? { ...forRep(deal), mine: isMine(user, deal) } : forTc(deal);
 }
 
 // The rules the browser needs: all of them for owners; for the TC only the
@@ -114,4 +114,6 @@ export function dataOf(deal) {
 }
 
 export const SECRET_LOG = (field) => SECRET_KEYS.includes(field.replace(/^fixed\./, ''));
+// History entries a rep may see (fields of the sections they see).
+export const REP_LOG = (field) => { if (field.startsWith('*')) return true; const f = FIELD[field.replace(/^fixed\./, '')]; return !!f && repSees(f); };
 export const ALL_KEYS = FIELDS.map((f) => f.key);

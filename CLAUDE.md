@@ -55,10 +55,11 @@ public website — never touch it). In front of it, Cloudflare Access app
 **"VPG Dashboard"** (Zero Trust team `tiny-base-e88a.cloudflareaccess.com`)
 covers `vpg-dashboard.pages.dev` and `*.vpg-dashboard.pages.dev`: login by
 emailed one-time code ("Email code" identity provider), session 730 h
-(~1 month), policy "VPG team" = an allow-list of @valleypropertygroup.com
-emails (luke, jack = owners; anthony, sam = managers; spencer, axel, cayden,
-danni, daniel, rory, patrick = team; tc = Aiza; info = the office TV, which
-should get team-level access once roles exist). Free plan: Access logs are
+(~1 month), policy "VPG team" = any @valleypropertygroup.com email (email
+domain rule since Oct 14 — Luke; before that a 13-email allow-list). Who
+sees what is decided by D1 `users` (Settings → People): a company email
+that isn't there signs in but gets a "not set up yet" page and no data
+(functions/_middleware.js). Free plan: Access logs are
 kept 24 h.
 
 Publishing without editing deploy.yml: `npm run snapshot` starts with
@@ -204,12 +205,22 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   pace, or off pace … throughout the whole site"): the number boxes, the
   Revenue card and every "This week by rep" cell are tinted green / amber /
   red by pace (`paceBadge`: ≥ 100% / ≥ 70% of where they should be by
-  now), like the TV boxes and the Team pages already were.
+  now), like the TV boxes and the Team pages already were; each bar is
+  drawn in its box's pace colour with a navy "should be here by now" tick
+  and the number under it (Luke, Oct 14: bars "in the wrong colors").
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
-  average yes, manager notes no): sidebar section for team + managers
-  (`MyScorecardView.jsx` → `RepView` with `self`: no rep picker, plus
-  `MyCrmCard.jsx` "What to fix" — each CRM item's grade, manager's wins, and
-  the deals / texts behind the automatic checks). Data from
+  average line yes, manager notes no, no other rep's scores or team rates):
+  sidebar section for team + managers, a scrolling page
+  (`MyScorecardView.jsx`): score ring + Contracts / Offers this week and
+  Projected this month boxes tinted by pace, "the one thing that moves your
+  score most" (the part with the most points left), "Fix these N things"
+  (each CRM item below 2 with the deals / texts behind it, the rest folded
+  into one "all good" row), and the weekly score over 8 weeks with the
+  dashed team average for reference. "Show the full breakdown" opens
+  `RepView` with `self breakdown`: any period, the six tiles, points per
+  part by week (`RepProgress pointsOnly`), their funnel ("your biggest
+  drop", no team %) and states (no team colouring). `MyCrmCard.jsx` is no
+  longer used on it. Data from
   `functions/api/my-scorecard.js` (needs `users.rep_id`): their own rows of
   scorecards.json, their CRM grades from D1 (never notes), their pairs'
   data-mgr.json fields, and the team's average score per week (frozen weeks
@@ -304,6 +315,16 @@ the server strips them (`forTc`) and refuses edits to them.
   **All active / Only mine** switch (`?mine=1`; the API marks each deal
   `mine` when they're its acq. manager or dispo member — name from
   subaccounts.json via `rep_id`). Writes 403.
+- **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
+  Title, EMD, Due diligence and Dispositions — not Financials, Bookkeeping,
+  Notes, nor Net loss % (owners only). `repSees` / `forRep` (math.js) — the
+  server strips the rest (and its history entries, `REP_LOG`); view-only
+  fields read as plain text, not greyed-out boxes.
+- **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
+  colours"): navy header with the V mark, a key-facts strip (contracted /
+  assignment price, gross for owners / TC, COE chip, DD end), each group a
+  numbered white card with a navy title on a tan background. Deals pages
+  are full width (max 1720px) with bigger tiles and roomier rows.
 - **Buyer is owners only** (Luke, Oct 14: "can only be seen by Jack and
   myself" — so reps can't take buyers' names): the `buyer` field is secret,
   like the commission / profit columns, so the server strips it for the TC

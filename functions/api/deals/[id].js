@@ -5,7 +5,7 @@
 // DELETE /api/deals/:id → { ok } (owners; kept in D1 as deleted, logged)
 // GET    /api/deals/:id → { deal, log } — the deal and its change history.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG } from '../../../edge/deals.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -26,7 +26,7 @@ export async function onRequestGet(context) {
   if (res) return res;
   const log = await context.env.DB.prepare('SELECT at, name, field, old, new FROM deal_log WHERE deal_id = ? ORDER BY id DESC LIMIT 200').bind(id).all();
   const entries = log.results
-    .filter((e) => isOwner(user) || !SECRET_LOG(e.field))
+    .filter((e) => isOwner(user) || (isRepView(user) ? REP_LOG(e.field) : !SECRET_LOG(e.field)))
     .map((e) => ({ at: e.at, by: e.name, field: e.field, from: e.old == null ? null : JSON.parse(e.old), to: e.new == null ? null : JSON.parse(e.new) }));
   return json({ deal: shape(rowToDeal(row), user), log: entries });
 }
