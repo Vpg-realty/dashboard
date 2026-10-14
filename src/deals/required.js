@@ -12,45 +12,49 @@
 // longer changes the tracker itself, so a stage move in GHL shows up here
 // instead). Used by Active ("Needs info"), All deals (the `need` filter and
 // the "N missing" badge) and the deal panel (missing fields highlighted).
-import { FIELD } from './math.js';
+import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending } from './math.js';
 import { laToday } from '../utils/historyRange.js';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
+// Stage triggers only (an assignment price is in): above zero.
 const money = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const daysAgo = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const ghl = (d) => up(d.ghlStage);
 const pending = (d) => up(d.status) === 'PENDING';
-const viaVpg = (d) => ['VPG', '', 'PENDING'].includes(up(d.dispoTeam)); // buyer / dispo member are "(if VPG)"
 const emdByVpg = (d) => /VPG/.test(up(d.emdPaidBy));
+const cancelled = (d) => up(d.status) === 'CANCELLED';
 
 // Closed deals are checked for this long after their COE (older ones were
 // finished in the sheet; flagging all of them would bury the new ones).
 export const CLOSED_CHECK_DAYS = 90;
+const recentClose = (d, today) => up(d.status) === 'COMPLETE' && (!ISO.test(d.coe || '') || d.coe >= daysAgo(today, CLOSED_CHECK_DAYS));
 
-// When is a field still missing? Money must be above zero; lists that hold a
-// placeholder ("PENDING") are still missing; the rest just needs a value.
+// When is a field still missing? (Luke, Oct 14) Only when it's empty or a
+// dash ("-" / "—", the standard for "no data") — a 0 is data. Lists that
+// hold a placeholder ("PENDING") are still missing. One exception: a
+// retraded deal's contracted price stays missing at 0 until the new price is
+// typed in (math.js retradeFields).
 const isMissing = {
-  money: (d, k) => !money(d[k]),
-  placeholder: (d, k) => !d[k] || up(d[k]) === 'PENDING',
-  value: (d, k) => d[k] == null || String(d[k]).trim() === '',
+  value: (d, k) => isBlank(d[k]),
+  placeholder: (d, k) => isBlank(d[k]) || up(d[k]) === 'PENDING',
+  price: (d, k) => isBlank(d[k]) || retradePending(d),
 };
 // field → how to test it, and when it's needed at all.
 const RULE = {
   address: ['value'], acq: ['value'], state: ['value'], accepted: ['value'], coe: ['value'], dealType: ['value'], listing: ['value'],
-  price: ['money'], title: ['value'], ddDays: ['value'],
-  emd: ['money', (d) => up(d.emdStatus) !== 'NA'],
+  price: ['price'], title: ['value'], ddDays: ['value'],
+  emd: ['value', (d) => up(d.emdStatus) !== 'NA'],
   emdStatus: ['value'],
   emdSent: ['value', (d) => up(d.emdStatus) === 'COMPLETE'],
   emdPaidBy: ['placeholder'],
-  dispoTeam: ['placeholder'],
-  dispoMember: ['value', (d) => up(d.dispoTeam) === 'VPG'],
-  buyer: ['value', viaVpg],
-  asking: ['money'],
-  vpgAssign: ['money'],
-  finalAssign: ['money'],
+  dispoMember: ['value'],
+  buyer: ['value'],
+  asking: ['value'],
+  vpgAssign: ['value'],
+  finalAssign: ['value'],
   status: ['value'],
-  wireDate: ['value'], wireReceived: ['money'],
+  wireDate: ['value'], wireReceived: ['value'],
   emdReturned: ['value', emdByVpg],
   commPaid: ['value'],
 };
@@ -69,20 +73,27 @@ export const CATEGORIES = [
     id: 'dispo', label: 'In Dispo Active — needs dispo details', tone: 'amber',
     hint: 'GHL has it in Dispo Active: who is selling it and for how much.',
     when: (d) => pending(d) && ghl(d) === 'DISPO ACTIVE',
-    fields: ['dispoTeam', 'dispoMember', 'asking'],
+    fields: ['dispoMember', 'asking'],
   },
   {
     id: 'assigned', label: 'Moved to Assigned — needs sold details', tone: 'green',
     hint: 'Assigned in GHL, or a buyer / assignment price is in: buyer info, assignment prices and who placed the EMD.',
     when: (d) => pending(d) && (ghl(d) === 'ASSIGNED' || money(d.vpgAssign) || money(d.finalAssign) || !!d.buyer),
-    fields: ['dispoTeam', 'dispoMember', 'buyer', 'vpgAssign', 'finalAssign', 'emdPaidBy'],
+    fields: ['dispoMember', 'buyer', 'vpgAssign', 'finalAssign', 'emdPaidBy'],
   },
   {
     id: 'closed', label: 'Closed — needs closing details', tone: 'green',
-    hint: `Closed in GHL or in the tracker (COE in the last ${CLOSED_CHECK_DAYS} days): status, wire and EMD return.`,
-    when: (d, today) => (pending(d) && ghl(d) === 'CLOSED') || (up(d.status) === 'COMPLETE' && (!ISO.test(d.coe || '') || d.coe >= daysAgo(today, CLOSED_CHECK_DAYS))),
-    fields: ['status', 'finalAssign', 'wireDate', 'wireReceived', 'emdReturned', 'commPaid'],
+    hint: `Closed in GHL or in the tracker (COE in the last ${CLOSED_CHECK_DAYS} days): status and final price (the wire and EMD return are under bookkeeping).`,
+    when: (d, today) => (pending(d) && ghl(d) === 'CLOSED') || recentClose(d, today),
+    fields: ['status', 'finalAssign'],
     wrong: (d) => (pending(d) && ghl(d) === 'CLOSED' ? ['status'] : []),
+  },
+  {
+    // Luke, Oct 14: bookkeeping unlocks at COE and becomes a task for owners.
+    id: 'books', label: 'At COE — fill in bookkeeping', tone: 'navy', owners: true,
+    hint: 'The COE date is here (or the deal closed): wire received, wire date, EMD returned and commission paid.',
+    when: (d, today) => !cancelled(d) && booksOpen(d, today) && (pending(d) || recentClose(d, today)),
+    fields: BOOKS_KEYS,
   },
   {
     id: 'lost', label: 'Lost in GHL — confirm the cancel', tone: 'red',
@@ -107,7 +118,7 @@ export function needsInfo(d, who, today = laToday()) {
   if (!d || who?.readOnly) return [];
   const out = [];
   for (const c of CATEGORIES) {
-    if (!c.when(d, today)) continue;
+    if ((c.owners && !who?.owner) || !c.when(d, today)) continue;
     const wrong = c.wrong ? c.wrong(d) : [];
     const miss = c.fields.filter((k) => {
       if (!canFill(k, who)) return false;

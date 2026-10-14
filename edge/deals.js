@@ -9,7 +9,8 @@
 //             not in the public repo
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
-import { FIELD, FIELDS, SECRET_KEYS, forTc, forRep, repSees } from '../src/deals/math.js';
+import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, forTc, forRep, repSees, isBlank, booksOpen } from '../src/deals/math.js';
+import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
 
 import roster from '../subaccounts.json' with { type: 'json' };
@@ -40,7 +41,12 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export function clean(key, v) {
   const f = FIELD[key];
   if (!f) return { error: `unknown field ${key}` };
-  if (v === null || v === '') return { value: null };
+  if (isBlank(v)) return { value: null }; // "" or a dash = no data (a 0 is data)
+  if (f.type === 'time') {
+    if (typeof v === 'string' && v.length <= 40) return { value: v.trim() }; // "HH:MM" (older deals: free text)
+    return { error: `${f.label}: not a time` };
+  }
+  if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
   if (f.type === 'money' || f.type === 'number' || f.type === 'percent') {
     if (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e10) return { value: v };
     if (typeof v === 'string' && v.length <= 40) return { value: v.trim() }; // e.g. "PAID BY BUYER"
@@ -61,6 +67,30 @@ export async function getSetting(db, key, fallback = null) {
 
 export function rowToDeal(r) {
   return { ...JSON.parse(r.data), id: r.id, updatedAt: r.updated_at, updatedBy: r.updated_by, createdAt: r.created_at };
+}
+
+// Which GHL sub-account a linked deal is in (D1 deal_ghl.location →
+// subaccounts.json): { location, rep, market } or null. The sync stores the
+// sub-account as "<repId>|<marketId>" (scripts/sync-deals.mjs); a GHL
+// location id reads too. Fine for everyone who may see the deal.
+export function ghlSub(location) {
+  if (!location) return null;
+  const [repId, marketId] = String(location).split('|');
+  const s = marketId
+    ? roster.subaccounts.find((x) => x.repId === repId && x.marketId === marketId)
+    : roster.subaccounts.find((x) => x.locationId === location);
+  const rep = s?.repId || (marketId ? repId : null);
+  return {
+    location: s?.locationId || location,
+    rep: rep ? roster.reps.find((r) => r.id === rep)?.name || rep : null,
+    market: s?.marketId || marketId || null,
+  };
+}
+export async function ghlLinks(db, dealId = null) {
+  const rows = dealId
+    ? await db.prepare('SELECT deal_id, location FROM deal_ghl WHERE deal_id = ?').bind(dealId).all()
+    : await db.prepare('SELECT deal_id, location FROM deal_ghl').all();
+  return new Map(rows.results.map((r) => [r.deal_id, ghlSub(r.location)]));
 }
 
 // What this person may receive.
@@ -110,6 +140,10 @@ export function applyEdit(deal, body, user) {
     if (!had || next.fixed[k] !== c.value) { changes.push([`fixed.${k}`, had ? next.fixed[k] : 'formula', c.value]); next.fixed[k] = c.value; }
   }
   if (!Object.keys(next.fixed).length) delete next.fixed;
+  // Bookkeeping is locked until the COE date (or the deal is closed) — Luke,
+  // Oct 14. Clearing a value is always allowed.
+  const books = changes.find(([k, , to]) => BOOKS_KEYS.includes(k) && to != null);
+  if (books && !booksOpen(next)) return { error: `${FIELD[books[0]].label} unlocks at COE` };
   return { deal: next, changes };
 }
 

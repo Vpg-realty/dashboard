@@ -1,4 +1,4 @@
-import { CYCLE_VIEWS, MANAGER_VIEWS } from '../data/config.js';
+import { CYCLE_VIEWS, TV_VIEWS, MANAGER_VIEWS } from '../data/config.js';
 import { useMe, canGrade } from '../utils/dashApi.js';
 
 const LABELS = {
@@ -16,14 +16,17 @@ const LABELS = {
 // tabs — blue, behind a "Manager" label — which are click-only and never
 // shown in the rotation. They replaced the Advanced tab. Only managers and
 // owners get the Manager group (Luke, Oct 14: everyone else, the TV
-// included, sees what the TV shows and nothing else).
+// included, sees what the TV shows and nothing else). Pipeline is a TV tab
+// but click-only since Oct 14 (TV_VIEWS vs CYCLE_VIEWS).
 export default function ViewNav({ active, onChange, cycleIntervalMs = 10000, tvOnly = false }) {
   const isManager = canGrade(useMe());
   const showManager = isManager && !tvOnly;
-  const tab = (v, manager) => (
+  // `still`: a TV tab that's click-only (Pipeline, Luke Oct 14).
+  const tab = (v, manager, still) => (
     <button
       key={v}
       onClick={() => onChange(v)}
+      title={still ? 'Click to open — not in the TV rotation' : undefined}
       className={`px-3 lg:px-4 py-1.5 rounded-md text-xs font-medium uppercase tracking-wider transition shrink-0 ${
         active === v
           ? manager ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-950'
@@ -36,7 +39,7 @@ export default function ViewNav({ active, onChange, cycleIntervalMs = 10000, tvO
   return (
     <nav className="flex items-center gap-1 px-6 py-2.5 border-b border-zinc-300/80 bg-zinc-50 overflow-x-auto">
       <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 pr-1 shrink-0">TV ▸</span>
-      {CYCLE_VIEWS.map((v) => tab(v, false))}
+      {TV_VIEWS.map((v) => tab(v, false, !CYCLE_VIEWS.includes(v)))}
       {showManager && (
         <>
           <span className="mx-2 h-6 w-px bg-zinc-300 shrink-0" />
@@ -45,7 +48,7 @@ export default function ViewNav({ active, onChange, cycleIntervalMs = 10000, tvO
         </>
       )}
       <div className="ml-auto text-[10px] uppercase tracking-widest text-zinc-400 hidden 2xl:block shrink-0">
-        TV tabs rotate every {Math.round(cycleIntervalMs / 1000)}s
+        TV tabs rotate every {Math.round(cycleIntervalMs / 1000)}s · Pipeline click-only
       </div>
     </nav>
   );

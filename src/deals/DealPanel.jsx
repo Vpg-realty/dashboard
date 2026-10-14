@@ -4,7 +4,7 @@
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl } from './math.js';
+import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
@@ -13,7 +13,23 @@ import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
 import { needsInfo } from './required.js';
+import { editFields } from './edits.js';
+import { netLossHigh, ALERT } from './sheet.js';
+import { showEndTime, ipEndAlert } from './ddTime.js';
 
+// One look for every highlighted field box (Luke, Oct 14: "needed" and
+// "check this" boxes looked different and ran together): same padding,
+// radius and ring on every field — needed red, check amber, retrade amber
+// and stronger — with the grid's gap between boxes.
+const BOX = 'rounded-lg p-2 ring-1 ring-inset';
+const BOX_TONE = {
+  plain: 'ring-transparent',
+  need: 'bg-[#FDF1F0] ring-[#F5C2BD]',
+  check: 'bg-[#FFF8E6] ring-[#F5D9A8]',
+  retrade: 'bg-amber-50 ring-2 ring-amber-400 transition-colors duration-700',
+  flash: 'bg-amber-200 ring-2 ring-amber-500 transition-colors duration-700',
+  alert: 'ring-[#F5C2BD]',
+};
 // Scroll to a field and put the cursor in it (Needs info → "enter it").
 function jumpTo(key) {
   const el = document.getElementById(`deal-f-${key}`);
@@ -98,6 +114,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [base, setBase] = useState(raw?.updatedAt);
+  const [flash, setFlash] = useState(false);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
 
@@ -130,11 +147,18 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const warn = checks(merged);
   const step = nextStep(merged);
   const flagged = new Set(step.fields || []);
+  const ip = isNew ? null : ipEndAlert(merged);
   // What this deal still needs for its stage (required.js) — only fields
   // this person can fill in.
   const needs = needsInfo(merged, { owner, readOnly: ro });
   const need = new Set(needs.flatMap((x) => x.fields));
-  const setField = (k, v) => setDraft((d) => ({ ...d, fields: { ...d.fields, [k]: v } }));
+  // One edit can carry another field with it (retrade → the price; edits.js).
+  const setField = (k, v) => {
+    const now = { ...raw, ...draft.fields };
+    const patch = editFields(now, k, v);
+    if (k === 'retrade' && 'price' in patch) { setFlash(true); setTimeout(() => setFlash(false), 900); }
+    setDraft((d) => ({ ...d, fields: { ...d.fields, ...patch } }));
+  };
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
   function close() {
     if (dirty && !isNew && !window.confirm('Discard your unsaved changes?')) return;
@@ -169,11 +193,11 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const groups = GROUPS.filter(([gid]) => FIELDS.some((f) => f.group === gid && visible(f)));
   const vpg = typeof merged.vpgAssign === 'number' && merged.vpgAssign > 0;
   const facts = [
-    ['Contracted price', money(merged.price)],
+    ['Contracted price', retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)],
     ['Assignment price', vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>],
     ...(ro ? [] : [['Gross', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : <span className="text-zinc-400 font-medium text-[14px]">—</span>]]),
     ['COE', <CoeChip key="coe" coe={merged.coe} />],
-    ['DD ends', merged.ddEnd ? shortDate(merged.ddEnd, { year: false }) : <span className="text-zinc-300">—</span>],
+    ['DD ends', merged.ddEnd ? <span title={showEndTime(merged)}>{shortDate(merged.ddEnd, { year: false })}{merged.ddEndTime ? <span className="block text-[11.5px] font-medium text-zinc-500 truncate">{showEndTime(merged)}</span> : null}</span> : <span className="text-zinc-300">—</span>],
   ];
 
   return (
@@ -186,11 +210,16 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           <div className="flex items-start gap-3 relative">
             <div className="min-w-0 flex-1">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && ' · view only'}</div>
-              <h2 className="mt-1 text-[22px] font-semibold tracking-tight truncate">{merged.address || 'New deal'}</h2>
+              <h2 className="mt-1 text-[22px] font-semibold tracking-tight break-words">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <StatusChip status={merged.status} />
                 {!isNew && !step.done && <StepPill step={step} />}
                 <GhlChip g={g} />
+                {!isNew && (
+                  <span className="text-[12px] text-white/75 ml-1" title={raw.ghlSub?.location ? `GHL location ${raw.ghlSub.location}` : 'No GHL opportunity is linked to this deal'}>
+                    {raw.ghlSub ? <>GHL sub-account: <span className="font-semibold text-white">{[raw.ghlSub.rep || 'unknown', raw.ghlSub.market].filter(Boolean).join(' · ')}</span></> : 'Not linked to GHL'}
+                  </span>
+                )}
               </div>
             </div>
             <button onClick={close} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
@@ -229,6 +258,12 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   </div>
                 </Notice>
               )}
+              {ip && (
+                <div className={`rounded-lg border px-3.5 py-2.5 ${ip.tone === 'red' ? 'border-[#F5C2BD] bg-[#FDF1F0] text-[#7A271A]' : 'border-[#F5D9A8] bg-[#FFF8E6] text-[#7A4A06]'}`}>
+                  <div className="font-semibold">{ip.text}</div>
+                  <div className="text-[12.5px] mt-0.5">The inspection period ends {new Date(ip.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} Arizona time ({showEndTime(merged) || 'end of day'}) and there's no buyer or assignment price yet.</div>
+                </div>
+              )}
               {needs.length > 0 && (
                 <div className="rounded-lg border border-[#F5C2BD] bg-[#FDF1F0] px-3.5 py-2.5 text-[#7A271A]">
                   <div className="font-semibold">Needs info — {need.size} field{need.size === 1 ? '' : 's'} to fill in</div>
@@ -260,36 +295,45 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                     <span className="grid place-items-center w-6 h-6 rounded-full bg-navy-800 text-white text-[11.5px] font-semibold tabular-nums">{gi + 1}</span>
                     <span className="text-[14px] font-semibold text-navy-800">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
-                  <div className={`grid grid-cols-2 gap-x-5 ${ro ? 'gap-y-3.5' : 'gap-y-4'} px-4 py-4`}>
+                  <div className={`grid grid-cols-2 gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
                     {FIELDS.filter((f) => f.group === gid && visible(f) && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
                       const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
                       const value = f.key in draft.fields ? draft.fields[f.key] : raw[f.key];
-                      const text = (v) => (v == null || v === '' ? <span className="text-zinc-300">—</span> : <span className={f.type === 'longtext' || f.key === 'title' ? 'whitespace-pre-line' : ''}>{show(f, v)}</span>);
+                      const text = (v) => (isBlank(v) ? <span className="text-zinc-300">—</span> : <span className={f.type === 'longtext' || f.key === 'title' ? 'whitespace-pre-line' : ''}>{show(f, v, merged)}</span>);
+                      // Bookkeeping stays locked until the COE date (Luke, Oct 14).
+                      const locked = BOOKS_KEYS.includes(f.key) && !booksOpen(merged);
+                      const reprice = f.key === 'price' && retradePending(merged);
+                      const lossHigh = f.key === 'netLoss' && netLossHigh(merged);
+                      const check = !isNew && flagged.has(f.key) && step.tone !== 'green';
+                      const tone = reprice ? (flash ? 'flash' : 'retrade') : need.has(f.key) ? 'need' : check ? 'check' : lossHigh ? 'alert' : 'plain';
                       return (
-                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 rounded-lg scroll-mt-24 ${need.has(f.key) ? 'bg-[#FDF1F0] ring-1 ring-[#F5C2BD] -m-2 p-2' : !isNew && flagged.has(f.key) ? `${TONES[step.tone].soft} -m-2 p-2` : ''}`}>
-                          <span className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 mb-1">
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
+                          <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
                             {f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
-                            {need.has(f.key) && <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>}
-                            {!need.has(f.key) && !isNew && flagged.has(f.key) && <span className={`text-[10.5px] font-semibold ${TONES[step.tone].text}`}>● {step.tone === 'green' ? '' : 'check this'}</span>}
+                            {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
+                              : need.has(f.key) ? <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>
+                                : check ? <span className="text-[10.5px] font-semibold text-[#B54708]">● check this</span> : null}
+                            {lossHigh && <span className="text-[10.5px] font-semibold text-[#B42318]">● over 20%</span>}
+                            {locked && <span className="text-[10.5px] font-normal text-zinc-400" title="Bookkeeping can be filled in once the COE date is reached or the deal is closed">locked · unlocks at COE</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] font-normal text-zinc-400">auto</span>}
                             {f.type === 'ghl' && <span className="text-[10.5px] font-normal text-violet-600">from GHL</span>}
                             {isFixed && <span className="text-[10.5px] rounded bg-amber-100 text-amber-800 px-1" title="Typed by hand (in the sheet or here) — doesn't recalculate">typed</span>}
                           </span>
                           {f.calc || f.type === 'ghl' ? (
                             <div className={`flex items-center gap-2 ${ro ? '' : 'min-h-8'}`}>
-                              <span className={`tabular-nums ${ro ? 'text-[14.5px] font-semibold' : 'text-[14px] font-medium'} ${isFixed ? 'text-amber-900' : ro ? 'text-navy-900' : 'text-zinc-900'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400 font-normal">no buyer yet</span> : show(f, merged[f.key])}</span>
+                              <span className={`tabular-nums ${ro ? 'text-[14.5px] font-semibold' : 'text-[14px] font-medium'} ${isFixed ? 'text-amber-900' : lossHigh ? 'text-[#B42318] font-bold' : ro ? 'text-navy-900' : 'text-zinc-900'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400 font-normal">no buyer yet</span> : show(f, merged[f.key])}</span>
                               {isFixed && !ro && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
                             </div>
                           ) : f.key === 'links' && ro ? (
                             <LinkList value={value} address={merged.address} />
-                          ) : ro ? (
-                            <div className="text-[14.5px] font-semibold text-navy-900 tabular-nums">{text(value)}</div>
+                          ) : ro || locked ? (
+                            <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'} tabular-nums`}>{text(value)}</div>
                           ) : (
                             <>
-                              <Input f={f} lists={s.lists} disabled={ro} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />
+                              <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>

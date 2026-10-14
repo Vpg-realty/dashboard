@@ -5,7 +5,8 @@
 // The order (and, for Active, which list a deal sits in) is frozen when the
 // person picks a sort, filter, search or period — `key` names that choice.
 // Edits never move a row: a changed deal stays where it was, even if it no
-// longer matches the filter (it's marked `_stale` and dimmed). New deals go
+// longer matches the filter (it's marked `_stale` and carries a small
+// "changed · re-sort" tag — never faded, Luke Oct 14). New deals go
 // at the end. `stale` turns true once the frozen order differs from what a
 // fresh sort would give; `resort()` applies the fresh order.
 import { useState } from 'react';

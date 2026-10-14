@@ -104,3 +104,10 @@ html, body, #root {
 .app-team .bg-zinc-900 { background-color: var(--color-navy-700); }
 .app-team .font-bold { font-weight: 600; }
 .app-team .bg-zinc-50 { background-color: var(--color-tan-50); }
+/* Weekly Scorecard column titles (Luke, Oct 14: "hard to read"): bigger,
+   navy, bold; the small second line darker grey. */
+.app-team .sc-head.uppercase { font-size: 13px; line-height: 1.2; color: var(--color-navy-800); font-weight: 700; }
+.app-team .sc-head.uppercase.text-rose-700 { color: #be123c; }
+.app-team .sc-head.uppercase.sc-crm { font-size: 12px; }
+.app-team .sc-head .sc-sub { font-size: 11.5px; color: var(--color-zinc-600); font-weight: 500; }
+.app-team .sc-head.sc-crm .sc-sub { font-size: 11px; }

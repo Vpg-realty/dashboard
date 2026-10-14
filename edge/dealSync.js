@@ -14,11 +14,21 @@
 //   • create — not linked, no match, and in Dispo Active or Assigned (or
 //              Closed after the sync began): a new tracker deal filled from
 //              GHL's fields.
-//   • update — linked: ONLY the read-only `ghlStage` mirror follows GHL (and
-//              the baseline moves). Status, COE, DD and every other field
-//              are never touched again once the deal exists. A stage move in
-//              GHL shows on the Deals pages as a "Needs info" alert
-//              (src/deals/required.js) for a person to act on.
+//   • update — linked: the read-only `ghlStage` mirror follows GHL (and the
+//              baseline moves). COE, DD and every other field are never
+//              touched again once the deal exists; a stage move in GHL shows
+//              on the Deals pages as a "Needs info" alert
+//              (src/deals/required.js) for a person to act on. One exception
+//              (Luke, Oct 14: a deal that was under contract / in dispo and
+//              goes lost or abandoned "is considered cancelled"): the run
+//              where a linked deal moves to Lost in GHL turns a Pending
+//              tracker deal Cancelled. Only on that move, so a deal a person
+//              re-opens afterwards stays as they set it.
+// Creating needs more than one look (Oct 14: an agent lead with no property
+// address was dragged into Assigned for a few minutes by mistake, and the
+// sync made a tracker deal named after the contact): the opp needs a real
+// property address, and must still be createable on a later run at least
+// SETTLE_MS after it was first seen (`seen`, kept in settings ghl_sync).
 // Nothing is ever written to GHL.
 import { zillowUrl } from '../src/deals/math.js';
 
@@ -49,13 +59,21 @@ function setDdEnd(d, ipEnd) {
 
 // What GHL changes on a tracker deal that already exists (mutates `d`): the
 // GHL stage mirror, and nothing else.
-export function applyGhl(d, g) {
+// `prev`: the GHL values seen last run (the link's baseline) — when GHL just
+// moved the deal to Lost, a Pending tracker deal becomes Cancelled.
+export function applyGhl(d, g, prev) {
   const changes = [];
   const label = STAGE_LABEL[g.stage] || g.stage;
   const old = d.ghlStage ?? null;
   if (old !== label) { changes.push(['ghlStage', old, label]); d.ghlStage = label; }
+  if (g.stage === 'lost' && prev && prev.stage !== 'lost' && String(d.status || '').toUpperCase() === 'PENDING') {
+    changes.push(['status', d.status, 'CANCELLED']);
+    d.status = 'CANCELLED';
+  }
   return changes;
 }
+
+export const SETTLE_MS = 10 * 60_000;
 
 export function newDealFrom(g, { repName, stateName }) {
   const accepted = azDate(g.startedAt);
@@ -72,7 +90,6 @@ export function newDealFrom(g, { repName, stateName }) {
     accepted,
     retrade: 'N',
     emdStatus: 'PENDING',
-    dispoTeam: 'PENDING',
     links: zillowUrl(g.address),
   };
   if (g.ipEnd) setDdEnd(d, g.ipEnd);
@@ -82,8 +99,11 @@ export function newDealFrom(g, { repName, stateName }) {
 
 // deals: [{ id, ...data }] (not deleted); links: [{ ghl_id, deal_id, last }];
 // feed: this run's GHL deals; names: { rep: {id: name}, state: {id: name} };
-// since: ms the sync began (closed deals newer than this may be created).
-export function planSync({ deals, links, feed, names, since }) {
+// since: ms the sync began (closed deals newer than this may be created);
+// seen: {ghlId: ms first seen createable} from the last run; now: ms.
+// Returns the ops, with `ops.seen` = the map to keep for the next run.
+export function planSync({ deals, links, feed, names, since, seen = {}, now = Date.now() }) {
+  const nextSeen = {};
   const byGhl = new Map(links.map((l) => [l.ghl_id, l]));
   const linkedDeals = new Set(links.map((l) => l.deal_id));
   const dealById = new Map(deals.map((d) => [d.id, d]));
@@ -101,7 +121,7 @@ export function planSync({ deals, links, feed, names, since }) {
       const d = dealById.get(link.deal_id);
       if (!d) continue; // deleted in the tracker — leave it alone
       const next = structuredClone(d);
-      const changes = applyGhl(next, g);
+      const changes = applyGhl(next, g, link.last);
       const last = baseline(g);
       const moved = JSON.stringify(last) !== JSON.stringify(link.last);
       if (changes.length || moved) ops.push({ type: 'update', ghlId: g.id, dealId: d.id, g, prev: link.last, last, changes });
@@ -120,8 +140,11 @@ export function planSync({ deals, links, feed, names, since }) {
       continue;
     }
     const createable = g.stage === 'dispo' || g.stage === 'assigned' || (g.stage === 'closed' && since && g.stageSince >= since);
-    if (!createable || !g.address) continue;
+    if (!createable || !g.address || g.hasAddress === false) continue;
+    const first = seen[g.id] ?? now;
+    if (now - first < SETTLE_MS) { nextSeen[g.id] = first; continue; }
     ops.push({ type: 'create', ghlId: g.id, g, last: baseline(g), data: newDealFrom(g, { repName: names.rep[g.repId], stateName: names.state[g.marketId] }) });
   }
+  ops.seen = nextSeen;
   return ops;
 }

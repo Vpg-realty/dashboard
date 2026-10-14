@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { setQuery } from '../shell/router.js';
 import { periodChoices, usePeriod, DATE_BY } from './period.js';
 import { selectCls } from './format.js';
+import SearchSelect from './SearchSelect.jsx';
 import { laToday } from '../utils/historyRange.js';
 
 export default function PeriodBar({ deals, defaultKey, showCompare = true, showBy = true }) {
@@ -22,13 +23,15 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
   };
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select value={custom ? 'custom' : known.has(period.key) ? period.key : period.key} onChange={(e) => pick(e.target.value)} className={`${selectCls} font-medium`} aria-label="Period">
-        <optgroup label="Quick">{ch.quick.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
-        <option value="custom">Custom range…</option>
-        {!known.has(period.key) && !custom && <option value={period.key}>{period.label}</option>}
-        <optgroup label="Months">{ch.months.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
-        <optgroup label="Years">{ch.years.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</optgroup>
-      </select>
+      {/* Searchable like every deals dropdown; periods stay in time order. */}
+      <SearchSelect className="w-56 font-medium" value={custom ? 'custom' : period.key} onChange={(v) => v && pick(v)} clearable={false} sort={false}
+        options={[
+          ...ch.quick.map(([k, l]) => ({ value: k, label: l })),
+          { value: 'custom', label: 'Custom range…' },
+          ...(!known.has(period.key) && !custom ? [{ value: period.key, label: period.label }] : []),
+          ...ch.months.map(([k, l]) => ({ value: k, label: l })),
+          ...ch.years.map(([k, l]) => ({ value: k, label: l })),
+        ]} />
       {custom && (
         <span className="flex items-center gap-1.5">
           <input type="date" value={range[0]} max={range[1]} onChange={(e) => setR(0, e.target.value)} className={selectCls} aria-label="From" />

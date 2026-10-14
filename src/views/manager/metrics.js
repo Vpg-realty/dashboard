@@ -142,7 +142,16 @@ export function scoreParts(m, crm = null, wom = weekOfMonth(), monday = thisMond
   const raw = Math.round(parts.reduce((a, p) => a + p.pts, 0) * scale);
   return { parts, raw, capped: s.score < raw, score: s.score, estimate: s.estimate, scale };
 }
-export const weeklyScore = (m, crm = null) => scoreParts(m, crm).score;
+// The score part with the most points still on the table (My scorecard's
+// "the one thing that moves your score most", the Scorecard's Next move):
+// { part, gain (points out of 100), n (units short of its target) }, or null
+// when every part is at its target.
+export function mostPointsLeft({ parts, scale }) {
+  const left = parts.filter((p) => !p.pending && p.max > 0 && p.pts < p.max).map((p) => ({ p, gain: Math.round((p.max - p.pts) * scale) })).sort((a, b) => b.gain - a.gain)[0];
+  if (!left || left.gain < 1) return null;
+  return { part: left.p, gain: left.gain, n: Math.max(1, Math.ceil((left.p.want || 0) - (left.p.have || 0))) };
+}
+export const weeklyScore =(m, crm = null) => scoreParts(m, crm).score;
 export const SCORE_BANDS = [
   { min: 90, label: 'Strong', text: 'text-emerald-700', bg: 'bg-emerald-100', c: '#059669', note: 'on track for the week' },
   { min: 75, label: 'Watch', text: 'text-amber-700', bg: 'bg-amber-100', c: '#d97706', note: 'slipping on one or two targets' },

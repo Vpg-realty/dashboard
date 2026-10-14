@@ -179,9 +179,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `document.title` follows the page. Cloudflare Pages serves index.html for
   unknown paths (SPA fallback), so deep links work.
 - **`src/shell/sections.js`** is the one map: sections, their tabs (each
-  tab = an existing view key), who sees them. Home, **Pipeline** and **Team
-  overview** (the board: Overview, Pipeline, Conversations, Agents,
-  Opportunities; section id `board`, renamed from "Board" Oct 14) for
+  tab = an existing view key), who sees them. Labels are Title Case (Luke,
+  Oct 14: "Who Works Where", "Zip Rules & Data Health", "My Scorecard";
+  small words — of, and, &, by, in, the, to, a — lower case unless first;
+  acronyms kept), and they're the browser tab's title too. Home, **Pipeline**
+  and **Team Overview** (the board: Overview, Conversations, Agents,
+  Opportunities; section id `board`, renamed from "Board" Oct 14; its
+  Pipeline tab was dropped the same day — the Pipeline section replaces it,
+  old /board/pipeline links redirect to /pipeline via `MOVED`) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
   Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; **Territory** for everyone (Oct 14: the one place for
@@ -193,11 +198,20 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
   and Finance (owner) here when they're built — only working sections are
   shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
-  the data (functions/_middleware.js).
+  the data (functions/_middleware.js). Sidebar order (Luke, Oct 14): the
+  working sections on top; at the bottom a "Team screens" group — Team
+  Overview (`bottom: 'screens'`, everyone) and TV Mode (owners / managers)
+  — then, under a line, Settings (`bottom: 'admin'`) and Sub-Accounts
+  (owners). The phone bar shows the first four sections.
 - **Home** (`HomeView.jsx`; Needs attention rows show the stage as a chip
   in the board Pipeline's column colours — Under contract blue, Dispo amber,
   Assigned violet, Closed green — and the due date as the board's coloured
-  date chip, Luke Oct 14): greeting, this week's numbers vs target for
+  date chip, Luke Oct 14; and the deal's **EMD status** — the tracker deal
+  at the same address (`addrKey`, pending first) as `EmdPill` (pills.jsx,
+  worded like Active's EMD column via `emdCell`: In / Pending / VPG only /
+  Pending · payer; N/A or none grey), for everyone who sees Home — reps and
+  managers read the pending deals through GET /api/deals; a deal not in the
+  tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
   attention (key date late or within 3 days, Late / Today & tomorrow / Next
@@ -217,9 +231,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
   the team's own page — `PipelineView` with optional `keep` (filter),
   `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
-  passes none, so Team overview → Pipeline and the TV are unchanged. Filter
-  in the link: `?who=` all (Full team) / `me` (Mine, needs `rep_id`) / a rep
-  id (Pick a person — owners, managers, TC). A person's deals = their GHL
+  passes none, so the TV's Pipeline is unchanged. Filter in the link:
+  `?who=` all (Full team) / `me` (Mine, needs `rep_id`) / a rep id (Pick a
+  person — owners, managers, TC). Mine is the default for anyone with a
+  `rep_id` (reps, managers); owners / TC without one open on Full team; the
+  default stays out of the link (Luke, Oct 14). The filter sits on the left,
+  before the title: Mine, Full team, then Pick a person (it was easy to miss
+  on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
@@ -323,9 +341,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
   in index.css that gives the TV-first views the app's look (normal-case
   labels, lighter weights, tan borders, navy headings and team cells) —
-  Luke, Oct 14; the TV board never gets it.
+  Luke, Oct 14; the TV board never gets it. The Weekly Scorecard's column
+  titles carry `sc-head` / `sc-sub` / `sc-crm`, which `.app-team` makes 13px
+  bold navy with a darker second line (Luke, Oct 14: "hard to read"); the
+  five CRM columns are 3.5rem so their titles don't overlap.
 - **Settings** (owners; Luke, Oct 14: change things without going through
-  Claude): bottom of the sidebar (`bottom: true` in sections.js),
+  Claude): bottom of the sidebar (`bottom: 'admin'` in sections.js),
   `src/settings/`. **People** — D1 `users` (name, role, rep on the board),
   add / remove; can't change yourself, always one owner; a person must also
   be on the Cloudflare Access allow-list to sign in (signed in but not in
@@ -354,7 +375,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   results for every deal. `checkRules` checks the shape and the rule set in
   effect on every start date; `rulesFor` gives the TC only the TC-fee
   timelines.
-  **Dropdown lists** — `settings.deal_lists` and Reports to. API
+  **Dropdown Lists** — `settings.deal_lists` and Reports to. Reports to
+  (Luke, Oct 14) is laid out as columns: each pod lead on top of a column
+  with their reps under it (Move… menu, ×), "+ Add a rep" per column, a "No
+  manager" column for everyone on the acquisition list reporting to nobody,
+  and "+ Add a pod lead" (an empty column until a rep is added — nothing is
+  stored for a lead with no reps). Stored shape unchanged: `reportsTo {rep:
+  lead}`. API
   `functions/api/settings/users.js` and `settings/[key].js` (`edge/settings.js`:
   owners only, never while viewing as; values checked; every save in
   `edit_log`). KPI targets and Sub-accounts still live in code / the
@@ -381,13 +408,14 @@ the server strips them (`forTc`) and refuses edits to them.
   Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
   **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
   kept for the reps, but nothing after that" — no additional fees, TC fee,
-  net, wires, commission base, commissions or profit), not Bookkeeping,
-  Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
+  net, wires, commission base, commissions or profit), not the bookkeeping
+  fields, Notes, nor Net loss % (owners only); `REP_EXTRA` in math.js. `repSees` / `forRep` (math.js) — the
   server strips the rest (and its history entries, `REP_LOG`); view-only
   fields read as plain text, not greyed-out boxes.
 - **Deal panel look** (Luke, Oct 14: "hard to read … define more … company
   colours"): navy header with the V mark, a key-facts strip (contracted /
-  assignment price, gross for owners / TC, COE chip, DD end), each group a
+  assignment price, gross for owners / TC, COE chip, DD end with its time),
+  the GHL sub-account under the address, each group a
   numbered white card with a navy title on a tan background. Deals pages
   are full width (max 1720px) with bigger tiles and roomier rows.
 - **Zillow link** (Luke, Oct 14; the field `links`, renamed from "Zillow /
@@ -416,13 +444,20 @@ the server strips them (`forTc`) and refuses edits to them.
   Aug, pasted as values in the sheet) keep their typed numbers in
   `fixed` (shown amber "typed"; "use formula" switches one back). Gross =
   VPG assignment − contract (finder's fee: the assignment); net = gross −
-  additional fees when dispo is VPG, else split 50/50; then acq, dispo,
+  additional fees (VPG sells every deal — Luke, Oct 14; the sheet's 50/50
+  split for another dispo team is kept only for **closed** deals that have a
+  dispo team on file, `legacyDispo`, so closed numbers don't move — checked:
+  every closed / cancelled deal of the import computes exactly as before);
+  then acq, dispo,
   manager, override and TC commissions and profit as in the sheet. Rates
   and the names they depend on are in settings `deal_rules` only — never
   write them into the repo or this file (it's public).
 - **API** (`functions/api/deals/`): `GET /api/deals` → deals + lists +
   rules (TC: fee rules only); `POST` new deal; `GET /api/deals/:id` deal +
-  history; `PATCH` changed fields only (`fields`, `fixed: {k: value |
+  history (the deal carries `ghlSub` = `{location, rep, market}` of its
+  `deal_ghl` link, from subaccounts.json — the sync stores the link's
+  location as "<repId>|<marketId>" — or null; the list carries it too);
+  `PATCH` changed fields only (`fields`, `fixed: {k: value |
   'formula'}`, `base` = the updatedAt the editor opened — if someone else
   changed one of the same fields since, 409 with their name); `DELETE`
   (owners; soft, logged). Tests: node:sqlite D1 shim + signed JWTs, like
@@ -473,12 +508,23 @@ the server strips them (`forTc`) and refuses edits to them.
   changes but the `ghlStage` mirror; no match and in Dispo Active / Assigned
   (or Closed after the sync began) → **created** from GHL (address, rep,
   state, contracted price, title, deal type Cash → WHOLESALE / Creative →
-  CREATIVE, COE, contract date = startedAt, DD days from IP end). Once a
-  deal exists or is linked, the sync **never changes it again** — status,
-  COE, DD and every other field stay as people left them; only the
-  read-only `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline
-  moves). A stage move in GHL shows up as a **Needs info** alert instead
-  (below) — e.g. GHL Closed / Lost while the tracker is still Pending. The
+  CREATIVE, COE, contract date = startedAt, DD days from IP end). Creating
+  needs a real property address (`hasAddress` on the feed — never a deal
+  named after the contact) and the opp must still be createable on a later
+  run ≥ 10 min after it was first seen (`SETTLE_MS`, `seen` in settings
+  `ghl_sync`) — Oct 14: an agent lead with no address was dragged into
+  Assigned for minutes by mistake and became a tracker deal; it was
+  removed and its opp excluded. Once a
+  deal exists or is linked, the sync **never changes it again** — COE, DD
+  and every other field stay as people left them; only the read-only
+  `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline moves).
+  One exception (Luke, Oct 14: a deal that was under contract / in dispo
+  and goes lost or abandoned "is considered cancelled"): the run where a
+  linked deal moves to Lost in GHL turns a Pending tracker deal
+  **Cancelled** (logged as GHL sync; only on that move, so a deal someone
+  re-opens stays as they set it). Other stage moves in GHL show up as a
+  **Needs info** alert instead (below) — e.g. GHL Closed while the tracker
+  is still Pending. The
   deal panel still offers "use GHL's" when GHL's COE differs. Nothing is
   written to GHL. D1 `deal_ghl (ghl_id, deal_id, location, last,
   linked_at, updated_at)`; changes are logged as "GHL sync"; each run
@@ -493,7 +539,8 @@ the server strips them (`forTc`) and refuses edits to them.
   bands (tan for the "Dispo % loss" pair), light column headers with a 3px
   accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
   slate; soft tints in the site's status colours, in the sheet's priority
-  order: net profit < 0 rose / bold red; commission paid NO and additional
+  order: net profit < 0 rose / bold red; net loss % over 20% rose / bold
+  red (`netLossHigh`, also in the panel); commission paid NO and additional
   fees > 0 amber "check"; DD end today rose / bold red, tomorrow sky
   (pending deals); cancelled row muted rose; closed row soft green. A colour key sits above the table. **Proper case + pills**
   (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
@@ -503,11 +550,10 @@ the server strips them (`forTc`) and refuses edits to them.
   dropdown values read "Pending", "Closed", "Off-market", "VPG + Buyer",
   "N/A" (acronyms kept), and the dropdowns themselves list them that way
   (fields.jsx). Pills: deal status (Pending amber / Closed green / Cancelled
-  red), EMD status, EMD paid by, dispo team, CFAR, EMD returned, commission
+  red), EMD status, EMD paid by, CFAR, EMD returned, commission
   paid, retrade, deal type, listing type — with a small ▾ when the cell can
   be edited (a click opens the dropdown); acq. manager and dispo member are
-  the coloured person chips; free text (titles, escrow #, end time) stays
-  as typed. Headers read in sentence case. The sheet's green / red EMD
+  the coloured person chips; free text (titles, escrow #) stays as typed. Headers read in sentence case. The sheet's green / red EMD
   block was dropped (the EMD status pill says it), and the CFAR / EMD
   returned cell fills too (their pills carry it). Active's EMD column is a
   pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
@@ -519,8 +565,9 @@ the server strips them (`forTc`) and refuses edits to them.
   rows, a totals row. **Every cell is editable in place**
   (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
   Enter or click-away, Esc cancels, buyer / title use the same past-entries
-  picker; one field per save, logged, same conflict check); calculated and
-  GHL cells aren't. The address (with a next-step dot) opens the full deal;
+  picker; one field per save — except the moves in `edits.js` — logged,
+  same conflict check); calculated and GHL cells aren't, nor locked
+  bookkeeping cells. The address (with a next-step dot) opens the full deal;
   "N missing" opens it on the first missing field. **Needs info** filter
   (`?need=1`); cells a deal still needs are outlined red.
 - **Active** = the sheet's Pipeline tab: "As of" date, tiles (Active,
@@ -531,21 +578,30 @@ the server strips them (`forTc`) and refuses edits to them.
   dispo, state, COE, days, EMD, title, buyer (owners), contract, assignment
   (Luke, Oct 14), gross (everyone — Luke, Oct 14: "gross assignment fee
   columns can be kept for the reps"); needs a buyer: next step, property,
-  acq. manager, state, COE, days, EMD, DD end, dispo team, title,
-  contract. Days red when past, amber ≤ 7; EMD ✓ green, "Pending" / "VPG
-  only" red. The COE chip keeps the board's Pipeline colours (`dueTone`).
-  COE, title, buyer, prices and dispo team edit in place (owners / TC).
+  acq. manager, state, COE, days, EMD, DD end (+ its time), title,
+  contract. The property column shows the full address, wrapping (Luke,
+  Oct 14: no "…"). A deal is "assigned" when a VPG assignment price is in
+  (`assigned` in status.js; until Oct 14 "gross ≥ 0", which put deals with
+  no price and no assignment in the assigned list). Days red when past,
+  amber ≤ 7; EMD ✓ green, "Pending" / "VPG only" red. The COE chip keeps
+  the board's Pipeline colours (`dueTone`). COE, title, buyer and prices
+  edit in place (owners / TC). On top, **IP ends within 48 hours — no buyer
+  yet** lists those deals (below).
   People are boxed in their colour (`people.jsx`).
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
   Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
-  EMD VPG-only), amber = coming up (DD ending / expired without a buyer,
-  set COE, closing ≤ 7 days — `soon`), blue = find a buyer, green = on
+  EMD VPG-only, IP ends ≤ 24 h with no buyer), amber = coming up (IP ends
+  ≤ 48 h, DD ending / expired without a buyer, set COE, closing ≤ 7 days —
+  `soon`: "Closing in Nd — TC: check in with title", a reminder for the TC
+  that only points at Title agency when none is on file), blue = find a
+  buyer, green = on
   track / closed; cancelled red. Active: a colour bar on every row and the
   next step as a coloured pill; All deals: a dot before each address; deal
   panel: the pill in the header, a bar down its left edge, and the fields
   behind the next step (`step.fields`) tinted with "● check this". Home's
-  Deal tracker card counts the same tones.
+  Deal tracker card counts the same tones. A deal is assigned once its VPG
+  assignment price is in (see Active).
 - **Needs info** (Luke, Oct 14: "alerts that tell me what data is missing
   per deal based on pipeline stage or change of pipeline stage … if it
   moves from dispo active to assigned, I need to enter all sold details …
@@ -555,16 +611,21 @@ the server strips them (`forTc`) and refuses edits to them.
   deal: address, acq, state, contract date, COE, deal / listing type,
   contracted price, title agency, EMD amount (unless EMD status NA), EMD
   status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
-  needs dispo details** (GHL stage Dispo active: dispo team, dispo member
-  if VPG, asking price); **Moved to Assigned — needs sold details** (GHL
-  stage Assigned, or an assignment price / buyer in: dispo team, dispo
-  member, buyer (if VPG; owners only), VPG and final assignment price, EMD
-  paid by — "PENDING" counts as missing); **Closed — needs closing
-  details** (closed in the tracker with COE in the last 90 days, or GHL
-  Closed while the tracker is pending — then status is flagged too: final
-  assignment, wire date / received, EMD returned (when VPG paid EMD),
-  commission paid (owners)); **Lost in GHL — confirm the cancel** (status).
-  Money must be above 0. `needsInfo(deal, {owner, readOnly})` lists only
+  needs dispo details** (GHL stage Dispo active: dispo member, asking
+  price); **Moved to Assigned — needs sold details** (GHL stage Assigned,
+  or an assignment price / buyer in: dispo member, buyer (owners only), VPG
+  and final assignment price, EMD paid by — "PENDING" counts as missing);
+  **Closed — needs closing details** (closed in the tracker with COE in the
+  last 90 days, or GHL Closed while the tracker is pending — then status is
+  flagged too: status, final assignment); **At COE — fill in bookkeeping**
+  (owners only — `owners: true`; pending deals from their COE date and
+  recently closed ones: wire received, wire date, EMD returned (when VPG
+  paid EMD), commission paid); **Lost in GHL — confirm the cancel**
+  (status). **Missing = empty, null, "-" or "—"** (Luke, Oct 14: a 0 is
+  data; `isBlank` in math.js — the dash is the standard for "no data":
+  every input takes "-" as empty and empty reads "—"; the server stores a
+  dash as null). One exception: a retraded deal's contracted price at 0
+  stays missing (below). `needsInfo(deal, {owner, readOnly})` lists only
   fields the person can fill in (TC: no secret fields; reps / managers get
   no alerts — view only). Shown as the Active tile + section (a tab per
   category, a field chip per missing field), the All deals filter / red
@@ -576,8 +637,10 @@ the server strips them (`forTc`) and refuses edits to them.
   automatically resort … a button … 'it's ok to sort now'"):
   `src/deals/useFrozenOrder.js` freezes the row order (and on Active which
   list a deal is in) when a sort / filter / search / period is picked; an
-  edited row stays where it was (dimmed if it no longer matches the
-  filter), new deals join at the end, and "Order is out of date — Re-sort
+  edited row stays where it was — fully legible, with a small grey
+  "changed · re-sort" tag ("now assigned" / "no buyer now" when it would
+  switch Active lists) instead of fading (Luke, Oct 14: faded rows were
+  hard to read) — new deals join at the end, and "Order is out of date — Re-sort
   now" appears once a fresh sort would differ. Header clicks still sort.
   Same on Active (both lists and Needs info).
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
@@ -594,6 +657,58 @@ the server strips them (`forTc`) and refuses edits to them.
   shown under it) with "✎ Custom — type it in" at the top. Retrade = Y
   shows **Original contracted price** beside it (`originalPrice`, the price
   before the retrade — reference only, no formula uses it).
+- **Oct 14 follow-ups (Luke)**:
+  - **Retrade** (`retradeFields` in math.js, applied through `editFields`
+    in `src/deals/edits.js` by the panel and the All deals / Active cells —
+    the one place): switching Retrade to Yes copies the contracted price
+    into Original contracted price (only if that's empty) and sets the
+    contracted price to 0, both in one save. While Retrade = Y and the price
+    is 0 (`retradePending`) the price box has an amber ring and "Re-enter
+    the new price after the retrade" (a short flash when it happens), the
+    key-facts strip says "Re-enter", and Needs info counts it missing.
+  - **Buyer's EMD** (`buyerEmd`, money, EMD group right of EMD amount): how
+    much earnest money the buyer placed — reference only, no formula; reps
+    see it (EMD group).
+  - **DD end time** (`src/deals/ddTime.js`): End time is a time picker
+    (`ddEndTime` = "HH:MM") plus **Time zone** (`ddEndTz`: Arizona /
+    Pacific / Mountain / Central / Eastern; empty = the state's zone,
+    `stateZone`). Older free text ("5PM EDT", "Midnight MST", "17:00 CST")
+    is parsed at read time (`parseEndTime`; MST in Arizona = Arizona;
+    midnight = 23:59 that day) and never rewritten in D1; text it can't
+    read is shown as typed. Picking a time on such a deal keeps the zone
+    the old text named. `ddEndMs` = the exact instant; **`ipEndAlert(deal,
+    now)`** (exported for Home) = a pending deal with no buyer and no
+    assignment price whose IP ends within 48 h → "IP ends in Nh — cancel
+    soon if no buyer" (red ≤ 24 h, amber ≤ 48 h). Shown as the deal's next
+    step (after Past COE, before the EMD checks), a red box in the deal
+    panel and the list on top of Active. **Pending:** no email / text is
+    sent — no sender is wired up yet (TODO in ddTime.js).
+  - **No dispo team** (VPG always sells the deal): the field left FIELDS
+    (panel, All deals, Active's Needs-a-buyer column, Needs info, the
+    Dropdown lists page, new deals); "(if VPG)" is gone from every label.
+    Stored values stay in D1 and are only read by `compute()` for closed
+    deals (see Formulas); `forRep` drops them. Kept: dispo member, buyer,
+    asking, assignment / final assignment price, net loss %.
+  - **Bookkeeping** (`BOOKS_KEYS`: wire received, wire date, EMD returned —
+    now in Financials — and commission paid — now in Commissions & profit;
+    the Bookkeeping group is gone) is locked ("locked · unlocks at COE")
+    until the COE date is reached (Arizona, `booksOpen`) or the deal is
+    closed or cancelled (a cancel still records the EMD return); the server
+    refuses a value before then (clearing is fine). Then it's the owners'
+    "At COE — fill in bookkeeping" task. Commission paid stays secret.
+  - **Field boxes in the panel**: one style for every field (padding,
+    radius, ring, a gap between boxes): needed = red, check this = amber,
+    retrade price = amber ring.
+  - **Searchable dropdowns** (`src/deals/SearchSelect.jsx`): every deals
+    dropdown (panel and in-place lists, acq. manager, dispo member, buyer /
+    title past entries — "✎ Custom — type it in" pinned on top, "(N deals)"
+    kept — All deals filters, the period picker) has a search box and lists
+    A → Z (periods and time zones keep their own order). In table cells the
+    list opens in place (no floating list cut off by the table).
+  - **TC fee rule "Assigned"**: "TC fee charged when the deal is …" (and the
+    TC commission rule) can include Assigned = it has a VPG assignment price
+    and isn't cancelled (`RULE_STATUSES`, `isAssigned` in math.js; the
+    settings check accepts ASSIGNED).
 - Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
   overwrites site edits. Commission payments (Owed → Approved → Paid),
@@ -854,7 +969,10 @@ a Closed deal in the wrong rep's AZ pipeline). `server/snapshot.js` drops them
 before `aggregatePair`, so they never reach any count, the Pipeline, Wins
 or celebrations. `applyStickyCounts` (`excluded` arg) takes back, once,
 the offer/contract crossings an excluded opp already added this week /
-month (it's still in the previous run's ranks with a `started` time).
+month (it's still in the previous run's ranks with a `started` time) —
+or, when it had already gone lost before being excluded, takes back its
+contract by the cancel's `startedAt` (else its date) and drops the cancel
+(Oct 14).
 The dashboard never writes to GHL, so the opp should be fixed there too.
 
 ## Cancelled contracts (Luke, Oct 9)
@@ -1098,15 +1216,41 @@ Under `src/views/`:
     `POD_LEADS` in scorecard-lib): Pod A (lead Anthony: Spencer, Axel,
     Cayden), Pod B (lead Sam: Danni, Daniel, Rory), Pod Leads (Anthony,
     Sam — not in pod totals), No pod (Patrick, and any rep not listed).
-    Per rep: score, contracts / offers / opps cells (week number vs weekly
-    pace on top, month bar under it), projected $ MTD vs week pace,
-    cancels (wk / mo), five CRM chips (`CRM_ITEMS`: pipeline, notes,
-    messaging, Dispo Handoffs (renamed from "Clean dispo handoffs", Luke Oct 12 — not to be confused with the dispo team), follow-ups; 2 = all good, 1 = ~60%, 0 = below),
-    CRM /10 and a note. Under each pod a tinted totals row (Luke, Oct 11:
-    "clearly define totals for the pod"; Pod A violet, Pod B teal): sums vs
-    per-rep target × reps, pod score = average of its reps, CRM item
-    averages and CRM avg /10 (the pod colour bar is an inset shadow so the
-    cells line up with the rep rows). Tiles: team score, Pod A / Pod B, review status.
+    **Layout = design "D · Combined"** (Luke, Oct 14; the view scrolls inside
+    the tab): title "Week of <Mon>" + live / frozen / imported, review line
+    (reviewed by, N of M fully graded), pickers (rep, week incl. Trends, How
+    the score works); filter chips Everyone / Pod A / Pod B / Needs a 1-on-1
+    (score < 75) and Sort By pod / By score, both in the link (`?show=A|B|behind`,
+    `?sort=score`). A navy team strip: team score + band + change vs the last
+    finished week + how many need a 1-on-1, then contracts / offers / opps
+    this week "x of target", projected $ MTD (vs the summed pace) and
+    answered ≤ 15 min (pooled `repSpeed`). The table (light-navy header row):
+    rep avatar + name (click = Rep page; a note icon when there's a note),
+    score pill (band name + change vs the last finished week from
+    `weekSeries`, "est."), contracts / offers / opps (this week "of" weekly
+    target + 8px pace bar coloured by `paceTone`, navy tick = where they
+    should be by now; a red "Cancels N wk · N mo" line under contracts when
+    any), projected $ (vs $6,250 × week of month), CRM · Speed (points /10 or
+    "/6 est." while partly graded, speed %; split bar: CRM half, speed half
+    vs 75%), and **Next move** (≤ 4 words: the part with the most points left,
+    `mostPointsLeft` in metrics.js — the same rule as My scorecard's "one
+    thing"; CRM names the lowest item, "Keep it up" when nothing's left).
+    By pod: a tinted band per group (Pod A violet, Pod B teal, leads / no pod
+    tan) and, for real pods, a totals row (sums vs per-rep target × reps,
+    pod score = average, CRM avg · pooled speed); By score: one ranked list.
+    Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
+    pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
+    handoffs", Luke Oct 12 — not to be confused with the dispo team),
+    follow-ups; 2 = all good, 1 = ~60%, 0 = below) with the managers' grade
+    dropdowns and `A` marks, what the automatic checks found, the month to
+    date and the note (owners / managers only). Below: **Where they leak**
+    — the Coaching funnel (`STEPS` / `rate` / `biggestLeak`) for the reps
+    shown: new conversations, Convo→Opp, Opp→Offer, Offer→Contract ("n of
+    d"), team rate row, green ≥ team / amber within 20% below / red more,
+    biggest leak ringed #c2410c (20%+ below), "N pts below"; the live week
+    uses this month, a past week the month to date as of its Sunday
+    (`rangeMetrics` + month-log contracts, like the Rep page). Plain-words
+    legend at the foot.
     Week picker: this week (live until the freeze) and every week in
     scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
     (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke Oct 11, reworked Oct 12
@@ -1222,7 +1366,9 @@ Under `src/views/`:
     a **Progress** panel (`RepProgress.jsx`, Luke Oct 11: weekly score
     over the last 8 weeks vs the dashed team average with the band colours
     and the "auto CRM →" marker (shared `LineChart.jsx`), points earned per
-    part per week coloured by share of the part, and vs last week / vs
+    part per week coloured by share of the part (the table newest first —
+    the live week on the left, older weeks to the right, Luke Oct 14; the
+    chart keeps time left → right), and vs last week / vs
     weeks before / best week / streak in the current band; CRM shown
     scaled to 25 with * while some items aren't graded), funnel with step
     rates vs team (bars sized against the biggest step shown and capped —
@@ -1279,7 +1425,9 @@ Under `src/views/`:
 
 Rotation (TV mode): the TV auto-rotates through views every 10s unless paused.
 Cycled (Luke, Oct 7 — simplified; Overview first, Oct 8): Overview,
-Conversations, Agents, Opportunities, Pipeline (`CYCLE_VIEWS`). The Manager
+Conversations, Agents, Opportunities (`CYCLE_VIEWS`). Pipeline is still a TV
+tab (`TV_VIEWS`) but click-only since Oct 14 (Luke: the TV must not rotate
+to it); clicking it pauses the rotation like any manual pick. The Manager
 tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:

@@ -33,7 +33,10 @@ export function useDeals() {
   return s;
 }
 
-function replace(deal) {
+function replace(fresh) {
+  // Saves don't send the GHL link back; keep the one we have.
+  const old = state.raw.find((d) => d.id === fresh.id);
+  const deal = old && !('ghlSub' in fresh) ? { ...fresh, ghlSub: old.ghlSub } : fresh;
   const raw = state.raw.some((d) => d.id === deal.id) ? state.raw.map((d) => (d.id === deal.id ? deal : d)) : [...state.raw, deal];
   emit({ raw, deals: withCalc(raw) });
 }
@@ -93,7 +96,6 @@ export function fieldsFromGhl(g) {
     accepted: accepted || null,
     status: g.stage === 'closed' ? 'COMPLETE' : 'PENDING',
     dealType: 'WHOLESALE',
-    dispoTeam: 'PENDING',
     emdStatus: 'PENDING',
     ...(accepted && g.ipEnd && g.ipEnd > accepted ? { ddDays: Math.round((Date.parse(g.ipEnd) - Date.parse(accepted)) / 86_400_000) } : {}),
   };

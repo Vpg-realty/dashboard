@@ -147,6 +147,9 @@ export function extractTrackerFeed({ opportunities, stageOf, fieldIds, extraIds,
       stage: lost ? 'lost' : stage,
       stageSince: since || null,
       address: String(customValue(o, fieldIds.address) || o.name || '').replace(/\s*-\s*$/, '').trim(),
+      // false when the address above is only the opp's name (the property
+      // address field is empty) — the sync never creates a deal from that.
+      hasAddress: !!String(customValue(o, fieldIds.address) || '').trim(),
       coe: toDateStr(customValue(o, fieldIds.coe)),
       ipEnd: toDateStr(customValue(o, fieldIds.ipEnd)),
       price: Number.isFinite(price) && price > 0 ? price : null,

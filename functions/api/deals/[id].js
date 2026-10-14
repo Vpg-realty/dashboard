@@ -3,9 +3,11 @@
 //        a hand-typed number. `base` = the updatedAt the editor started from:
 //        if someone else changed one of the same fields since, → 409.
 // DELETE /api/deals/:id → { ok } (owners; kept in D1 as deleted, logged)
-// GET    /api/deals/:id → { deal, log } — the deal and its change history.
+// GET    /api/deals/:id → { deal, log } — the deal and its change history;
+//        deal.ghlSub = the GHL sub-account it's linked to ({ location, rep,
+//        market }) or null.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks } from '../../../edge/deals.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -28,7 +30,8 @@ export async function onRequestGet(context) {
   const entries = log.results
     .filter((e) => isOwner(user) || (isRepView(user) ? REP_LOG(e.field) : !SECRET_LOG(e.field)))
     .map((e) => ({ at: e.at, by: e.name, field: e.field, from: e.old == null ? null : JSON.parse(e.old), to: e.new == null ? null : JSON.parse(e.new) }));
-  return json({ deal: shape(rowToDeal(row), user), log: entries });
+  const links = await ghlLinks(context.env.DB, id).catch(() => new Map());
+  return json({ deal: { ...shape(rowToDeal(row), user), ghlSub: links.get(id) || null }, log: entries });
 }
 
 export async function onRequestPatch(context) {

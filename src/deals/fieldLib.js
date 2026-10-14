@@ -1,12 +1,14 @@
 // Field helpers shared by the deal panel and the All deals table.
-import { FIELDS } from './math.js';
+import { FIELDS, isBlank } from './math.js';
 import { money, shortDate } from './format.js';
+import { ZONE_KEYS, showEndTime } from './ddTime.js';
+import { pretty } from './values.js';
 
 export const LIST_OF = {
   listing: 'listing', state: 'states', dealType: 'dealTypes', status: 'status', cfar: 'yesNo', emdStatus: 'emdStatus',
-  emdPaidBy: 'emdPaidBy', dispoTeam: 'dispoTeam', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
+  emdPaidBy: 'emdPaidBy', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
 };
-export const FIXED_LISTS = { retrade: ['Y', 'N'] };
+export const FIXED_LISTS = { retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS };
 // Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
 // "Custom" to type it in.
 export const PICK_FROM_PAST = new Set(['buyer', 'title']);
@@ -30,9 +32,15 @@ export const optionLabel = (v) => { const [a, b] = v.split('\n').map((x) => x.tr
 export const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.label]));
 
-export function show(f, v) {
-  if (f.type === 'money') return money(v, { cents: true });
+// How a value reads. Empty / a dash = "—" (no data); an entered 0 reads as
+// $0.00, so it doesn't look like a blank (calculated zeros keep the sheet's
+// "–"). `deal` gives the end time its zone.
+export function show(f, v, deal) {
+  if (isBlank(v)) return '—';
+  if (f.type === 'money') return v === 0 && !f.calc ? '$0.00' : money(v, { cents: true });
   if (f.type === 'percent') return typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
   if (f.type === 'date') return shortDate(v, { year: true });
-  return v == null || v === '' ? '—' : String(v);
+  if (f.type === 'time') return showEndTime({ ...(deal || {}), ddEndTime: v });
+  if (f.type === 'list') return pretty(f.key, v);
+  return String(v);
 }
