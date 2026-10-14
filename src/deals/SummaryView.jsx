@@ -80,7 +80,7 @@ function Breakdown({ title, sub, rows, cols }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.key} onClick={r.onClick} className={`border-t border-tan-100 ${r.onClick ? 'hover:bg-tan-50 cursor-pointer' : ''} ${r.total ? 'font-semibold bg-tan-50/70 text-navy-900' : ''}`}>
-                {cols.map((c, i) => <td key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''}`}>{c.get(r)}</td>)}
+                {cols.map((c, i) => <td key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.wide ? 'w-[40%]' : ''}`}>{c.get(r)}</td>)}
               </tr>
             ))}
             {rows.length === 0 && <tr><td colSpan={cols.length} className="px-3 py-6 text-center text-zinc-500">No deals in this period.</td></tr>}
@@ -195,9 +195,9 @@ export default function SummaryView() {
             { label: 'Month', get: (r) => (r.total ? 'Total' : <span className={`font-medium ${r.contracts ? 'text-zinc-900' : 'text-zinc-400'}`}>{r.name}</span>) },
             { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
             { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
-            { label: 'Net assignment', get: (r) => (
-              <span className="flex items-center gap-2 justify-end">
-                {!r.total && <span className="w-24 h-2 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full bg-navy-600 rounded-full" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>}
+            { label: 'Net assignment', wide: true, get: (r) => (
+              <span className="flex items-center gap-3">
+                {!r.total ? <span className="flex-1 min-w-[260px] h-3.5 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full bg-navy-600 rounded-full" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span> : <span className="flex-1 min-w-[260px]" />}
                 <span className="tabular-nums w-24 text-right font-semibold text-navy-900">{money(r.net)}</span>
               </span>
             ) },
