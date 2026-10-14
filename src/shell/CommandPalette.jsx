@@ -29,7 +29,7 @@ function items(role) {
   for (const p of PAIRS) {
     const rep = REPS.find((r) => r.id === p.repId);
     for (const d of p.deals || []) {
-      out.push({ kind: 'Deal', label: d.address || d.name, sub: `${STAGE[d.stage] || d.stage} · ${rep?.name.split(' ')[0] || ''} · ${p.marketId}`, icon: 'deals', to: '/board/pipeline' });
+      out.push({ kind: 'Deal', label: d.address || d.name, sub: `${STAGE[d.stage] || d.stage} · ${rep?.name.split(' ')[0] || ''} · ${p.marketId}`, icon: 'deals', to: '/pipeline' });
     }
   }
   return out;

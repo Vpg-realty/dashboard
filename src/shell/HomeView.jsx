@@ -14,6 +14,7 @@ import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
+import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals } from '../deals/store.js';
@@ -113,7 +114,7 @@ const STAGE_ORDER = [['under_contract', 'Under contract', '#2563eb'], ['dispo', 
 function PipelineCard({ deals }) {
   const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
   return (
-    <Card title="Pipeline" right={more('/board/pipeline', 'Open')}>
+    <Card title="Pipeline" right={more('/pipeline', 'Open')}>
       <div className="flex flex-col gap-2.5">
         {STAGE_ORDER.map(([k, label, color]) => {
           const list = deals.filter((d) => d.stage === k);
@@ -205,10 +206,10 @@ function dueText(days, key) {
   return { what, text, cls: dueTone(days) };
 }
 
-function DealRow({ d, showRep }) {
+function DealRow({ d, showRep, onOpen }) {
   const due = dueText(d.days, d.key);
   return (
-    <a {...linkProps('/board/pipeline')} className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_120px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
+    <button type="button" onClick={() => onOpen(d)} className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_120px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
       <span className="font-medium truncate">{d.address}</span>
       <span className="md:order-last justify-self-end flex items-center gap-1.5 whitespace-nowrap">
         <span className="text-[11.5px] text-zinc-500">{due.what}</span>
@@ -218,7 +219,7 @@ function DealRow({ d, showRep }) {
         <span className="flex items-center gap-2 text-zinc-600 min-w-0"><Avatar rep={d.rep} /> <span className="truncate">{d.rep?.name.split(' ')[0]} · {d.marketId}</span></span>
       ) : <span className="hidden md:block text-zinc-500">{d.marketId}</span>}
       <span className="justify-self-start"><StageChip stage={d.stage} /></span>
-    </a>
+    </button>
   );
 }
 
@@ -228,6 +229,9 @@ function greeting() {
 }
 
 export default function HomeView({ me }) {
+  // Luke, Oct 14: a deal clicked on Home opens its details here (the deal
+  // panel), not the board's Pipeline.
+  const { openGhl, panel } = useGhlDealOpener();
   const scope = scopeReps(me);
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
@@ -270,7 +274,7 @@ export default function HomeView({ me }) {
   const group = (title, dot, list) => list.length > 0 && (
     <div key={title}>
       <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{title}<span className="text-zinc-400">{list.length}</span></div>
-      {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} />)}
+      {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} onOpen={openGhl} />)}
     </div>
   );
 
@@ -299,7 +303,7 @@ export default function HomeView({ me }) {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
-        <Card title="Needs attention" right={more('/board/pipeline', 'Pipeline')}>
+        <Card title="Needs attention" right={more('/pipeline', 'Pipeline')}>
           {open.length === 0 ? (
             <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
           ) : (
@@ -320,17 +324,18 @@ export default function HomeView({ me }) {
           {wins.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>
           ) : wins.slice(0, 8).map((w) => (
-            <div key={`${w.id}${w.what}`} className="flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0">
+            <button type="button" onClick={() => openGhl(w)} key={`${w.id}${w.what}`} className="w-full text-left flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 hover:bg-tan-50 rounded-sm">
               <Avatar rep={w.rep} size={28} />
               <div className="min-w-0">
                 <div className="truncate"><span className="font-semibold">{w.what}</span> · {w.address}</div>
                 <div className="text-zinc-500 text-xs mt-0.5">{w.rep?.name.split(' ')[0]} · {MARKETS.find((x) => x.id === w.marketId)?.name || w.marketId}{w.what === 'Closed' && w.value ? ` · ${formatCompactCurrency(w.value)}` : ''} · {new Date(w.at).toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'short' })}</div>
               </div>
-            </div>
+            </button>
           ))}
         </Card>
         </div>
       </div>
+      {panel}
     </div>
   );
 }

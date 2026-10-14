@@ -20,7 +20,7 @@ import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import SubAccountsPanel from '../components/SubAccountsPanel.jsx';
 import { useDataStatus, refreshNow } from '../data/source.js';
-import { sectionsFor, resolve, hrefOf, ROLE_LABEL } from './sections.js';
+import { sectionsFor, resolve, hrefOf } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
@@ -30,11 +30,13 @@ import RulesView from '../settings/RulesView.jsx';
 import ListsView from '../settings/ListsView.jsx';
 import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
+import PipelinePage from './PipelinePage.jsx';
+import UserMenu from './UserMenu.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView,
-  'my-scorecard': MyScorecardView,
+  'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
@@ -114,7 +116,7 @@ export default function AppShell({ me }) {
   return (
     <div className="h-app flex bg-tan-50 text-[14px] text-zinc-950 antialiased">
       {/* Sidebar (desktop) */}
-      <aside className={`hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
+      <aside className={`relative hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
           <Logo />
           {!collapsed && (
@@ -122,9 +124,6 @@ export default function AppShell({ me }) {
               <span className="block font-bold text-[12.5px] tracking-[0.03em] text-navy-700 whitespace-nowrap">VALLEY PROPERTY</span>
               <span className="block mt-0.5 text-[9.5px] font-semibold tracking-[0.28em] text-tan-600">GROUP</span>
             </span>
-          )}
-          {!collapsed && (
-            <button onClick={() => setCollapsed(true)} className="ml-auto text-zinc-400 hover:text-zinc-700" title="Collapse sidebar"><Icon name="sidebar" size={15} /></button>
           )}
         </div>
         <button onClick={() => setPalette(true)} title="Search (⌘K)"
@@ -146,14 +145,16 @@ export default function AppShell({ me }) {
               <Icon name="plug" className="text-tan-600/80" />{!collapsed && 'Sub-accounts'}
             </button>
           )}
-          {collapsed && (
-            <button onClick={() => setCollapsed(false)} title="Expand sidebar" className="flex justify-center items-center h-8 rounded-lg text-zinc-400 hover:bg-zinc-200/50"><Icon name="sidebar" /></button>
-          )}
         </nav>
-        <div className={`flex items-center gap-2.5 border-t border-tan-200 pt-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
-          <Avatar name={me.name} />
-          {!collapsed && <div className="min-w-0"><div className="font-semibold truncate">{me.name}</div><div className="text-[11.5px] text-zinc-500 truncate">{ROLE_LABEL[me.role] || me.role}</div></div>}
+        <div className="border-t border-tan-200 pt-2">
+          <UserMenu me={me} collapsed={collapsed} Avatar={Avatar} />
         </div>
+        {/* Open / close the sidebar: one round arrow on its edge, always in
+            the same spot (Luke, Oct 14 — like GHL's). */}
+        <button onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Open the menu' : 'Close the menu'} aria-label={collapsed ? 'Open the menu' : 'Close the menu'}
+          className="absolute -right-3 bottom-[72px] z-20 w-6 h-6 rounded-full grid place-items-center bg-tan-500 text-white shadow-md ring-2 ring-tan-50 hover:bg-tan-600">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className={collapsed ? 'rotate-180' : ''} aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg>
+        </button>
       </aside>
 
       {/* Page */}
@@ -174,6 +175,7 @@ export default function AppShell({ me }) {
               </button>
             )}
             <button onClick={() => setPalette(true)} className="md:hidden h-8 w-8 grid place-items-center rounded-lg text-zinc-600" aria-label="Search"><Icon name="search" size={18} /></button>
+            <span className="md:hidden"><UserMenu me={me} phone Avatar={Avatar} /></span>
           </div>
         </header>
 

@@ -21,7 +21,15 @@ const DESK = { w: 1300, h: 900 };
 export const SECTIONS = [
   { id: 'home', label: 'Home', icon: 'home', roles: PEOPLE },
   {
-    id: 'board', label: 'Board', icon: 'board', roles: PEOPLE,
+    // Luke, Oct 14: the board's Pipeline as the team's own page, with a
+    // Full team / Mine / pick-a-person filter; deals open their details.
+    id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: PEOPLE,
+    tabs: [{ id: 'all', label: 'Pipeline', view: 'team-pipeline', phone: { h: 2600 } }],
+  },
+  {
+    // Luke, Oct 14: "Board" renamed "Team overview" (same TV pages; URLs
+    // keep /board/…).
+    id: 'board', label: 'Team overview', icon: 'board', roles: PEOPLE,
     tabs: [
       { id: 'overview', label: 'Overview', view: 'master', phone: WIDE },
       { id: 'pipeline', label: 'Pipeline', view: 'pipeline', phone: { h: 2600 } },
@@ -48,7 +56,8 @@ export const SECTIONS = [
     tabs: [{ id: 'scorecard', label: 'This week & trend', view: 'my-scorecard', scroll: true }],
   },
   {
-    id: 'team', label: 'Team', icon: 'team', roles: ['owner', 'manager'],
+    // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…).
+    id: 'team', label: 'Management', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
       { id: 'coaching', label: 'Coaching', view: 'mgr-coaching', phone: DESK },
