@@ -36,3 +36,23 @@ CREATE TABLE IF NOT EXISTS deal_ghl (
   updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS deal_ghl_deal ON deal_ghl (deal_id);
+-- The TC List (src/deals/tcList.js, functions/api/tc): checklist items
+-- ticked per deal, and tasks added to a deal for the TC.
+CREATE TABLE IF NOT EXISTS tc_checks (
+  deal_id TEXT NOT NULL,
+  item TEXT NOT NULL,
+  done_by TEXT NOT NULL,
+  done_at TEXT NOT NULL,
+  PRIMARY KEY (deal_id, item)
+);
+CREATE TABLE IF NOT EXISTS tc_tasks (
+  id TEXT PRIMARY KEY,
+  deal_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  due TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  done_by TEXT,
+  done_at TEXT
+);
+CREATE INDEX IF NOT EXISTS tc_tasks_deal ON tc_tasks (deal_id);

@@ -9,8 +9,8 @@
 // Alerts (planAlerts, pure — tested on its own). Luke, Oct 15:
 //   - Wins (main channel): new contract (GHL startedAt in the last 2 h) and
 //     closing (GHL Closed, stage moved in the last 24 h).
-//   - IP ending, no buyer (main channel): the day before and the day of the
-//     IP end (Arizona dates), from 7:30am Arizona — a deal not Assigned or
+//   - IP ending, no buyer (main channel): 48 hours out (once, when the IP end
+//     is 1–2 days away) and the day of the IP end (Arizona dates), from 7:30am Arizona — a deal not Assigned or
 //     Closed (tracker status Pending and GHL stage not Assigned / Closed;
 //     GHL deals under contract / in dispo that aren't in the tracker too).
 //   - TC morning list (its own channel — secret DISCORD_TC_WEBHOOK_URL, a
@@ -51,7 +51,7 @@ export function testEmbeds(by) {
     { title: '✅ Test from the VPG Dashboard', description: `${by ? `Sent by ${by} from Settings. ` : ''}If you can read this, alerts reach this channel. Below: what each alert looks like (made-up deals).`, color: COLOR.tc },
     { title: '🏆 New contract · TEST Rep', description: '123 Demo St · AZ', color: COLOR.contract, fields: [field('IP end', 'Oct 21'), field('COE', 'Oct 28'), field('Rep', 'TEST Rep')] },
     { title: '🎉 Closed · TEST Rep · $12,000', description: '456 Sample Ave · AL', color: COLOR.closed, fields: [field('Rep', 'TEST Rep'), field('COE', 'Oct 15')] },
-    { title: '⚠️ IP ends tomorrow — no buyer yet', description: '789 Example Rd · GA\nFind a buyer or cancel before the inspection period ends.', color: COLOR.ipSoon, fields: [field('IP end', 'Oct 16'), field('Acq.', 'TEST Rep')] },
+    { title: '⚠️ IP ends in 2 days (Oct 17) — no buyer yet', description: '789 Example Rd · GA\nFind a buyer or cancel before the inspection period ends.', color: COLOR.ipSoon, fields: [field('IP end', 'Oct 17'), field('Acq.', 'TEST Rep')] },
   ];
 }
 
@@ -94,11 +94,13 @@ export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now(
       }
     }
     for (const d of ipDeals) {
-      const when = d.end === today ? 'today' : d.end === tomorrow ? 'tomorrow' : null;
-      if (!when) continue;
+      // 48 hours out (the IP end is 1–2 days away; sent once) and the day of.
+      const days = d.end === today ? 0 : d.end === tomorrow ? 1 : d.end === addDays(today, 2) ? 2 : null;
+      if (days == null) continue;
+      const when = days === 0 ? 'today' : '48h';
       out.push({ key: `ip-${when}:${d.id}:${d.end}`, to: 'main', embed: {
-        title: `⚠️ IP ends ${when} — no buyer yet`, description: `${d.address}\nFind a buyer or cancel before the inspection period ends.`,
-        color: when === 'today' ? COLOR.ip : COLOR.ipSoon, fields: [field('IP end', short(d.end)), field('Acq.', d.who)], url: d.url,
+        title: days === 0 ? '⚠️ IP ends today — no buyer yet' : `⚠️ IP ends in ${days === 1 ? '1 day' : '2 days'} (${short(d.end)}) — no buyer yet`, description: `${d.address}\nFind a buyer or cancel before the inspection period ends.`,
+        color: days === 0 ? COLOR.ip : COLOR.ipSoon, fields: [field('IP end', short(d.end)), field('Acq.', d.who)], url: d.url,
       } });
     }
   }
@@ -117,7 +119,7 @@ export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now(
       description: (lines.length ? lines.slice(0, 15).join('\n') + (lines.length > 15 ? `\n…and ${lines.length - 15} more` : '') : 'Nothing closing in the next 3 days and no EMD problems.'),
       color: COLOR.tc,
       fields: [field('Closing ≤ 3 days', closing.length), field('EMD issues', emd.length), field('Missing info', need.length)],
-      url: `${SITE}/deals/active`,
+      url: `${SITE}/deals/tc`,
     } });
   }
   return out;

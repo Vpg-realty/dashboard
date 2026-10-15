@@ -116,7 +116,7 @@ function Legend() {
       {DUE_KEY.map(([c, l]) => <span key={l} className="flex items-center gap-1.5"><span className={`w-3 h-3 rounded-sm border ${c}`} />{l}</span>)}
       <span className="w-px h-3.5 bg-zinc-200 mx-1" />
       <span className="font-semibold text-zinc-500">EMD:</span>
-      <span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.green}`}>In</span><span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.red}`}>Pending / VPG only</span>
+      <span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.green}`}>In · Buyer</span><span className={`rounded-md px-1.5 py-[1px] font-semibold ring-1 ring-inset ${PILL_TONE.red}`}>Pending / VPG only</span>
     </div>
   );
 }
@@ -290,7 +290,7 @@ export default function ActiveView() {
   };
   // EMD as a pill like the other statuses (Luke, Oct 14: cleaner, proper case).
   const EMD_PILL = { green: 'green', red: 'red', amber: 'amber' };
-  const emd = (d) => { const e = emdCell(d); const t = EMD_PILL[e.tone]; return t ? <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t]}`}>{e.text === '✓' ? 'In' : e.text}</span> : <span className="text-zinc-700">{e.text}</span>; };
+  const emd = (d) => { const e = emdCell(d); const t = EMD_PILL[e.tone]; return t ? <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t]}`}>{e.text}</span> : <span className="text-zinc-700">{e.text}</span>; };
   // The full address, wrapping when it's long (Luke, Oct 14: no "…").
   const property = (d, onOpen) => (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-[200px] max-w-[300px]">

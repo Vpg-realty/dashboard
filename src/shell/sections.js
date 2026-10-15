@@ -37,8 +37,11 @@ export const SECTIONS = [
     id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
+      { id: 'tc', label: 'TC List', view: 'deals-tc', scroll: true, roles: ['owner', 'tc'] },
       { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
-      { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true, roles: ['owner', 'tc'] },
+      // Map of every closed deal (Luke, Oct 15) — where Summary was; Summary
+      // moved to Finance so everything with the money lives there.
+      { id: 'map', label: 'Map', view: 'deals-map', scroll: true, roles: ['owner', 'tc'] },
     ],
   },
   {
@@ -47,6 +50,7 @@ export const SECTIONS = [
     // Owners only (the API refuses everyone else).
     id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
     tabs: [
+      { id: 'summary', label: 'Deal Summary', view: 'deals-summary', scroll: true },
       { id: 'payouts', label: 'Payouts', view: 'fin-payouts', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
       { id: 'overview', label: 'Overview', view: 'fin-overview', scroll: true },
@@ -65,7 +69,8 @@ export const SECTIONS = [
       // everyone (Luke, Oct 15: "keep the same order … so Jack and I can
       // easily switch to other views").
       { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager'] },
-      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      // Everyone (Luke, Oct 15); its Needs review panel is owners only.
+      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true },
       { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true },
       { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
@@ -127,6 +132,7 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 const MOVED = {
   zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } },
   'board/pipeline': { section: 'pipeline', tab: 'all' },
+  'deals/summary': { section: 'finance', tab: 'summary' },
 };
 
 export function resolve(path, role) {
