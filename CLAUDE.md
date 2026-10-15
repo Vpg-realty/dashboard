@@ -1368,8 +1368,9 @@ Under `src/views/`:
   1st, newest first; `FitList` hides whatever doesn't fully fit, so the
   panel keeps as many as fit and drops the oldest.
   **Looking ahead** (Luke, Oct 15: "our team sees that we are on track for
-  the month and they slow down … showing them future dates is key"): a strip
-  along the bottom (TV and app) — next month's money already lined up
+  the month and they slow down … showing them future dates is key"; then
+  "more noticeable … its own box"): one navy box with a tan ring and a
+  "Looking ahead · Keep it moving" label, along the bottom (TV and app) — next month's money already lined up
   (Assigned deals with a COE next month, striped sky bar) against the month
   goal with "$X still to line up", how many in contract / dispo carry a
   next-month COE, and two quarter boxes (`QuarterBox`): Q contracts and Q

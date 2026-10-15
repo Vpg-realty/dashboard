@@ -211,21 +211,29 @@ export default function MasterView() {
         </FitList>
       </div>
 
-      {/* Looking ahead (Luke, Oct 15): keep the team moving past this month. */}
-      <div className="col-span-12 grid grid-cols-12 gap-4">
-        <div className="col-span-6 rounded-xl border border-zinc-300/80 bg-white px-5 py-3 flex flex-col justify-center">
+      {/* Looking ahead (Luke, Oct 15: "more noticeable … its own box or
+          something more colorful"): one navy box in the company colours, a
+          tan "Looking ahead" label, next month in white and the quarter
+          boxes on it. */}
+      <div className="col-span-12 rounded-2xl bg-[#1b385f] text-white px-5 py-3 flex items-stretch gap-5 shadow-[0_6px_20px_rgba(27,56,95,0.25)] ring-2 ring-[#ad9b7a]">
+        <div className="shrink-0 flex flex-col justify-center pr-5 border-r border-white/15">
+          <div className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#d9cfbd]">Looking ahead</div>
+          <div className="text-[min(1.6rem,3vh)] font-extrabold leading-tight">Keep it moving ➜</div>
+          <div className="text-xs text-white/60">next month & the quarter</div>
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 font-semibold">Looking ahead · {nextName}</div>
-            <span className={`text-sm font-extrabold px-3 py-0.5 rounded-full ${nextLinedSum >= goal ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-800'}`}>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-[#d9cfbd] font-semibold">{nextName} · lined up</div>
+            <span className={`text-sm font-extrabold px-3 py-0.5 rounded-full ${nextLinedSum >= goal ? 'bg-emerald-400 text-emerald-950' : 'bg-[#ad9b7a] text-[#0e1e34]'}`}>
               {nextLinedSum >= goal ? `${nextName} goal already lined up 🎯` : `${formatCompactCurrency(goal - nextLinedSum)} still to line up`}
             </span>
           </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-[min(2rem,3.6vh)] font-extrabold tabular-nums text-zinc-900">{formatCompactCurrency(nextLinedSum)}</span>
-            <span className="text-sm text-zinc-500 truncate">of {formatCompactCurrency(goal)} lined up · {nextLined.length} assigned{nextWorking.length ? ` · ${nextWorking.length} more in contract / dispo` : ''} with a {nextName.slice(0, 3)} COE</span>
+          <div className="flex items-baseline gap-2 mt-0.5 min-w-0">
+            <span className="text-[min(2.2rem,4vh)] font-extrabold tabular-nums leading-tight">{formatCompactCurrency(nextLinedSum)}</span>
+            <span className="text-sm text-white/70 truncate">of {formatCompactCurrency(goal)} · {nextLined.length} assigned{nextWorking.length ? ` · ${nextWorking.length} more in contract / dispo` : ''} with a {nextName.slice(0, 3)} COE</span>
           </div>
-          <div className="relative h-2.5 mt-2 rounded-full bg-zinc-100 overflow-hidden">
-            <div className="absolute inset-y-0 left-0" style={{ width: `${Math.min(100, (nextLinedSum / goal) * 100)}%`, background: STRIPE('#38bdf8', '#7dd3fc') }} />
+          <div className="relative h-3 mt-1.5 rounded-full bg-white/15 overflow-hidden">
+            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, Math.min(100, (nextLinedSum / goal) * 100))}%`, background: STRIPE('#38bdf8', '#7dd3fc') }} />
           </div>
         </div>
         <QuarterBox label={`Q${q} contracts`} actual={qContracts} target={qContractGoal} frac={qFrac} fmt={formatNumber} />
@@ -258,19 +266,20 @@ function Marker({ at, label, light }) {
 function QuarterBox({ label, actual, target, frac, fmt }) {
   const s = kpiStatus(actual, target * frac);
   const badge = { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status];
+  const tone = { on: 'bg-emerald-400 text-emerald-950', warn: 'bg-amber-300 text-amber-950', behind: 'bg-rose-400 text-rose-950' }[s.status];
   return (
-    <div className={`col-span-3 rounded-xl border px-4 py-3 flex flex-col justify-center ${s.border} ${s.bg}`}>
+    <div className="w-[22%] shrink-0 rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-2.5 flex flex-col justify-center">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-600 truncate">{label} · so far</div>
-        <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded whitespace-nowrap border ${s.text} ${s.border}`}>{badge}</span>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-[#d9cfbd] truncate">{label} · so far</div>
+        <span className={`text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded whitespace-nowrap ${tone}`}>{badge}</span>
       </div>
       <div className="flex items-baseline gap-1.5 mt-1">
-        <span className={`text-[min(2rem,3.6vh)] font-bold tabular-nums leading-none ${s.text}`}>{fmt(actual)}</span>
-        <span className="text-sm text-zinc-500 tabular-nums">/ {fmt(target)}</span>
+        <span className="text-[min(2rem,3.6vh)] font-extrabold tabular-nums leading-none">{fmt(actual)}</span>
+        <span className="text-sm text-white/60 tabular-nums">/ {fmt(target)}</span>
       </div>
-      <div className="relative h-1.5 mt-2 bg-white/70 rounded-full">
+      <div className="relative h-2 mt-2 bg-white/15 rounded-full">
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (actual / target) * 100)}%`, background: s.color }} />
-        <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, frac * 100)}% - 1px)` }} />
+        <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-white" style={{ left: `calc(${Math.min(100, frac * 100)}% - 1px)` }} />
       </div>
     </div>
   );
