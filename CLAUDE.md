@@ -318,6 +318,15 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   across everywhere"); tab titles read "<page> · Valley Property Group". dashboard.valleypropertygroup.com is a Squarespace forward (301) to
   vpg-dashboard.pages.dev — the domain's DNS stays at Squarespace (Luke,
   Oct 14: don't touch DNS / email).
+- **Team Chat** (Luke, Oct 15: the team chats in Discord — a full in-site
+  chat was weighed and left for the phone app): a "Team Chat ↗" link under
+  Team Overview in the sidebar (and in the avatar menu on a phone) opens the
+  team's Discord invite in a new tab. The link is D1 settings `team_chat`
+  `{url}` (not in the public repo), handed to the browser by `/api/me`
+  (`teamChat`, everyone but the TV), set by owners in Settings → People
+  ("Team Chat button"; `checkTeamChat` accepts discord.gg / discord.com
+  invites, empty hides the button). Alerts into Discord (webhook secret
+  `DISCORD_WEBHOOK_URL`) aren't built yet.
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the

@@ -151,6 +151,14 @@ export default function AppShell({ me }) {
             Oct 15) — then the owners' admin. */}
         <nav className="flex flex-col gap-0.5 mb-2" aria-label="Team screens">
           {sections.filter((x) => x.bottom === 'screens').map(navItem)}
+          {/* Team Chat (Luke, Oct 15): the team's Discord, in a new tab. */}
+          {me.teamChat && (
+            <a href={me.teamChat} target="_blank" rel="noopener noreferrer" title="Team Chat (Discord) — opens in a new tab"
+              className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center px-0' : 'px-2.5'}`}>
+              <Icon name="chat" className="text-tan-600/80" />
+              {!collapsed && <>Team Chat <span className="ml-auto text-[11px] text-zinc-400">↗</span></>}
+            </a>
+          )}
         </nav>
         {(sections.some((x) => x.bottom === 'admin') || me.role === 'owner') && (
           <nav className="flex flex-col gap-0.5 mb-2 pt-2 border-t border-tan-200" aria-label="Admin">
