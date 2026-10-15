@@ -75,12 +75,9 @@ export const CATEGORIES = [
     when: (d) => open(d),
     fields: ['address', 'acq', 'state', 'accepted', 'coe', 'dealType', 'listing', 'price', 'title', 'emd', 'emdStatus', 'emdSent', 'ddDays'],
   },
-  {
-    id: 'dispo', label: 'In Dispo Active — needs dispo details', tone: 'amber',
-    hint: 'GHL has it in Dispo Active: who is selling it and for how much.',
-    when: (d) => open(d) && ghl(d) === 'DISPO ACTIVE',
-    fields: ['dispoMember', 'asking'],
-  },
+  // No "In Dispo Active" category (Luke, Oct 15): dispositions (dispo member,
+  // asking price, buyer, prices) are only filled in once a deal is assigned
+  // or closed, so nothing there counts as missing before that.
   {
     id: 'assigned', label: 'Moved to Assigned — needs sold details', tone: 'green',
     hint: 'Marked Assigned (in the tracker or in GHL), or a buyer / assignment price is in: buyer info, assignment prices and who placed the EMD.',
