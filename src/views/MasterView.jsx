@@ -4,6 +4,7 @@ import { PAIRS, headline, historyEntries } from '../data/source.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
+import { monthTotals } from './manager/monthReview.js';
 
 // Overview (view key 'master', first tab) — the sales-floor overview
 // (Luke, Oct 8):
@@ -15,6 +16,12 @@ import { laToday, teamConvosByDay } from '../utils/historyRange.js';
 //      the gap per day, and each rep's closed + assigned.
 //   3. Wins this month: closes, assignments and new contracts, newest first,
 //      as many as fit the panel.
+//   4. Looking ahead (Luke, Oct 15: "our team sees that we are on track for
+//      the month and they slow down … showing them future dates is key"):
+//      next month's money already lined up (Assigned with a COE next month)
+//      against next month's goal, the deals in contract / dispo heading
+//      there, and the quarter so far — contracts and revenue vs the quarter
+//      goal with a pace tick.
 
 const N = REPS.length;
 const sum = (pairs, k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
@@ -90,8 +97,25 @@ export default function MasterView() {
     return out;
   }).sort((a, b) => b.at - a.at);
 
+  // Looking ahead: next month and this quarter.
+  const [yy, mm] = today.split('-').map(Number);
+  const nextKey = mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
+  const nextName = new Date(`${nextKey}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  const nextLined = allAssigned.filter((d) => String(d.coe || '').slice(0, 7) === nextKey);
+  const nextLinedSum = nextLined.reduce((a, d) => a + (d.value || 0), 0);
+  const nextWorking = deals.filter((d) => (d.stage === 'under_contract' || d.stage === 'dispo') && String(d.coe || '').slice(0, 7) === nextKey);
+  const q = Math.ceil(mm / 3);
+  const qMonths = [0, 1, 2].map((i) => `${yy}-${String(q * 3 - 2 + i).padStart(2, '0')}`);
+  const past = qMonths.filter((m) => m < today.slice(0, 7)).map((m) => monthTotals(historyEntries(), m).team);
+  const qContracts = past.reduce((a, t) => a + (t.contracts || 0), 0) + sum(PAIRS, 'contractsMonth');
+  const qRevenue = past.reduce((a, t) => a + (t.revenue || 0), 0) + closed;
+  const qStart = Date.UTC(yy, q * 3 - 3, 1); const qEnd = Date.UTC(yy, q * 3, 1);
+  const qFrac = Math.min(1, Math.max(0, (Date.UTC(yy, mm - 1, +today.slice(8, 10)) + 86_400_000 - qStart) / (qEnd - qStart)));
+  const qContractGoal = KPI_TARGETS.contractsPerMonth * N * 3;
+  const qRevenueGoal = goal * 3;
+
   return (
-    <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4">
+    <div className="h-full min-h-0 grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4">
       {/* Month totals — slim cards (Luke, Oct 8: the full KpiCards were too
           big here). Same pace grading and colours as the Opportunities boxes. */}
       <SlimCard label="New conversations" actual={convosMonth} note={`${formatNumber(head.conversationsToday)} today · ${formatNumber(head.conversationsWeek)} this week`} />
@@ -186,6 +210,35 @@ export default function MasterView() {
           })}
         </FitList>
       </div>
+
+      {/* Looking ahead (Luke, Oct 15: "more noticeable … its own box or
+          something more colorful"): one navy box in the company colours, a
+          tan "Looking ahead" label, next month in white and the quarter
+          boxes on it. */}
+      <div className="col-span-12 rounded-2xl bg-[#1b385f] text-white px-5 py-3 flex items-stretch gap-5 shadow-[0_6px_20px_rgba(27,56,95,0.25)] ring-2 ring-[#ad9b7a]">
+        <div className="shrink-0 flex flex-col justify-center pr-5 border-r border-white/15">
+          <div className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#d9cfbd]">Looking ahead</div>
+          <div className="text-[min(1.6rem,3vh)] font-extrabold leading-tight">Keep it moving ➜</div>
+          <div className="text-xs text-white/60">next month & the quarter</div>
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[11px] uppercase tracking-[0.22em] text-[#d9cfbd] font-semibold">{nextName} · lined up</div>
+            <span className={`text-sm font-extrabold px-3 py-0.5 rounded-full ${nextLinedSum >= goal ? 'bg-emerald-400 text-emerald-950' : 'bg-[#ad9b7a] text-[#0e1e34]'}`}>
+              {nextLinedSum >= goal ? `${nextName} goal already lined up 🎯` : `${formatCompactCurrency(goal - nextLinedSum)} still to line up`}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 mt-0.5 min-w-0">
+            <span className="text-[min(2.2rem,4vh)] font-extrabold tabular-nums leading-tight">{formatCompactCurrency(nextLinedSum)}</span>
+            <span className="text-sm text-white/70 truncate">of {formatCompactCurrency(goal)} · {nextLined.length} assigned{nextWorking.length ? ` · ${nextWorking.length} more in contract / dispo` : ''} with a {nextName.slice(0, 3)} COE</span>
+          </div>
+          <div className="relative h-3 mt-1.5 rounded-full bg-white/15 overflow-hidden">
+            <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, Math.min(100, (nextLinedSum / goal) * 100))}%`, background: STRIPE('#38bdf8', '#7dd3fc') }} />
+          </div>
+        </div>
+        <QuarterBox label={`Q${q} contracts`} actual={qContracts} target={qContractGoal} frac={qFrac} fmt={formatNumber} />
+        <QuarterBox label={`Q${q} revenue closed`} actual={qRevenue} target={qRevenueGoal} frac={qFrac} fmt={formatCompactCurrency} />
+      </div>
     </div>
   );
 }
@@ -204,6 +257,30 @@ function Marker({ at, label, light }) {
     <div className="absolute -top-1.5 h-[3.9rem] flex flex-col items-center" style={{ left: `${Math.min(100, at * 100)}%`, transform: 'translateX(-50%)' }}>
       <div className={`w-[3px] flex-1 rounded ${light ? 'bg-zinc-400' : 'bg-zinc-900'}`} />
       <div className={`text-[10px] font-bold whitespace-nowrap ${light ? 'text-zinc-400' : 'text-zinc-700'}`}>{label}</div>
+    </div>
+  );
+}
+
+// The quarter so far vs the quarter's goal, graded on how much of the
+// quarter has gone (same colours / badges as the month cards).
+function QuarterBox({ label, actual, target, frac, fmt }) {
+  const s = kpiStatus(actual, target * frac);
+  const badge = { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status];
+  const tone = { on: 'bg-emerald-400 text-emerald-950', warn: 'bg-amber-300 text-amber-950', behind: 'bg-rose-400 text-rose-950' }[s.status];
+  return (
+    <div className="w-[22%] shrink-0 rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-2.5 flex flex-col justify-center">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-[#d9cfbd] truncate">{label} · so far</div>
+        <span className={`text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded whitespace-nowrap ${tone}`}>{badge}</span>
+      </div>
+      <div className="flex items-baseline gap-1.5 mt-1">
+        <span className="text-[min(2rem,3.6vh)] font-extrabold tabular-nums leading-none">{fmt(actual)}</span>
+        <span className="text-sm text-white/60 tabular-nums">/ {fmt(target)}</span>
+      </div>
+      <div className="relative h-2 mt-2 bg-white/15 rounded-full">
+        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (actual / target) * 100)}%`, background: s.color }} />
+        <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-white" style={{ left: `calc(${Math.min(100, frac * 100)}% - 1px)` }} />
+      </div>
     </div>
   );
 }

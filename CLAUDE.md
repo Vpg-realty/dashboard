@@ -1367,6 +1367,16 @@ Under `src/views/`:
   Closed / Assigned (`stageSince`) and new contracts (`startedAt`) since the
   1st, newest first; `FitList` hides whatever doesn't fully fit, so the
   panel keeps as many as fit and drops the oldest.
+  **Looking ahead** (Luke, Oct 15: "our team sees that we are on track for
+  the month and they slow down … showing them future dates is key"; then
+  "more noticeable … its own box"): one navy box with a tan ring and a
+  "Looking ahead · Keep it moving" label, along the bottom (TV and app) — next month's money already lined up
+  (Assigned deals with a COE next month, striped sky bar) against the month
+  goal with "$X still to line up", how many in contract / dispo carry a
+  next-month COE, and two quarter boxes (`QuarterBox`): Q contracts and Q
+  revenue closed so far (earlier months from their last history.json
+  snapshot via `monthTotals`, plus this month live) vs 3 × the month goals,
+  graded on the share of the quarter gone (ON PACE / NEAR / BEHIND, tick).
 - **Pipeline** (Luke, Sept 29) — four columns by GHL pipeline stage:
   Under Contract, DISPO Active, Assigned, Closed (only deals that
   reached Closed this month; empties on the 1st). Abandoned/lost deals
