@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { needsInfo } from '../src/deals/required.js';
-import { isOpen } from '../src/deals/math.js';
+import { isOpen, emdIn } from '../src/deals/math.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a'; // same database as sync-deals.mjs
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -108,7 +108,7 @@ export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now(
   if (!['Sat', 'Sun'].includes(day) && morning && mins < 12 * 60) {
     const open = deals.filter(isOpen);
     const closing = open.filter((d) => ISO.test(d.coe || '') && d.coe >= today && d.coe <= addDays(today, 3));
-    const emd = open.filter((d) => String(d.emdStatus || '').toUpperCase() === 'PENDING' && !d.emdPaidBy);
+    const emd = open.filter((d) => !emdIn(d));
     const need = open.filter((d) => needsInfo(d, { owner: false, readOnly: false }, today).length > 0);
     const lines = [
       ...closing.map((d) => `• Closing ${short(d.coe)} — ${d.address}${d.title ? '' : ' (no title agency on file)'}`),

@@ -18,7 +18,7 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
-import { useDeals, addrKey } from '../deals/store.js';
+import { useDeals, addrKey, trackerByAddr, withTrackerDates } from '../deals/store.js';
 import { EmdPill } from '../deals/pills.jsx';
 import { nextStep, dueTone } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
@@ -241,19 +241,16 @@ export default function HomeView({ me }) {
   const { openGhl, panel } = useGhlDealOpener();
   // The deal tracker (already loaded for the deal panel; reps and managers
   // get the open deals read-only) — its deal at each address, open (pending
-  // or assigned) first, for the EMD pill on Needs attention.
+  // or assigned) first: the EMD pill on Needs attention, and the COE / IP end
+  // (the tracker's dates win over GHL's custom fields — withTrackerDates).
   const tracker = useDeals();
-  const byAddr = new Map();
-  for (const t of tracker.raw || []) {
-    const k = addrKey(t.address);
-    if (k && (!byAddr.has(k) || (isOpen(t) && !isOpen(byAddr.get(k))))) byAddr.set(k, t);
-  }
+  const byAddr = trackerByAddr(tracker.deals);
   const trackedOf = (d) => byAddr.get(addrKey(d.address || d.name)) || null;
   const scope = scopeReps(me);
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
   const today = laToday();
-  const deals = pairs.flatMap((p) => (p.deals || []).map((d) => ({ ...d, rep: repById[p.repId], marketId: p.marketId })));
+  const deals = pairs.flatMap((p) => (p.deals || []).map((d) => ({ ...withTrackerDates(d, trackedOf(d)), rep: repById[p.repId], marketId: p.marketId })));
 
   const open = deals
     .map((d) => {

@@ -98,7 +98,6 @@ export function newDealFrom(g, { repName, stateName }) {
     coe: g.coe || null,
     accepted,
     retrade: 'N',
-    emdStatus: 'PENDING',
     links: zillowUrl(g.address),
   };
   if (g.ipEnd) setDdEnd(d, g.ipEnd);

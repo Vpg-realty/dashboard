@@ -52,7 +52,7 @@ const cell = (f, v, editable, d) => {
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
   // EMD status says who placed it (Luke, Oct 15).
-  if (f.key === 'emdStatus') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
+  if (f.key === 'emdPaidBy') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
   if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
   const text = String(v).split('\n')[0];
@@ -194,7 +194,7 @@ export default function AllDealsView() {
           </div>
         </Menu>
         <button onClick={csv} className={btnCls}>Export CSV</button>
-        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
+        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />

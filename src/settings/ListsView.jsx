@@ -84,7 +84,7 @@ function ReportsTo({ l, setL }) {
 
 const LISTS = [
   ['acqTeam', 'Acquisition managers'], ['dispoMembers', 'Dispo members'], ['states', 'States'], ['dealTypes', 'Deal types'],
-  ['emdStatus', 'EMD statuses'], ['emdPaidBy', 'EMD paid by'], ['listing', 'Listing types'], ['yesNo', 'Yes / No'],
+  ['emdPaidBy', 'EMD paid by'], ['listing', 'Listing types'], ['yesNo', 'Yes / No'],
 ];
 
 export default function ListsView() {

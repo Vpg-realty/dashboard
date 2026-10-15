@@ -3,7 +3,7 @@
 // Shared by the Deals tabs and the deal side panel.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { compute, STAGE_STATUS } from './math.js';
+import { compute, STAGE_STATUS, isOpen } from './math.js';
 import { PAIRS } from '../data/source.js';
 import { REPS, MARKETS } from '../data/config.js';
 
@@ -84,6 +84,32 @@ export function ghlDeals() {
   return out;
 }
 
+// The tracker's deal at each address (open ones first) — computed deals, so
+// `ddEnd` is filled in.
+export function trackerByAddr(deals) {
+  const out = new Map();
+  for (const t of deals || []) {
+    const k = addrKey(t.address);
+    if (k && (!out.has(k) || (isOpen(t) && !isOpen(out.get(k))))) out.set(k, t);
+  }
+  return out;
+}
+
+// Luke, Oct 15 ("1456 Nick Davis shows a COE of today, however the COE has
+// been updated"): the dates people keep up to date live in the tracker; GHL's
+// COE / IP end custom fields are only what the rep typed there and are never
+// updated from the site (it doesn't write to GHL). So wherever a GHL deal has
+// a tracker deal at the same address, its COE and IP end (= the tracker's DD
+// end) come from the tracker; GHL's stay as the fallback.
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+export function withTrackerDates(g, t) {
+  if (!t) return g;
+  const out = { ...g };
+  if (ISO.test(t.coe || '')) out.coe = t.coe;
+  if (ISO.test(t.ddEnd || '')) out.ipEnd = t.ddEnd;
+  return out;
+}
+
 // Fields to start a tracker deal from a GHL deal.
 export function fieldsFromGhl(g) {
   const az = (ms) => (ms ? new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }) : null);
@@ -96,7 +122,6 @@ export function fieldsFromGhl(g) {
     accepted: accepted || null,
     status: STAGE_STATUS[g.stage] || 'PENDING',
     dealType: 'WHOLESALE',
-    emdStatus: 'PENDING',
     ...(accepted && g.ipEnd && g.ipEnd > accepted ? { ddDays: Math.round((Date.parse(g.ipEnd) - Date.parse(accepted)) / 86_400_000) } : {}),
   };
 }

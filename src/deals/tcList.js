@@ -9,7 +9,7 @@
 // to do today), and a checklist by stage — CHECKLIST below is the one place
 // the items live. Ticks and added tasks are stored in D1 (tc_checks,
 // tc_tasks — functions/api/tc).
-import { isOpen } from './math.js';
+import { isOpen, emdIn } from './math.js';
 import { daysBetween } from './status.js';
 import { ipEndAlert } from './ddTime.js';
 import { needsInfo } from './required.js';
@@ -25,7 +25,7 @@ export const isAssignedDeal = (d) => up(d.status) === 'ASSIGNED' || up(d.status)
 // "chase EM receipts from title agencies after the property has been put in
 // the assigned stage AND EM status is either empty or VPG only" (Luke).
 export const needsBuyerEmReceipt = (d) => isAssignedDeal(d) && up(d.status) !== 'COMPLETE'
-  && (!d.emdStatus || (up(d.emdStatus) === 'COMPLETE' && up(d.emdPaidBy) === 'VPG'));
+  && (!emdIn(d) || up(d.emdPaidBy) === 'VPG');
 
 // Stage → items. `due(deal)` = the day the item is due (null = not yet, e.g.
 // no COE); `auto(deal)` = already true from the deal's own fields (shown
@@ -37,7 +37,7 @@ export const CHECKLIST = [
       { id: 'docs', label: 'Contract and documents received', due: (d) => d.accepted || null },
       { id: 'title', label: 'Title opened', due: (d) => d.accepted || null },
       { id: 'wire', label: 'Wire instructions received or on file', due: (d) => d.accepted || null },
-      { id: 'em', label: 'EM placed', due: (d) => d.emdDue || d.accepted || null, auto: (d) => up(d.emdStatus) === 'COMPLETE' || up(d.emdStatus) === 'NA' },
+      { id: 'em', label: 'EM placed', due: (d) => d.emdDue || d.accepted || null, auto: emdIn },
     ],
   },
   {
@@ -45,7 +45,7 @@ export const CHECKLIST = [
     items: [
       { id: 'assign', label: 'Assignment sent to title', due: (d, today) => today },
       { id: 'buyerwire', label: 'Wire instructions sent to buyer', due: (d, today) => today },
-      { id: 'buyerem', label: 'Buyer EM receipt received', due: (d, today) => today, auto: (d) => up(d.emdStatus) === 'COMPLETE' && /BUYER/.test(up(d.emdPaidBy)) },
+      { id: 'buyerem', label: 'Buyer EM receipt received', due: (d, today) => today, auto: (d) => /BUYER/.test(up(d.emdPaidBy)) },
     ],
   },
   {

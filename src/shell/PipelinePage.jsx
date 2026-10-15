@@ -10,7 +10,7 @@ import PipelineView from '../views/PipelineView.jsx';
 import { REPS } from '../data/config.js';
 import { useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery } from './router.js';
-import { useDeals, addrKey } from '../deals/store.js';
+import { useDeals, addrKey, trackerByAddr, withTrackerDates } from '../deals/store.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { selectCls } from '../deals/format.js';
 
@@ -36,6 +36,10 @@ export default function PipelinePage() {
     if (!rep) return new Set();
     return new Set(s.raw.filter((d) => norm(d.dispoMember) === norm(rep.name)).map((d) => addrKey(d.address)));
   }, [s.raw, rep]);
+  // COE / IP end from the tracker when it has the deal (GHL's custom fields
+  // aren't updated when the date changes on the site).
+  const byAddr = useMemo(() => trackerByAddr(s.deals), [s.deals]);
+  const dates = (d) => withTrackerDates(d, byAddr.get(addrKey(d.address || d.name)));
   const keep = rep ? (d, p) => p.repId === rep.id || dispoAddr.has(addrKey(d.address || d.name)) : null;
 
   const seg = (v, label) => (
@@ -65,7 +69,7 @@ export default function PipelinePage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <PipelineView keep={keep} onOpen={openGhl} still />
+        <PipelineView keep={keep} onOpen={openGhl} still dates={dates} />
       </div>
       {panel}
     </div>

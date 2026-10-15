@@ -5,7 +5,7 @@ import { ZONE_KEYS, showEndTime } from './ddTime.js';
 import { pretty } from './values.js';
 
 export const LIST_OF = {
-  listing: 'listing', state: 'states', dealType: 'dealTypes', status: 'status', cfar: 'yesNo', emdStatus: 'emdStatus',
+  listing: 'listing', state: 'states', dealType: 'dealTypes', status: 'status', cfar: 'yesNo',
   emdPaidBy: 'emdPaidBy', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
 };
 // Deal status is a fixed list (Luke, Oct 14: Pending, Assigned, Closed,

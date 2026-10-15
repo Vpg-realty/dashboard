@@ -55,15 +55,17 @@ const daysFrom = (today, date) => (date ? daysInclusive(today, date) - 1 : null)
 
 // Optional (Luke, Oct 14 — the app's own Pipeline page; the board passes
 // nothing and is unchanged): `keep(deal, pair)` filters the deals,
-// `onOpen(deal)` makes cards clickable, `still` stops the TV auto-scroll.
+// `onOpen(deal)` makes cards clickable, `still` stops the TV auto-scroll,
+// `dates(deal)` swaps in the tracker's COE / IP end (withTrackerDates).
 const PipeCtx = createContext({});
 
-export default function PipelineView({ keep, onOpen, still } = {}) {
+export default function PipelineView({ keep, onOpen, still, dates } = {}) {
   const today = laToday();
   const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
   const marketById = Object.fromEntries(MARKETS.map((m) => [m.id, m]));
 
-  const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((d) => {
+  const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((g) => {
+    const d = dates ? dates(g) : g;
     const ipDays = daysFrom(today, d.ipEnd);
     const coeDays = daysFrom(today, d.coe);
     const keyDays = KEY_DATE[d.stage] === 'ip' ? ipDays : KEY_DATE[d.stage] === 'coe' ? coeDays : null;

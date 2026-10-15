@@ -14,7 +14,7 @@
 // needed" — status Assigned with no assignment price yet lands in "Moved to
 // Assigned". Used by Active ("Needs info"), All deals (the `need` filter and
 // the "N missing" badge) and the deal panel (missing fields highlighted).
-import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending, isOpen } from './math.js';
+import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending, isOpen, emdIn } from './math.js';
 import { laToday } from '../utils/historyRange.js';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
@@ -50,9 +50,8 @@ const isMissing = {
 const RULE = {
   address: ['value'], acq: ['value'], state: ['value'], accepted: ['value'], coe: ['value'], dealType: ['value'], listing: ['value'],
   price: ['price'], title: ['value'], ddDays: ['value'],
-  emd: ['value', (d) => up(d.emdStatus) !== 'NA'],
-  emdStatus: ['value'],
-  emdSent: ['value', (d) => up(d.emdStatus) === 'COMPLETE'],
+  emd: ['value'],
+  emdSent: ['value', emdIn],
   emdPaidBy: ['placeholder'],
   dispoMember: ['value'],
   buyer: ['value'],
@@ -73,7 +72,7 @@ export const CATEGORIES = [
     id: 'new', label: 'New deal — missing basics', tone: 'navy',
     hint: 'Every open deal (pending or assigned) needs these from the contract.',
     when: (d) => open(d),
-    fields: ['address', 'acq', 'state', 'accepted', 'coe', 'dealType', 'listing', 'price', 'title', 'emd', 'emdStatus', 'emdSent', 'ddDays'],
+    fields: ['address', 'acq', 'state', 'accepted', 'coe', 'dealType', 'listing', 'price', 'title', 'emd', 'emdSent', 'ddDays'],
   },
   // No "In Dispo Active" category (Luke, Oct 15): dispositions (dispo member,
   // asking price, buyer, prices) are only filled in once a deal is assigned
