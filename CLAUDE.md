@@ -192,8 +192,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   for team + manager; **Territory** for everyone (Oct 14: the one place for
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
-  manager; owners too since Oct 14, listed after Reps × states so Territory
-  still opens on the map for them), Who works where, Reps × states, Zip management (owner / manager
+  manager + owners — first for everyone, so owners see the same tab order
+  as the team, Luke Oct 15), Who works where, Reps × states, Zip management (owner / manager
   / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)

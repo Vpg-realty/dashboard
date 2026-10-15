@@ -50,14 +50,12 @@ export const SECTIONS = [
     // Zip center section folded in here (its links redirect, see resolve).
     id: 'territory', label: 'Territory', icon: 'map', roles: PEOPLE,
     tabs: [
-      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
+      // Owners request zips too, and see the tabs in the same order as
+      // everyone (Luke, Oct 15: "keep the same order … so Jack and I can
+      // easily switch to other views").
+      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager'] },
       { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      // Owners request zips too (Luke, Oct 14: "Jack and I still need to
-      // request zips"): the same page, listed after the map tabs so the
-      // section still opens on Who Works Where for them (the entry above is
-      // filtered out for owners, so /territory/zips finds this one).
-      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner'] },
       { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true },
       { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true },
