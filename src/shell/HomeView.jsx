@@ -21,6 +21,7 @@ import { paceFraction } from '../utils/pace.js';
 import { useDeals, addrKey } from '../deals/store.js';
 import { EmdPill } from '../deals/pills.jsx';
 import { nextStep, dueTone } from '../deals/status.js';
+import { isOpen } from '../deals/math.js';
 import Icon from './icons.jsx';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
@@ -135,7 +136,7 @@ function PipelineCard({ deals }) {
 function TrackerCard() {
   const s = useDeals();
   if (s.status === 'error') return null;
-  const act = s.deals.filter((d) => d.status === 'PENDING').map((d) => nextStep(d));
+  const act = s.deals.filter(isOpen).map((d) => nextStep(d));
   const count = (tone) => act.filter((x) => x.tone === tone).length;
   // Colours from the tracker sheet (status.js): red act now, amber coming up.
   const tiles = [['Active', act.length, 'text-navy-800'], ['Act now', count('red'), 'text-[#B42318]'], ['Coming up', count('amber'), 'text-[#B54708]'], ['Closing ≤ 7d', act.filter((x) => x.soon).length, 'text-[#B54708]']];
@@ -239,13 +240,13 @@ export default function HomeView({ me }) {
   // panel), not the board's Pipeline.
   const { openGhl, panel } = useGhlDealOpener();
   // The deal tracker (already loaded for the deal panel; reps and managers
-  // get the pending deals read-only) — its deal at each address, pending
-  // first, for the EMD pill on Needs attention.
+  // get the open deals read-only) — its deal at each address, open (pending
+  // or assigned) first, for the EMD pill on Needs attention.
   const tracker = useDeals();
   const byAddr = new Map();
   for (const t of tracker.raw || []) {
     const k = addrKey(t.address);
-    if (k && (!byAddr.has(k) || (t.status === 'PENDING' && byAddr.get(k).status !== 'PENDING'))) byAddr.set(k, t);
+    if (k && (!byAddr.has(k) || (isOpen(t) && !isOpen(byAddr.get(k))))) byAddr.set(k, t);
   }
   const trackedOf = (d) => byAddr.get(addrKey(d.address || d.name)) || null;
   const scope = scopeReps(me);

@@ -7,12 +7,14 @@
 // is missing under a new deal category").
 //
 // This file is the ONE place the required fields per stage live. The stage
-// comes from the tracker (status, an assignment price or buyer) and from the
-// GHL stage mirror (`ghlStage`, kept up to date by the GHL sync — which no
-// longer changes the tracker itself, so a stage move in GHL shows up here
-// instead). Used by Active ("Needs info"), All deals (the `need` filter and
+// comes from the tracker (status — Pending / Assigned / Closed / Cancelled,
+// which the GHL sync sets on each stage move — an assignment price or buyer)
+// and from the GHL stage mirror (`ghlStage`). Luke, Oct 14: "if assigned is
+// marked then it should be marked as assigned and note to me that info is
+// needed" — status Assigned with no assignment price yet lands in "Moved to
+// Assigned". Used by Active ("Needs info"), All deals (the `need` filter and
 // the "N missing" badge) and the deal panel (missing fields highlighted).
-import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending } from './math.js';
+import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending, isOpen } from './math.js';
 import { laToday } from '../utils/historyRange.js';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
@@ -21,7 +23,8 @@ const money = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const daysAgo = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const ghl = (d) => up(d.ghlStage);
-const pending = (d) => up(d.status) === 'PENDING';
+// Open = Pending or Assigned (math.js isOpen).
+const open = (d) => isOpen(d);
 const emdByVpg = (d) => /VPG/.test(up(d.emdPaidBy));
 const cancelled = (d) => up(d.status) === 'CANCELLED';
 
@@ -39,6 +42,9 @@ const isMissing = {
   value: (d, k) => isBlank(d[k]),
   placeholder: (d, k) => isBlank(d[k]) || up(d[k]) === 'PENDING',
   price: (d, k) => isBlank(d[k]) || retradePending(d),
+  // An assignment price of 0 isn't a sale (the sheet holds 0 for "not sold
+  // yet"), so on a deal marked Assigned / closed it's still missing.
+  assign: (d, k) => isBlank(d[k]) || (typeof d[k] === 'number' && d[k] <= 0),
 };
 // field → how to test it, and when it's needed at all.
 const RULE = {
@@ -51,8 +57,8 @@ const RULE = {
   dispoMember: ['value'],
   buyer: ['value'],
   asking: ['value'],
-  vpgAssign: ['value'],
-  finalAssign: ['value'],
+  vpgAssign: ['assign'],
+  finalAssign: ['assign'],
   status: ['value'],
   wireDate: ['value'], wireReceived: ['value'],
   emdReturned: ['value', emdByVpg],
@@ -65,40 +71,40 @@ const RULE = {
 export const CATEGORIES = [
   {
     id: 'new', label: 'New deal — missing basics', tone: 'navy',
-    hint: 'Every pending deal needs these from the contract.',
-    when: (d) => pending(d),
+    hint: 'Every open deal (pending or assigned) needs these from the contract.',
+    when: (d) => open(d),
     fields: ['address', 'acq', 'state', 'accepted', 'coe', 'dealType', 'listing', 'price', 'title', 'emd', 'emdStatus', 'emdSent', 'ddDays'],
   },
   {
     id: 'dispo', label: 'In Dispo Active — needs dispo details', tone: 'amber',
     hint: 'GHL has it in Dispo Active: who is selling it and for how much.',
-    when: (d) => pending(d) && ghl(d) === 'DISPO ACTIVE',
+    when: (d) => open(d) && ghl(d) === 'DISPO ACTIVE',
     fields: ['dispoMember', 'asking'],
   },
   {
     id: 'assigned', label: 'Moved to Assigned — needs sold details', tone: 'green',
-    hint: 'Assigned in GHL, or a buyer / assignment price is in: buyer info, assignment prices and who placed the EMD.',
-    when: (d) => pending(d) && (ghl(d) === 'ASSIGNED' || money(d.vpgAssign) || money(d.finalAssign) || !!d.buyer),
+    hint: 'Marked Assigned (in the tracker or in GHL), or a buyer / assignment price is in: buyer info, assignment prices and who placed the EMD.',
+    when: (d) => open(d) && (up(d.status) === 'ASSIGNED' || ghl(d) === 'ASSIGNED' || money(d.vpgAssign) || money(d.finalAssign) || !!d.buyer),
     fields: ['dispoMember', 'buyer', 'vpgAssign', 'finalAssign', 'emdPaidBy'],
   },
   {
     id: 'closed', label: 'Closed — needs closing details', tone: 'green',
     hint: `Closed in GHL or in the tracker (COE in the last ${CLOSED_CHECK_DAYS} days): status and final price (the wire and EMD return are under bookkeeping).`,
-    when: (d, today) => (pending(d) && ghl(d) === 'CLOSED') || recentClose(d, today),
+    when: (d, today) => (open(d) && ghl(d) === 'CLOSED') || recentClose(d, today),
     fields: ['status', 'finalAssign'],
-    wrong: (d) => (pending(d) && ghl(d) === 'CLOSED' ? ['status'] : []),
+    wrong: (d) => (open(d) && ghl(d) === 'CLOSED' ? ['status'] : []),
   },
   {
     // Luke, Oct 14: bookkeeping unlocks at COE and becomes a task for owners.
     id: 'books', label: 'At COE — fill in bookkeeping', tone: 'navy', owners: true,
     hint: 'The COE date is here (or the deal closed): wire received, wire date, EMD returned and commission paid.',
-    when: (d, today) => !cancelled(d) && booksOpen(d, today) && (pending(d) || recentClose(d, today)),
+    when: (d, today) => !cancelled(d) && booksOpen(d, today) && (open(d) || recentClose(d, today)),
     fields: BOOKS_KEYS,
   },
   {
     id: 'lost', label: 'Lost in GHL — confirm the cancel', tone: 'red',
-    hint: 'GHL marked it lost / abandoned but the tracker still has it pending. Set the status (and EMD return) if it really fell through.',
-    when: (d) => pending(d) && ghl(d).startsWith('LOST'),
+    hint: 'GHL marked it lost / abandoned but the tracker still has it open. Set the status (and EMD return) if it really fell through.',
+    when: (d) => open(d) && ghl(d).startsWith('LOST'),
     fields: ['status'],
     wrong: () => ['status'],
   },

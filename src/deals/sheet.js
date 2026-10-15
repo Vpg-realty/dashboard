@@ -5,8 +5,9 @@
 // soft status tints instead of the sheet's saturated fills:
 //   - group bands: navy, each group marked by a thin accent colour on its
 //     column headers (the "Dispo % loss" pair keeps its own tan band);
-//   - row status: closed = soft green, cancelled = soft rose (muted text),
-//     pending = white (the status pill says Pending);
+//   - row status (Luke, Oct 14): pending = white (the status pill says
+//     Pending), assigned = light purple, closed = soft green, cancelled =
+//     soft rose (muted text);
 //   - EMD status reads as its own pill (Complete green / Pending red) — the
 //     sheet's green / red EMD block was dropped as a second, louder copy;
 //   - single-cell checks: DD ends today (rose, bold red) / tomorrow (sky);
@@ -51,6 +52,8 @@ export const NET_LOSS_ALERT = 0.2;
 export const netLossHigh = (d) => typeof d.netLoss === 'number' && d.netLoss > NET_LOSS_ALERT;
 const SOON = { background: '#EAF5FD', color: '#075985', fontWeight: 600 };
 const CANCELLED = { background: '#FBF3F3', color: '#9A8F8F' };
+// Assigned (Luke, Oct 14: "assigned → light purple row").
+export const ASSIGNED = { background: '#F4F0FC', color: '#4C1D95' };
 const CALC = { background: '#F8FAFC' };
 const up = (x) => String(x ?? '').toUpperCase();
 
@@ -64,7 +67,7 @@ export function cellStyle(d, f, today = laToday()) {
   if (k === 'netLoss' && netLossHigh(d)) return ALERT;
   if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return CHECK;
   if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return CHECK;
-  if ((k === 'ddEnd' || k === 'ddEndTime') && st === 'PENDING' && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
+  if ((k === 'ddEnd' || k === 'ddEndTime') && (st === 'PENDING' || st === 'ASSIGNED') && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
     const n = daysBetween(today, d.ddEnd);
     if (n === 0) return ALERT;
     if (n === 1) return SOON;
@@ -72,13 +75,14 @@ export function cellStyle(d, f, today = laToday()) {
   // Whole row by deal status.
   if (st === 'CANCELLED') return CANCELLED;
   if (st === 'COMPLETE') return GREEN;
+  if (st === 'ASSIGNED') return ASSIGNED;
   if (f.calc) return CALC;
   return { background: '#FFFFFF' };
 }
 
 // The colour key above the table, in plain words.
 export const SHEET_LEGEND = [
-  [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
+  [{ background: '#FFFFFF' }, 'Pending deal'], [ASSIGNED, 'Assigned deal'], [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
   [ALERT, 'DD ends today · net profit below zero · net loss over 20%'], [SOON, 'DD ends tomorrow'],
   [CHECK, 'Check: extra fees · commission not paid'],
 ];

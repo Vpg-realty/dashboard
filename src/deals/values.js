@@ -45,7 +45,7 @@ const up = (v) => String(v ?? '').trim().toUpperCase();
 export function toneOf(key, v) {
   const x = up(v);
   switch (key) {
-    case 'status': return { PENDING: 'amber', COMPLETE: 'green', CANCELLED: 'red' }[x] || 'grey';
+    case 'status': return { PENDING: 'amber', ASSIGNED: 'violet', COMPLETE: 'green', CANCELLED: 'red' }[x] || 'grey';
     case 'emdStatus': return { COMPLETE: 'green', PENDING: 'red' }[x] || 'grey';
     case 'emdPaidBy': return x === 'PENDING' ? 'amber' : 'navy';
     case 'cfar': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';

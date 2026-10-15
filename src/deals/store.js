@@ -3,7 +3,7 @@
 // Shared by the Deals tabs and the deal side panel.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { compute } from './math.js';
+import { compute, STAGE_STATUS } from './math.js';
 import { PAIRS } from '../data/source.js';
 import { REPS, MARKETS } from '../data/config.js';
 
@@ -94,7 +94,7 @@ export function fieldsFromGhl(g) {
     state: g.stateName ? g.stateName.toUpperCase() : null,
     coe: g.coe || null,
     accepted: accepted || null,
-    status: g.stage === 'closed' ? 'COMPLETE' : 'PENDING',
+    status: STAGE_STATUS[g.stage] || 'PENDING',
     dealType: 'WHOLESALE',
     emdStatus: 'PENDING',
     ...(accepted && g.ipEnd && g.ipEnd > accepted ? { ddDays: Math.round((Date.parse(g.ipEnd) - Date.parse(accepted)) / 86_400_000) } : {}),

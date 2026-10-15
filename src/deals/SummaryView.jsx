@@ -13,15 +13,20 @@ import PeriodBar from './PeriodBar.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { setQuery, navigate } from '../shell/router.js';
-import { assigned as isAssigned } from './status.js';
+import { assigned as isAssigned, hasAssignPrice } from './status.js';
+import { isOpen } from './math.js';
 
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function stats(list) {
   const closed = list.filter((d) => d.status === 'COMPLETE');
-  const pending = list.filter((d) => d.status === 'PENDING');
-  const assigned = pending.filter(isAssigned); // a VPG assignment price is in
+  // Open = Pending or Assigned (Luke, Oct 14: the Assigned status); assigned =
+  // status Assigned or a VPG assignment price is in. Projected money only
+  // from those with a price (an Assigned deal with none yet adds no gross).
+  const pending = list.filter(isOpen);
+  const assigned = pending.filter(isAssigned);
+  const priced = assigned.filter(hasAssignPrice);
   const sum = (arr, k) => arr.reduce((t, d) => t + n(d[k]), 0);
   const comm = (arr) => arr.reduce((t, d) => t + n(d.acqComm) + n(d.dispoComm) + n(d.mgrComm) + n(d.override) + n(d.tcComm), 0);
   const gross = sum(closed, 'grossAssign'); const profit = sum(closed, 'netProfit');
@@ -30,7 +35,7 @@ function stats(list) {
     closeRate: list.length ? closed.length / list.length : 0,
     volume: sum(closed, 'finalAssign'), gross, net: sum(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
     avgNet: closed.length ? profit / closed.length : 0, comm: comm(closed),
-    projCount: assigned.length, projGross: sum(assigned, 'grossAssign'), projNet: sum(assigned, 'netAssign'), projProfit: sum(assigned, 'netProfit'),
+    projCount: assigned.length, projGross: sum(priced, 'grossAssign'), projNet: sum(priced, 'netAssign'), projProfit: sum(priced, 'netProfit'),
   };
 }
 
@@ -137,7 +142,7 @@ export default function SummaryView() {
       <PageHead title="Deal summary" sub={`${period.label} · by ${DATE_BY[by]}`} right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
       <div className={`grid grid-cols-1 ${owner ? 'xl:grid-cols-[4fr_3fr_3fr]' : 'xl:grid-cols-[4fr_3fr]'} gap-4`}>
         <Group title="Deal flow" dot="#1b385f" cols="lg:grid-cols-4">
-          <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still pending`} />
+          <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open (pending or assigned)`} />
           <Kpi label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-700" />
           <Kpi label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
           <Kpi label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct />
@@ -158,7 +163,7 @@ export default function SummaryView() {
       {compare && !then && <div className="mt-3 text-zinc-500">No deals on file for {compare.label}, so there's nothing to compare with.</div>}
       {now.projCount > 0 && (
         <div className="mt-4 rounded-xl border border-navy-100 bg-navy-50/70 px-5 py-3 text-navy-900">
-          <span className="font-semibold">Projected:</span> {now.projCount} pending deal{now.projCount === 1 ? '' : 's'} already assigned · {money(now.projGross)} gross · {money(now.projNet)} net{owner && <> · {money(now.projProfit)} net profit</>} if they close.
+          <span className="font-semibold">Projected:</span> {now.projCount} open deal{now.projCount === 1 ? '' : 's'} already assigned · {money(now.projGross)} gross · {money(now.projNet)} net{owner && <> · {money(now.projProfit)} net profit</>} if they close.
         </div>
       )}
 

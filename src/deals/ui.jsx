@@ -7,7 +7,7 @@ import { shortDate } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 
 const STATUS_STYLE = {
-  PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
+  PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', ASSIGNED: 'bg-violet-100 text-violet-900 ring-violet-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
 };
 export function StatusChip({ status }) {
   const k = String(status || '').toUpperCase();

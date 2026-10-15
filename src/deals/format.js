@@ -1,4 +1,5 @@
 // Formatting helpers for the Deals pages.
+import { isOpen } from './math.js';
 export const money = (n, { cents = false } = {}) => {
   if (typeof n !== 'number' || !Number.isFinite(n)) return n == null || n === '' ? '—' : String(n);
   if (n === 0) return '–';
@@ -23,7 +24,7 @@ const STATE_CODES = {
   TENNESSEE: 'TN', TEXAS: 'TX', UTAH: 'UT', VIRGINIA: 'VA', WASHINGTON: 'WA',
 };
 
-const STATUS_LABEL = { PENDING: 'Pending', COMPLETE: 'Closed', CANCELLED: 'Cancelled' };
+const STATUS_LABEL = { PENDING: 'Pending', ASSIGNED: 'Assigned', COMPLETE: 'Closed', CANCELLED: 'Cancelled' };
 export const statusLabel = (s) => STATUS_LABEL[String(s || '').toUpperCase()] || s || '—';
 
 export const selectCls = 'h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px] text-zinc-800 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100';
@@ -45,4 +46,4 @@ export function downloadCsv(name, cols, rows) {
 // negative gross (0 − contract price); the table shows those as "no buyer yet"
 // and leaves them out of the totals.
 export const NEEDS_BUYER = new Set(['grossAssign', 'netAssign', 'wireExpected', 'commBase', 'acqComm', 'dispoComm', 'mgrComm', 'override', 'grossProfit', 'netProfit']);
-export const noBuyer = (d) => d.status === 'PENDING' && typeof d.grossAssign === 'number' && d.grossAssign < 0;
+export const noBuyer = (d) => isOpen(d) && typeof d.grossAssign === 'number' && d.grossAssign < 0;
