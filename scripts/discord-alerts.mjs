@@ -117,7 +117,7 @@ export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now(
       description: (lines.length ? lines.slice(0, 15).join('\n') + (lines.length > 15 ? `\n…and ${lines.length - 15} more` : '') : 'Nothing closing in the next 3 days and no EMD problems.'),
       color: COLOR.tc,
       fields: [field('Closing ≤ 3 days', closing.length), field('EMD issues', emd.length), field('Missing info', need.length)],
-      url: `${SITE}/deals/active`,
+      url: `${SITE}/deals/tc`,
     } });
   }
   return out;

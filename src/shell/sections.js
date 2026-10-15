@@ -37,6 +37,7 @@ export const SECTIONS = [
     id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
+      { id: 'tc', label: 'TC List', view: 'deals-tc', scroll: true, roles: ['owner', 'tc'] },
       { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
       { id: 'summary', label: 'Summary', view: 'deals-summary', scroll: true, roles: ['owner', 'tc'] },
     ],

@@ -36,3 +36,11 @@ CREATE TABLE IF NOT EXISTS deal_ghl (
   updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS deal_ghl_deal ON deal_ghl (deal_id);
+-- The TC List (src/deals/tcList.js, functions/api/tc): items ticked off by
+-- the TC or an owner. A key carries what it was about (deal, date), so an
+-- item comes back when that changes. Kept 60 days.
+CREATE TABLE IF NOT EXISTS tc_done (
+  key TEXT PRIMARY KEY,
+  done_by TEXT NOT NULL,
+  done_at TEXT NOT NULL
+);

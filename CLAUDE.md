@@ -657,6 +657,22 @@ the server strips them (`forTc`) and refuses edits to them.
   Collapse all / Expand all; folds are remembered per device
   (localStorage `vpg.active.folded`).
   People are boxed in their colour (`people.jsx`).
+- **TC List** (Luke, Oct 15: "a TC list within the dashboard that owners
+  and Aiza can see only"): Deals tab `/deals/tc` (`TcListView.jsx`, roles
+  owner + tc). `buildTcList` (`src/deals/tcList.js`) over open deals, in
+  `TC_SECTIONS` order: IP ends within 48 h with no buyer (`ipEndAlert`),
+  past COE still open, closing within 7 days (check in with title; "No
+  title agency on file" in red), EMD to chase (pending with no payer,
+  past its due date, VPG only) and missing info (`needsInfo` as the TC —
+  field chips open the deal on that field; clears itself, no tick). Tiles
+  count what's left per section + done today. Every other item has a tick:
+  D1 `tc_done (key, done_by, done_at)` (edge/deals.sql) via
+  `functions/api/tc` (GET; POST `{key, done}` — owners / TC, never while
+  viewing as; kept 60 days). A key carries what it was about
+  (`closing:<id>:<coe>:<today>` resets daily, `past:<id>:<coe>`,
+  `emd:late:<id>:<due>` …), so an item comes back when that changes;
+  ticked items fold into "Show done (N)" with who / when, and can be
+  unticked. The Discord TC list links here.
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
   Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
