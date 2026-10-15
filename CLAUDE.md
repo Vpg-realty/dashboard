@@ -615,6 +615,17 @@ the server strips them (`forTc`) and refuses edits to them.
   the board's Pipeline colours (`dueTone`). COE, title, buyer and prices
   edit in place (owners / TC). On top, **IP ends within 48 hours — no buyer
   yet** lists those deals (below).
+  **Tiles = filters, sections fold** (Luke, Oct 15: the tile bar was
+  "confusing … some click, some do not", and Needs info pushed the lists
+  down): every tile is a filter card (All active deals, Assigned, Needs a
+  buyer, EMD at risk, Past COE, Closing ≤ 7 days, Needs info) — click shows
+  only those deals (`?only=asg|buyer|emd|past|soon|need`), unfolds and
+  scrolls to the list they're in, click again or the "× / Show all deals"
+  chip clears; a tile at 0 is greyed and can't be picked; lists left empty
+  by a filter are hidden. Every section (IP ends, Needs info, Assigned,
+  Needs a buyer, In GHL not in the tracker) folds from its header bar, plus
+  Collapse all / Expand all; folds are remembered per device
+  (localStorage `vpg.active.folded`).
   People are boxed in their colour (`people.jsx`).
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
@@ -661,7 +672,9 @@ the server strips them (`forTc`) and refuses edits to them.
   stays missing (below). `needsInfo(deal, {owner, readOnly})` lists only
   fields the person can fill in (TC: no secret fields; reps / managers get
   no alerts — view only). Shown as the Active tile + section (a tab per
-  category, a field chip per missing field), the All deals filter / red
+  category — every category the person can fill in, a green ✓ when nothing's
+  missing, Luke Oct 15: the selector looked gone when only one had deals —
+  a field chip per missing field), the All deals filter / red
   outlines, and in the deal panel: a "Needs info" box, each missing field
   tinted "● needed". `?focus=<field>` (or `focus=need`) on a deal link
   scrolls to and focuses that field (`useDealPanel`); a newly added deal

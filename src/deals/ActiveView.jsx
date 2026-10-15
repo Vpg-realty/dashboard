@@ -16,7 +16,7 @@
 import { PILL_TONE } from './values.js';
 import { useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, fieldsFromGhl, GHL_STAGE } from './store.js';
-import { PageHead, Tile, Tiles, Loading, Search, StepPill, SyncNote, ResortBar, NeedChips } from './ui.jsx';
+import { PageHead, Loading, Search, StepPill, SyncNote, ResortBar, NeedChips } from './ui.jsx';
 import { money, compact, shortDate, stateCode, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
@@ -29,7 +29,6 @@ import { nextStep, assigned, hasAssignPrice, daysBetween, TONES, LEGEND, dueTone
 import { needsInfo, CATEGORIES } from './required.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
-import { PanelHead } from '../shell/Panel.jsx';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
@@ -49,6 +48,62 @@ function StaleTag({ moved }) {
   return <span title="Changed since the list was sorted — Re-sort now puts it in its place" className="ml-1.5 inline-block align-middle rounded px-1 text-[10.5px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200 whitespace-nowrap">{moved || 'changed'} · re-sort</span>;
 }
 
+// Collapsible sections (Luke, Oct 15: "a collapse option for the charts …
+// needs info has many properties and it makes it hard to see the things
+// below"). Which ones are folded is remembered on this device.
+const FOLD_KEY = 'vpg.active.folded';
+function useFolds() {
+  const [folded, setFolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
+  const save = (next) => { setFolded(next); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...next])); } catch { /* private mode */ } };
+  return {
+    is: (id) => folded.has(id),
+    toggle: (id) => { const n = new Set(folded); if (n.has(id)) n.delete(id); else n.add(id); save(n); },
+    open: (id) => { if (folded.has(id)) { const n = new Set(folded); n.delete(id); save(n); } },
+    set: (ids) => save(new Set(ids)),
+    any: folded.size > 0,
+  };
+}
+function Chevron({ open }) {
+  return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>;
+}
+// A section's header row: the whole bar opens / closes it.
+function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-50/70 border-tan-200 text-navy-800' }) {
+  const open = !folds.is(id);
+  return (
+    <button type="button" onClick={() => folds.toggle(id)} aria-expanded={open}
+      className={`w-full flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2.5 text-left hover:brightness-[0.98] ${open ? 'border-b' : ''} ${className}`}>
+      <span className="grid place-items-center w-6 h-6 rounded-md text-current/80"><Chevron open={open} /></span>
+      <span className="text-[14.5px] font-semibold">{title}</span>
+      {count != null && <span className="rounded-md bg-white/80 ring-1 ring-inset ring-zinc-200 px-1.5 text-[12px] font-semibold tabular-nums text-zinc-700">{count}</span>}
+      {sub && <span className="text-[12.5px] text-zinc-500 font-normal">{sub}</span>}
+      <span className="ml-auto text-[12px] text-zinc-500 font-normal">{open ? 'Hide' : 'Show'}</span>
+    </button>
+  );
+}
+
+// The tiles on top are one set of filters (Luke, Oct 15: "some click, some
+// do not … confusing … clunky"): every tile shows only its deals in the
+// lists below (click again or "Clear" for all), the open lists unfold, and
+// the pick is kept in the link (?only=). A tile with nothing in it is
+// greyed out and can't be picked.
+function FilterTile({ label, value, sub, dot, tone, active, activeText, onClick }) {
+  const off = !value && !active;
+  return (
+    <button type="button" onClick={onClick} disabled={off} aria-pressed={!!active}
+      className={`group relative text-left px-4 py-3.5 rounded-xl border transition-colors ${active ? 'border-navy-700 bg-navy-50 ring-1 ring-navy-700' : off ? 'border-tan-200 bg-white opacity-55 cursor-default' : 'border-tan-200 bg-white hover:border-navy-300 hover:bg-tan-50 cursor-pointer'}`}>
+      <div className="text-[13px] text-zinc-600 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOT[dot]}`} />}{label}</div>
+      <div className={`mt-1 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${off ? 'text-zinc-400' : tone || 'text-navy-800'}`}>{value}</div>
+      <div className="mt-1.5 text-[12px] whitespace-nowrap truncate h-4">
+        {active ? <span className="font-semibold text-navy-700">✓ {activeText || 'Showing · click to clear'}</span>
+          : off ? <span className="text-zinc-400">none right now</span>
+          : <><span className="text-zinc-500 group-hover:hidden">{sub || ' '}</span><span className="hidden group-hover:inline font-medium text-navy-700">Show only these</span></>}
+      </div>
+    </button>
+  );
+}
+const DOT = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]', green: 'bg-[#15803D]', navy: 'bg-navy-700' };
+const ONLY_LABEL = { asg: 'Assigned', buyer: 'Needs a buyer', emd: 'EMD at risk', past: 'Past COE', soon: 'Closing ≤ 7 days', need: 'Needs info' };
+
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-600">
@@ -66,12 +121,12 @@ function Legend() {
 
 // One of the sheet's two lists: band header (green / blue), grey column
 // header row, zebra rows, a colour bar for the next step.
-function Section({ id, rows, cols, sub, onOpen, empty }) {
+function Section({ id, rows, cols, sub, onOpen, empty, folds }) {
   const sec = SECTION[id];
   return (
-    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title={<span className="inline-flex items-center gap-2 text-navy-800"><span className="w-2.5 h-2.5 rounded-full" style={{ background: sec.band }} />{sec.title}</span>} sub={sub} />
-      {rows.length === 0 ? <div className="px-5 py-6 text-zinc-500">{empty}</div> : (
+    <section id={`sec-${id}`} className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
+      <FoldHead id={id} folds={folds} count={rows.length} sub={sub} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: sec.band }} />{sec.title}</span>} />
+      {folds.is(id) ? null : rows.length === 0 ? <div className="px-5 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">
             <thead className="text-[11px] uppercase tracking-wide font-bold" style={{ background: '#EEF2F6', color: '#6B7280' }}>
@@ -101,26 +156,32 @@ function Section({ id, rows, cols, sub, onOpen, empty }) {
 // with that field focused.
 const SHORT = 6;
 const CAT_DOT = { navy: 'bg-navy-700', amber: 'bg-[#DC8A0E]', green: 'bg-[#15803D]', red: 'bg-[#B42318]' };
-function NeedsInfo({ groups, onOpen, total }) {
+function NeedsInfo({ groups, onOpen, total, folds }) {
   const [pick, setPick] = useState(null);
   const [all, setAll] = useState(false);
-  const cur = groups.find((g) => g.cat.id === pick) || groups.find((g) => g.cat.id === 'assigned') || groups[0];
+  // Every category stays a tab, even with nothing missing (Luke, Oct 15:
+  // the selector looked gone when only one category had deals).
+  const cur = groups.find((g) => g.cat.id === pick) || groups.find((g) => g.items.length) || groups[0];
   const items = all ? cur.items : cur.items.slice(0, SHORT);
   return (
     <section id="needs-info" className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <PanelHead title={<span className="inline-flex items-center gap-2 text-navy-800"><span className="w-2 h-2 rounded-full bg-[#B42318]" />Needs info</span>}
-        sub={`${total} deal${total === 1 ? '' : 's'} missing something their stage needs · click a red field to fill it in`} />
+      <FoldHead id="need" folds={folds} count={total} title={<span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#B42318]" />Needs info</span>}
+        sub={total ? `missing something their stage needs · click a red field to fill it in` : 'every deal has what its stage needs'} />
+      {!folds.is('need') && <>
       <div className="flex flex-wrap gap-1.5 px-5 pt-3">
         {groups.map(({ cat, items: its }) => (
           <button key={cat.id} type="button" onClick={() => { setPick(cat.id); setAll(false); }}
             className={`inline-flex items-center gap-2 rounded-lg px-3 h-8 text-[13px] font-medium ring-1 ${cur.cat.id === cat.id ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50'}`}>
             <span className={`w-2 h-2 rounded-full ${CAT_DOT[cat.tone]}`} />{cat.label}
-            <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${cur.cat.id === cat.id ? 'bg-white/20' : 'bg-[#FDECEA] text-[#B42318]'}`}>{its.length}</span>
+            {its.length
+              ? <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${cur.cat.id === cat.id ? 'bg-white/20' : 'bg-[#FDECEA] text-[#B42318]'}`}>{its.length}</span>
+              : <span className={`text-[12px] font-bold ${cur.cat.id === cat.id ? 'text-white' : 'text-[#15803D]'}`} title="Nothing missing">✓</span>}
           </button>
         ))}
       </div>
       <div className="px-5 pt-2 text-[12.5px] text-zinc-500">{cur.cat.hint}</div>
-      <table className="w-full text-left text-[13.5px] mt-2">
+      {!cur.items.length && <div className="px-5 py-5 text-[13.5px] text-[#15803D] font-medium">✓ Nothing missing here right now.</div>}
+      {cur.items.length > 0 && <table className="w-full text-left text-[13.5px] mt-2">
         <thead className="text-[11px] uppercase tracking-wide font-bold" style={{ background: '#EEF2F6', color: '#6B7280' }}>
           <tr><th className="pl-5 px-3 py-1.5">Property</th><th className="px-3 py-1.5">Acq. manager</th><th className="px-3 py-1.5">GHL stage</th><th className="px-3 py-1.5 w-full">Missing — click to fill in</th></tr>
         </thead>
@@ -134,12 +195,13 @@ function NeedsInfo({ groups, onOpen, total }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table>}
       {cur.items.length > SHORT && (
         <button type="button" onClick={() => setAll((x) => !x)} className="w-full border-t border-[#E5E9F0] py-2 text-[13px] font-medium text-navy-700 hover:bg-tan-50">
           {all ? 'Show fewer' : `Show all ${cur.items.length}`}
         </button>
       )}
+      </>}
     </section>
   );
 }
@@ -148,14 +210,15 @@ export default function ActiveView() {
   const s = useDeals();
   const { open, openNew, panel } = useDealPanel();
   const [q, setQ] = useState('');
-  const [only, setOnly] = useState(null);
   // Reps (Oct 14): every active deal, or just theirs — kept in the link.
   const { query } = useLocation();
+  const only = ONLY_LABEL[query.get('only')] ? query.get('only') : null;
+  const folds = useFolds();
   const mineOnly = query.get('mine') === '1';
   const today = laToday();
   const who = useMemo(() => ({ owner: s.owner, readOnly: s.readOnly }), [s.owner, s.readOnly]);
 
-  const { all, act, sorted, tiles, missing } = useMemo(() => {
+  const { all, act, sorted, tiles, missing, shownCount } = useMemo(() => {
     const withStep = s.deals.map((d) => ({ ...d, step: nextStep(d, today), _needs: needsInfo(d, who, today) }));
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const match = (d) => !words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state}`.toLowerCase().includes(w));
@@ -163,7 +226,7 @@ export default function ActiveView() {
     const emdRisk = (d) => (d.emdStatus === 'PENDING' && !d.emdPaidBy) || (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG');
     const pastCoe = (d) => ISO.test(d.coe || '') && d.coe < today;
     const soon = (d) => ISO.test(d.coe || '') && d.coe >= today && days(today, d.coe) <= 7;
-    const filters = { emd: emdRisk, past: pastCoe, soon, need: (d) => d._needs.length > 0 };
+    const filters = { asg: isAsg, buyer: (d) => !isAsg(d), emd: emdRisk, past: pastCoe, soon, need: (d) => d._needs.length > 0 };
     const shown = actives.filter(match).filter((d) => !only || filters[only](d));
     // The sheet's order: by COE (none last), assigned list first.
     const coeKey = (d) => (ISO.test(d.coe || '') ? d.coe : '9999');
@@ -172,6 +235,7 @@ export default function ActiveView() {
     const have = new Set(s.deals.map((d) => addrKey(d.address)));
     const miss = [...ghlDeals().values()].filter((g) => g.stage !== 'closed' && !have.has(addrKey(g.address || g.name)));
     return {
+      shownCount: shown.length,
       all: new Map(withStep.map((d) => [d.id, d])),
       act: withStep,
       sorted: ordered,
@@ -199,7 +263,14 @@ export default function ActiveView() {
   const rawById = useMemo(() => new Map(s.raw.map((d) => [d.id, d])), [s.raw]);
 
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
-  const tog = (k) => setOnly((o) => (o === k ? null : k));
+  const setOnly = (k) => setQuery({ only: k });
+  const tog = (k) => {
+    if (only === k) { setOnly(null); return; }
+    setOnly(k);
+    const target = k === 'need' ? 'need' : k === 'buyer' ? 'needs' : 'assigned';
+    for (const id of k === 'need' ? ['need'] : k === 'asg' ? ['assigned'] : k === 'buyer' ? ['needs'] : ['assigned', 'needs']) folds.open(id);
+    requestAnimationFrame(() => document.getElementById(target === 'need' ? 'needs-info' : `sec-${target}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
   const ed = !s.readOnly;
   // An editable cell (editors) or plain text (reps / managers).
   const edit = (key, d, content) => (ed && FIELD[key] ? (
@@ -266,7 +337,7 @@ export default function ActiveView() {
   const needGroups = CATEGORIES.map((cat) => ({
     cat,
     items: needFrozen.rows.map((d) => ({ d, fields: (all.get(d.id)?._needs || []).find((x) => x.cat.id === cat.id)?.fields || [] })).filter((x) => x.fields.length),
-  })).filter((g) => g.items.length);
+  })).filter((g) => !g.cat.owners || s.owner);
 
   return (
     <div className="max-w-[1720px] mx-auto">
@@ -281,25 +352,31 @@ export default function ActiveView() {
         <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
         {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
       </>} />
-      <Tiles cols={ed ? 7 : 6}>
-        <Tile label="Active deals" value={tiles.active} onClick={() => setOnly(null)} active={!only} />
-        <Tile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={`${compact(tiles.assignedGross)} gross`} />
-        <Tile label="Needs a buyer" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" />
-        <Tile label="EMD at risk" value={tiles.emd} dot={tiles.emd ? 'red' : null} tone={tiles.emd ? 'text-[#B42318]' : ''} onClick={() => tog('emd')} active={only === 'emd'} />
-        <Tile label="Past COE" value={tiles.past} dot={tiles.past ? 'red' : null} tone={tiles.past ? 'text-[#B42318]' : ''} onClick={() => tog('past')} active={only === 'past'} />
-        <Tile label="Closing ≤ 7 days" value={tiles.soon} dot={tiles.soon ? 'amber' : null} tone={tiles.soon ? 'text-[#B54708]' : ''} onClick={() => tog('soon')} active={only === 'soon'} />
-        {ed && <Tile label="Needs info" value={tiles.need} dot={tiles.need ? 'red' : null} tone={tiles.need ? 'text-[#B42318]' : ''} sub="missing for its stage" onClick={() => { setOnly(null); document.getElementById('needs-info')?.scrollIntoView({ behavior: 'smooth' }); }} />}
-      </Tiles>
-      {only && <div className="mt-3 text-zinc-500">Showing only: {{ emd: 'EMD at risk', past: 'past COE', soon: 'closing within 7 days' }[only]} · <button onClick={() => setOnly(null)} className="text-blue-600 hover:underline">show all</button></div>}
-      <div className="mt-4 flex flex-wrap items-center gap-3"><Legend /><span className="ml-auto"><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
+      <div className={`grid grid-cols-2 sm:grid-cols-3 ${ed ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-2.5`}>
+        <FilterTile label="All active deals" value={tiles.active} active={!only} activeText="Showing all" onClick={() => setOnly(null)} sub="pending + assigned" />
+        <FilterTile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={`${compact(tiles.assignedGross)} gross`} active={only === 'asg'} onClick={() => tog('asg')} />
+        <FilterTile label="Needs a buyer" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" sub="not yet assigned" active={only === 'buyer'} onClick={() => tog('buyer')} />
+        <FilterTile label="EMD at risk" value={tiles.emd} dot="red" tone="text-[#B42318]" sub="no payer yet / VPG only" active={only === 'emd'} onClick={() => tog('emd')} />
+        <FilterTile label="Past COE" value={tiles.past} dot="red" tone="text-[#B42318]" sub="COE date has passed" active={only === 'past'} onClick={() => tog('past')} />
+        <FilterTile label="Closing ≤ 7 days" value={tiles.soon} dot="amber" tone="text-[#B54708]" sub="check in with title" active={only === 'soon'} onClick={() => tog('soon')} />
+        {ed && <FilterTile label="Needs info" value={tiles.need} dot="red" tone="text-[#B42318]" sub="missing for its stage" active={only === 'need'} onClick={() => tog('need')} />}
+      </div>
+      {only && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-zinc-500">Showing</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">
+            {ONLY_LABEL[only]} · {shownCount} of {tiles.active}
+            <button type="button" onClick={() => setOnly(null)} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button>
+          </span>
+          <button type="button" onClick={() => setOnly(null)} className="text-navy-700 font-medium hover:underline">Show all deals</button>
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap items-center gap-3"><Legend /><span className="ml-auto flex items-center gap-3"><button type="button" onClick={() => folds.set(folds.any ? [] : ['ip', 'need', 'assigned', 'needs', 'ghl'])} className="text-[12.5px] font-medium text-navy-700 hover:underline">{folds.any ? 'Expand all' : 'Collapse all'}</button><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
       <div className="mt-3 flex flex-col gap-5">
         {ipSoon.length > 0 && (
           <section className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] overflow-hidden">
-            <div className="px-5 py-2.5 border-b border-[#F5C2BD] text-[#7A271A]">
-              <span className="font-semibold">IP ends within 48 hours — no buyer yet</span>
-              <span className="ml-2 text-[12.5px]">Find a buyer or cancel before the inspection period ends.</span>
-            </div>
-            <ul className="divide-y divide-[#F5C2BD]/60">
+            <FoldHead id="ip" folds={folds} count={ipSoon.length} className="border-[#F5C2BD] text-[#7A271A]" title="IP ends within 48 hours — no buyer yet" sub="Find a buyer or cancel before the inspection period ends." />
+            {!folds.is('ip') && <ul className="divide-y divide-[#F5C2BD]/60">
               {ipSoon.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 bg-white/60">
                   <StepPill step={{ text: d.ip.text, tone: d.ip.tone }} />
@@ -308,21 +385,18 @@ export default function ActiveView() {
                   <span className="text-zinc-600 text-[12.5px]">ends {new Date(d.ip.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} AZ</span>
                 </li>
               ))}
-            </ul>
+            </ul>}
           </section>
         )}
-        {ed && needGroups.length > 0 && <NeedsInfo groups={needGroups} onOpen={open} total={needFrozen.rows.length} />}
-        <Section id="assigned" rows={assigned} cols={assignedCols} onOpen={open} empty="No assigned deals."
-          sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (hasAssignPrice(d) ? d.grossAssign : 0), 0))} gross assignment`} />
-        <Section id="needs" rows={needs} cols={needsCols} onOpen={open} empty="Every pending deal has a buyer."
-          sub={`${needs.length} deals · not yet assigned`} />
-        {ed && missing.length > 0 && (
+        {ed && (!only || only === 'need') && <NeedsInfo groups={needGroups} onOpen={open} total={needFrozen.rows.length} folds={folds} />}
+        {(!only || assigned.length > 0) && <Section id="assigned" folds={folds} rows={assigned} cols={assignedCols} onOpen={open} empty="No assigned deals."
+          sub={`${money(assigned.reduce((t, d) => t + (hasAssignPrice(d) ? d.grossAssign : 0), 0))} gross assignment`} />}
+        {(!only || needs.length > 0) && <Section id="needs" folds={folds} rows={needs} cols={needsCols} onOpen={open} empty="Every pending deal has a buyer."
+          sub="not yet assigned" />}
+        {ed && !only && missing.length > 0 && (
           <section className="rounded-xl border border-violet-200 bg-violet-50/40 overflow-hidden">
-            <div className="px-5 py-3 border-b border-violet-100">
-              <h2 className="font-semibold text-violet-950">In GoHighLevel, not in the tracker yet</h2>
-              <div className="text-violet-900/70 text-[12.5px] mt-0.5">Under contract or later in GHL, with no tracker deal at the same address. Add one and its address, rep, state, COE and contract date are filled in for you — anything still missing shows under Needs info.</div>
-            </div>
-            <ul className="divide-y divide-violet-100">
+            <FoldHead id="ghl" folds={folds} count={missing.length} className="border-violet-100 text-violet-950" title="In GoHighLevel, not in the tracker yet" sub="Under contract or later in GHL, with no tracker deal at the same address — Add to tracker fills in what GHL has." />
+            {!folds.is('ghl') && <ul className="divide-y divide-violet-100">
               {missing.map((g) => (
                 <li key={g.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5">
                   <span className="font-medium min-w-0 flex-1 truncate">{g.address || g.name}</span>
@@ -332,7 +406,7 @@ export default function ActiveView() {
                   <button onClick={() => openNew(fieldsFromGhl(g))} className={btnCls}>Add to tracker</button>
                 </li>
               ))}
-            </ul>
+            </ul>}
           </section>
         )}
       </div>
