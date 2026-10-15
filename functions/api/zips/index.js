@@ -34,7 +34,7 @@ async function mine(db, user, now) {
   const markets = Object.fromEntries(await Promise.all(states.map(async (st) => [st, await Z.marketOf(db, st)])));
   // Their pulls (Luke, Oct 14: "track who pulled it, when it was pulled").
   const history = (await db.prepare('SELECT id, state, at, asked, given, via, by_name, note FROM zip_requests WHERE rep_id = ? ORDER BY at DESC LIMIT 25').bind(holder).all()).results;
-  return { repId: holder, name: Z.repName(holder), owner: Z.isOwnerHolder(holder), states, markets, holds, history, weekUsed: await Z.weekRequests(db, holder, now), weekStart: Z.weekStart(now) };
+  return { repId: holder, name: Z.repName(holder), owner: Z.isOwnerHolder(holder), states, markets, holds, history, weekUsed: await Z.weekRequests(db, holder, now), weekByState: await Z.weekByState(db, holder, now), weekStart: Z.weekStart(now) };
 }
 
 export async function onRequestGet(context) {

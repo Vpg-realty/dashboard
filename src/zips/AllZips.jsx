@@ -205,7 +205,7 @@ export default function AllZips() {
           <Tile label="Zips on file" value={totals.total.toLocaleString()} sub={`${d.states.length} states`} />
           <Tile label="Held right now" value={totals.held.toLocaleString()} sub={`by ${holdsByRep.length} rep${holdsByRep.length === 1 ? '' : 's'}`} />
           <Tile label="Available" value={totals.avail.toLocaleString()} sub="in states reps work, this round" />
-          <Tile label="Requests this week" value={weekReq} sub={`${d.rules.perWeek} per rep allowed`} />
+          <Tile label="Requests this week" value={weekReq} sub={`${d.rules.perWeek} per rep per state allowed`} />
           <Tile label="Needs attention" value={urgent.length} tone={urgent.some((h) => h.level === 'now') ? 'text-red-700' : urgent.length ? 'text-amber-700' : 'text-zinc-400'} sub="see the list below" />
         </div>
       </Panel>
