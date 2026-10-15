@@ -6,7 +6,16 @@
 //
 // `inline`: the list is open from the start and sits in the page flow (table
 // cells, where a floating list would be cut off by the table's scroll box).
-import { useEffect, useMemo, useRef, useState } from 'react';
+//
+// The floating list is drawn on top of the whole page (a portal on <body>,
+// fixed to the button), never inside the card around it — Luke, Oct 15: the
+// "EMD returned?" list was cut off by its section card (overflow hidden).
+// It opens upward when there isn't room below, follows the button on scroll
+// / resize, and accounts for the site's CSS zoom (index.css --ui-zoom).
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
+const LIST_H = 300; // search box + max-h-60 list, in CSS px
 
 const norm = (s) => String(s ?? '').toLowerCase();
 
@@ -20,6 +29,7 @@ export default function SearchSelect({
   const box = useRef(null);
   const search = useRef(null);
   const listRef = useRef(null);
+  const pop = useRef(null);
 
   const sorted = useMemo(() => (sort ? [...options].sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' })) : options), [options, sort]);
   const words = norm(q).split(/\s+/).filter(Boolean);
@@ -31,9 +41,29 @@ export default function SearchSelect({
   // Click outside closes a floating list.
   useEffect(() => {
     if (!open || inline) return undefined;
-    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target) && !pop.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
+  }, [open, inline]);
+  // Where the floating list goes: under the button, or above it when the
+  // window has no room below. Rects are in zoomed pixels; fixed positions
+  // inside the zoomed page are not, hence the divide.
+  useLayoutEffect(() => {
+    if (!open || inline) return undefined;
+    const update = () => {
+      const el = box.current, p = pop.current;
+      if (!el || !p) return;
+      const r = el.getBoundingClientRect();
+      const z = el.offsetWidth ? r.width / el.offsetWidth : 1;
+      const vh = window.innerHeight / z;
+      const top = r.top / z, bottom = r.bottom / z;
+      const up = vh - bottom < LIST_H + 8 && top > vh - bottom;
+      Object.assign(p.style, { left: `${r.left / z}px`, width: `${r.width / z}px`, top: up ? '' : `${bottom + 4}px`, bottom: up ? `${vh - top + 4}px` : '', visibility: 'visible' });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
   }, [open, inline]);
   useEffect(() => { listRef.current?.querySelector(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' }); }, [active]);
 
@@ -46,7 +76,8 @@ export default function SearchSelect({
   };
 
   const list = (
-    <div className={`${inline ? 'w-full' : 'absolute left-0 top-full mt-1 z-50 w-full min-w-[15rem] shadow-lg'} rounded-lg border border-zinc-200 bg-white overflow-hidden text-left`}>
+    <div ref={inline ? undefined : pop} className={`${inline ? 'w-full' : 'fixed z-[1000] min-w-[15rem] shadow-lg'} rounded-lg border border-zinc-200 bg-white overflow-hidden text-left`}
+      style={inline ? undefined : { visibility: 'hidden' }}>
       <div className="p-1.5 border-b border-zinc-100">
         <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Search…" autoFocus={autoFocus || inline}
           className="w-full h-7 rounded-md border border-zinc-200 px-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
@@ -72,7 +103,7 @@ export default function SearchSelect({
         <span className={`flex-1 min-w-0 truncate ${current ? '' : 'text-zinc-400'}`}>{renderValue ? renderValue(current) : current ? current.label : placeholder}</span>
         <span className="text-[10px] text-zinc-400">▾</span>
       </button>
-      {open && list}
+      {open && createPortal(list, document.body)}
     </div>
   );
 }

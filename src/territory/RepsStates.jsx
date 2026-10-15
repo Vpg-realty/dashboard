@@ -2,7 +2,8 @@
 // states charts so we can reference them there"): the team structure review
 // (where each person is at and what to move), the reps × states grid and the
 // states reference table. Same numbers as Who works where (useModel.js).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import Floating from '../shell/Floating.jsx';
 import { navigate } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { useTerritoryModel } from './useModel.js';
@@ -23,17 +24,18 @@ const COL_TINT = { winter: 'bg-sky-50/70', summer: 'bg-orange-50/70', none: '' }
 // Reps as a stack of initials; hover (or focus) for the full list.
 function RepsCell({ reps }) {
   const [open, setOpen] = useState(false);
+  const anchor = useRef(null);
   if (!reps.length) return <span className="text-zinc-400">—</span>;
   return (
-    <span className="relative inline-flex" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} tabIndex={0}>
+    <span ref={anchor} className="relative inline-flex" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} tabIndex={0}>
       <span className="flex -space-x-1">{reps.map((r) => <span key={r.id} className="w-6 h-6 rounded-full grid place-items-center text-white text-[10.5px] font-semibold ring-2 ring-white" style={{ background: r.color }}>{r.name[0]}</span>)}</span>
       <span className="ml-1.5 text-[12px] text-zinc-500 self-center">{reps.length}</span>
-      {open && (
-        <span className="absolute left-0 top-full mt-1 z-20 w-52 rounded-lg border border-tan-200 bg-white shadow-lg py-1.5 text-left">
-          <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{reps.length} rep{reps.length === 1 ? '' : 's'}</span>
-          {reps.map((r) => <span key={r.id} className="flex items-center gap-2 px-3 py-1 text-[13px] text-zinc-800"><RepDot rep={r} />{r.name}</span>)}
-        </span>
-      )}
+      {/* On top of the page, not inside the table's scroll box (it was cut
+          off on the lower rows). */}
+      <Floating anchor={anchor} open={open} className="w-52 rounded-lg border border-tan-200 bg-white shadow-lg py-1.5 text-left">
+        <span className="block px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{reps.length} rep{reps.length === 1 ? '' : 's'}</span>
+        {reps.map((r) => <span key={r.id} className="flex items-center gap-2 px-3 py-1 text-[13px] text-zinc-800"><RepDot rep={r} />{r.name}</span>)}
+      </Floating>
     </span>
   );
 }

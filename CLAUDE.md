@@ -735,7 +735,15 @@ the server strips them (`forTc`) and refuses edits to them.
     title past entries — "✎ Custom — type it in" pinned on top, "(N deals)"
     kept — All deals filters, the period picker) has a search box and lists
     A → Z (periods and time zones keep their own order). In table cells the
-    list opens in place (no floating list cut off by the table).
+    list opens in place (no floating list cut off by the table). Elsewhere
+    the list is drawn on top of the whole page (a portal on <body>, fixed to
+    the button, opening upward when there's no room below) — Luke, Oct 15:
+    the panel's "EMD returned?" list was cut off by its section card. The
+    other pop-ups that sat inside scroll boxes (Reps × States' reps list,
+    the Rep page's score breakdown) use the same layer, `src/shell/
+    Floating.jsx`. Checked with a Playwright audit (every dropdown in the
+    deal panel, All deals and Active at 1280 / 1440 / 1920 wide: fully on
+    screen and nothing on top of it).
   - **TC fee rule "Assigned"**: "TC fee charged when the deal is …" (and the
     TC commission rule) can include Assigned = status Assigned, or a VPG
     assignment price and not cancelled (`RULE_STATUSES`, `isAssigned` in

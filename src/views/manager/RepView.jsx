@@ -3,7 +3,8 @@
 // each of their states is doing. The period picker (Luke, Oct 8; carried
 // over from the old Advanced tab) swaps the live numbers for any past week,
 // month or custom range, totalled from history.json.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import Floating from '../../shell/Floating.jsx';
 import { REPS, MARKETS } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { periodOptions, rangeLabel, shortDate, laToday, addDays, weekStart, LEGACY_CUTOFF } from '../../utils/historyRange.js';
@@ -117,6 +118,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
   const [customTo, setCustomTo] = useState(today);
   const [showScore, setShowScore] = useState(false);
+  const scoreAnchor = useRef(null);
 
   // Anything but "Current" is a date range totalled from history.
   let range = null;
@@ -255,7 +257,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
             <span className={`ml-4 rounded-full px-3 py-1 text-sm font-semibold ${warn ? 'bg-orange-50 text-orange-700' : 'bg-zinc-100 text-zinc-600'}`}>{note}</span>
           ) : (
             <>
-              <span className="relative ml-4">
+              <span ref={scoreAnchor} className="relative ml-4">
                 <button onClick={() => setShowScore((v) => !v)} className="flex items-center gap-3 rounded-lg hover:bg-zinc-50 px-1 py-0.5 text-left" title="Show how this score adds up">
                   <ScorePill score={score} big />
                   <span className="flex flex-col gap-1 w-40">
@@ -263,12 +265,10 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
                     <ScoreBar m={m} crm={crm} h="h-2" title={false} />
                   </span>
                 </button>
-                {showScore && (
-                  <div className="absolute left-0 top-full mt-2 z-40 w-[34rem] rounded-xl bg-white border border-zinc-300 shadow-xl p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">How {first(rep)}'s {score} adds up · this week</div>
-                    <ScoreBreakdown m={m} crm={crm} />
-                  </div>
-                )}
+                <Floating anchor={scoreAnchor} open={showScore} gap={8} className="w-[34rem] rounded-xl bg-white border border-zinc-300 shadow-xl p-4">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">How {first(rep)}'s {score} adds up · this week</div>
+                  <ScoreBreakdown m={m} crm={crm} />
+                </Floating>
               </span>
             </>
           )}
