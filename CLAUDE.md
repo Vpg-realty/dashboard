@@ -1286,8 +1286,9 @@ Under `src/views/`:
     vs 75%), and **Next move** (≤ 4 words: the part with the most points left,
     `mostPointsLeft` in metrics.js — the same rule as My scorecard's "one
     thing"; CRM names the lowest item, "Keep it up" when nothing's left).
-    By pod: a tinted band per group (Pod A violet, Pod B teal, leads / no pod
-    tan) and, for real pods, a totals row (sums vs per-rep target × reps,
+    By pod: each group is its own card (Luke, Oct 15: "this all blurs
+    together") with a coloured title band (Pod A violet, Pod B teal, leads /
+    no pod tan) and its own column titles, and, for real pods, a totals row (sums vs per-rep target × reps,
     pod score = average, CRM avg · pooled speed); By score: one ranked list.
     Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
     pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
@@ -1400,16 +1401,12 @@ Under `src/views/`:
       speed 75% before it became its own part), capped at 1:
       90%+ = 2, 60%+ = 1, below = 0; the issue list shows AI reasons,
       compliance hits and slow answers.
-  - **Coaching** (`CoachingView.jsx`, restored Oct 11; reordered Oct 12,
-    Luke: counts → answer speed → conversions → biggest leak). Counts this
-    month read like the Scorecard cells (number, "/40 mo" target, bar,
-    coloured on month pace; new conversations have no target). Funnel per rep vs
-    team: % on top, "4 of 13" under it, cells coloured vs team rate,
-    biggest leak ringed dark orange, plus this month's counts, and a
-    **SPEED · this week** column (Luke, Oct 12): agent texts answered within
-    15 min (weekdays 8–5 AZ) from each pair's `messaging.speed`, % over
-    "N of M", green at the Texting Standard's 75% target, amber from 56%,
-    red below; hover for the split by state.
+  - **Coaching** (`CoachingView.jsx`): since Luke, Oct 15 ("the chart that
+    says 'where they leak this month' should replace the coaching tab") the
+    tab is the Scorecard's **Where they leak** card (`LeakCard`, exported from
+    ScorecardView.jsx) for every rep this month, in the sheet's order. The
+    old counts / speed grid (Oct 11–12) is gone — those numbers are on the
+    Scorecard.
   - **Rep** (Scorecard tab, a rep picked) — picker; score (with this week's CRM
     grades from the scorecard once given), leak callout, 8 pace tiles (week + month; the
     whole tile tinted green / amber / red vs pace with the same thresholds
