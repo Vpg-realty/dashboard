@@ -351,11 +351,11 @@ function PodTotal({ g, frac }) {
 const leakCls = (r, team) => (r == null || !team ? 'bg-zinc-50 text-zinc-400' : r >= team ? 'bg-emerald-50 text-emerald-800' : r >= team * 0.8 ? 'bg-amber-50 text-amber-800' : 'bg-rose-50 text-rose-800');
 const LGRID = { gridTemplateColumns: 'minmax(11rem,1.25fr) 10rem repeat(3,minmax(0,1fr)) minmax(13rem,1.4fr)' };
 
-// "Where they leak": the Coaching tab's funnel (metrics.js STEPS / rate /
+// "Where they leak" (also the whole Coaching tab since Luke, Oct 15): the funnel (metrics.js STEPS / rate /
 // biggestLeak) for the reps shown. Live week = this month; a past week = month
 // to date as of that week's Sunday, from history.json (rangeMetrics, plus the
 // contracts history missed, like the Rep page).
-function LeakCard({ ids, week, isLive, onPickRep }) {
+export function LeakCard({ ids, week, isLive, onPickRep }) {
   const log = useMonthLog();
   const past = useMemo(() => {
     if (isLive) return null;
