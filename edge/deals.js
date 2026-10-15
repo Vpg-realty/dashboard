@@ -9,7 +9,7 @@
 //             not in the public repo
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
-import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, forTc, forRep, repSees, isBlank, booksOpen } from '../src/deals/math.js';
+import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
 
@@ -25,9 +25,10 @@ export const isRepView = (u) => (u?.role === 'team' || u?.role === 'manager') &&
 export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u);
 export const isOwner = (u) => u?.role === 'owner';
 const repName = (u) => roster.reps.find((r) => r.id === u?.rep_id)?.name || null;
-// May this person see this deal? Owners / the TC: all; reps: pending ones.
+// May this person see this deal? Owners / the TC: all; reps: open ones
+// (Pending or Assigned — math.js isOpen).
 export function canSeeDeal(u, deal) {
-  return !isRepView(u) || String(deal.status || '').toUpperCase() === 'PENDING';
+  return !isRepView(u) || isOpen(deal);
 }
 // Is the deal one of theirs (acq. manager or dispo member)? For "Only mine".
 export function isMine(u, deal) {
@@ -47,6 +48,10 @@ export function clean(key, v) {
     return { error: `${f.label}: not a time` };
   }
   if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
+  if (key === 'status') {
+    const s = String(v).trim().toUpperCase();
+    return STATUS_KEYS.includes(s) ? { value: s } : { error: `${f.label}: pick Pending, Assigned, Closed or Cancelled` };
+  }
   if (f.type === 'money' || f.type === 'number' || f.type === 'percent') {
     if (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e10) return { value: v };
     if (typeof v === 'string' && v.length <= 40) return { value: v.trim() }; // e.g. "PAID BY BUYER"

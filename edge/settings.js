@@ -39,10 +39,10 @@ export function cleanUser(b) {
 const num = (x, lo, hi) => typeof x === 'number' && Number.isFinite(x) && x >= lo && x <= hi;
 const names = (a) => Array.isArray(a) && a.length <= 40 && a.every((n) => typeof n === 'string' && n.length <= 60);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const STATUSES = ['PENDING', 'COMPLETE', 'CANCELLED'];
-// The TC fee / commission can also be charged once a deal is ASSIGNED (Luke,
-// Oct 14; math.js RULE_STATUSES).
-const FEE_STATUSES = [...STATUSES, 'ASSIGNED'];
+// Deal statuses, Assigned included (Luke, Oct 14; math.js STATUS_KEYS /
+// RULE_STATUSES) — for the override's "paid when" and the TC fee / commission.
+const STATUSES = ['PENDING', 'ASSIGNED', 'COMPLETE', 'CANCELLED'];
+const FEE_STATUSES = STATUSES;
 // A rule set, the older { versions: [{ from, rules, by?, at? }] } oldest
 // first, or per-rule timelines { since, timelines } (src/deals/rules.js):
 // the shape is checked, then the rule set in effect on every start date.

@@ -3,7 +3,7 @@
 // list (SearchSelect: search box on top, options A → Z). "-" or "—" typed in
 // any box means "no data"; empty shows as "—" (a 0 is data).
 import { useState } from 'react';
-import { LIST_OF, FIXED_LISTS, ISO, norm, optionLabel } from './fieldLib.js';
+import { LIST_OF, FIXED_LISTS, KEEP_ORDER, ISO, norm, optionLabel } from './fieldLib.js';
 import { pretty } from './values.js';
 import { isBlank } from './math.js';
 import { endTimeOf, parseEndTime, zoneLabel } from './ddTime.js';
@@ -108,7 +108,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     const fallback = f.key === 'ddEndTz' && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
     return (
       <SearchSelect value={v || null} disabled={disabled} autoFocus={autoFocus} inline={inline} onChange={(x) => onChange(x || null)}
-        placeholder={fallback ? `${zoneLabel(fallback)} (from the state)` : '—'} sort={f.key !== 'ddEndTz'}
+        placeholder={fallback ? `${zoneLabel(fallback)} (from the state)` : '—'} sort={!KEEP_ORDER.has(f.key)}
         options={all.map((o) => ({ value: o, label: pretty(f.key, o) }))} />
     );
   }

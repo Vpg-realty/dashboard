@@ -25,10 +25,14 @@ export const TONES = {
 };
 export const LEGEND = ['red', 'amber', 'blue', 'green'];
 
-// Assigned = a VPG assignment price is in (or a gross typed by hand). Until
-// Oct 14 this was "gross ≥ 0", which also counted a deal with no contract
-// price and no assignment yet (0 − 0) as assigned.
-export const assigned = (d) => (typeof d.vpgAssign === 'number' && d.vpgAssign > 0) || (typeof d.fixed?.grossAssign === 'number' && d.fixed.grossAssign > 0);
+// Assigned = status Assigned (Luke, Oct 14: "if assigned is marked then it
+// should be marked as assigned" — set by the GHL sync or by hand, with or
+// without a price yet), or a VPG assignment price is in (or a gross typed by
+// hand) — older deals were assigned while still Pending. Until Oct 14 this
+// was "gross ≥ 0", which also counted a deal with no contract price and no
+// assignment yet (0 − 0) as assigned.
+export const hasAssignPrice = (d) => (typeof d.vpgAssign === 'number' && d.vpgAssign > 0) || (typeof d.fixed?.grossAssign === 'number' && d.fixed.grossAssign > 0);
+export const assigned = (d) => String(d.status || '').toUpperCase() === 'ASSIGNED' || hasAssignPrice(d);
 
 // The deal's next step, by the sheet's Pipeline-tab rules in its order (and
 // its colours), plus closed / cancelled for deals that are done. `soon` =
@@ -51,6 +55,9 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
   if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
   if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
   if (!asg) return { text: 'Find buyer', tone: 'blue', fields: ['vpgAssign'] };
+  // Marked Assigned (in GHL or by hand) but no assignment price yet: the sold
+  // details are the next thing to fill in (Needs info lists them all).
+  if (!hasAssignPrice(d)) return { text: 'Assigned — enter the sold details', tone: 'amber', fields: ['vpgAssign', 'finalAssign'] };
   if (toCoe == null) return { text: 'Set COE date', tone: 'amber', fields: ['coe'] };
   // A reminder for the TC to check in with title that closing is on track
   // (Luke, Oct 14) — it only points at Title agency when none is on file.

@@ -8,6 +8,7 @@ import { sectionsFor, hrefOf } from './sections.js';
 import { navigate } from './router.js';
 import Icon from './icons.jsx';
 import { dealsSnapshot, loadDeals } from '../deals/store.js';
+import { statusLabel } from '../deals/format.js';
 
 const STAGE = { under_contract: 'Under contract', dispo: 'Dispo', assigned: 'Assigned', closed: 'Closed' };
 
@@ -23,7 +24,7 @@ function items(role) {
   // Owners and the TC: every deal in the tracker (opens the deal itself).
   const tracker = role === 'owner' || role === 'tc' ? dealsSnapshot().deals : [];
   for (const d of tracker) {
-    out.push({ kind: 'Deal', label: d.address, sub: `Tracker · ${d.status === 'COMPLETE' ? 'Closed' : d.status === 'CANCELLED' ? 'Cancelled' : 'Pending'} · ${(d.acq || '').split(' ')[0]}${d.coe ? ` · COE ${d.coe}` : ''}`, icon: 'deals', to: `/deals/all?p=all&deal=${d.id}` });
+    out.push({ kind: 'Deal', label: d.address, sub: `Tracker · ${statusLabel(d.status)} · ${(d.acq || '').split(' ')[0]}${d.coe ? ` · COE ${d.coe}` : ''}`, icon: 'deals', to: `/deals/all?p=all&deal=${d.id}` });
   }
   if (tracker.length) return out;
   for (const p of PAIRS) {
