@@ -780,6 +780,14 @@ the server strips them (`forTc`) and refuses edits to them.
     dropdowns' style opening hour 1–12 / minutes in 5s + :59 / AM–PM lists
     with a clear top and bottom, quick picks 9:00 AM · 12:00 PM · 5:00 PM ·
     11:59 PM, Clear / Done; the value is still "HH:MM".
+  - **All deals table head** (Luke, Oct 15: "clunky … when you click the
+    column name it sorts, but you cannot clear it easily"): no title band
+    inside the table card ("as of" moved to the page subtitle); one navy
+    group band (tan dividers between groups, the address column's band reads
+    "Deal") over white column headers in navy with a 2px group accent; a
+    header click sorts ↑, then ↓, then back to the default order (newest COE
+    first); the sorted column shows a navy ↑ / ↓ badge (others a faint ↕ on
+    hover) and a "Sorted by <column> ↑ ×" chip next to the filters clears it.
   - **All deals header** (Luke, Oct 15: "very busy"): two rows — the title
     with Columns ▾ (Full sheet / Overview / column groups as checkboxes),
     ⓘ Colour key (the key + how editing works, in a pop-up), Export and New

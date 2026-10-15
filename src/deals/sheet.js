@@ -37,7 +37,7 @@ export const GROUP_ACCENT = {
 };
 export function headStyle(f) {
   const accent = LOSS_KEYS.has(f.key) ? TAN : GROUP_ACCENT[f.group] || NAVY;
-  return { background: '#F4F6FA', color: '#334155', boxShadow: `inset 0 3px 0 ${accent}` };
+  return { background: '#FFFFFF', color: '#1b385f', boxShadow: `inset 0 2px 0 ${accent}` };
 }
 
 // Soft tints in the site's status colours.

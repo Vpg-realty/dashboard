@@ -36,7 +36,6 @@ import { Person } from './people.jsx';
 import Floating from '../shell/Floating.jsx';
 import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
-import { PanelHead } from '../shell/Panel.jsx';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 const OVERVIEW = ['address', 'ghlStage', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
@@ -146,7 +145,12 @@ export default function AllDealsView() {
     const next = groups.includes(g) ? groups.filter((x) => x !== g) : [...groups, g];
     setQuery({ cols: next.join(',') || null });
   };
-  const sortBy = (k) => setQuery({ sort: sort === k ? `-${k}` : k });
+  // Header clicks (Luke, Oct 15: "you cannot clear it easily"): ↑ → ↓ →
+  // back to the default order (newest COE first); the "Sorted by" chip
+  // above the table clears it too.
+  const custom = !!query.get('sort');
+  const sortBy = (k) => setQuery({ sort: sort === k ? `-${k}` : sort === `-${k}` && custom ? null : k });
+  const sortLabel = (() => { const k = sort.replace(/^-/, ''); return k === 'address' ? 'Address' : F[k]?.label || k; })();
   const csv = () => downloadCsv(`vpg-deals-${period.key.replace(/[^\w-]+/g, '_')}.csv`,
     FIELDS.filter((f) => s.owner || !f.secret).map((f) => ({ label: f.label, get: (d) => (f.key === 'status' ? statusLabel(d.status) : d[f.key]) })), rows);
   const needCount = withNeed.filter((d) => d._need.length && inPeriod(d[by], period)).length;
@@ -158,7 +162,7 @@ export default function AllDealsView() {
     const id = LOSS_KEYS.has(f.key) ? 'loss' : f.key === 'address' ? 'address' : f.group;
     const last = bands[bands.length - 1];
     if (last && last.id === id) last.span += 1;
-    else bands.push({ id, span: 1, label: id === 'loss' ? 'Dispo % loss' : id === 'address' ? '' : GROUP_LABEL[id], style: id === 'loss' ? BAND_LOSS : BAND });
+    else bands.push({ id, span: 1, label: id === 'loss' ? 'Dispo % loss' : id === 'address' ? 'Deal' : GROUP_LABEL[id], style: id === 'loss' ? BAND_LOSS : BAND });
   }
 
   return (
@@ -166,7 +170,7 @@ export default function AllDealsView() {
       {/* Two rows (Luke, Oct 15: "very busy … hard to decipher"): the title
           with the column picker, colour key (small menus), Export and New deal;
           then one toolbar of search and filters. */}
-      <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]}`} right={<>
+      <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]} · as of ${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}`} right={<>
         <Menu label={<>Columns: <b className="font-semibold text-navy-800">{!colsParam ? 'Full sheet' : overview ? 'Overview' : `${groups.length} group${groups.length === 1 ? '' : 's'}`}</b></>}>
           <div className="w-56 py-1.5 text-[13px]">
             <button onClick={() => setQuery({ cols: null })} className={menuRow(!colsParam)}>Full sheet <span className="text-zinc-400">every column</span></button>
@@ -205,26 +209,34 @@ export default function AllDealsView() {
             Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>
           </button>
         )}
+        {custom && (
+          <span className="inline-flex items-center gap-1 h-8 rounded-lg bg-navy-700 text-white pl-2.5 pr-1 text-[13px] font-medium">
+            Sorted by {sortLabel} {sort.startsWith('-') ? '↓' : '↑'}
+            <button type="button" onClick={() => setQuery({ sort: null })} aria-label="Clear the sort" title="Back to the default order (newest COE first)" className="grid place-items-center w-6 h-6 rounded-md hover:bg-white/15">×</button>
+          </span>
+        )}
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>
       </div>
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-        <PanelHead title="2026 VPG Deals" sub={`as of ${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`} />
         <div className="flex-1 min-h-0 overflow-auto">
           <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
             <colgroup>{cols.map((f) => <col key={f.key} style={{ width: widthOf(f), minWidth: widthOf(f) }} />)}</colgroup>
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[26px] px-2.5 text-[12px] font-semibold tracking-wide whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ background: b.style.bg, color: b.style.fg, borderRight: '1px solid rgba(255,255,255,0.18)' }}>{b.label}</th>
+                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    style={{ background: b.style.bg, color: b.id === 'loss' ? '#FFFFFF' : '#E6DCC8', borderLeft: i ? '2px solid #ad9b7a' : undefined }}>{b.label}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
-                  <th key={f.key} onClick={() => sortBy(f.key)} title="Sort by this column"
-                    className={`sticky top-[26px] px-2.5 pt-2 pb-1.5 text-[12px] font-semibold leading-tight ${isNum(f) ? 'text-right' : 'text-left'} cursor-pointer select-none hover:text-navy-700 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${HEAD_RULE}` }}>
-                    {f.key === 'address' ? 'Address' : f.label}{sort.replace(/^-/, '') === f.key ? (sort.startsWith('-') ? ' ↓' : ' ↑') : ''}
+                  <th key={f.key} onClick={() => sortBy(f.key)} title={sort.replace(/^-/, '') === f.key ? (sort === f.key ? 'Sorted A → Z / low → high · click for the reverse' : custom ? 'Sorted Z → A / high → low · click to clear' : 'Default order · click to sort') : 'Click to sort'}
+                    className={`group/h sticky top-[30px] px-2.5 pt-2 pb-2 align-bottom text-[12px] font-semibold leading-tight ${isNum(f) ? 'text-right' : 'text-left'} cursor-pointer select-none hover:bg-navy-50 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: `2px solid ${HEAD_RULE}` }}>
+                    {f.key === 'address' ? 'Address' : f.label}
+                    {sort.replace(/^-/, '') === f.key
+                      ? <span className="ml-1 inline-block rounded bg-navy-700 text-white px-1 text-[10.5px] leading-[16px] align-[1px]">{sort.startsWith('-') ? '↓' : '↑'}</span>
+                      : <span className="ml-1 text-zinc-300 opacity-0 group-hover/h:opacity-100">↕</span>}
                   </th>
                 ))}
               </tr>
