@@ -38,7 +38,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
       const row = (await one('SELECT data, updated_at FROM deals WHERE id = ? AND deleted = 0', [dealId]))[0];
       if (!row) return [];
       const d = JSON.parse(row.data);
-      const changes = applyGhl(d, op.g, op.prev); // the GHL stage mirror (+ Lost → Cancelled)
+      const changes = applyGhl(d, op.g, op.prev); // the GHL stage mirror (+ the status on a stage move)
       if (!changes.length) return [];
       const res = await query('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ? AND updated_at = ?', [JSON.stringify(d), iso, BY, dealId, row.updated_at]);
       if ((res[0]?.meta?.changes ?? 1) > 0) {

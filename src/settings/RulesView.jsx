@@ -19,7 +19,7 @@ import { money } from '../deals/format.js';
 import { Section, Field, Pct, Money, inputCls } from './ui.jsx';
 
 const signed = (x) => `${x >= 0 ? '+' : '−'}${money(Math.abs(x))}`;
-const STATUSES = [['PENDING', 'Pending'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
+const STATUSES = RULE_STATUSES;
 const n = (x) => (typeof x === 'number' ? x : 0);
 const total = (d) => n(d.acqComm) + n(d.dispoComm) + n(d.mgrComm) + n(d.override) + n(d.tcComm);
 const NET = 'acqOfNet:';
@@ -49,7 +49,7 @@ const SECTIONS = [
   ] },
   { title: 'Transaction coordinator', rules: [
     { key: 'tcFee', label: 'TC fee per deal', hint: 'taken off the commission base', type: 'money' },
-    { key: 'tcFeeStatuses', label: 'TC fee charged when the deal is', hint: 'Assigned = it has a VPG assignment price (and isn’t cancelled), pending or closed.', type: 'statuses' },
+    { key: 'tcFeeStatuses', label: 'TC fee charged when the deal is', hint: 'Assigned = status Assigned, or a VPG assignment price is in (and it isn’t cancelled). Pending = any open deal, Assigned ones included.', type: 'statuses' },
     { key: 'tcComm', label: 'TC commission per deal', type: 'money' },
     { key: 'tcCommStatuses', label: 'TC commission paid when the deal is', type: 'statuses' },
     { key: 'tcName', label: 'TC (paid the TC commission)', type: 'person' },
@@ -86,8 +86,8 @@ function Names({ value, onChange, people }) {
     </div>
   );
 }
-// Deal statuses plus "Assigned" (has a VPG assignment price, not cancelled —
-// Luke, Oct 14), for the TC fee / commission rules.
+// Deal statuses (Assigned = status Assigned, or a VPG assignment price in and
+// not cancelled — Luke, Oct 14), for the TC fee / commission rules.
 function Statuses({ value, onChange }) {
   return (
     <div className="flex gap-3 text-[13px] h-9 items-center">

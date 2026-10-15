@@ -16,23 +16,29 @@
 //              GHL's fields.
 //   • update — linked: the read-only `ghlStage` mirror follows GHL (and the
 //              baseline moves). COE, DD and every other field are never
-//              touched again once the deal exists; a stage move in GHL shows
-//              on the Deals pages as a "Needs info" alert
-//              (src/deals/required.js) for a person to act on. One exception
-//              (Luke, Oct 14: a deal that was under contract / in dispo and
-//              goes lost or abandoned "is considered cancelled"): the run
-//              where a linked deal moves to Lost in GHL turns a Pending
-//              tracker deal Cancelled. Only on that move, so a deal a person
-//              re-opens afterwards stays as they set it.
+//              touched again once the deal exists; what a stage move needs
+//              filled in shows on the Deals pages as a "Needs info" alert
+//              (src/deals/required.js). The deal STATUS follows the stage
+//              (Luke, Oct 14: "GHL stage should take over for the Deal
+//              status … automatically update based on stage, but I can also
+//              edit them myself"): on the run where GHL's stage changes, the
+//              status is set by STAGE_STATUS (under contract / dispo →
+//              Pending, assigned → Assigned, closed → Closed, lost /
+//              abandoned → Cancelled). Only on that move, so a status a
+//              person sets by hand stays until GHL moves the deal again. A
+//              deal Closed in the tracker is never changed by the sync (GHL
+//              lagging behind, or Closed → Lost, must not undo a closing).
 // Creating needs more than one look (Oct 14: an agent lead with no property
 // address was dragged into Assigned for a few minutes by mistake, and the
 // sync made a tracker deal named after the contact): the opp needs a real
 // property address, and must still be createable on a later run at least
 // SETTLE_MS after it was first seen (`seen`, kept in settings ghl_sync).
 // Nothing is ever written to GHL.
-import { zillowUrl } from '../src/deals/math.js';
+import { zillowUrl, isOpen, STAGE_STATUS } from '../src/deals/math.js';
 
 export const SYNC_FIELDS = ['stage', 'coe', 'ipEnd'];
+// GHL stage → the tracker's deal status (Luke, Oct 14): math.js STAGE_STATUS.
+export { STAGE_STATUS };
 export const STAGE_LABEL = { under_contract: 'Under contract', dispo: 'Dispo active', assigned: 'Assigned', closed: 'Closed', lost: 'Lost / abandoned' };
 const DEAL_TYPE = { cash: 'WHOLESALE', creative: 'CREATIVE' };
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -58,17 +64,20 @@ function setDdEnd(d, ipEnd) {
 }
 
 // What GHL changes on a tracker deal that already exists (mutates `d`): the
-// GHL stage mirror, and nothing else.
-// `prev`: the GHL values seen last run (the link's baseline) — when GHL just
-// moved the deal to Lost, a Pending tracker deal becomes Cancelled.
+// GHL stage mirror, and the status on a stage move.
+// `prev`: the GHL values seen last run (the link's baseline; none when the
+// deal is only being linked now — linking never changes the status). When
+// GHL's stage differs from it, the status follows STAGE_STATUS.
 export function applyGhl(d, g, prev) {
   const changes = [];
   const label = STAGE_LABEL[g.stage] || g.stage;
   const old = d.ghlStage ?? null;
   if (old !== label) { changes.push(['ghlStage', old, label]); d.ghlStage = label; }
-  if (g.stage === 'lost' && prev && prev.stage !== 'lost' && String(d.status || '').toUpperCase() === 'PENDING') {
-    changes.push(['status', d.status, 'CANCELLED']);
-    d.status = 'CANCELLED';
+  const want = STAGE_STATUS[g.stage];
+  const cur = String(d.status || '').toUpperCase();
+  if (want && prev && prev.stage !== g.stage && cur !== want && cur !== 'COMPLETE') {
+    changes.push(['status', d.status ?? null, want]);
+    d.status = want;
   }
   return changes;
 }
@@ -82,7 +91,7 @@ export function newDealFrom(g, { repName, stateName }) {
     ghlStage: STAGE_LABEL[g.stage] || g.stage,
     acq: repName || null,
     state: stateName ? stateName.toUpperCase() : null,
-    status: g.stage === 'closed' ? 'COMPLETE' : 'PENDING',
+    status: STAGE_STATUS[g.stage] || 'PENDING',
     dealType: DEAL_TYPE[String(g.dealType || '').toLowerCase()] || 'WHOLESALE',
     price: g.price ?? null,
     title: g.title || null,
@@ -130,7 +139,8 @@ export function planSync({ deals, links, feed, names, since, seen = {}, now = Da
     // Not linked yet: an existing tracker deal at this address (not already
     // linked to another GHL deal) — prefer a pending one, then the newest.
     const cands = (byAddr.get(addrKey(g.address)) || []).filter((d) => !linkedDeals.has(d.id));
-    cands.sort((a, b) => (a.status === 'PENDING' ? 0 : 1) - (b.status === 'PENDING' ? 0 : 1) || String(b.accepted || '').localeCompare(String(a.accepted || '')));
+    const open = (d) => (isOpen(d) ? 0 : 1);
+    cands.sort((a, b) => open(a) - open(b) || String(b.accepted || '').localeCompare(String(a.accepted || '')));
     const match = cands[0];
     if (match) {
       linkedDeals.add(match.id);

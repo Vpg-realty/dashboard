@@ -1,6 +1,8 @@
-// Deals › Active (Luke, Oct 14; the sheet's "Pipeline" tab): every PENDING
-// deal with its next step, in the sheet's two lists — assigned and headed to
-// close (green band), and still needing a buyer (blue band) — with the
+// Deals › Active (Luke, Oct 14; the sheet's "Pipeline" tab): every open
+// deal (Pending or Assigned) with its next step, in the sheet's two lists —
+// assigned and headed to close (green band: status Assigned, or a VPG
+// assignment price is in; an Assigned deal with no price yet stays here and
+// shows in Needs info), and still needing a buyer (blue band) — with the
 // sheet's columns, next-step colours, Days / EMD colouring and zebra rows.
 // Reworked Oct 14 to read like the original sheet ("super hard to follow").
 //
@@ -19,11 +21,11 @@ import { money, compact, shortDate, stateCode, btnCls, primaryCls } from './form
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import EditableCell from './EditableCell.jsx';
-import { FIELD } from './math.js';
+import { FIELD, isOpen } from './math.js';
 import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { nextStep, assigned, daysBetween, TONES, LEGEND, dueTone, DUE_KEY, emdCell, daysTone } from './status.js';
+import { nextStep, assigned, hasAssignPrice, daysBetween, TONES, LEGEND, dueTone, DUE_KEY, emdCell, daysTone } from './status.js';
 import { needsInfo, CATEGORIES } from './required.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
@@ -33,7 +35,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : '—');
 const TONE_TEXT = { red: 'text-[#B42318] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-[#15803D] font-semibold' };
-const isAsg = assigned; // a VPG assignment price is in (status.js)
+const isAsg = assigned; // status Assigned, or a VPG assignment price is in (status.js)
 // The two lists, each marked with its colour dot (green = assigned, blue = needs a buyer).
 const SECTION = {
   assigned: { title: 'Assigned — headed to close', band: '#15803D' },
@@ -157,7 +159,7 @@ export default function ActiveView() {
     const withStep = s.deals.map((d) => ({ ...d, step: nextStep(d, today), _needs: needsInfo(d, who, today) }));
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const match = (d) => !words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state}`.toLowerCase().includes(w));
-    const actives = withStep.filter((d) => d.status === 'PENDING' && (!mineOnly || d.mine));
+    const actives = withStep.filter((d) => isOpen(d) && (!mineOnly || d.mine));
     const emdRisk = (d) => (d.emdStatus === 'PENDING' && !d.emdPaidBy) || (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG');
     const pastCoe = (d) => ISO.test(d.coe || '') && d.coe < today;
     const soon = (d) => ISO.test(d.coe || '') && d.coe >= today && days(today, d.coe) <= 7;
@@ -175,7 +177,7 @@ export default function ActiveView() {
       sorted: ordered,
       missing: miss,
       tiles: {
-        active: actives.length, assigned: asg.length, assignedGross: asg.reduce((t, d) => t + d.grossAssign, 0),
+        active: actives.length, assigned: asg.length, assignedGross: asg.reduce((t, d) => t + (hasAssignPrice(d) ? d.grossAssign : 0), 0),
         needs: actives.length - asg.length, emd: actives.filter(emdRisk).length, past: actives.filter(pastCoe).length, soon: actives.filter(soon).length,
         need: withStep.filter((d) => d._needs.length && match(d) && (!mineOnly || d.mine)).length,
       },
@@ -241,7 +243,7 @@ export default function ActiveView() {
     { label: 'Contract', right: true, get: (d) => edit('price', d, money(d.price)) },
     { label: 'Assignment', right: true, get: (d) => edit('vpgAssign', d, typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? money(d.vpgAssign) : <span className="text-zinc-300">—</span>) },
     // Gross assignment: everyone (Luke, Oct 14 — reps keep the gross fee, nothing after it).
-    ...([{ label: 'Gross', right: true, get: (d) => (isAsg(d) ? <span className="font-bold text-[#15803D]">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">no buyer yet</span>) }]),
+    ...([{ label: 'Gross', right: true, get: (d) => (hasAssignPrice(d) ? <span className="font-bold text-[#15803D]">{money(d.grossAssign)}</span> : <span className="text-zinc-400 text-xs">{isAsg(d) ? 'price needed' : 'no buyer yet'}</span>) }]),
   ];
   const needsCols = [
     { label: 'Next step', get: (d) => <StepPill step={d.step} /> },
@@ -268,7 +270,7 @@ export default function ActiveView() {
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <PageHead title="Active pipeline" sub={<>As of {new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} · every pending deal with its next step. {s.readOnly ? 'Click a deal to see it.' : <SyncNote sync={s.sync} />}</>} right={<>
+      <PageHead title="Active pipeline" sub={<>As of {new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} · every open deal (pending or assigned) with its next step. {s.readOnly ? 'Click a deal to see it.' : <SyncNote sync={s.sync} />}</>} right={<>
         {s.readOnly && (
           <span className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
             {[[false, 'All active'], [true, 'Only mine']].map(([v, l]) => (
@@ -311,7 +313,7 @@ export default function ActiveView() {
         )}
         {ed && needGroups.length > 0 && <NeedsInfo groups={needGroups} onOpen={open} total={needFrozen.rows.length} />}
         <Section id="assigned" rows={assigned} cols={assignedCols} onOpen={open} empty="No assigned deals."
-          sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (isAsg(d) ? d.grossAssign : 0), 0))} gross assignment`} />
+          sub={`${assigned.length} deals · ${money(assigned.reduce((t, d) => t + (hasAssignPrice(d) ? d.grossAssign : 0), 0))} gross assignment`} />
         <Section id="needs" rows={needs} cols={needsCols} onOpen={open} empty="Every pending deal has a buyer."
           sub={`${needs.length} deals · not yet assigned`} />
         {ed && missing.length > 0 && (

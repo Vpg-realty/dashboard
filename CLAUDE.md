@@ -398,8 +398,8 @@ everything except the commission / profit columns and "Commission paid" —
 the server strips them (`forTc`) and refuses edits to them.
 - **Reps and managers** (Luke, Oct 14: Active only; "see all active deals
   and … filter for just their deals"): Deals shows them only the Active tab
-  (tabs can carry `roles` in sections.js) with every PENDING deal
-  (`canSeeDeal`; closed / cancelled 404), read-only (`readOnly` from the
+  (tabs can carry `roles` in sections.js) with every open deal — Pending or
+  Assigned (`canSeeDeal` → `isOpen`; closed / cancelled 404), read-only (`readOnly` from the
   API; panel inputs disabled, no New deal, no GHL-missing list), and an
   **All active / Only mine** switch (`?mine=1`; the API marks each deal
   `mine` when they're its acq. manager or dispo member — name from
@@ -462,7 +462,7 @@ the server strips them (`forTc`) and refuses edits to them.
   changed one of the same fields since, 409 with their name); `DELETE`
   (owners; soft, logged). Tests: node:sqlite D1 shim + signed JWTs, like
   the other functions.
-- **Pages**: **Active** (the sheet's Pipeline tab: pending deals, next step
+- **Pages**: **Active** (the sheet's Pipeline tab: open deals, next step
   by the sheet's rules — past COE, EMD pending with no payer, EMD VPG-only,
   DD ending / expired without a buyer, set COE, closing ≤ 7 days, on track;
   tiles filter) plus **"In GoHighLevel, not in the tracker yet"**: GHL deals
@@ -477,7 +477,8 @@ the server strips them (`forTc`) and refuses edits to them.
   gross. **Summary** (the sheet's Dashboard tab): contracts / closed /
   cancelled / close rate / sold volume (final assignment) / gross / net /
   net profit / margin / avg net per closed, compare-to previous period or
-  same period last year, projected (pending + assigned), tables by acq
+  same period last year, projected (open deals already assigned — status
+  Assigned or a price in; money only from those with a price), tables by acq
   manager, dispo member, state and month (rows drill into All deals).
   Summary look (Luke, Oct 14: "match the style of the rest of the site …
   number visibility … color coding … without over crowding"): the top
@@ -516,15 +517,19 @@ the server strips them (`forTc`) and refuses edits to them.
   Assigned for minutes by mistake and became a tracker deal; it was
   removed and its opp excluded. Once a
   deal exists or is linked, the sync **never changes it again** — COE, DD
-  and every other field stay as people left them; only the read-only
+  and every other field stay as people left them; the read-only
   `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline moves).
-  One exception (Luke, Oct 14: a deal that was under contract / in dispo
-  and goes lost or abandoned "is considered cancelled"): the run where a
-  linked deal moves to Lost in GHL turns a Pending tracker deal
-  **Cancelled** (logged as GHL sync; only on that move, so a deal someone
-  re-opens stays as they set it). Other stage moves in GHL show up as a
-  **Needs info** alert instead (below) — e.g. GHL Closed while the tracker
-  is still Pending. The
+  One exception, the **deal status** (Luke, Oct 14: "GHL stage should take
+  over for the Deal status … automatically update based on stage, but I can
+  also edit them myself"): on the run where a linked deal's GHL stage
+  CHANGES (`link.last.stage` ≠ this run's), the status is set by
+  `STAGE_STATUS` (math.js) — Under contract / Dispo active → PENDING,
+  Assigned → ASSIGNED, Closed → COMPLETE, Lost / abandoned → CANCELLED —
+  when different, logged as "GHL sync". Only on a move, so a status set by
+  hand stays until GHL moves the deal again; linking never changes the
+  status; a deal Closed in the tracker is never changed by the sync (GHL
+  lagging, or Closed → Lost). New deals start with the mapped status. What
+  a stage needs filled in shows as a **Needs info** alert (below). The
   deal panel still offers "use GHL's" when GHL's COE differs. Nothing is
   written to GHL. D1 `deal_ghl (ghl_id, deal_id, location, last,
   linked_at, updated_at)`; changes are logged as "GHL sync"; each run
@@ -537,20 +542,24 @@ the server strips them (`forTc`) and refuses edits to them.
   style of the site … still clear"): `src/deals/sheet.js` keeps every
   signal of the original sheet, in the app's navy / tan system — navy group
   bands (tan for the "Dispo % loss" pair), light column headers with a 3px
-  accent per group (`GROUP_ACCENT`), white rows, calculated columns a faint
-  slate; soft tints in the site's status colours, in the sheet's priority
+  accent per group (`GROUP_ACCENT`), calculated columns a faint slate; rows
+  by deal status (Luke, Oct 14): pending white, assigned light purple
+  (`ASSIGNED` #F4F0FC, dark violet text), closed soft green, cancelled
+  muted rose; soft tints in the site's status colours, in the sheet's priority
   order: net profit < 0 rose / bold red; net loss % over 20% rose / bold
   red (`netLossHigh`, also in the panel); commission paid NO and additional
   fees > 0 amber "check"; DD end today rose / bold red, tomorrow sky
-  (pending deals); cancelled row muted rose; closed row soft green. A colour key sits above the table. **Proper case + pills**
+  (open deals) — single-cell alerts win over the row colour. A colour key
+  (Pending / Assigned / Closed / Cancelled deal, then the alerts) sits
+  above the table. **Proper case + pills**
   (Luke, Oct 14: "propercase throughout the sheet … highlighted similar to"
   the GHL stage / people chips): `src/deals/values.js` (`pretty` — the
   words; `toneOf` / `PILL_TONE` — the colour; `PILL_KEYS` — which columns)
   and `pills.jsx` (`ValuePill`). Stored values stay the sheet's UPPERCASE;
   dropdown values read "Pending", "Closed", "Off-market", "VPG + Buyer",
   "N/A" (acronyms kept), and the dropdowns themselves list them that way
-  (fields.jsx). Pills: deal status (Pending amber / Closed green / Cancelled
-  red), EMD status, EMD paid by, CFAR, EMD returned, commission
+  (fields.jsx). Pills: deal status (Pending amber / Assigned violet /
+  Closed green / Cancelled red), EMD status, EMD paid by, CFAR, EMD returned, commission
   paid, retrade, deal type, listing type — with a small ▾ when the cell can
   be edited (a click opens the dropdown); acq. manager and dispo member are
   the coloured person chips; free text (titles, escrow #) stays as typed. Headers read in sentence case. The sheet's green / red EMD
@@ -558,8 +567,21 @@ the server strips them (`forTc`) and refuses edits to them.
   returned cell fills too (their pills carry it). Active's EMD column is a
   pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
   outline, "N missing" pill) use the site's red #B42318 family.
-- **All deals table**: the sheet's column order (FIELDS; GHL stage after
-  the address, original contracted price after retrade), the full sheet by
+- **Deal status** (Luke, Oct 14: "everything [should] match the pipeline
+  stages"): `STATUS_KEYS` (math.js) = PENDING, ASSIGNED (new), COMPLETE
+  (reads "Closed"), CANCELLED — a fixed list in that order (`FIXED_LISTS`
+  in fieldLib.js; no longer a Dropdown Lists entry), checked by the server
+  (`clean`). **Open** = Pending or Assigned (`isOpen`): Active, Summary's
+  pending / projected, Home's tracker card, DD-end alerts, Needs info,
+  panel warnings and reps' visibility all use it. The IP-ends alert stays
+  Pending-only (an Assigned deal has a buyer). Rules: ASSIGNED in a TC fee
+  / commission rule = status Assigned or a VPG assignment price in (not
+  cancelled) (`isAssigned`); PENDING in a rule = any open deal, so moving a
+  deal to Assigned never changes its numbers (`statusMatches`).
+- **All deals table**: the sheet's column order (FIELDS; GHL stage and
+  Deal status right after the address — a status that differs from what
+  GHL's stage maps to (set by hand) shows a small violet "GHL: <stage>"
+  hint (`statusDiffersFromGhl`); original contracted price after retrade), the full sheet by
   default (`cols=overview` for the short set, or column groups), header
   bands + coloured headers sticky, address column sticky, dense Arial-like
   rows, a totals row. **Every cell is editable in place**
@@ -580,9 +602,13 @@ the server strips them (`forTc`) and refuses edits to them.
   columns can be kept for the reps"); needs a buyer: next step, property,
   acq. manager, state, COE, days, EMD, DD end (+ its time), title,
   contract. The property column shows the full address, wrapping (Luke,
-  Oct 14: no "…"). A deal is "assigned" when a VPG assignment price is in
-  (`assigned` in status.js; until Oct 14 "gross ≥ 0", which put deals with
-  no price and no assignment in the assigned list). Days red when past,
+  Oct 14: no "…"). A deal is "assigned" when its status is Assigned (with
+  or without a price yet — Luke, Oct 14) or a VPG assignment price is in
+  (`assigned` in status.js; older deals were assigned while still Pending;
+  until Oct 14 "gross ≥ 0", which put deals with no price and no
+  assignment in the assigned list). An Assigned deal with no price shows
+  "price needed" for gross (left out of the gross totals), the next step
+  "Assigned — enter the sold details" (amber), and is in Needs info. Days red when past,
   amber ≤ 7; EMD ✓ green, "Pending" / "VPG only" red. The COE chip keeps
   the board's Pipeline colours (`dueTone`). COE, title, buyer and prices
   edit in place (owners / TC). On top, **IP ends within 48 hours — no buyer
@@ -600,25 +626,28 @@ the server strips them (`forTc`) and refuses edits to them.
   next step as a coloured pill; All deals: a dot before each address; deal
   panel: the pill in the header, a bar down its left edge, and the fields
   behind the next step (`step.fields`) tinted with "● check this". Home's
-  Deal tracker card counts the same tones. A deal is assigned once its VPG
-  assignment price is in (see Active).
+  Deal tracker card counts the same tones (open deals). A deal is assigned
+  once its status is Assigned or its VPG assignment price is in (see
+  Active).
 - **Needs info** (Luke, Oct 14: "alerts that tell me what data is missing
   per deal based on pipeline stage or change of pipeline stage … if it
   moves from dispo active to assigned, I need to enter all sold details …
   if a deal or property is added and there is missing info … a new deal
   category"): `src/deals/required.js` is the ONE place for required fields
-  per stage — `CATEGORIES`: **New deal — missing basics** (every pending
+  per stage — `CATEGORIES`: **New deal — missing basics** (every open
   deal: address, acq, state, contract date, COE, deal / listing type,
   contracted price, title agency, EMD amount (unless EMD status NA), EMD
   status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
   needs dispo details** (GHL stage Dispo active: dispo member, asking
-  price); **Moved to Assigned — needs sold details** (GHL stage Assigned,
-  or an assignment price / buyer in: dispo member, buyer (owners only), VPG
-  and final assignment price, EMD paid by — "PENDING" counts as missing);
+  price); **Moved to Assigned — needs sold details** (status Assigned, GHL
+  stage Assigned, or an assignment price / buyer in: dispo member, buyer
+  (owners only), VPG and final assignment price — a 0 counts as missing
+  here, it's the sheet's "not sold yet" — EMD paid by — "PENDING" counts
+  as missing);
   **Closed — needs closing details** (closed in the tracker with COE in the
-  last 90 days, or GHL Closed while the tracker is pending — then status is
+  last 90 days, or GHL Closed while the tracker is still open — then status is
   flagged too: status, final assignment); **At COE — fill in bookkeeping**
-  (owners only — `owners: true`; pending deals from their COE date and
+  (owners only — `owners: true`; open deals from their COE date and
   recently closed ones: wire received, wire date, EMD returned (when VPG
   paid EMD), commission paid); **Lost in GHL — confirm the cancel**
   (status). **Missing = empty, null, "-" or "—"** (Luke, Oct 14: a 0 is
@@ -706,9 +735,10 @@ the server strips them (`forTc`) and refuses edits to them.
     A → Z (periods and time zones keep their own order). In table cells the
     list opens in place (no floating list cut off by the table).
   - **TC fee rule "Assigned"**: "TC fee charged when the deal is …" (and the
-    TC commission rule) can include Assigned = it has a VPG assignment price
-    and isn't cancelled (`RULE_STATUSES`, `isAssigned` in math.js; the
-    settings check accepts ASSIGNED).
+    TC commission rule) can include Assigned = status Assigned, or a VPG
+    assignment price and not cancelled (`RULE_STATUSES`, `isAssigned` in
+    math.js; the settings check accepts ASSIGNED, also for the override's
+    "paid when").
 - Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
   overwrites site edits. Commission payments (Owed → Approved → Paid),

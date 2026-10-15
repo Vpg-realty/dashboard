@@ -135,6 +135,7 @@ const blank = (v) => v == null || (typeof v === 'string' && ['', '-', '—', '�
 // tone } or null. Home can use it as it is.
 // TODO(Luke): email / text the TC and the acq. manager — needs a sender
 // (none is set up yet); the alert is only shown in the app.
+// Only Pending deals: an Assigned one has a buyer lined up.
 export function ipEndAlert(d, now = Date.now()) {
   if (String(d?.status || '').toUpperCase() !== 'PENDING') return null;
   if (!blank(d.buyer) || (typeof d.vpgAssign === 'number' && d.vpgAssign > 0)) return null;

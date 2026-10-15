@@ -3,9 +3,11 @@
 // hard to follow … come as close to the style of the original tracker with
 // color coding and everything"): its column order, the dark band over each
 // column group, the coloured column headers, and its conditional formatting
-// (sheet.js) — pending rows amber in the contract block, closed rows green,
-// cancelled rows red, the EMD → assignment block green / red by EMD status,
-// DD ending today / tomorrow, and the yellow "check this" cells. Header and
+// (sheet.js) — rows by deal status (pending white, assigned light purple,
+// closed green, cancelled red — Luke, Oct 14), DD ending today / tomorrow,
+// and the yellow "check this" cells. The status sits next to the GHL stage
+// (the sync sets it on each stage move); a status set by hand that differs
+// from GHL's stage carries a small "GHL: <stage>" hint. Header and
 // address stay put while scrolling. Every plain cell edits in place.
 //
 // Rows never jump while you edit (Luke: "i do not want it to automatically
@@ -13,7 +15,7 @@
 // / filter yourself (useFrozenOrder). Cells a deal still needs for its stage
 // (required.js) get a red outline; the "Needs info" filter shows only those.
 import { useMemo } from 'react';
-import { FIELDS, GROUPS, BOOKS_KEYS, booksOpen, isBlank } from './math.js';
+import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl } from './math.js';
 import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
 import { useDeals, ghlDeals, addrKey, GHL_STAGE } from './store.js';
@@ -36,7 +38,7 @@ import { laToday } from '../utils/historyRange.js';
 import { PanelHead } from '../shell/Panel.jsx';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
-const OVERVIEW = ['address', 'ghlStage', 'acq', 'coe', 'accepted', 'state', 'status', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
+const OVERVIEW = ['address', 'ghlStage', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
 const GROUP_LABEL = { contract: 'Contract info', title: 'Title', emd: 'EMD', dd: 'Due diligence', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & profit', notes: 'Notes & links' };
 // How a value reads in the table (Luke, Oct 14: proper case throughout;
 // dropdown values worth scanning as pills, people as their coloured chip).
@@ -57,7 +59,7 @@ const cell = (f, v, editable, d) => {
 const isNum = (f) => f.type === 'money' || f.type === 'percent' || f.type === 'number';
 const CENTER = new Set(['date', 'list', 'number', 'percent']);
 // Column widths like the sheet's (a little roomier).
-const W = { address: 300, acq: 150, title: 210, buyer: 200, notes: 280, links: 190, ghlStage: 120, dispoMember: 140 };
+const W = { address: 300, acq: 150, title: 210, buyer: 200, notes: 280, links: 190, ghlStage: 120, status: 132, dispoMember: 140 };
 const widthOf = (f) => W[f.key] || (f.type === 'money' ? 116 : f.type === 'date' ? 92 : f.type === 'longtext' ? 200 : f.type === 'number' ? 74 : 108);
 
 function GhlStage({ d, live }) {
@@ -143,7 +145,7 @@ export default function AllDealsView() {
         <span className="w-px h-5 bg-zinc-200 mx-1" />
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
         <SearchSelect className="w-40" value={status || null} placeholder="All statuses" pinned={[{ value: null, label: 'All statuses' }]} clearable={false} onChange={(x) => setQuery({ status: x || null })}
-          options={['PENDING', 'COMPLETE', 'CANCELLED'].map((x) => ({ value: x, label: statusLabel(x) }))} />
+          sort={false} options={STATUS_KEYS.map((x) => ({ value: x, label: statusLabel(x) }))} />
         <SearchSelect className="w-48" value={acq || null} placeholder="Everyone" pinned={[{ value: null, label: 'Everyone' }]} clearable={false} onChange={(x) => setQuery({ acq: x || null })}
           options={opts('acq').map((x) => ({ value: x, label: x }))} />
         <SearchSelect className="w-44" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
@@ -208,7 +210,12 @@ export default function AllDealsView() {
                       // Bookkeeping is locked until the COE date (Luke, Oct 14).
                       const locked = BOOKS_KEYS.includes(f.key) && !booksOpen(d);
                       const editable = !s.readOnly && !f.calc && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret) && !locked;
-                      const shown = content ?? cell(f, d[f.key], editable, d);
+                      let shown = content ?? cell(f, d[f.key], editable, d);
+                      // The status set by hand differs from GHL's stage (Luke,
+                      // Oct 14: GHL's stage drives it, people can override).
+                      if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
+                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the status was set by hand`} className="text-[10.5px] font-semibold text-violet-700 not-italic">GHL: {d.ghlStage}</span></span>;
+                      }
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}

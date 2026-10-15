@@ -14,13 +14,15 @@ export const FIELDS = [
   ['address', 'Address', 'contract', 'text'],
   // Mirrors the deal's stage in GoHighLevel (set by the GHL sync only).
   ['ghlStage', 'GHL stage', 'contract', 'ghl'],
+  // Next to the GHL stage (Luke, Oct 14: the GHL stage takes over the deal
+  // status — the sync sets it on every stage move, people can still edit it).
+  ['status', 'Deal status', 'contract', 'list'],
   ['acq', 'Acq. manager', 'contract', 'person'],
   ['coe', 'COE', 'contract', 'date'],
   ['accepted', 'Contract acceptance', 'contract', 'date'],
   ['listing', 'Listing type', 'contract', 'list'],
   ['state', 'Property location', 'contract', 'list'],
   ['dealType', 'Deal type', 'contract', 'list'],
-  ['status', 'Deal status', 'contract', 'list'],
   ['price', 'Contracted price', 'contract', 'money'],
   ['retrade', 'Retrade', 'contract', 'list'],
   // Luke, Oct 14: a retrade changes the price; the price before it is kept
@@ -92,6 +94,24 @@ export const GROUPS = [
 const DASHES = new Set(['', '-', '—', '–']);
 export const isBlank = (v) => v == null || (typeof v === 'string' && DASHES.has(v.trim()));
 
+// Deal statuses (Luke, Oct 14: "everything [should] match the pipeline
+// stages"): Pending (under contract / dispo active), Assigned (NEW — a buyer
+// is lined up), Closed (stored COMPLETE, as in the sheet), Cancelled. The GHL
+// sync sets the status when GHL's stage moves (edge/dealSync.js
+// STAGE_STATUS); a person can still change it by hand. Pending and Assigned
+// are both OPEN deals (Active, Summary's pending / projected, alerts, reps'
+// view): `isOpen` is the one test for that.
+export const STATUS_KEYS = ['PENDING', 'ASSIGNED', 'COMPLETE', 'CANCELLED'];
+export const isOpen = (d) => { const s = String(d?.status ?? '').trim().toUpperCase(); return s === 'PENDING' || s === 'ASSIGNED'; };
+// GHL stage → deal status: by the sync's stage id, and by the `ghlStage`
+// mirror's label (what the deal shows).
+export const STAGE_STATUS = { under_contract: 'PENDING', dispo: 'PENDING', assigned: 'ASSIGNED', closed: 'COMPLETE', lost: 'CANCELLED' };
+const LABEL_STATUS = { 'UNDER CONTRACT': 'PENDING', 'DISPO ACTIVE': 'PENDING', ASSIGNED: 'ASSIGNED', CLOSED: 'COMPLETE', 'LOST / ABANDONED': 'CANCELLED', LOST: 'CANCELLED', ABANDONED: 'CANCELLED' };
+export const ghlStatus = (d) => LABEL_STATUS[String(d?.ghlStage ?? '').trim().toUpperCase()] || null;
+// The status a person set differs from what GHL's stage says (shown as a
+// "GHL: <stage>" hint on the status cell).
+export const statusDiffersFromGhl = (d) => { const g = ghlStatus(d); return !!g && g !== String(d?.status ?? '').trim().toUpperCase(); };
+
 // Bookkeeping (Luke, Oct 14): wire date / received, EMD returned and
 // commission paid sit in Financials / Commissions & profit, locked until the
 // COE date is reached (Arizona) or the deal is closed (or cancelled — its
@@ -157,11 +177,15 @@ export function pickRules(rules, deal) {
 }
 
 // "Charged when the deal is …" (the TC fee / commission rules): a deal
-// status, or ASSIGNED (Luke, Oct 14) = it has a VPG assignment price and
-// isn't cancelled — so the fee applies from assignment on.
+// status. ASSIGNED (Luke, Oct 14) = status Assigned, or a VPG assignment
+// price is in and it isn't cancelled (older deals, before the Assigned status)
+// — so the fee applies from assignment on. PENDING in a rule means an open
+// deal (Pending or Assigned), as it did before the Assigned status existed,
+// so moving a deal to Assigned never drops a fee it already had.
 export const RULE_STATUSES = [['PENDING', 'Pending'], ['ASSIGNED', 'Assigned'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
-export const isAssigned = (d) => !is(d.status, 'CANCELLED') && num(d.vpgAssign) > 0;
-const statusIn = (d, list) => (list || []).some((s) => (is(s, 'ASSIGNED') ? isAssigned(d) : is(d.status, s)));
+export const isAssigned = (d) => is(d.status, 'ASSIGNED') || (!is(d.status, 'CANCELLED') && num(d.vpgAssign) > 0);
+export const statusMatches = (d, s) => (is(s, 'ASSIGNED') ? isAssigned(d) : is(s, 'PENDING') ? isOpen(d) : is(d.status, s));
+const statusIn = (d, list) => (list || []).some((s) => statusMatches(d, s));
 // A closed deal with a dispo team on file keeps the sheet's formula for it
 // (VPG, or the 50/50 split for anyone else — the "PENDING" placeholder
 // included, as the sheet did), so closed numbers never move.
@@ -209,7 +233,7 @@ export function compute(deal, rules, lists) {
   set('mgrComm', mgrRep ? num(d.commBase) * num(m.rate) : 0);
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];
-  set('override', o.name && is(d.status, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
+  set('override', o.name && statusMatches(d, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
   set('tcComm', statusIn(d, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);
