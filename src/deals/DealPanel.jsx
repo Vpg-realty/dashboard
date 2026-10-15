@@ -15,6 +15,7 @@ import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
 import { needsInfo } from './required.js';
 import { editFields } from './edits.js';
+import { PANEL_HEAD, PANEL_NUM } from '../shell/panelStyle.js';
 import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 
@@ -311,9 +312,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
               )}
               {groups.map(([gid, glabel], gi) => (
                 <section key={gid} className="rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)] overflow-hidden">
-                  <h3 className="flex items-center gap-2.5 px-4 py-2.5 bg-navy-50/70 border-b border-tan-200">
-                    <span className="grid place-items-center w-6 h-6 rounded-full bg-navy-800 text-white text-[11.5px] font-semibold tabular-nums">{gi + 1}</span>
-                    <span className="text-[14px] font-semibold text-navy-800">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
+                  <h3 className={`flex items-center gap-2.5 px-4 py-2.5 ${PANEL_HEAD}`}>
+                    <span className={PANEL_NUM}>{gi + 1}</span>
+                    <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
                   <div className={`grid grid-cols-2 gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
                     {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {

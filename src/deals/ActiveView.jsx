@@ -67,16 +67,18 @@ function Chevron({ open }) {
   return <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>;
 }
 // A section's header row: the whole bar opens / closes it.
-function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-50/70 border-tan-200 text-navy-800' }) {
+// Brand navy like every app card (Luke, Oct 15); the IP-ends alert keeps a
+// dark red band.
+function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-700 border-navy-800 text-white' }) {
   const open = !folds.is(id);
   return (
     <button type="button" onClick={() => folds.toggle(id)} aria-expanded={open}
-      className={`w-full flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2.5 text-left hover:brightness-[0.98] ${open ? 'border-b' : ''} ${className}`}>
+      className={`w-full flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2.5 text-left hover:brightness-110 ${open ? 'border-b' : ''} ${className}`}>
       <span className="grid place-items-center w-6 h-6 rounded-md text-current/80"><Chevron open={open} /></span>
       <span className="text-[14.5px] font-semibold">{title}</span>
-      {count != null && <span className="rounded-md bg-white/80 ring-1 ring-inset ring-zinc-200 px-1.5 text-[12px] font-semibold tabular-nums text-zinc-700">{count}</span>}
-      {sub && <span className="text-[12.5px] text-zinc-500 font-normal">{sub}</span>}
-      <span className="ml-auto text-[12px] text-zinc-500 font-normal">{open ? 'Hide' : 'Show'}</span>
+      {count != null && <span className="rounded-md bg-white/15 ring-1 ring-inset ring-white/25 px-1.5 text-[12px] font-semibold tabular-nums">{count}</span>}
+      {sub && <span className="text-[12.5px] opacity-75 font-normal">{sub}</span>}
+      <span className="ml-auto text-[12px] opacity-75 font-normal">{open ? 'Hide' : 'Show'}</span>
     </button>
   );
 }
@@ -125,7 +127,7 @@ function Section({ id, rows, cols, sub, onOpen, empty, folds }) {
   const sec = SECTION[id];
   return (
     <section id={`sec-${id}`} className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <FoldHead id={id} folds={folds} count={rows.length} sub={sub} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: sec.band }} />{sec.title}</span>} />
+      <FoldHead id={id} folds={folds} count={rows.length} sub={sub} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: sec.band }} />{sec.title}</span>} />
       {folds.is(id) ? null : rows.length === 0 ? <div className="px-5 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">
@@ -165,7 +167,7 @@ function NeedsInfo({ groups, onOpen, total, folds }) {
   const items = all ? cur.items : cur.items.slice(0, SHORT);
   return (
     <section id="needs-info" className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <FoldHead id="need" folds={folds} count={total} title={<span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#B42318]" />Needs info</span>}
+      <FoldHead id="need" folds={folds} count={total} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#B42318] ring-2 ring-white" />Needs info</span>}
         sub={total ? `missing something their stage needs · click a red field to fill it in` : 'every deal has what its stage needs'} />
       {!folds.is('need') && <>
       <div className="flex flex-wrap gap-1.5 px-5 pt-3">
@@ -375,7 +377,7 @@ export default function ActiveView() {
       <div className="mt-3 flex flex-col gap-5">
         {ipSoon.length > 0 && (
           <section className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] overflow-hidden">
-            <FoldHead id="ip" folds={folds} count={ipSoon.length} className="border-[#F5C2BD] text-[#7A271A]" title="IP ends within 48 hours — no buyer yet" sub="Find a buyer or cancel before the inspection period ends." />
+            <FoldHead id="ip" folds={folds} count={ipSoon.length} className="bg-[#9F1D14] border-[#7A271A] text-white" title="IP ends within 48 hours — no buyer yet" sub="Find a buyer or cancel before the inspection period ends." />
             {!folds.is('ip') && <ul className="divide-y divide-[#F5C2BD]/60">
               {ipSoon.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 bg-white/60">
@@ -395,7 +397,7 @@ export default function ActiveView() {
           sub="not yet assigned" />}
         {ed && !only && missing.length > 0 && (
           <section className="rounded-xl border border-violet-200 bg-violet-50/40 overflow-hidden">
-            <FoldHead id="ghl" folds={folds} count={missing.length} className="border-violet-100 text-violet-950" title="In GoHighLevel, not in the tracker yet" sub="Under contract or later in GHL, with no tracker deal at the same address — Add to tracker fills in what GHL has." />
+            <FoldHead id="ghl" folds={folds} count={missing.length} title="In GoHighLevel, not in the tracker yet" sub="Under contract or later in GHL, with no tracker deal at the same address — Add to tracker fills in what GHL has." />
             {!folds.is('ghl') && <ul className="divide-y divide-violet-100">
               {missing.map((g) => (
                 <li key={g.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5">

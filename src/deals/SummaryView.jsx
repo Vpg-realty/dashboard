@@ -65,7 +65,7 @@ function Kpi({ label, value, now, then, pct, isMoney, sub, lowerIsBetter, tone }
 function Group({ title, dot, cols, children }) {
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title={<span className="inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: dot }} />{title}</span>} />
+      <PanelHead title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: dot }} />{title}</span>} />
       <div className={`grid grid-cols-2 ${cols}`}>{children}</div>
     </section>
   );

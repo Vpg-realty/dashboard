@@ -333,11 +333,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
 - **Card headers** (Luke, Oct 14: "blue headers for the charts …
-  uniform"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a light-navy
-  header band (navy-50, navy title, optional note / number / right slot),
-  the same as the deal panel's sections; used by Home cards, Deals Active /
-  Summary, My scorecard, Settings and Territory. The TV board keeps its own
-  look.
+  uniform"; Oct 15: "easy to miss … match the dark blue … brand focused …
+  across the entire site"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a
+  brand-navy header band (navy-700 #1b385f, white title, note in white/70,
+  tan number badge; classes in `src/shell/panelStyle.js`), the right slot on
+  a small white tray so its controls keep their colours; the deal panel's
+  numbered sections and Active's fold bars use the same band (Active's IP
+  ends bar dark red). Used by Home cards, Deals, My scorecard, Settings,
+  Territory and Zips. The TV board keeps its own look.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app. Team and My
   scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
