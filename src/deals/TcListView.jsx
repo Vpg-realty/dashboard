@@ -1,79 +1,139 @@
-// Deals › TC List (Luke, Oct 15; owners and the TC only): the transaction
-// coordinator's day — IP endings with no buyer, past COEs, closings this
-// week (check in with title), EMDs to chase and missing info — built from
-// the tracker (tcList.js). Each item can be ticked off (D1 tc_done via
-// /api/tc, with who and when); ticked items fold into "Done" until what they
-// were about changes. Deals open in the deal panel.
+// Deals › TC List (Luke, Oct 15; owners and the TC only). One card per deal:
+// the property as the header (status, COE, people, title, EMD, flags) with
+// its "Due today" actions, and a fold-down checklist by stage — New
+// contract, Assigned, COE (tcList.js CHECKLIST) — plus tasks added to the
+// deal ("Add a task for Aiza"). Ticks and tasks: D1 via /api/tc, with who
+// and when. Tiles on top filter the cards (?only=). Deals open in the deal
+// panel.
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals } from './store.js';
 import { call } from '../utils/dashApi.js';
-import { buildTcList, TC_SECTIONS } from './tcList.js';
-import { PageHead, Loading, CoeChip, NeedChips } from './ui.jsx';
+import { buildTcCards, TC_FLAGS } from './tcList.js';
+import { PageHead, Loading, CoeChip, NeedChips, StatusChip } from './ui.jsx';
 import { EmdPill } from './pills.jsx';
 import { Person } from './people.jsx';
 import { LABEL } from './fieldLib.js';
+import { shortDate, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
+import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { PANEL_HEAD } from '../shell/panelStyle.js';
 
-const BAND = { red: 'bg-[#9F1D14] border-[#7A271A]', amber: 'bg-navy-700 border-navy-800', navy: 'bg-navy-700 border-navy-800' };
-const DOT = { red: 'bg-[#F87171]', amber: 'bg-[#F5B544]', navy: 'bg-tan-400' };
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : null);
+const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const FLAG_CHIP = {
+  ip: 'bg-[#FDECEA] text-[#B42318] ring-[#F5C2BD]', past: 'bg-[#FDECEA] text-[#B42318] ring-[#F5C2BD]', info: 'bg-[#FDECEA] text-[#B42318] ring-[#F5C2BD]',
+  closing: 'bg-amber-50 text-amber-800 ring-amber-200', emd: 'bg-amber-50 text-amber-800 ring-amber-200',
+};
+const FLAG_TEXT = { ip: 'IP ending', past: 'Past COE', closing: 'Closing soon', emd: 'EM receipt to chase' };
+const FOLD_KEY = 'vpg.tc.open';
 
-function useTcDone() {
-  const [done, setDone] = useState(null);
+function useTc() {
+  const [st, setSt] = useState(null);
   const [err, setErr] = useState(null);
-  useEffect(() => { call('tc').then((r) => setDone(r.done)).catch((e) => { setErr(e.message); setDone([]); }); }, []);
-  const toggle = async (key, on) => {
+  useEffect(() => { call('tc').then(setSt).catch((e) => { setErr(e.message); setSt({ checks: [], tasks: [] }); }); }, []);
+  const post = async (body) => {
     setErr(null);
-    try { const r = await call('tc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, done: on }) }); setDone(r.done); } catch (e) { setErr(e.message); }
+    try { setSt(await call('tc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return true; } catch (e) { setErr(e.message); return false; }
   };
-  return { done, err, toggle };
+  return { st, err, post };
 }
 
-function Item({ it, sec, mark, onOpen, onToggle, busy }) {
-  const d = it.deal;
+function Check({ on, auto, disabled, onChange, label }) {
   return (
-    <li className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 ${mark ? 'bg-zinc-50/70' : ''}`}>
-      {!sec.noTick && (
-        <input type="checkbox" checked={!!mark} disabled={busy} onChange={(e) => onToggle(it.key, e.target.checked)} aria-label={`Done: ${d.address}`} className="w-4 h-4 accent-[#1b385f] cursor-pointer" />
-      )}
-      <div className="min-w-[240px] flex-1">
-        <button type="button" onClick={() => onOpen(d.id, sec.id === 'info' ? 'need' : null)} className={`font-semibold text-left hover:underline underline-offset-2 ${mark ? 'text-zinc-500 line-through decoration-zinc-300' : 'text-navy-800'}`}>{d.address}</button>
-        <div className="text-[12.5px] mt-0.5">
-          <span className={mark ? 'text-zinc-400' : 'text-zinc-700 font-medium'}>{it.task}</span>
-          {it.sub && <span className={`ml-2 ${it.sub.startsWith('No title') ? 'text-[#B42318] font-semibold' : 'text-zinc-500'}`}>· {it.sub}</span>}
-          {mark && <span className="ml-2 text-zinc-400">· done by {mark.done_by} {new Date(mark.done_at).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
-        </div>
-        {it.fields && <div className="mt-1"><NeedChips fields={it.fields} labels={LABEL} onPick={(k) => onOpen(d.id, k)} max={8} /></div>}
-      </div>
-      <span className="inline-flex items-center gap-1.5"><Person name={d.acq} />{d.dispoMember && <><span className="text-zinc-300">→</span><Person name={d.dispoMember} /></>}</span>
-      <span className="w-[150px] truncate text-[12.5px] text-zinc-600" title={d.title || ''}>{firstLine(d.title) || <span className="text-zinc-300">no title agency</span>}</span>
-      <EmdPill deal={d} />
-      <span className="w-[120px] text-right"><CoeChip coe={d.coe} /></span>
-    </li>
+    <input type="checkbox" checked={on || auto} disabled={disabled || auto} onChange={(e) => onChange(e.target.checked)} aria-label={label}
+      className="w-4 h-4 accent-[#1b385f] cursor-pointer disabled:cursor-default shrink-0" />
   );
 }
 
-function Section({ sec, items, doneMap, onOpen, onToggle, busy }) {
-  const [showDone, setShowDone] = useState(false);
-  const open = items.filter((it) => !doneMap.has(it.key));
-  const done = items.filter((it) => doneMap.has(it.key));
+function AddTask({ onAdd }) {
+  const [text, setText] = useState('');
+  const [due, setDue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const add = async () => { if (!text.trim()) return; setBusy(true); const ok = await onAdd(text, due || null); setBusy(false); if (ok) { setText(''); setDue(''); } };
   return (
-    <section id={`tc-${sec.id}`} className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2.5 border-b text-white ${BAND[sec.tone] || PANEL_HEAD}`}>
-        <span className={`w-2.5 h-2.5 rounded-full ring-2 ring-white ${DOT[sec.tone]}`} />
-        <h2 className="text-[14.5px] font-semibold">{sec.title}</h2>
-        <span className="rounded-md bg-white/15 ring-1 ring-inset ring-white/25 px-1.5 text-[12px] font-semibold tabular-nums">{open.length}</span>
-        <span className="text-[12.5px] text-white/70">{sec.hint}</span>
+    <div className="flex flex-wrap items-center gap-2 pt-2">
+      <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder="Add a task for Aiza on this deal…" maxLength={200}
+        className="flex-1 min-w-[220px] h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-navy-100" />
+      <label className="flex items-center gap-1.5 text-[12.5px] text-zinc-500">due
+        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]" />
+      </label>
+      <button type="button" onClick={add} disabled={busy || !text.trim()} className={primaryCls}>Add task</button>
+    </div>
+  );
+}
+
+function Card({ c, open, onFold, onOpen, post, busy, today }) {
+  const d = c.deal;
+  const done = c.total - c.left;
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      {/* The property is the header. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-navy-700 text-white">
+        <button type="button" onClick={onFold} aria-expanded={open} aria-label={open ? 'Fold the checklist' : 'Open the checklist'} className="grid place-items-center w-6 h-6 rounded-md hover:bg-white/10">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>
+        </button>
+        <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-[14.5px] text-left hover:underline underline-offset-2">{d.address}</button>
+        <StatusChip status={d.status} />
+        {[...c.flags].filter((f) => FLAG_TEXT[f]).map((f) => <span key={f} className={`rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset ${FLAG_CHIP[f]}`}>{FLAG_TEXT[f]}</span>)}
+        <span className="ml-auto flex items-center gap-2 rounded-md bg-white px-2 py-1 text-zinc-700">
+          <CoeChip coe={d.coe} today={today} />
+          <EmdPill deal={d} />
+          <span className="text-[12px] tabular-nums text-zinc-500">{done}/{c.total} done</span>
+        </span>
       </div>
-      {open.length === 0 && <div className="px-4 py-4 text-[13.5px] text-[#15803D] font-medium">✓ {items.length ? 'All done' : 'Nothing here right now'}</div>}
-      <ul className="divide-y divide-[#E5E9F0]">{open.map((it) => <Item key={it.key} it={it} sec={sec} onOpen={onOpen} onToggle={onToggle} busy={busy} />)}</ul>
-      {done.length > 0 && (
-        <>
-          <button type="button" onClick={() => setShowDone((x) => !x)} className="w-full border-t border-[#E5E9F0] py-2 text-[13px] font-medium text-navy-700 hover:bg-tan-50">{showDone ? 'Hide done' : `Show done (${done.length})`}</button>
-          {showDone && <ul className="divide-y divide-[#E5E9F0] border-t border-[#E5E9F0]">{done.map((it) => <Item key={it.key} it={it} sec={sec} mark={doneMap.get(it.key)} onOpen={onOpen} onToggle={onToggle} busy={busy} />)}</ul>}
-        </>
+      <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tan-100 text-[12.5px] text-zinc-600">
+        <span className="inline-flex items-center gap-1.5"><Person name={d.acq} />{d.dispoMember && <><span className="text-zinc-300">→</span><Person name={d.dispoMember} /></>}</span>
+        <span>Title: {firstLine(d.title) ? <b className="font-medium text-zinc-800">{firstLine(d.title)}</b> : <b className="text-[#B42318]">no title agency on file</b>}</span>
+        {d.escrow && <span>Escrow # {d.escrow}</span>}
+        {c.missing.length > 0 && <span className="inline-flex items-center gap-1.5">Missing: <NeedChips fields={c.missing} labels={LABEL} onPick={(k) => onOpen(d.id, k)} max={5} /></span>}
+      </div>
+      {/* Due today: the deal's actions for today. */}
+      <div className={`px-4 py-2.5 ${c.due.length ? 'bg-[#FFF8E6]' : 'bg-[#F3FAF5]'}`}>
+        <div className="text-[11.5px] font-bold uppercase tracking-wide text-zinc-500 mb-1">Due today</div>
+        {c.due.length ? (
+          <ul className="flex flex-col gap-0.5">
+            {c.due.map((x, i) => <li key={i} className="text-[13.5px] text-zinc-800 flex items-center gap-2"><span className={`w-1.5 h-1.5 rounded-full ${x.late || x.kind === 'ip' || x.kind === 'past' ? 'bg-[#B42318]' : 'bg-[#DC8A0E]'}`} />{x.text}{x.late && x.lateBy > 0 && <span className="text-[12px] font-semibold text-[#B42318]">· {x.lateBy}d late</span>}{x.kind === 'task' && <span className="text-[11.5px] text-zinc-400">· task</span>}</li>)}
+          </ul>
+        ) : <div className="text-[13.5px] text-[#15803D] font-medium">✓ Nothing due today</div>}
+      </div>
+      {open && (
+        <div className="px-4 py-3 grid gap-4 md:grid-cols-3">
+          {c.groups.map((g) => (
+            <div key={g.id} className={g.active ? '' : 'opacity-50'}>
+              <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">{g.label}{!g.active && <span className="ml-1.5 font-normal text-zinc-500">— {g.wait}</span>}</div>
+              <ul className="flex flex-col gap-1.5">
+                {g.items.map((it) => (
+                  <li key={it.id} className="flex items-start gap-2 text-[13px]">
+                    <Check on={!!it.done} auto={it.auto} disabled={!g.active || busy} label={`${d.address}: ${it.label}`} onChange={(v) => post({ action: 'check', dealId: d.id, item: it.id, done: v })} />
+                    <span className="min-w-0">
+                      <span className={it.done || it.auto ? 'text-zinc-400 line-through decoration-zinc-300' : 'text-zinc-800'}>{it.label}</span>
+                      <span className="block text-[11.5px] text-zinc-400">
+                        {it.auto ? 'done — from the deal' : it.done ? `${it.done.done_by} · ${when(it.done.done_at)}` : it.dueOn ? `${it.dueOn < today ? 'was due' : it.dueOn === today ? 'due' : 'due'} ${shortDate(it.dueOn)}` : ''}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div className="md:col-span-3 border-t border-tan-100 pt-3">
+            <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">Tasks for this deal</div>
+            {c.tasks.length === 0 && <div className="text-[12.5px] text-zinc-400">No extra tasks yet.</div>}
+            <ul className="flex flex-col gap-1.5">
+              {c.tasks.map((t) => (
+                <li key={t.id} className="flex items-start gap-2 text-[13px]">
+                  <Check on={!!t.done_at} disabled={busy} label={`Task: ${t.text}`} onChange={(v) => post({ action: 'task', id: t.id, done: v })} />
+                  <span className="min-w-0 flex-1">
+                    <span className={t.done_at ? 'text-zinc-400 line-through' : 'text-zinc-800'}>{t.text}</span>
+                    <span className="block text-[11.5px] text-zinc-400">{t.due ? `due ${shortDate(t.due)} · ` : ''}added by {t.created_by} {when(t.created_at)}{t.done_at ? ` · done by ${t.done_by} ${when(t.done_at)}` : ''}</span>
+                  </span>
+                  <button type="button" onClick={() => { if (window.confirm(`Delete the task “${t.text}”?`)) post({ action: 'remove', id: t.id }); }} className="text-[12px] text-zinc-400 hover:text-red-700" aria-label="Delete task">✕</button>
+                </li>
+              ))}
+            </ul>
+            <AddTask onAdd={(text, due) => post({ action: 'add', dealId: d.id, text, due })} />
+          </div>
+        </div>
       )}
     </section>
   );
@@ -82,37 +142,51 @@ function Section({ sec, items, doneMap, onOpen, onToggle, busy }) {
 export default function TcListView() {
   const s = useDeals();
   const { open, panel } = useDealPanel();
-  const { done, err, toggle } = useTcDone();
+  const { st, err, post } = useTc();
   const [busy, setBusy] = useState(false);
+  const [unfolded, setUnfolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
+  const { query } = useLocation();
+  const only = TC_FLAGS.some((f) => f.id === query.get('only')) ? query.get('only') : null;
   const today = laToday();
-  const lists = useMemo(() => buildTcList(s.deals, today), [s.deals, today]);
+  const cards = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
-  if (done === null) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
-  const doneMap = new Map(done.map((x) => [x.key, x]));
-  const onToggle = async (key, on) => { setBusy(true); try { await toggle(key, on); } finally { setBusy(false); } };
-  const left = (id) => lists[id].filter((it) => !doneMap.has(it.key)).length;
-  const azDay = (t) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date(t));
-  const doneToday = done.filter((x) => azDay(x.done_at) === today).length;
+  if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
+  const fold = (id) => setUnfolded((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
+  const run = async (body) => { setBusy(true); try { return await post(body); } finally { setBusy(false); } };
+  const shown = only ? cards.filter((c) => c.flags.has(only)) : cards;
+  const count = (id) => cards.filter((c) => c.flags.has(id)).length;
+  const allOpen = shown.length > 0 && shown.every((c) => unfolded.has(c.deal.id));
+  const setAll = (on) => { const n = new Set(unfolded); for (const c of shown) { if (on) n.add(c.deal.id); else n.delete(c.deal.id); } setUnfolded(n); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } };
   return (
     <div className="max-w-[1500px] mx-auto">
-      <PageHead title="TC List" sub={`${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })} · what open deals need from the transaction coordinator today. Tick items off as you go — they come back if the date changes.`} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-4">
-        {TC_SECTIONS.map((sec) => (
-          <button key={sec.id} type="button" onClick={() => document.getElementById(`tc-${sec.id}`)?.scrollIntoView({ behavior: 'smooth' })}
-            className="text-left px-4 py-3 rounded-xl border border-tan-200 bg-white hover:border-navy-300 hover:bg-tan-50">
-            <div className="text-[12.5px] text-zinc-600 font-medium truncate">{{ ip: 'IP ending', past: 'Past COE', closing: 'Closing ≤ 7 days', emd: 'EMD to chase', info: 'Missing info' }[sec.id]}</div>
-            <div className={`mt-1 text-[26px] leading-none font-semibold tabular-nums ${left(sec.id) ? (sec.tone === 'red' ? 'text-[#B42318]' : sec.tone === 'amber' ? 'text-[#B54708]' : 'text-navy-800') : 'text-zinc-300'}`}>{left(sec.id)}</div>
-          </button>
-        ))}
-        <div className="px-4 py-3 rounded-xl border border-tan-200 bg-white">
-          <div className="text-[12.5px] text-zinc-600 font-medium">Done today</div>
-          <div className="mt-1 text-[26px] leading-none font-semibold tabular-nums text-[#15803D]">{doneToday}</div>
-        </div>
+      <PageHead title="TC List" sub={`${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })} · one card per deal: what's due today, then its checklist (open a card to tick items or add a task).`} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-3">
+        <button type="button" onClick={() => setQuery({ only: null })} aria-pressed={!only} className={`text-left px-4 py-3 rounded-xl border ${!only ? 'border-navy-700 ring-1 ring-navy-700 bg-navy-50' : 'border-tan-200 bg-white hover:border-navy-300'}`}>
+          <div className="text-[12.5px] text-zinc-600 font-medium">All deals</div>
+          <div className="mt-1 text-[26px] leading-none font-semibold tabular-nums text-navy-800">{cards.length}</div>
+        </button>
+        {TC_FLAGS.map((f) => {
+          const n = count(f.id);
+          const on = only === f.id;
+          return (
+            <button key={f.id} type="button" disabled={!n && !on} onClick={() => setQuery({ only: on ? null : f.id })} aria-pressed={on}
+              className={`text-left px-4 py-3 rounded-xl border ${on ? 'border-navy-700 ring-1 ring-navy-700 bg-navy-50' : n ? 'border-tan-200 bg-white hover:border-navy-300' : 'border-tan-200 bg-white opacity-55 cursor-default'}`}>
+              <div className="text-[12.5px] text-zinc-600 font-medium truncate">{f.label}</div>
+              <div className={`mt-1 text-[26px] leading-none font-semibold tabular-nums ${!n ? 'text-zinc-300' : f.tone === 'red' ? 'text-[#B42318]' : f.tone === 'amber' ? 'text-[#B54708]' : 'text-navy-800'}`}>{n}</div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-3 mb-3 text-[13px]">
+        {only && <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">{TC_FLAGS.find((f) => f.id === only).label} · {shown.length}<button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button></span>}
+        <button type="button" onClick={() => setAll(!allOpen)} className="ml-auto text-navy-700 font-medium hover:underline">{allOpen ? 'Fold all checklists' : 'Open all checklists'}</button>
       </div>
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
-      <div className="flex flex-col gap-4">
-        {TC_SECTIONS.map((sec) => <Section key={sec.id} sec={sec} items={lists[sec.id]} doneMap={doneMap} onOpen={open} onToggle={onToggle} busy={busy} />)}
+      <div className="flex flex-col gap-3">
+        {shown.map((c) => <Card key={c.deal.id} c={c} open={unfolded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} />)}
+        {shown.length === 0 && <div className="py-10 text-center text-zinc-500">Nothing here right now.</div>}
       </div>
+      <p className="mt-4 text-[12px] text-zinc-500">The checklists: New contract (from the contract date; EM placed by its due date), Assigned (once the deal is assigned; the buyer's EM receipt is chased while the EMD is empty or VPG only), COE (72 hours, 24 hours, closing day, the day after). Items the deal's own fields already show are ticked “from the deal”. Items that were due before the list started (Oct 15) aren't put in Due today.</p>
       {panel}
     </div>
   );

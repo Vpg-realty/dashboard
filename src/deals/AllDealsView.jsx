@@ -30,7 +30,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import { missingKeys } from './required.js';
-import { ValuePill } from './pills.jsx';
+import { ValuePill, EmdPill } from './pills.jsx';
 import { PILL_KEYS, PILL_TONE, pretty } from './values.js';
 import { Person } from './people.jsx';
 import Floating from '../shell/Floating.jsx';
@@ -51,6 +51,8 @@ const cell = (f, v, editable, d) => {
   if (f.type === 'percent') return typeof v === 'number' ? `${Math.round(v * 100)}%` : '';
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
+  // EMD status says who placed it (Luke, Oct 15).
+  if (f.key === 'emdStatus') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
   if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
   const text = String(v).split('\n')[0];

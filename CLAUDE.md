@@ -195,9 +195,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
   manager + owners — first for everyone, so owners see the same tab order
-  as the team, Luke Oct 15), Who works where, Reps × states, Zip management (owner / manager
+  as the team, Luke Oct 15), Who works where (everyone since Oct 15; its
+  Needs review panel owners only), Reps × states, Zip management (owner / manager
   / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
-  All deals, Summary) for owner + tc. A link a role can't open falls back
+  TC List, All deals, Map — Summary moved to Finance as "Deal Summary",
+  Luke Oct 15: everything with financials in the one section the team can't
+  see; old /deals/summary links redirect via `MOVED`) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Finance (owners) sits after Deals (Oct 15, see "Finance").
   Only working sections are shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js). Sidebar order (Luke, Oct 14): the
@@ -209,8 +212,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Assigned violet, Closed green — and the due date as the board's coloured
   date chip, Luke Oct 14; and the deal's **EMD status** — the tracker deal
   at the same address (`addrKey`, pending first) as `EmdPill` (pills.jsx,
-  worded like Active's EMD column via `emdCell`: In / Pending / VPG only /
-  Pending · payer; N/A or none grey), for everyone who sees Home — reps and
+  worded like Active's EMD column via `emdCell`: In · Buyer / In · VPG +
+  Buyer / In · VPG only / In · who placed? / Pending / Pending · payer; N/A or
+  none grey — who placed the EMD is always shown, Luke Oct 15, also as the
+  All deals EMD status cell), for everyone who sees Home — reps and
   managers read the pending deals through GET /api/deals; a deal not in the
   tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
@@ -331,8 +336,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   ALL_SECRETS, never printed): `planAlerts` (pure, tested), Luke Oct 15 —
   **wins** in the main channel (`DISCORD_WEBHOOK_URL`): new contract (GHL
   `startedAt` in the last 2 h) and closing (GHL Closed in the last 24 h);
-  **IP ending, no buyer** in the main channel: the day before and the day
-  of the IP end (Arizona dates, from 7:30am) for deals not Assigned or
+  **IP ending, no buyer** in the main channel: 48 hours out (once, when the
+  IP end is 1–2 days away) and the day of (Arizona dates, from 7:30am) for deals not Assigned or
   Closed — tracker deals with status Pending and GHL stage not Assigned /
   Closed (`ddEnd`), plus GHL under-contract / dispo deals not in the
   tracker (`ipEnd`); **TC morning list** in its own private channel
@@ -597,7 +602,7 @@ the server strips them (`forTc`) and refuses edits to them.
   the coloured person chips; free text (titles, escrow #) stays as typed. Headers read in sentence case. The sheet's green / red EMD
   block was dropped (the EMD status pill says it), and the CFAR / EMD
   returned cell fills too (their pills carry it). Active's EMD column is a
-  pill too (In / Pending / VPG only / Pending · payer). Needs-info marks (red
+  pill too (In · Buyer / In · VPG + Buyer / In · VPG only / Pending / Pending · payer). Needs-info marks (red
   outline, "N missing" pill) use the site's red #B42318 family.
 - **Deal status** (Luke, Oct 14: "everything [should] match the pipeline
   stages"): `STATUS_KEYS` (math.js) = PENDING, ASSIGNED (new), COMPLETE
@@ -658,21 +663,59 @@ the server strips them (`forTc`) and refuses edits to them.
   (localStorage `vpg.active.folded`).
   People are boxed in their colour (`people.jsx`).
 - **TC List** (Luke, Oct 15: "a TC list within the dashboard that owners
-  and Aiza can see only"): Deals tab `/deals/tc` (`TcListView.jsx`, roles
-  owner + tc). `buildTcList` (`src/deals/tcList.js`) over open deals, in
-  `TC_SECTIONS` order: IP ends within 48 h with no buyer (`ipEndAlert`),
-  past COE still open, closing within 7 days (check in with title; "No
-  title agency on file" in red), EMD to chase (pending with no payer,
-  past its due date, VPG only) and missing info (`needsInfo` as the TC —
-  field chips open the deal on that field; clears itself, no tick). Tiles
-  count what's left per section + done today. Every other item has a tick:
-  D1 `tc_done (key, done_by, done_at)` (edge/deals.sql) via
-  `functions/api/tc` (GET; POST `{key, done}` — owners / TC, never while
-  viewing as; kept 60 days). A key carries what it was about
-  (`closing:<id>:<coe>:<today>` resets daily, `past:<id>:<coe>`,
-  `emd:late:<id>:<due>` …), so an item comes back when that changes;
-  ticked items fold into "Show done (N)" with who / when, and can be
-  unticked. The Discord TC list links here.
+  and Aiza can see only" — then "every property to be the header and then
+  have a checklist of items below it that fold down … a due today type
+  field … allow us to add an item at the bottom that would be assigning Aiza
+  specific tasks per deal"): Deals tab `/deals/tc` (`TcListView.jsx`, roles
+  owner + tc). `buildTcCards` (`src/deals/tcList.js`) makes one card per
+  open deal (plus closed ones until two days after COE): the property as a
+  navy header (status, flag chips, COE chip, EMD pill, "x/y done"), people,
+  title agency (red when none) and missing-info chips, a **Due today** box,
+  and a fold-down checklist by stage — `CHECKLIST`, the one place the items
+  live: **New contract** (contract and documents received, title opened,
+  wire instructions received or on file, EM placed — due from the contract
+  date, EM by its due date), **Assigned** (assignment sent to title, wire
+  instructions sent to buyer, buyer EM receipt received — once the deal is
+  assigned), **COE** (72-hour and 24-hour title check-ins, closing day 1
+  funding check-in, closing day 2 recording check-in — COE −3, −1, 0, +1);
+  items the deal already shows are ticked "from the deal" (EM placed when
+  EMD status is complete / N/A; buyer EM receipt when complete and paid by
+  the buyer). Due today = unticked items due on or before today (late ones
+  "Nd late"; items due before `TC_START` 2026-10-15 left out so existing
+  deals don't arrive with a backlog), IP ending ≤ 48 h with no buyer, past
+  COE, and added tasks due. **EM receipt to chase** (Luke: only after the
+  deal is assigned AND the EMD is empty or VPG only — `needsBuyerEmReceipt`).
+  Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
+  optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
+  closing|emd|info`), cards sorted IP / past COE first, then late, due,
+  soonest COE; fold state per device (`vpg.tc.open`), Open / Fold all.
+  D1 `tc_checks (deal_id, item, done_by, done_at)` and `tc_tasks (id,
+  deal_id, text, due, created_by, created_at, done_by, done_at)`
+  (edge/deals.sql) via `functions/api/tc` (GET; POST actions check / add /
+  task / remove — owners / TC, never while viewing as). The Discord TC list
+  links here.
+- **Map** (Luke, Oct 15: "a full map with points of every deal we've
+  closed … the address, the sold date, the assigned price, and then a
+  Zillow link"): Deals tab `/deals/map` (`DealsMapView.jsx`, owner + tc).
+  D1 `closed_map (id, address, addr_key, sold, price, source, deal_id, lat,
+  lng, geo, geo_at)` (`edge/closedmap.sql`): the history sheet "Closed
+  deals" (id 1tqkrCgYFicIGBzzKXOsatOVjQWKC0zUbPJiczjmDVFI — address, sold
+  date, assignment price; the flip price isn't kept) imported Oct 15 as
+  224 rows `h001…` (source 'sheet'), plus every deal Closed in the tracker
+  (source 'tracker', id `t_<dealId>`, sold = COE, price = final else VPG
+  assignment) unless the sheet already has the address (`addrKey`).
+  `scripts/closed-map.mjs` (chained after sync-deals in `npm run snapshot`;
+  never fails the deploy) adds / updates / removes the tracker rows
+  (`planTracker`, tested) and looks up up to 60 addresses per run with the
+  US Census geocoder (free, no key; retries without the unit; not found →
+  geo 'miss'); Claude Code sessions can't reach the geocoder, so the first
+  deploys fill the map. `GET /api/closed-map` (owners / TC) → points,
+  missing, waiting. The page projects lat / lng with d3-geo `geoAlbersUsa`
+  (scale 1300, translate 487.5 / 305 — the same as `usStates.json`): tiles
+  (sales, states, volume, average), year chips (`?y=`), state zoom
+  (`?st=`), dots navy (this month tan); hover → card (address, sold date,
+  assignment price, Open on Zillow), click pins it; a searchable closings
+  list under the map; "still being placed" / "not found" note.
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
   Pipeline-tab tone: red = act now (past COE, EMD pending with no payer,
@@ -870,7 +913,8 @@ the approval records who).
   in edit_log `finance.*`. When every line of a deal is paid the deal's
   "Commission paid" becomes Yes (deal history: "<name> (Finance)"); undoing
   a payment sets it to No. Tests: node:sqlite shim + signed JWTs.
-- **Pages**: **Payouts** (tiles To approve / To pay / Paid this month /
+- **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
+  **Payouts** (tiles To approve / To pay / Paid this month /
   Coming due, tabs the same, person filter `?who=`, search, select rows →
   Approve N / Mark N paid… (date, method, reference) / Undo approval / Undo
   payment, totals row; deals open in the deal panel). **Statements** (one

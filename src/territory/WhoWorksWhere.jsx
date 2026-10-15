@@ -147,7 +147,8 @@ export default function WhoWorksWhere() {
   if (!m) return <div className="py-16 text-center text-zinc-400">Loading territory…</div>;
 
   const st = selected ? m.byAbbr.get(selected) : null;
-  const flags = focusRep ? m.flags.filter((f) => (f.rep ? f.rep === focusRep : !!m.byAbbr.get(f.state)?.ghl.some((r) => r.id === focusRep))) : m.flags;
+  // Needs review is for owners only (Luke, Oct 15: the map is for everyone).
+  const flags = !owner ? [] : focusRep ? m.flags.filter((f) => (f.rep ? f.rep === focusRep : !!m.byAbbr.get(f.state)?.ghl.some((r) => r.id === focusRep))) : m.flags;
   const counts = Object.fromEntries(Object.keys(STATUS_LOOK).map((k) => [k, m.states.filter((s) => statusOf(s) === k).length]));
 
   return (
@@ -188,7 +189,7 @@ export default function WhoWorksWhere() {
         </Panel>
       </div>
 
-      <Panel title="Needs review" sub={`${flags.length} item${flags.length === 1 ? '' : 's'}${focusRep ? ` for ${first(REPS.find((r) => r.id === focusRep))}` : ''}`} right={<button onClick={() => setShowRules((v) => !v)} className="text-[12.5px] text-navy-700 hover:underline">{showRules ? 'Hide' : 'How'} the flags work</button>}>
+      {owner && <Panel title="Needs review" sub={`${flags.length} item${flags.length === 1 ? '' : 's'}${focusRep ? ` for ${first(REPS.find((r) => r.id === focusRep))}` : ''}`} right={<button onClick={() => setShowRules((v) => !v)} className="text-[12.5px] text-navy-700 hover:underline">{showRules ? 'Hide' : 'How'} the flags work</button>}>
         {showRules && (
           <div className="px-5 py-3 border-b border-tan-100 bg-tan-50/50 grid sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-1.5 text-[12.5px]">
             {FLAG_RULES.map(([k, l, txt]) => <div key={k}><span className="font-semibold text-navy-800">{l}:</span> <span className="text-zinc-600">{txt}</span></div>)}
@@ -210,7 +211,7 @@ export default function WhoWorksWhere() {
           ))}
           {!flags.length && <li className="px-5 py-6 text-center text-zinc-500">Nothing to review.</li>}
         </ul>
-      </Panel>
+      </Panel>}
     </div>
   );
 }

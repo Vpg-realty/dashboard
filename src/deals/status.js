@@ -70,8 +70,17 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
 
 // The sheet's EMD column on the Pipeline tab: ✓ (green), "VPG only" and
 // "Pending" (red), "Pending · <payer>" (amber — a payer is named).
+// Who placed it is always shown (Luke, Oct 15: "visible to everyone so we
+// know if buyer has placed em, vpg, or if both"): In · Buyer / In · VPG +
+// Buyer (green), In · VPG only (red), In · who placed? (amber, payer unknown).
 export function emdCell(d) {
-  if (d.emdStatus === 'COMPLETE') return d.emdPaidBy === 'VPG' ? { text: 'VPG only', tone: 'red' } : { text: '✓', tone: 'green' };
+  if (d.emdStatus === 'COMPLETE') {
+    const by = String(d.emdPaidBy || '').toUpperCase();
+    if (by === 'VPG') return { text: 'In · VPG only', tone: 'red' };
+    if (by === 'BUYER') return { text: 'In · Buyer', tone: 'green' };
+    if (by === 'VPG + BUYER') return { text: 'In · VPG + Buyer', tone: 'green' };
+    return { text: 'In · who placed?', tone: 'amber' };
+  }
   if (d.emdStatus === 'PENDING') return d.emdPaidBy && d.emdPaidBy !== 'PENDING' ? { text: `Pending · ${pretty('emdPaidBy', d.emdPaidBy)}`, tone: 'amber' } : { text: 'Pending', tone: 'red' };
   return { text: '—', tone: null };
 }
