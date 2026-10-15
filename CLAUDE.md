@@ -327,16 +327,21 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   ("Team Chat button"; `checkTeamChat` accepts discord.gg / discord.com
   invites, empty hides the button). **Discord alerts**
   (`scripts/discord-alerts.mjs`, chained after sync-deals in `npm run
-  snapshot`; webhook = repo secret `DISCORD_WEBHOOK_URL` via ALL_SECRETS,
-  never printed; never fails the deploy): `planAlerts` (pure, tested) —
-  new contract (GHL `startedAt` in the last 2 h), closed (GHL Closed, stage
-  moved in the last 24 h), IP ending (tracker `ipEndAlert` ≤ 24 h, once
-  per end date), TC morning list (weekdays 7:30–noon Arizona: closings ≤ 3
-  days, EMD pending with no payer, deals missing info). Each posts once —
-  D1 settings `discord_sent` {key: time}, kept 21 days; the first run only
-  records what's already true (no flood). No @mentions yet (role mentions
-  need Discord role ids); the Friday scorecard alert isn't built (the
-  freeze runs after this step).
+  snapshot`; never fails the deploy; webhooks are repo secrets via
+  ALL_SECRETS, never printed): `planAlerts` (pure, tested), Luke Oct 15 —
+  **wins** in the main channel (`DISCORD_WEBHOOK_URL`): new contract (GHL
+  `startedAt` in the last 2 h) and closing (GHL Closed in the last 24 h);
+  **IP ending, no buyer** in the main channel: the day before and the day
+  of the IP end (Arizona dates, from 7:30am) for deals not Assigned or
+  Closed — tracker deals with status Pending and GHL stage not Assigned /
+  Closed (`ddEnd`), plus GHL under-contract / dispo deals not in the
+  tracker (`ipEnd`); **TC morning list** in its own private channel
+  (`DISCORD_TC_WEBHOOK_URL` — a webhook can't direct-message; not sent
+  without it): weekdays 7:30–noon Arizona, closings ≤ 3 days, EMD pending
+  with no payer, deals missing info. **No scorecard** (Luke: private to the
+  dashboard). Each posts once — D1 settings `discord_sent` {key: time},
+  kept 21 days; the first run only records what's already true. No
+  @mentions yet (role mentions need Discord role ids).
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
@@ -748,8 +753,8 @@ the server strips them (`forTc`) and refuses edits to them.
     assignment price whose IP ends within 48 h → "IP ends in Nh — cancel
     soon if no buyer" (red ≤ 24 h, amber ≤ 48 h). Shown as the deal's next
     step (after Past COE, before the EMD checks), a red box in the deal
-    panel and the list on top of Active. Within 24 h it also posts once to
-    Discord (scripts/discord-alerts.mjs).
+    panel and the list on top of Active. Discord gets "IP ends tomorrow /
+    today" posts (scripts/discord-alerts.mjs).
   - **No dispo team** (VPG always sells the deal): the field left FIELDS
     (panel, All deals, Active's Needs-a-buyer column, Needs info, the
     Dropdown lists page, new deals); "(if VPG)" is gone from every label.
