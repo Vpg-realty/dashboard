@@ -1,5 +1,6 @@
 // Deals › TC List (Luke, Oct 15; owners and the TC only). One card per deal:
-// the property as the header (status, COE, people, title, EMD, flags) with
+// the property as the header (status and flags only — Luke: the COE / EMD /
+// "x/y done" corner was confusing; click the address for the deal panel) with
 // its "Due today" actions, and a fold-down checklist by stage — New
 // contract, Assigned, COE (tcList.js CHECKLIST) — plus tasks added to the
 // deal ("Add a task for Aiza"). Ticks and tasks: D1 via /api/tc, with who
@@ -9,8 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDeals } from './store.js';
 import { call } from '../utils/dashApi.js';
 import { buildTcCards, TC_FLAGS } from './tcList.js';
-import { PageHead, Loading, CoeChip, NeedChips, StatusChip } from './ui.jsx';
-import { EmdPill } from './pills.jsx';
+import { PageHead, Loading, NeedChips, StatusChip } from './ui.jsx';
 import { Person } from './people.jsx';
 import { LABEL } from './fieldLib.js';
 import { shortDate, primaryCls } from './format.js';
@@ -64,7 +64,6 @@ function AddTask({ onAdd }) {
 
 function Card({ c, open, onFold, onOpen, post, busy, today }) {
   const d = c.deal;
-  const done = c.total - c.left;
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
       {/* The property is the header. */}
@@ -75,11 +74,6 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
         <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-[14.5px] text-left hover:underline underline-offset-2">{d.address}</button>
         <StatusChip status={d.status} />
         {[...c.flags].filter((f) => FLAG_TEXT[f]).map((f) => <span key={f} className={`rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset ${FLAG_CHIP[f]}`}>{FLAG_TEXT[f]}</span>)}
-        <span className="ml-auto flex items-center gap-2 rounded-md bg-white px-2 py-1 text-zinc-700">
-          <CoeChip coe={d.coe} today={today} />
-          <EmdPill deal={d} />
-          <span className="text-[12px] tabular-nums text-zinc-500">{done}/{c.total} done</span>
-        </span>
       </div>
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tan-100 text-[12.5px] text-zinc-600">
         <span className="inline-flex items-center gap-1.5"><Person name={d.acq} />{d.dispoMember && <><span className="text-zinc-300">→</span><Person name={d.dispoMember} /></>}</span>

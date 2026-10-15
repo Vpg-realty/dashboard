@@ -669,7 +669,8 @@ the server strips them (`forTc`) and refuses edits to them.
   specific tasks per deal"): Deals tab `/deals/tc` (`TcListView.jsx`, roles
   owner + tc). `buildTcCards` (`src/deals/tcList.js`) makes one card per
   open deal (plus closed ones until two days after COE): the property as a
-  navy header (status, flag chips, COE chip, EMD pill, "x/y done"), people,
+  navy header (status and flag chips only — Luke, Oct 15: the COE / EMD /
+  "x/y done" corner was confusing; the address opens the deal panel), people,
   title agency (red when none) and missing-info chips, a **Due today** box,
   and a fold-down checklist by stage — `CHECKLIST`, the one place the items
   live: **New contract** (contract and documents received, title opened,
@@ -712,8 +713,11 @@ the server strips them (`forTc`) and refuses edits to them.
   deploys fill the map. `GET /api/closed-map` (owners / TC) → points,
   missing, waiting. The page projects lat / lng with d3-geo `geoAlbersUsa`
   (scale 1300, translate 487.5 / 305 — the same as `usStates.json`): tiles
-  (sales, states, volume, average), year chips (`?y=`), state zoom
-  (`?st=`), dots navy (this month tan); hover → card (address, sold date,
+  (closed sales, states, **sold volume** — the sale prices, not assignment
+  fees, Luke Oct 15; no average), year chips (`?y=`), state zoom (`?st=`,
+  a chip or a click on the state — fits the state's outline), + / − /
+  double-click zoom (from the full view towards the middle of the dots) and
+  drag to pan, dots navy (this month tan); hover → card (address, sold date,
   assignment price, Open on Zillow), click pins it; a searchable closings
   list under the map; "still being placed" / "not found" note.
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
