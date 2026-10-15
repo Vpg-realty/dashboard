@@ -5,6 +5,8 @@ import { statusLabel } from './format.js';
 import { TONES, dueTone, daysBetween } from './status.js';
 import { shortDate } from './format.js';
 import { laToday } from '../utils/historyRange.js';
+import ClearX from '../shell/ClearX.jsx';
+import { escClears } from '../shell/escClears.js';
 
 const STATUS_STYLE = {
   PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', ASSIGNED: 'bg-violet-100 text-violet-900 ring-violet-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
@@ -44,8 +46,8 @@ const DOTS = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]',
 
 // "Order is out of date — Re-sort" (Luke, Oct 14: rows don't jump while you
 // edit; this button is the "it's ok to sort now").
-export function ResortBar({ stale, onResort }) {
-  if (!stale) return <span className="text-[12px] text-zinc-400">Rows stay in place while you edit.</span>;
+export function ResortBar({ stale, onResort, quiet = false }) {
+  if (!stale) return quiet ? null : <span className="text-[12px] text-zinc-400">Rows stay in place while you edit.</span>;
   return (
     <span className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 pl-2.5 pr-1 h-8 text-[12.5px] text-amber-900">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -85,11 +87,12 @@ export function Loading({ s }) {
   return <div className="py-16 text-center text-zinc-400">Loading deals…</div>;
 }
 
-export function Search({ value, onChange, placeholder = 'Search address, rep, buyer, title…' }) {
+export function Search({ value, onChange, placeholder = 'Search address, rep, buyer…' }) {
   return (
     <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-400 focus-within:ring-2 focus-within:ring-navy-100 focus-within:border-navy-200 w-64 max-w-full">
       <Icon name="search" size={14} />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1 min-w-0 outline-none text-zinc-900 placeholder:text-zinc-400 bg-transparent" />
+      <input value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={escClears(value, () => onChange(''))} placeholder={placeholder} className="flex-1 min-w-0 outline-none text-zinc-900 placeholder:text-zinc-400 bg-transparent" />
+      <ClearX value={value} onClear={() => onChange('')} />
     </label>
   );
 }

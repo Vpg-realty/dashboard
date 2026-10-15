@@ -21,7 +21,7 @@ export function PickOrType({ value, onChange, options, base, autoFocus, inline }
   const opts = options.map((o) => ({ value: o.value, label: optionLabel(o.value), hint: o.n > 1 ? `(${o.n} deals)` : '', search: o.value }));
   return (
     <div className="flex flex-col gap-1.5">
-      <SearchSelect value={sel} options={opts} pinned={[{ value: CUSTOM, label: '✎ Custom — type it in' }]} autoFocus={autoFocus} inline={inline && !custom}
+      <SearchSelect value={sel} options={opts} pinned={[{ value: CUSTOM, label: '✎ Custom — type it in' }]} searchable autoFocus={autoFocus} inline={inline && !custom}
         renderValue={(o) => (o ? o.label : '—')}
         onChange={(v) => {
           if (v === CUSTOM) { setCustom(true); return; }
@@ -108,7 +108,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     const fallback = f.key === 'ddEndTz' && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
     return (
       <SearchSelect value={v || null} disabled={disabled} autoFocus={autoFocus} inline={inline} onChange={(x) => onChange(x || null)}
-        placeholder={fallback ? `${zoneLabel(fallback)} (from the state)` : '—'} sort={!KEEP_ORDER.has(f.key)}
+        placeholder={fallback ? `${zoneLabel(fallback)} · state` : '—'} sort={!KEEP_ORDER.has(f.key)}
         options={all.map((o) => ({ value: o, label: pretty(f.key, o) }))} />
     );
   }

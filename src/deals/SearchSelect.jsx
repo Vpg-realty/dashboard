@@ -4,6 +4,11 @@
 // (e.g. "✎ Custom — type it in") stay on top whatever the search. Keyboard:
 // ↑ / ↓ to move, Enter to pick, Esc to close.
 //
+// The search box only shows when there's something to search (Luke, Oct 15:
+// no search bar on short fixed lists): more than SEARCH_FROM - 1 choices, or
+// `searchable` set (buyer / title — lists that keep growing). Short lists
+// (status, yes / no, deal type, time zone …) open straight to the choices.
+//
 // `inline`: the list is open from the start and sits in the page flow (table
 // cells, where a floating list would be cut off by the table's scroll box).
 //
@@ -14,15 +19,18 @@
 // / resize, and accounts for the site's CSS zoom (index.css --ui-zoom).
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import ClearX from '../shell/ClearX.jsx';
 
 const LIST_H = 300; // search box + max-h-60 list, in CSS px
+const SEARCH_FROM = 7; // choices (pinned included) from which a list gets a search box
 
 const norm = (s) => String(s ?? '').toLowerCase();
 
 export default function SearchSelect({
   value, onChange, options, pinned = [], clearable = true, placeholder = '—', inline = false, autoFocus = false,
-  disabled = false, sort = true, className = '', renderValue,
+  disabled = false, sort = true, className = '', renderValue, searchable,
 }) {
+  const hasSearch = searchable ?? options.length + pinned.length >= SEARCH_FROM;
   const [open, setOpen] = useState(inline);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
@@ -37,7 +45,7 @@ export default function SearchSelect({
   const items = [...(clearable && !q ? [{ value: null, label: '—', clear: true }] : []), ...pinned.map((o) => ({ ...o, pinned: true })), ...hits];
   const current = options.find((o) => o.value === value) || pinned.find((o) => o.value === value);
 
-  useEffect(() => { if (open) setTimeout(() => search.current?.focus({ preventScroll: true }), 0); }, [open]);
+  useEffect(() => { if (open) setTimeout(() => (search.current || listRef.current)?.focus({ preventScroll: true }), 0); }, [open]);
   // Click outside closes a floating list.
   useEffect(() => {
     if (!open || inline) return undefined;
@@ -59,6 +67,9 @@ export default function SearchSelect({
       const top = r.top / z, bottom = r.bottom / z;
       const up = vh - bottom < LIST_H + 8 && top > vh - bottom;
       Object.assign(p.style, { left: `${r.left / z}px`, width: `${r.width / z}px`, top: up ? '' : `${bottom + 4}px`, bottom: up ? `${vh - top + 4}px` : '', visibility: 'visible' });
+      // A narrow button near the right edge: the list (min 15rem) must not run off the window.
+      const vw = window.innerWidth / z, w = p.offsetWidth;
+      if (r.left / z + w > vw - 8) p.style.left = `${Math.max(8, vw - 8 - w)}px`;
     };
     update();
     window.addEventListener('scroll', update, true);
@@ -72,17 +83,23 @@ export default function SearchSelect({
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(items.length - 1, i + 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }
     else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (items[active]) pick(items[active]); }
+    else if (e.key === 'Escape' && q) { e.preventDefault(); e.stopPropagation(); setQ(''); setActive(0); } // Esc clears the search first
     else if (e.key === 'Escape' && !inline) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
   };
 
   const list = (
     <div ref={inline ? undefined : pop} className={`${inline ? 'w-full' : 'fixed z-[1000] min-w-[15rem] shadow-lg'} rounded-lg border border-zinc-200 bg-white overflow-hidden text-left`}
       style={inline ? undefined : { visibility: 'hidden' }}>
-      <div className="p-1.5 border-b border-zinc-100">
-        <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Search…" autoFocus={autoFocus || inline}
-          className="w-full h-7 rounded-md border border-zinc-200 px-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
-      </div>
-      <ul ref={listRef} role="listbox" className="max-h-60 overflow-y-auto py-1 text-[13px]">
+      {hasSearch && (
+        <div className="p-1.5 border-b border-zinc-100">
+          <span className="relative flex items-center">
+            <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Search…" autoFocus={autoFocus || inline}
+              className="w-full h-7 rounded-md border border-zinc-200 pl-2 pr-7 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
+            <ClearX value={q} onClear={() => { setQ(''); setActive(0); }} className="absolute right-1" />
+          </span>
+        </div>
+      )}
+      <ul ref={listRef} role="listbox" tabIndex={hasSearch ? undefined : -1} onKeyDown={hasSearch ? undefined : onKey} className="max-h-60 overflow-y-auto py-1 text-[13px] focus:outline-none">
         {items.map((o, i) => (
           <li key={`${o.clear ? '__clear' : o.value}`} data-i={i} role="option" aria-selected={o.value === value}
             onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)} onMouseEnter={() => setActive(i)}

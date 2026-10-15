@@ -49,12 +49,13 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
   // The IP ends within 48 h with no buyer (ddTime.js) — before the EMD
   // checks: it's the one with a clock on it.
   const ip = asg ? null : ipEndAlert(d, now);
-  if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime', 'vpgAssign'], ip };
+  if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime'], ip };
   if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdStatus', 'emdPaidBy'] };
   if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
-  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
-  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd', 'vpgAssign'] };
-  if (!asg) return { text: 'Find buyer', tone: 'blue', fields: ['vpgAssign'] };
+  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd'] };
+  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd'] };
+  if (!asg) // Dispositions fields aren't asked for before a deal is assigned (Luke, Oct 15).
+  if (!asg) return { text: 'Find buyer', tone: 'blue', fields: [] };
   // Marked Assigned (in GHL or by hand) but no assignment price yet: the sold
   // details are the next thing to fill in (Needs info lists them all).
   if (!hasAssignPrice(d)) return { text: 'Assigned — enter the sold details', tone: 'amber', fields: ['vpgAssign', 'finalAssign'] };

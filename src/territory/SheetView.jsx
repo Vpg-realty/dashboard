@@ -12,6 +12,8 @@ import { MARKET_STATUSES, STATUS_LOOK, SEASON_LOOK, statusOf, seasonOf } from '.
 import { StatusChip, SeasonChip } from './badges.jsx';
 import StateControls from './StateControls.jsx';
 import CopyButton from './CopyButton.jsx';
+import ClearX from '../shell/ClearX.jsx';
+import { escClears } from '../shell/escClears.js';
 
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
@@ -88,7 +90,10 @@ function Counties({ st, owner }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-tan-100">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search county, city or zip…" className="h-8 w-72 max-w-full rounded-lg border border-zinc-200 px-2.5 text-[13px] outline-none focus:ring-2 focus:ring-navy-100" />
+        <span className="relative inline-flex items-center w-72 max-w-full">
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={escClears(q, () => setQ(''))} placeholder="Search county, city or zip…" className="h-8 w-full rounded-lg border border-zinc-200 pl-2.5 pr-8 text-[13px] outline-none focus:ring-2 focus:ring-navy-100" />
+          <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5" />
+        </span>
         <span className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-[12.5px] font-medium">
           {[[0, 'All tiers'], [1, 'Tier 1'], [2, 'Tier 2'], [3, 'Tier 3']].map(([k, l]) => <button key={k} onClick={() => setTier(k)} className={`px-2.5 h-7 rounded-md ${tier === k ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{l}</button>)}
         </span>

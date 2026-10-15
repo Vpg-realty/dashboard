@@ -12,6 +12,8 @@ import { useZips, useManyStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } 
 import { useManyCounties } from '../territory/store.js';
 import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
+import ClearX from '../shell/ClearX.jsx';
+import { escClears } from '../shell/escClears.js';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
 // Many states (an owner's list): search one state at a time, so the page
@@ -50,7 +52,10 @@ function ZipSearch({ states, repId, owner }) {
       <div className="p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <select value={only} onChange={(e) => setOnly(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]">{!many && <option value="">All my states</option>}{states.map((s) => <option key={s}>{s}</option>)}</select>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 flex-1 min-w-[220px] rounded-lg border border-zinc-200 px-3 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
+          <span className="relative flex items-center flex-1 min-w-[220px]">
+            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={escClears(q, () => setQ(''))} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 w-full rounded-lg border border-zinc-200 pl-3 pr-8 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
+            <ClearX value={q} onClear={() => setQ('')} className="absolute right-2" />
+          </span>
         </div>
         <div className="flex flex-wrap gap-3 text-[12px] text-zinc-600">
           {[['open', 'Available'], ['mine', 'Yours'], ['taken', 'Another rep has it'], ['used', 'Used this round'], ['off', 'Paused / flagged']].map(([k, l]) => <span key={k} className="inline-flex items-center gap-1.5"><span className={`w-3.5 h-3.5 rounded ring-1 ring-inset ${LOOK[k]}`} />{l}</span>)}

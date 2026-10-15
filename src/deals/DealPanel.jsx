@@ -4,6 +4,7 @@
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { setLeaveGuard } from '../shell/router.js';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
@@ -16,6 +17,8 @@ import { needsInfo } from './required.js';
 import { editFields } from './edits.js';
 import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
+
+const TZ_FIELD = FIELDS.find((f) => f.key === 'ddEndTz');
 
 // One look for every highlighted field box (Luke, Oct 14: "needed" and
 // "check this" boxes looked different and ran together): same padding,
@@ -115,6 +118,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [err, setErr] = useState(null);
   const [base, setBase] = useState(raw?.updatedAt);
   const [flash, setFlash] = useState(false);
+  // Leaving with unsaved edits (Luke, Oct 15: "warning me when I click out …
+  // that I have not saved changes"): what to do once the person picks Save /
+  // Discard in the prompt; null = no prompt.
+  const [leaving, setLeaving] = useState(null);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
 
@@ -126,9 +133,21 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   }, [raw, draft, s.rules, s.lists]);
   const nChanges = Object.keys(draft.fields).length + Object.keys(draft.fixed).length + (isNew ? Object.keys(initial || {}).length : 0);
   const dirty = Object.keys(draft.fields).length + Object.keys(draft.fixed).length > 0 || isNew;
+  const hasEdits = Object.keys(draft.fields).length + Object.keys(draft.fixed).length > 0;
+
+  // Every way out asks first while there are edits: the backdrop, ×, Esc (close
+  // below), an in-app page change or the browser's Back (router guard), and a
+  // reload / tab close (the browser's own "Leave site?" box).
+  useEffect(() => {
+    if (!hasEdits) return undefined;
+    const release = setLeaveGuard((proceed) => { setLeaving(() => proceed); return true; });
+    const onUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onUnload);
+    return () => { release(); window.removeEventListener('beforeunload', onUnload); };
+  }, [hasEdits]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const onKey = (e) => { if (e.key === 'Escape') { if (leaving) setLeaving(null); else close(); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
@@ -161,7 +180,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   };
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
   function close() {
-    if (dirty && !isNew && !window.confirm('Discard your unsaved changes?')) return;
+    if (hasEdits) { setLeaving(() => onClose); return; }
     onClose();
   }
 
@@ -178,7 +197,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         setBase(d.updatedAt);
         setDraft({ fields: {}, fixed: {} });
       }
-    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+      return true;
+    } catch (e) { setErr(e.message); return false; } finally { setBusy(false); }
   }
   async function remove() {
     if (!window.confirm(`Delete ${merged.address}? It stays in the change history.`)) return;
@@ -296,7 +316,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                     <span className="text-[14px] font-semibold text-navy-800">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
                   <div className={`grid grid-cols-2 gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
                       const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
@@ -311,7 +331,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       return (
                         <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
-                            {f.label}
+                            {f.key === 'ddEndTime' ? 'End time & time zone' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
                             {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
                               : need.has(f.key) ? <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>
@@ -333,7 +353,14 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                             <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'} tabular-nums`}>{text(value)}</div>
                           ) : (
                             <>
-                              <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />
+                              {f.key === 'ddEndTime' ? (
+                                // End time and its time zone on one line (Luke, Oct 15: the zone
+                                // fell to a row of its own and read as a separate field).
+                                <div className="flex gap-2">
+                                  <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={ro} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
+                                  <div className="w-36 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
+                                </div>
+                              ) : <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>
@@ -360,6 +387,20 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             {!isNew && <button onClick={() => { setDraft({ fields: {}, fixed: {} }); setErr(null); }} className={btnCls}>Discard</button>}
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
+        )}
+        {leaving && (
+          <div className="absolute inset-0 z-20 grid place-items-center bg-navy-900/40 p-6" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-title">
+            <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl border border-tan-200 p-5">
+              <h2 id="unsaved-title" className="text-[16px] font-semibold text-navy-800">You have {nChanges} unsaved change{nChanges === 1 ? '' : 's'}</h2>
+              <p className="mt-1.5 text-[13.5px] text-zinc-600">Save them before leaving this deal, or they'll be lost.</p>
+              {err && <p className="mt-2 text-[12.5px] text-red-700">{err}</p>}
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <button autoFocus onClick={() => setLeaving(null)} className={btnCls}>Keep editing</button>
+                <button onClick={() => { const go = leaving; setLeaving(null); setDraft({ fields: {}, fixed: {} }); go(); }} className={`${btnCls} text-red-700`}>Discard</button>
+                <button disabled={busy} onClick={async () => { const go = leaving; if (await save()) { setLeaving(null); go(); } }} className={primaryCls}>{busy ? 'Saving…' : 'Save changes'}</button>
+              </div>
+            </div>
+          </div>
         )}
       </section>
     </div>

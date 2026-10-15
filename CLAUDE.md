@@ -639,9 +639,11 @@ the server strips them (`forTc`) and refuses edits to them.
   per stage — `CATEGORIES`: **New deal — missing basics** (every open
   deal: address, acq, state, contract date, COE, deal / listing type,
   contracted price, title agency, EMD amount (unless EMD status NA), EMD
-  status, EMD sent on (once EMD is complete), DD days); **In Dispo Active —
-  needs dispo details** (GHL stage Dispo active: dispo member, asking
-  price); **Moved to Assigned — needs sold details** (status Assigned, GHL
+  status, EMD sent on (once EMD is complete), DD days); no "In Dispo Active" category since Luke, Oct 15 — dispositions
+  (dispo member, asking price, buyer, prices) are only filled in once a
+  deal is assigned or closed, so nothing there is missing before that, and
+  the next-step tints (Find buyer, DD / IP ending) no longer point at the
+  VPG assignment price; **Moved to Assigned — needs sold details** (status Assigned, GHL
   stage Assigned, or an assignment price / buyer in: dispo member, buyer
   (owners only), VPG and final assignment price — a 0 counts as missing
   here, it's the sheet's "not sold yet" — EMD paid by — "PENDING" counts
@@ -743,7 +745,25 @@ the server strips them (`forTc`) and refuses edits to them.
     the Rep page's score breakdown) use the same layer, `src/shell/
     Floating.jsx`. Checked with a Playwright audit (every dropdown in the
     deal panel, All deals and Active at 1280 / 1440 / 1920 wide: fully on
-    screen and nothing on top of it).
+    screen and nothing on top of it). Search box only when there's
+    something to search (Luke, Oct 15): 7+ choices (`SEARCH_FROM`) or
+    `searchable` (buyer / title past entries) — short fixed lists (status,
+    yes / no, deal type, time zone …) open straight to the choices.
+  - **Clearing a search** (Luke, Oct 15): every search box has a small ×
+    on the right while it has text (`src/shell/ClearX.jsx`) and clears on
+    Esc (`escClears`, src/shell/escClears.js) — All deals / Active, the
+    dropdown searches, ⌘K, Get zips, Zip management, Territory sheet.
+  - **Unsaved changes** (Luke, Oct 15: "does it autosave?" — the deal panel
+    doesn't; All deals / Active cells do): leaving the panel with edits —
+    the backdrop, ×, Esc, a page change (`setLeaveGuard` in
+    src/shell/router.js, which also catches the browser's Back / Forward)
+    or a reload / tab close (beforeunload) — asks first: "You have N unsaved
+    changes" with **Save changes / Discard / Keep editing**.
+  - **DD end time and time zone** share one cell ("End time & time zone").
+  - **All deals header** (Luke, Oct 15: "very busy"): two rows — the title
+    with Columns ▾ (Full sheet / Overview / column groups as checkboxes),
+    ⓘ Colour key (the key + how editing works, in a pop-up), Export and New
+    deal; then search and filters. The re-sort bar shows only when needed.
   - **TC fee rule "Assigned"**: "TC fee charged when the deal is …" (and the
     TC commission rule) can include Assigned = status Assigned, or a VPG
     assignment price and not cancelled (`RULE_STATUSES`, `isAssigned` in

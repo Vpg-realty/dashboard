@@ -8,6 +8,8 @@ import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { useMe } from '../utils/dashApi.js';
 import { useZips, useStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } from './store.js';
+import ClearX from '../shell/ClearX.jsx';
+import { escClears } from '../shell/escClears.js';
 
 const LEVEL = {
   now: { dot: 'bg-red-600', label: 'Fix now', cls: 'text-red-800' },
@@ -103,7 +105,10 @@ function StateDetail({ state, reps, owner, onClose }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-tan-100">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search county or zip…" className="h-8 w-60 rounded-lg border border-zinc-200 px-2.5 text-[13px] outline-none focus:ring-2 focus:ring-navy-100" />
+        <span className="relative inline-flex items-center w-60">
+          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={escClears(q, () => setQ(''))} placeholder="Search county or zip…" className="h-8 w-full rounded-lg border border-zinc-200 pl-2.5 pr-8 text-[13px] outline-none focus:ring-2 focus:ring-navy-100" />
+          <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5" />
+        </span>
         <span className="text-[12.5px] text-zinc-500">Round {round}</span>
         <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-600">
           {[['open', 'Available'], ['held', 'Held'], ['used', 'Used this round'], ['flagged', 'Flagged'], ['paused', 'Paused / excluded']].map(([k, l]) => <span key={k} className="inline-flex items-center gap-1.5"><span className={`w-3.5 h-3.5 rounded ring-1 ring-inset ${k === 'held' ? 'bg-navy-100 ring-navy-300' : CHIP[k]}`} />{l}</span>)}

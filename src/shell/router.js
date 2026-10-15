@@ -6,12 +6,33 @@ import { useEffect, useReducer } from 'react';
 
 const BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 const listeners = new Set();
-const notify = () => listeners.forEach((f) => f());
-if (typeof window !== 'undefined') window.addEventListener('popstate', notify);
+const notify = () => { here = where(); listeners.forEach((f) => f()); };
+const where = () => (typeof window === 'undefined' ? '' : window.location.pathname + window.location.search);
+let here = where();
+
+// A page with unsaved edits (the deal panel — Luke, Oct 15: warn before
+// leaving unsaved changes) registers a guard: guard(proceed) returns true to
+// hold the move and calls proceed() later if the person chooses to leave.
+// Covers in-app page changes (navigate) and the browser's Back / Forward;
+// a page reload or tab close is the page's own beforeunload.
+let guard = null;
+export function setLeaveGuard(fn) { guard = fn; return () => { if (guard === fn) guard = null; }; }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    const back = here;
+    if (guard && guard(() => { guard = null; window.history.go(-1); })) {
+      window.history.pushState({}, '', back); // stay put while the person decides
+      return;
+    }
+    notify();
+  });
+}
 
 export function navigate(to, { replace = false } = {}) {
   const url = `${BASE}${to.startsWith('/') ? to : `/${to}`}`;
   if (url === window.location.pathname + window.location.search) return;
+  if (guard && guard(() => { guard = null; navigate(to, { replace }); })) return;
   window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
   window.scrollTo(0, 0);
   notify();

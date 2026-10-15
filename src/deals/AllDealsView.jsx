@@ -14,7 +14,7 @@
 // resort"): the order is frozen until you click "Re-sort now" or pick a sort
 // / filter yourself (useFrozenOrder). Cells a deal still needs for its stage
 // (required.js) get a red outline; the "Needs info" filter shows only those.
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl } from './math.js';
 import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
@@ -33,6 +33,7 @@ import { missingKeys } from './required.js';
 import { ValuePill } from './pills.jsx';
 import { PILL_KEYS, PILL_TONE, pretty } from './values.js';
 import { Person } from './people.jsx';
+import Floating from '../shell/Floating.jsx';
 import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
 import { PanelHead } from '../shell/Panel.jsx';
@@ -66,6 +67,33 @@ function GhlStage({ d, live }) {
   const label = d.ghlStage || (live ? GHL_STAGE[live.stage] : null);
   if (!label) return '';
   return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE.violet}`}>{label}</span>;
+}
+
+const menuRow = (on) => `w-full flex items-baseline justify-between gap-2 px-3 py-1.5 text-left hover:bg-navy-50 ${on ? 'font-semibold text-navy-800' : 'text-zinc-800'}`;
+
+// A small toolbar button with a pop-up (drawn on top of the page).
+function Menu({ label, children, align = 'right' }) {
+  const [open, setOpen] = useState(false);
+  const anchor = useRef(null);
+  const pop = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!anchor.current?.contains(e.target) && !pop.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return (
+    <>
+      <button ref={anchor} onClick={() => setOpen((v) => !v)} className={`h-8 inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-[13px] ${open ? 'border-navy-200 bg-navy-50 text-navy-800' : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300'}`}>
+        {label}<span className="text-[10px] text-zinc-400">▾</span>
+      </button>
+      <Floating anchor={anchor} open={open} align={align} className="rounded-xl border border-tan-200 bg-white shadow-lg">
+        <div ref={pop}>{children}</div>
+      </Floating>
+    </>
+  );
 }
 
 export default function AllDealsView() {
@@ -132,45 +160,52 @@ export default function AllDealsView() {
     if (last && last.id === id) last.span += 1;
     else bands.push({ id, span: 1, label: id === 'loss' ? 'Dispo % loss' : id === 'address' ? '' : GROUP_LABEL[id], style: id === 'loss' ? BAND_LOSS : BAND });
   }
-  const chip = (on) => `rounded-full px-2.5 py-0.5 ring-1 ${on ? 'bg-navy-700 text-white ring-navy-700' : 'ring-zinc-200 text-zinc-600 hover:bg-zinc-100 bg-white'}`;
 
   return (
     <div className="h-full flex flex-col min-h-0">
-      <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]} · click a cell to edit it, the address for the full deal`} right={<>
+      {/* Two rows (Luke, Oct 15: "very busy … hard to decipher"): the title
+          with the column picker, colour key (small menus), Export and New deal;
+          then one toolbar of search and filters. */}
+      <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]}`} right={<>
+        <Menu label={<>Columns: <b className="font-semibold text-navy-800">{!colsParam ? 'Full sheet' : overview ? 'Overview' : `${groups.length} group${groups.length === 1 ? '' : 's'}`}</b></>}>
+          <div className="w-56 py-1.5 text-[13px]">
+            <button onClick={() => setQuery({ cols: null })} className={menuRow(!colsParam)}>Full sheet <span className="text-zinc-400">every column</span></button>
+            <button onClick={() => setQuery({ cols: 'overview' })} className={menuRow(overview)}>Overview <span className="text-zinc-400">the key columns</span></button>
+            <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Or pick column groups</div>
+            {GROUPS.filter(([g]) => s.owner || g !== 'pay').map(([g, l]) => (
+              <label key={g} className="flex items-center gap-2 px-3 py-1.5 hover:bg-navy-50 cursor-pointer">
+                <input type="checkbox" checked={groups.includes(g)} onChange={() => toggleGroup(g)} className="accent-navy-700" />{l}
+              </label>
+            ))}
+          </div>
+        </Menu>
+        <Menu label={<>ⓘ Colour key</>} align="right">
+          <div className="w-80 p-3.5 text-[12.5px] text-zinc-700 flex flex-col gap-1.5">
+            {SHEET_LEGEND.map(([st, l]) => <span key={l} className="flex items-center gap-2"><span className="w-4 h-3.5 rounded-sm ring-1 ring-inset ring-black/10 shrink-0" style={{ background: st.background }} />{l}</span>)}
+            <span className="flex items-center gap-2"><span className="w-4 h-3.5 rounded-sm ring-2 ring-inset ring-[#D92D20] bg-white shrink-0" />Needed for its stage</span>
+            <span className="flex items-center gap-2"><span className="flex gap-0.5 shrink-0"><span className="w-2 h-2 rounded-full bg-[#B42318]" /><span className="w-2 h-2 rounded-full bg-[#DC8A0E]" /><span className="w-2 h-2 rounded-full bg-[#1D4ED8]" /><span className="w-2 h-2 rounded-full bg-[#15803D]" /></span>Next step (the dot before the address)</span>
+            <span className="mt-1.5 pt-2 border-t border-zinc-100 text-zinc-500">Click a cell to edit it, or the address to open the full deal. Rows stay in place while you edit.</span>
+          </div>
+        </Menu>
         <button onClick={csv} className={btnCls}>Export CSV</button>
         {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
       </>} />
-      <div className="flex flex-wrap items-center gap-2 mb-2.5">
-        <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
-        <span className="w-px h-5 bg-zinc-200 mx-1" />
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
-        <SearchSelect className="w-40" value={status || null} placeholder="All statuses" pinned={[{ value: null, label: 'All statuses' }]} clearable={false} onChange={(x) => setQuery({ status: x || null })}
+        <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
+        <span className="w-px h-5 bg-zinc-200 mx-0.5" />
+        <SearchSelect className="w-36" value={status || null} placeholder="All statuses" pinned={[{ value: null, label: 'All statuses' }]} clearable={false} onChange={(x) => setQuery({ status: x || null })}
           sort={false} options={STATUS_KEYS.map((x) => ({ value: x, label: statusLabel(x) }))} />
-        <SearchSelect className="w-48" value={acq || null} placeholder="Everyone" pinned={[{ value: null, label: 'Everyone' }]} clearable={false} onChange={(x) => setQuery({ acq: x || null })}
+        <SearchSelect className="w-40" value={acq || null} placeholder="Everyone" pinned={[{ value: null, label: 'Everyone' }]} clearable={false} onChange={(x) => setQuery({ acq: x || null })}
           options={opts('acq').map((x) => ({ value: x, label: x }))} />
-        <SearchSelect className="w-44" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
+        <SearchSelect className="w-36" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
           options={opts('state').map((x) => ({ value: x, label: pretty('state', x) }))} />
         {!s.readOnly && (
           <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#B42318] text-white ring-[#B42318]' : 'bg-white text-[#B42318] ring-[#F5C2BD] hover:bg-[#FDF1F0]'}`}>
             Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>
           </button>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 mb-2.5 text-[12.5px]">
-        <span className="text-zinc-500 mr-1">Columns</span>
-        <button onClick={() => setQuery({ cols: null })} className={chip(!colsParam)}>Full sheet</button>
-        <button onClick={() => setQuery({ cols: 'overview' })} className={chip(overview)}>Overview</button>
-        <span className="w-px h-4 bg-zinc-200 mx-0.5" />
-        {GROUPS.filter(([g]) => s.owner || g !== 'pay').map(([g, l]) => (
-          <button key={g} onClick={() => toggleGroup(g)} className={chip(groups.includes(g))}>{l}</button>
-        ))}
-        <span className="ml-auto"><ResortBar stale={stale} onResort={resort} /></span>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-[11.5px] text-zinc-600">
-        <span className="font-semibold text-zinc-500">Colour key:</span>
-        {SHEET_LEGEND.map(([st, l]) => <span key={l} className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm ring-1 ring-inset ring-black/10" style={{ background: st.background }} />{l}</span>)}
-        <span className="inline-flex items-center gap-1"><span className="w-3.5 h-3 rounded-sm ring-2 ring-inset ring-[#D92D20] bg-white" />Needed for its stage</span>
-        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#B42318]" /><span className="w-2 h-2 rounded-full bg-[#DC8A0E]" /><span className="w-2 h-2 rounded-full bg-[#1D4ED8]" /><span className="w-2 h-2 rounded-full bg-[#15803D]" />next step (before the address)</span>
+        <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>
       </div>
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
         <PanelHead title="2026 VPG Deals" sub={`as of ${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`} />

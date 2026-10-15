@@ -9,6 +9,7 @@ import { navigate } from './router.js';
 import Icon from './icons.jsx';
 import { dealsSnapshot, loadDeals } from '../deals/store.js';
 import { statusLabel } from '../deals/format.js';
+import ClearX from './ClearX.jsx';
 
 const STAGE = { under_contract: 'Under contract', dispo: 'Dispo', assigned: 'Assigned', closed: 'Closed' };
 
@@ -69,6 +70,7 @@ export default function CommandPalette({ open, onClose, role }) {
             placeholder="Search pages, reps, deals by address…"
             className="flex-1 outline-none text-[15px] placeholder:text-zinc-400"
           />
+          <ClearX value={q} onClear={() => { setQ(''); setSel(0); }} />
           <kbd className="text-[11px] text-zinc-500 border border-zinc-200 rounded px-1.5">Esc</kbd>
         </div>
         <div className="max-h-[50vh] overflow-y-auto py-1.5">
