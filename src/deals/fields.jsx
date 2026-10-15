@@ -8,6 +8,7 @@ import { pretty } from './values.js';
 import { isBlank } from './math.js';
 import { endTimeOf, parseEndTime, zoneLabel } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
+import TimePicker from './TimePicker.jsx';
 
 const CUSTOM = '__custom';
 const dashToNull = (v) => (isBlank(v) ? null : v);
@@ -66,12 +67,12 @@ function NumberInput({ f, value, onChange, base, autoFocus, disabled }) {
 }
 
 // End time: a time picker; older free text it can't read stays visible.
-function TimeInput({ value, onChange, base, autoFocus, disabled, deal }) {
+function TimeInput({ value, onChange, autoFocus, disabled, deal }) {
   const p = parseEndTime(value, deal?.state);
   const unread = value && !p.time;
   return (
     <div className="flex flex-col gap-1">
-      <input type="time" autoFocus={autoFocus} disabled={disabled} value={p.time || ''} onChange={(e) => onChange(e.target.value || null)} className={base} />
+      <TimePicker value={p.time || null} onChange={(t) => onChange(t || null)} autoFocus={autoFocus} disabled={disabled} />
       {value && value !== p.time && (
         <span className="text-[11.5px] text-zinc-500">{unread ? 'Typed in the sheet (not read):' : 'From the sheet:'} “{value}”</span>
       )}
@@ -91,7 +92,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     return <textarea value={v} autoFocus={autoFocus} disabled={disabled} placeholder="—" rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(dashToNull(e.target.value))} className={`${base} h-auto py-1.5 leading-snug`} />;
   }
   if (f.type === 'money' || f.type === 'number') return <NumberInput f={f} value={value} onChange={onChange} base={base} autoFocus={autoFocus} disabled={disabled} />;
-  if (f.type === 'time') return <TimeInput value={value} onChange={onChange} base={base} autoFocus={autoFocus} disabled={disabled} deal={deal} />;
+  if (f.type === 'time') return <TimeInput value={value} onChange={onChange} autoFocus={autoFocus} disabled={disabled} deal={deal} />;
   if (f.type === 'date') {
     const text = v && !ISO.test(v);
     return (

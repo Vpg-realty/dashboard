@@ -760,6 +760,11 @@ the server strips them (`forTc`) and refuses edits to them.
     or a reload / tab close (beforeunload) — asks first: "You have N unsaved
     changes" with **Save changes / Discard / Keep editing**.
   - **DD end time and time zone** share one cell ("End time & time zone").
+    The time is `src/deals/TimePicker.jsx` (Luke, Oct 15: the browser's own
+    picker was boxy and its lists looped past 59): a button in the
+    dropdowns' style opening hour 1–12 / minutes in 5s + :59 / AM–PM lists
+    with a clear top and bottom, quick picks 9:00 AM · 12:00 PM · 5:00 PM ·
+    11:59 PM, Clear / Done; the value is still "HH:MM".
   - **All deals header** (Luke, Oct 15: "very busy"): two rows — the title
     with Columns ▾ (Full sheet / Overview / column groups as checkboxes),
     ⓘ Colour key (the key + how editing works, in a pop-up), Export and New
