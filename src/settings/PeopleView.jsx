@@ -4,7 +4,7 @@
 // "Only mine" deals; a manager's pod). Saved straight to D1.
 import { useEffect, useState } from 'react';
 import { REPS } from '../data/config.js';
-import { settingsUsers, saveUser, removeUser, useMe } from '../utils/dashApi.js';
+import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
 import { Section, inputCls } from './ui.jsx';
 
@@ -16,6 +16,29 @@ const ROLE_HELP = {
   team: 'Their own Home and My scorecard, the board, Active deals (view only).',
   tv: 'The office TV board only.',
 };
+
+// The sidebar's Team Chat button (Luke, Oct 15: the team's Discord). Stored
+// in D1 settings `team_chat` (not the public repo); empty hides the button.
+function TeamChat() {
+  const [url, setUrl] = useState('');
+  const [saved, setSaved] = useState(null);
+  const [msg, setMsg] = useState(null);
+  useEffect(() => { readSetting('team-chat').then((r) => { setUrl(r.value?.url || ''); setSaved(r.value?.url || ''); }).catch(() => setSaved('')); }, []);
+  const save = async () => {
+    setMsg(null);
+    try { await writeSetting('team-chat', url.trim() ? { url: url.trim() } : null); setSaved(url.trim()); setMsg({ ok: true, text: 'Saved — the button updates on the next page load.' }); } catch (e) { setMsg({ ok: false, text: e.message }); }
+  };
+  return (
+    <Section title="Team Chat button" sub="The Discord invite link behind “Team Chat” in the sidebar (everyone except the TV). Use a link that never expires. Leave it empty to hide the button.">
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://discord.gg/…" className={`${inputCls} max-w-md`} />
+        <button onClick={save} disabled={saved === null || url.trim() === saved} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-40">Save</button>
+        {saved && <a href={saved} target="_blank" rel="noopener noreferrer" className="text-[13px] text-navy-700 hover:underline">Open ↗</a>}
+      </div>
+      {msg && <div className={`mt-2 text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</div>}
+    </Section>
+  );
+}
 
 function Row({ u, me, onSaved, onRemoved }) {
   const [d, setD] = useState(u);
@@ -99,6 +122,7 @@ export default function PeopleView() {
         </div>
         {addErr && <div className="mt-2 text-red-700 text-[13px]">{addErr}</div>}
       </Section>
+      <TeamChat />
       <Section title="What each role sees">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13.5px]">
           {ROLES.map((r) => <div key={r}><dt className="font-semibold text-navy-700">{ROLE_LABEL[r]}</dt><dd className="text-zinc-600">{ROLE_HELP[r]}</dd></div>)}

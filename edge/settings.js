@@ -81,6 +81,15 @@ function checkRuleSet(r) {
   if (typeof o.name !== 'string' || !num(o.rate, 0, 1) || (o.from && !DATE.test(o.from)) || (o.status && !STATUSES.includes(o.status))) return 'bad override';
   return null;
 }
+// The Team Chat link (Luke, Oct 15: Discord): { url } — an https invite
+// link (discord.gg/… or discord.com/invite/…), or null to hide the button.
+export function checkTeamChat(v) {
+  if (v === null) return null;
+  const u = String(v?.url || '');
+  if (!/^https:\/\/(discord\.gg|(www\.)?discord\.com\/invite)\/[\w-]{2,40}$/.test(u)) return 'paste a Discord invite link (https://discord.gg/…)';
+  return null;
+}
+
 export function checkLists(l) {
   if (!l || typeof l !== 'object') return 'lists missing';
   for (const [k, v] of Object.entries(l)) {

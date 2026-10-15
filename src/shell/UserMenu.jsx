@@ -41,6 +41,9 @@ export default function UserMenu({ me, collapsed, phone, Avatar }) {
             <div className="font-semibold text-navy-800 truncate">{name}</div>
             <div className="text-[12px] text-zinc-500 truncate">{email}</div>
           </div>
+          {phone && me.teamChat && (
+            <a href={me.teamChat} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg font-medium text-navy-700 hover:bg-tan-50">Team Chat (Discord) <span className="ml-auto text-zinc-400">↗</span></a>
+          )}
           <button onClick={logout} className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg text-left font-medium text-red-700 hover:bg-red-50">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></svg>
             Log out
