@@ -225,14 +225,14 @@ export default function AllDealsView() {
               <tr>
                 {bands.map((b, i) => (
                   <th key={i} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ background: b.style.bg, color: b.id === 'loss' ? '#FFFFFF' : '#E6DCC8', borderLeft: i ? '2px solid #ad9b7a' : undefined }}>{b.label}</th>
+                    style={{ background: b.style.bg, color: b.id === 'loss' ? '#FFFFFF' : '#E6DCC8' }}>{b.label}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
                   <th key={f.key} onClick={() => sortBy(f.key)} title={sort.replace(/^-/, '') === f.key ? (sort === f.key ? 'Sorted A → Z / low → high · click for the reverse' : custom ? 'Sorted Z → A / high → low · click to clear' : 'Default order · click to sort') : 'Click to sort'}
                     className={`group/h sticky top-[30px] px-2.5 pt-2 pb-2 align-bottom text-[12px] font-semibold leading-tight ${isNum(f) ? 'text-right' : 'text-left'} cursor-pointer select-none hover:bg-navy-50 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ ...headStyle(f), borderRight: `1px solid ${BORDER}`, borderBottom: `2px solid ${HEAD_RULE}` }}>
+                    style={{ ...headStyle(f), borderBottom: `2px solid ${HEAD_RULE}` }}>
                     {f.key === 'address' ? 'Address' : f.label}
                     {sort.replace(/^-/, '') === f.key
                       ? <span className="ml-1 inline-block rounded bg-navy-700 text-white px-1 text-[10.5px] leading-[16px] align-[1px]">{sort.startsWith('-') ? '↓' : '↑'}</span>

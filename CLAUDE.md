@@ -783,7 +783,7 @@ the server strips them (`forTc`) and refuses edits to them.
   - **All deals table head** (Luke, Oct 15: "clunky … when you click the
     column name it sorts, but you cannot clear it easily"): no title band
     inside the table card ("as of" moved to the page subtitle); one navy
-    group band (tan dividers between groups, the address column's band reads
+    group band (no vertical lines in it or the header row — Luke, Oct 15; the address column's band reads
     "Deal") over white column headers in navy with a 2px group accent; a
     header click sorts ↑, then ↓, then back to the default order (newest COE
     first); the sorted column shows a navy ↑ / ↓ badge (others a faint ↕ on
