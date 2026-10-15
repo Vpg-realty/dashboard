@@ -42,6 +42,17 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 15: commissions per deal (paid at closing), approved by Luke
+    // or Jack, statements per person, and the money side of closed deals.
+    // Owners only (the API refuses everyone else).
+    id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
+    tabs: [
+      { id: 'payouts', label: 'Payouts', view: 'fin-payouts', scroll: true },
+      { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
+      { id: 'overview', label: 'Overview', view: 'fin-overview', scroll: true },
+    ],
+  },
+  {
     // Luke, Oct 14: Territory is the one place for areas, states and zips —
     // for reps too ("Territories should be the go to spot for all things
     // related to areas, states, zips for the reps"). Reps: Get zips, the

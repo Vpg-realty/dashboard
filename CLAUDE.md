@@ -198,9 +198,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   as the team, Luke Oct 15), Who works where, Reps × states, Zip management (owner / manager
   / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
-  to the section's first tab, then Home. Add Territory (tc, manager, owner)
-  and Finance (owner) here when they're built — only working sections are
-  shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
+  to the section's first tab, then Home. Finance (owners) sits after Deals (Oct 15, see "Finance").
+  Only working sections are shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js). Sidebar order (Luke, Oct 14): the
   working sections on top; at the bottom Team Overview (`bottom:
   'screens'`, everyone; TV Mode is a button inside it) — then, under a line, Settings (`bottom: 'admin'`) and Sub-Accounts
@@ -333,11 +332,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
 - **Card headers** (Luke, Oct 14: "blue headers for the charts …
-  uniform"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a light-navy
-  header band (navy-50, navy title, optional note / number / right slot),
-  the same as the deal panel's sections; used by Home cards, Deals Active /
-  Summary, My scorecard, Settings and Territory. The TV board keeps its own
-  look.
+  uniform"; Oct 15: "easy to miss … match the dark blue … brand focused …
+  across the entire site"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a
+  brand-navy header band (navy-700 #1b385f, white title, note in white/70,
+  tan number badge; classes in `src/shell/panelStyle.js`), the right slot on
+  a small white tray so its controls keep their colours; the deal panel's
+  numbered sections and Active's fold bars use the same band (Active's IP
+  ends bar dark red). Used by Home cards, Deals, My scorecard, Settings,
+  Territory and Zips. The TV board keeps its own look.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app. Team and My
   scorecard pages render inside `.app-team` (AppShell), a scoped stylesheet
@@ -789,8 +791,43 @@ the server strips them (`forTc`) and refuses edits to them.
     "paid when").
 - Imported Oct 14 from the sheet (ids `s<sheet row>`); new deals get
   `d<random>`. Re-running the import (`ON CONFLICT DO NOTHING`) never
-  overwrites site edits. Commission payments (Owed → Approved → Paid),
-  rep statements and QuickBooks come with Finance.
+  overwrites site edits. Commission payments (Owed → Approved → Paid) and
+  statements are in Finance (below); QuickBooks comes later.
+
+## Finance (Luke, Oct 15)
+
+Sidebar **Finance** (owners only; `src/finance/`). Luke: commissions are
+paid per deal at closing, and Luke or Jack approves payouts (either one —
+the approval records who).
+- **Lines** (`src/finance/lines.js`, shared by the pages and the server):
+  every closed (COMPLETE) deal's `payouts()` (math.js — acq, dispo,
+  manager, override, TC) is a line `<dealId>:<part>`: **Owed → Approved →
+  Paid**. D1 `fin_payouts` (`edge/finance.sql`) holds only lines past owed
+  (who, amount at approval, approved by / at, paid on, method ACH / Check /
+  Wire / Zelle / Other, reference, paid by). No row + the deal's
+  "Commission paid" YES / N/A = settled in the sheet (shown "Paid (sheet)",
+  not undoable). An approved line whose commission has changed since
+  (price / rule edit) is "Changed — approve again" and can't be paid until
+  it is; a row whose line is gone (deal reopened, commission now 0) stays
+  as a paid record or a changed approval to undo. `upcoming()` = commissions
+  on open deals assigned with a price ("Coming due", a forecast).
+- **API** `functions/api/finance/index.js` (logic `edge/finance.js`): GET
+  rows; POST `{action: approve | unapprove | pay | unpay, keys, paidOn,
+  method, ref}` — owners only, never while viewing as (`owner` in
+  edge/settings.js); every action checked against the live lines, logged
+  in edit_log `finance.*`. When every line of a deal is paid the deal's
+  "Commission paid" becomes Yes (deal history: "<name> (Finance)"); undoing
+  a payment sets it to No. Tests: node:sqlite shim + signed JWTs.
+- **Pages**: **Payouts** (tiles To approve / To pay / Paid this month /
+  Coming due, tabs the same, person filter `?who=`, search, select rows →
+  Approve N / Mark N paid… (date, method, reference) / Undo approval / Undo
+  payment, totals row; deals open in the deal panel). **Statements** (one
+  person, any period by COE via PeriodBar: earned / paid / still owed /
+  coming due, the lines, Print statement — a clean page in a new window —
+  and CSV). **Overview** (any period by COE: net revenue (net assignment),
+  commissions, net profit, paid out, still owed — by month with a total —
+  and a forecast of open assigned deals with a price by COE month).
+- Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)
 
