@@ -341,7 +341,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   with no payer, deals missing info. **No scorecard** (Luke: private to the
   dashboard). Each posts once — D1 settings `discord_sent` {key: time},
   kept 21 days; the first run only records what's already true. No
-  @mentions yet (role mentions need Discord role ids).
+  @mentions yet (role mentions need Discord role ids). **Test**: Settings →
+  People → "Send a test alert" (owners) leaves settings `discord_test`; the
+  next run posts a test message plus a sample of each alert (marked TEST)
+  to the main channel, clears it and records `discord_test_result`
+  (delivered / refused), shown next to the button.
 - **⌘K** (`CommandPalette.jsx`): pages, reps (→ their scorecard page, owner /
   manager) and deals by address (→ Pipeline).
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the

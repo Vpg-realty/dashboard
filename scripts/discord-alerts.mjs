@@ -18,6 +18,10 @@
 //     weekdays 7:30am–noon Arizona: closings in the next 3 days, EMD pending
 //     with no payer, deals missing info. Not sent without that secret.
 //   - No scorecard: it stays private on the dashboard.
+// Test (Luke, Oct 15: "can we test it?"): an owner's "Send a test alert"
+// (Settings → People) leaves settings 'discord_test'; the next run posts a
+// test message plus a sample of each alert (marked TEST) to the main
+// channel, then clears it. Real alerts are untouched.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +45,16 @@ const money = (n) => (typeof n === 'number' && n > 0 ? `$${Math.round(n).toLocal
 const field = (name, value) => ({ name, value: String(value || '—'), inline: true });
 
 // → [{ key, to: 'main' | 'tc', embed }]
+// The test post: one message with a sample of each alert, marked TEST.
+export function testEmbeds(by) {
+  return [
+    { title: '✅ Test from the VPG Dashboard', description: `${by ? `Sent by ${by} from Settings. ` : ''}If you can read this, alerts reach this channel. Below: what each alert looks like (made-up deals).`, color: COLOR.tc },
+    { title: '🏆 New contract · TEST Rep', description: '123 Demo St · AZ', color: COLOR.contract, fields: [field('IP end', 'Oct 21'), field('COE', 'Oct 28'), field('Rep', 'TEST Rep')] },
+    { title: '🎉 Closed · TEST Rep · $12,000', description: '456 Sample Ave · AL', color: COLOR.closed, fields: [field('Rep', 'TEST Rep'), field('COE', 'Oct 15')] },
+    { title: '⚠️ IP ends tomorrow — no buyer yet', description: '789 Example Rd · GA\nFind a buyer or cancel before the inspection period ends.', color: COLOR.ipSoon, fields: [field('IP end', 'Oct 16'), field('Acq.', 'TEST Rep')] },
+  ];
+}
+
 export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now() }) {
   const out = [];
   const today = azDate(now);
@@ -140,6 +154,14 @@ async function main() {
   for (const [k, t] of Object.entries(sent)) if (now - t > KEEP_MS) delete sent[k];
   const isHook = (h) => /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(h || '');
   if (!isHook(hooks.tc)) console.log('[discord] no DISCORD_TC_WEBHOOK_URL secret — the TC list is not sent');
+  const test = (await query("SELECT value FROM settings WHERE key = 'discord_test'"))[0];
+  if (test) {
+    const by = (() => { try { return JSON.parse(test.value)?.by; } catch { return null; } })();
+    const r = await fetch(hooks.main, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'VPG Dashboard', embeds: testEmbeds(by), allowed_mentions: { parse: [] } }) });
+    console.log(r.ok ? '[discord] test message posted' : `[discord] test message refused (${r.status}) — check the webhook`);
+    await query("DELETE FROM settings WHERE key = 'discord_test'");
+    await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('discord_test_result', ?, ?, 'Discord alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify({ ok: r.ok, status: r.status, at: new Date(now).toISOString() }), new Date(now).toISOString()]);
+  }
   const due = planAlerts({ pairs, deals, names, now }).filter((a) => !sent[a.key] && isHook(hooks[a.to]));
   let posted = 0;
   for (const a of due) {
