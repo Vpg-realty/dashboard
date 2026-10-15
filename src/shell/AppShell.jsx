@@ -142,17 +142,11 @@ export default function AppShell({ me }) {
         </button>
         <nav className="flex flex-col gap-0.5">{sections.filter((x) => !x.bottom).map(navItem)}</nav>
         <div className="flex-1" />
-        {/* Bottom of the sidebar (Luke, Oct 14): the team's screens — Team
-            Overview (the TV pages, for everyone) and TV Mode (the rotating
-            board, owners / managers) — then the owners' admin. */}
+        {/* Bottom of the sidebar (Luke, Oct 14): Team Overview (the TV pages,
+            for everyone; its TV Mode button sits in its tab bar — Luke,
+            Oct 15) — then the owners' admin. */}
         <nav className="flex flex-col gap-0.5 mb-2" aria-label="Team screens">
-          {!collapsed && <span className="px-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-tan-600">Team screens</span>}
           {sections.filter((x) => x.bottom === 'screens').map(navItem)}
-          {isManager && (
-            <a {...linkProps('/tv')} title="TV Mode" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
-              <Icon name="tv" className="text-tan-600/80" />{!collapsed && 'TV Mode'}
-            </a>
-          )}
         </nav>
         {(sections.some((x) => x.bottom === 'admin') || me.role === 'owner') && (
           <nav className="flex flex-col gap-0.5 mb-2 pt-2 border-t border-tan-200" aria-label="Admin">
@@ -209,6 +203,12 @@ export default function AppShell({ me }) {
                 </a>
               );
             })}
+            {section.id === 'board' && (
+              <a {...linkProps('/tv')} title="Full-screen rotating board, like the office TV"
+                className="ml-auto self-center shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-navy-700 text-white font-medium px-3 py-1.5 hover:bg-navy-800">
+                <Icon name="tv" size={14} />TV Mode
+              </a>
+            )}
           </div>
         )}
 

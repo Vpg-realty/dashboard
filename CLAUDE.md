@@ -167,9 +167,11 @@ Luke: "super easy to navigate", like a professional app (Linear / Stripe
 style, the second mockup). `src/App.jsx` only picks the experience:
 - **TV mode** (`src/shell/TvMode.jsx`, the old App.jsx): the office TV
   (role tv), anyone opening `/tv`, and anyone /api/me doesn't know get the
-  rotating full-screen board exactly as before, TV tabs only. Owners and
-  managers open it from "TV mode" in the sidebar; a "← Back to app" button
-  returns.
+  rotating full-screen board exactly as before, TV tabs only. Everyone in
+  the app opens it from the navy "TV Mode" button at the right of Team
+  Overview's tab bar (Luke, Oct 15: built into Team Overview, not its own
+  sidebar entry); a "← Back to app" button returns. The TV (info@) is
+  unchanged: Pipeline stays a clickable tab, never in the rotation.
 - **The app** (`src/shell/AppShell.jsx`) for everyone else: a sidebar of
   sections (collapsible, `vpg.sidebarCollapsed`), the section's tabs along
   the top, a breadcrumb, "Updated N min ago", Refresh (owner / manager), a
@@ -200,9 +202,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   and Finance (owner) here when they're built — only working sections are
   shown. Tabs with `scroll: true` are ordinary scrolling pages. Hiding is navigation only; the server still guards
   the data (functions/_middleware.js). Sidebar order (Luke, Oct 14): the
-  working sections on top; at the bottom a "Team screens" group — Team
-  Overview (`bottom: 'screens'`, everyone) and TV Mode (owners / managers)
-  — then, under a line, Settings (`bottom: 'admin'`) and Sub-Accounts
+  working sections on top; at the bottom Team Overview (`bottom:
+  'screens'`, everyone; TV Mode is a button inside it) — then, under a line, Settings (`bottom: 'admin'`) and Sub-Accounts
   (owners). The phone bar shows the first four sections.
 - **Home** (`HomeView.jsx`; Needs attention rows show the stage as a chip
   in the board Pipeline's column colours — Under contract blue, Dispo amber,
