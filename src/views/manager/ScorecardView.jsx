@@ -249,7 +249,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
           <span className="text-[12px] font-semibold whitespace-nowrap">{tone.label}{prev != null ? ` ${signed(s.score - prev)}` : ''}</span>
         </span>
         <Num v={n.contractsW} t={T.contractsPerWeek} frac={frac}>
-          {cancels && <span className="text-[12.5px] font-semibold text-rose-700 leading-none whitespace-nowrap">Cancels {n.cancelsW || 0} wk{n.cancelsM != null ? ` · ${n.cancelsM} mo` : ''}</span>}
+          {cancels && <span className="text-[12.5px] font-semibold text-rose-700 leading-tight">Cancels {n.cancelsW || 0} wk{n.cancelsM != null ? ` · ${n.cancelsM} mo` : ''}</span>}
         </Num>
         <Num v={n.offersW} t={T.offersPerWeek} frac={frac} />
         <Num v={n.oppsW} t={T.oppsOpenedPerWeek} frac={frac} />
@@ -294,6 +294,23 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
   );
 }
 
+// The column titles, repeated at the top of every group's card.
+function TableHead() {
+  return (
+    <div className="grid gap-x-4 items-end px-6 py-3 bg-[#eef2f7] border-y border-[#d5deea]" style={GRID}>
+      <span className={HEAD}>Rep</span>
+      <span className={HEAD}>Score</span>
+      <span className={HEAD}>Contracts</span>
+      <span className={HEAD}>Offers</span>
+      <span className={HEAD}>Opps</span>
+      <span className={HEAD}>Projected $</span>
+      <span className={HEAD}>CRM · Speed</span>
+      <span className={HEAD}>Next move</span>
+      <span />
+    </div>
+  );
+}
+
 // Totals row under a pod (Luke, Oct 11: "clearly define totals for the
 // pod"): sums vs the pod's targets (per-rep target × reps), the pod's
 // average score, CRM average · pooled speed.
@@ -317,7 +334,7 @@ function PodTotal({ g, frac }) {
         <span className="text-[20px] font-bold tabular-nums">{score}</span><span className="text-[12px] font-semibold">avg</span>
       </span>
       <Num v={sum('contractsW')} t={T.contractsPerWeek * n} frac={frac}>
-        {cw + sum('cancelsM') > 0 && <span className="text-[12.5px] font-semibold text-rose-700 leading-none whitespace-nowrap">{`Cancels ${cw} wk · ${sum('cancelsM')} mo`}</span>}
+        {cw + sum('cancelsM') > 0 && <span className="text-[12.5px] font-semibold text-rose-700 leading-tight">{`Cancels ${cw} wk · ${sum('cancelsM')} mo`}</span>}
       </Num>
       <Num v={sum('offersW')} t={T.offersPerWeek * n} frac={frac} />
       <Num v={sum('oppsW')} t={T.oppsOpenedPerWeek * n} frac={frac} />
@@ -610,38 +627,31 @@ export default function ScorecardView({ onPickRep }) {
           </div>
         ) : null}
 
-        {/* 3 · The scorecard */}
-        <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden">
-          <div className="grid gap-x-4 items-end px-6 py-3.5 bg-[#eef2f7] border-b border-[#d5deea]" style={GRID}>
-            <span className={HEAD}>Rep</span>
-            <span className={HEAD}>Score</span>
-            <span className={HEAD}>Contracts</span>
-            <span className={HEAD}>Offers</span>
-            <span className={HEAD}>Opps</span>
-            <span className={HEAD}>Projected $</span>
-            <span className={HEAD}>CRM · Speed</span>
-            <span className={HEAD}>Next move</span>
-            <span />
-          </div>
-          {!sc.loaded && <div className="text-[14px] text-zinc-400 px-6 py-3">Loading scorecards…</div>}
-          {byScore
-            ? ranked.map((r, i) => <Row key={r.id} rank={i + 1} {...rowProps(r)} />)
-            : shownGroups.map((g) => {
-              const c = POD_COLORS[g.podId] || NEUTRAL;
-              return (
-                <div key={g.title}>
-                  <div className={`flex items-center gap-3 px-6 py-2.5 border-b border-tan-200 ${c.band}`} style={{ boxShadow: `inset 5px 0 0 ${c.line}` }}>
-                    <span className={`text-[16px] font-bold ${c.text}`}>{g.podName}</span>
-                    {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
-                    <span className="text-[13px] text-zinc-500">· {g.rows.length} rep{g.rows.length === 1 ? '' : 's'}</span>
-                  </div>
-                  {g.rows.map((r) => <Row key={r.id} {...rowProps(r)} />)}
-                  {g.total && <PodTotal g={g} frac={frac} />}
-                </div>
-              );
-            })}
-          {sc.loaded && !shownIds.length && <div className="text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
-        </section>
+        {/* 3 · The scorecard — by pod, each group is its own card (Luke,
+            Oct 15: "this all blurs together … their own boxes … per pod,
+            pod leads, and no pod"); by score, one ranked card. */}
+        {!sc.loaded && <div className="text-[14px] text-zinc-400 px-1">Loading scorecards…</div>}
+        {byScore ? (ranked.length > 0 && (
+          <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm">
+            <TableHead />
+            {ranked.map((r, i) => <Row key={r.id} rank={i + 1} {...rowProps(r)} />)}
+          </section>
+        )) : shownGroups.map((g) => {
+          const c = POD_COLORS[g.podId] || NEUTRAL;
+          return (
+            <section key={g.title} className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm" style={{ boxShadow: `inset 0 4px 0 ${c.line}` }}>
+              <div className={`flex items-baseline gap-3 px-6 pt-4 pb-3 ${c.band}`}>
+                <h3 className={`text-[19px] font-bold ${c.text}`}>{g.podName}</h3>
+                {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
+                <span className="text-[13px] text-zinc-500">· {g.rows.length} rep{g.rows.length === 1 ? '' : 's'}</span>
+              </div>
+              <TableHead />
+              {g.rows.map((r) => <Row key={r.id} {...rowProps(r)} />)}
+              {g.total && <PodTotal g={g} frac={frac} />}
+            </section>
+          );
+        })}
+        {sc.loaded && !shownIds.length && <div className="rounded-2xl bg-white border border-tan-200 text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
 
         {/* 5 · Where they leak */}
         {shownIds.length > 0 && <LeakCard ids={shownIds} week={week} isLive={isLive} onPickRep={onPickRep} />}

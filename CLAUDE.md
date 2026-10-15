@@ -1286,8 +1286,9 @@ Under `src/views/`:
     vs 75%), and **Next move** (≤ 4 words: the part with the most points left,
     `mostPointsLeft` in metrics.js — the same rule as My scorecard's "one
     thing"; CRM names the lowest item, "Keep it up" when nothing's left).
-    By pod: a tinted band per group (Pod A violet, Pod B teal, leads / no pod
-    tan) and, for real pods, a totals row (sums vs per-rep target × reps,
+    By pod: each group is its own card (Luke, Oct 15: "this all blurs
+    together") with a coloured title band (Pod A violet, Pod B teal, leads /
+    no pod tan) and its own column titles, and, for real pods, a totals row (sums vs per-rep target × reps,
     pod score = average, CRM avg · pooled speed); By score: one ranked list.
     Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
     pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
