@@ -36,7 +36,34 @@ function TeamChat() {
         {saved && <a href={saved} target="_blank" rel="noopener noreferrer" className="text-[13px] text-navy-700 hover:underline">Open ↗</a>}
       </div>
       {msg && <div className={`mt-2 text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</div>}
+      <DiscordTest />
     </Section>
+  );
+}
+
+// "Send a test alert" (Luke, Oct 15): the next refresh (within ~15 min)
+// posts a test message and a sample of each alert to the alerts channel.
+function DiscordTest() {
+  const me = useMe();
+  const [state, setState] = useState(null);
+  const [last, setLast] = useState(null);
+  useEffect(() => {
+    readSetting('discord-test').then((r) => setState(r.value ? 'queued' : null)).catch(() => {});
+    readSetting('discord-test-result').then((r) => setLast(r.value)).catch(() => {});
+  }, []);
+  const send = async () => {
+    try { await writeSetting('discord-test', { by: me?.name || null, at: new Date().toISOString() }); setState('queued'); } catch (e) { setState(e.message); }
+  };
+  return (
+    <div className="mt-5 pt-4 border-t border-tan-100">
+      <div className="font-semibold text-navy-800">Discord alerts</div>
+      <p className="text-zinc-500 text-[13px] mt-0.5 mb-2 max-w-3xl">Wins and IP-ending alerts post to the channel behind the GitHub secret DISCORD_WEBHOOK_URL. Send a test to check it: it goes out with the next refresh (within about 15 minutes) — a test message plus a sample of each alert, marked TEST.</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={send} disabled={state === 'queued'} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-40">{state === 'queued' ? 'Test queued — goes out with the next refresh' : 'Send a test alert'}</button>
+        {last && <span className={`text-[13px] ${last.ok ? 'text-emerald-700' : 'text-red-700'}`}>Last test {new Date(last.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} AZ: {last.ok ? 'delivered ✓' : `refused by Discord (${last.status}) — check the webhook`}</span>}
+        {state && state !== 'queued' && <span className="text-[13px] text-red-700">{state}</span>}
+      </div>
+    </div>
   );
 }
 

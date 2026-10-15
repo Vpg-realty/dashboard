@@ -5,10 +5,10 @@
 // change); the stored value is converted to per-rule timelines on the first
 // one (src/deals/rules.js), stamped with who / when, checked and logged.
 import { json } from '../../../edge/auth.js';
-import { owner, log, checkRules, checkLists, checkTeamChat } from '../../../edge/settings.js';
+import { owner, log, checkRules, checkLists, checkTeamChat, checkDiscordTest } from '../../../edge/settings.js';
 import { applyChange, toTimelines } from '../../../src/deals/rules.js';
 
-const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat] };
+const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'] };
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);

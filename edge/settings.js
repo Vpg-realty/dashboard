@@ -90,6 +90,12 @@ export function checkTeamChat(v) {
   return null;
 }
 
+// "Send a test alert" (Settings → People): { by } — the next deploy posts a
+// test to Discord and clears it (scripts/discord-alerts.mjs).
+export function checkDiscordTest(v) {
+  return v && typeof v === 'object' ? null : 'nothing to send';
+}
+
 export function checkLists(l) {
   if (!l || typeof l !== 'object') return 'lists missing';
   for (const [k, v] of Object.entries(l)) {
