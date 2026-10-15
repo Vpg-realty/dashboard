@@ -12,7 +12,7 @@ import { HealthList } from './AllZips.jsx';
 
 const FIELDS = {
   perRequest: { label: 'Zips per request', unit: 'zips' },
-  perWeek: { label: 'Requests per rep per week', unit: 'requests' },
+  perWeek: { label: 'Requests per rep per state per week', unit: 'requests' },
   holdDays: { label: 'Days a zip is held', unit: 'days' },
   tier3At: { label: 'Tier 3 joins when tier 1 + 2 used reaches', unit: '%', pct: true },
   tier3Mix: { label: 'Tier 3 zips per request after that', unit: 'zips' },

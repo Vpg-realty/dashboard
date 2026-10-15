@@ -1,6 +1,6 @@
 // Territory › Get zips (reps, and managers for their own states; Luke,
 // Oct 14: "a simple way for reps to search or ask for zips"): request zips
-// (automatic — 10 at a time, 3 times a week, Active states only), search any
+// (automatic — 10 at a time, 3 times a week in each state, Active states only), search any
 // zip / county / city in their states, see what they hold and for how long,
 // copy them, release one early, flag bad data, and their pull history.
 // Owners get the same page (Luke, Oct 14: "Jack and I still need to request
@@ -116,8 +116,10 @@ export default function MyZips() {
   if (z.status !== 'ready') return <div className="py-16 text-center text-zinc-400">Loading your zips…</div>;
   if (!me) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet — ask Luke or Jack.</div>;
   const { rules } = z.data;
-  const left = Math.max(0, rules.perWeek - me.weekUsed);
   const state = pick || me.states.find((x) => (me.markets?.[x] || 'Active') === 'Active') || me.states[0] || '';
+  // The limit is per state (Luke, Oct 15: "3 per market").
+  const usedIn = (s) => me.weekByState?.[s] || 0;
+  const left = Math.max(0, rules.perWeek - usedIn(state));
   const stateMarket = me.markets?.[state] || 'Active';
 
   async function request() {
@@ -140,15 +142,15 @@ export default function MyZips() {
         <div className="text-zinc-500 text-[13px]">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Ask for zips to pull agent data from. Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</div>
       </div>
 
-      <Panel title="Request zips" right={<span className={`text-[12.5px] font-medium ${left ? 'text-navy-700' : 'text-red-700'}`}>{left} of {rules.perWeek} requests left this week · resets Monday</span>}>
+      <Panel title="Request zips" right={<span className={`text-[12.5px] font-medium ${left ? 'text-navy-700' : 'text-red-700'}`}>{left} of {rules.perWeek} requests left in {state || 'each state'} this week · resets Monday</span>}>
         <div className="p-5 flex flex-col gap-3">
           {me.states.length ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] text-zinc-600">State</span>
               {me.states.length > MANY ? (
-                <select value={state} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px] font-medium">{me.states.map((s) => <option key={s}>{s}</option>)}</select>
+                <select value={state} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px] font-medium">{me.states.map((s) => <option key={s} value={s}>{s} · {Math.max(0, rules.perWeek - usedIn(s))} left</option>)}</select>
               ) : <span className="inline-flex flex-wrap rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
-                {me.states.map((s) => { const mk = me.markets?.[s] || 'Active'; return <button key={s} onClick={() => setPick(s)} title={STATUS_LOOK[mk]?.hint} className={`px-3 h-8 rounded-md ${state === s ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{s}{mk !== 'Active' ? <span className={`ml-1 text-[10.5px] ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>· {mk.toLowerCase()}</span> : null}</button>; })}
+                {me.states.map((s) => { const mk = me.markets?.[s] || 'Active'; return <button key={s} onClick={() => setPick(s)} title={STATUS_LOOK[mk]?.hint} className={`px-3 h-8 rounded-md ${state === s ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{s}{mk !== 'Active' ? <span className={`ml-1 text-[10.5px] ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>· {mk.toLowerCase()}</span> : <span className={`ml-1 text-[10.5px] tabular-nums ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>{Math.max(0, rules.perWeek - usedIn(s))} left</span>}</button>; })}
               </span>}
               <button onClick={request} disabled={busy || !left || !state || stateMarket !== 'Active'} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-40">{busy ? 'Picking…' : `Get ${rules.perRequest} zips in ${state}`}</button>
             </div>

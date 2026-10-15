@@ -1,7 +1,8 @@
 // Zip center (Luke, Oct 14): one store of every zip from the territory sheet,
 // who has which zip, and automatic requests that never hand out the same zip
 // twice. The rules (Luke):
-//   - a request gives 10 zips; a rep can ask 3 times a week (Mon–Sun, Arizona);
+//   - a request gives 10 zips; a rep can ask 3 times a week in each state
+//     they work (Mon–Sun, Arizona; Luke, Oct 15: "3 per market");
 //   - a zip is held for 30 days, then goes back (but stays "used" this round);
 //   - tier 1 + 2 zips go first; once 80% of a state's tier 1 + 2 zips have
 //     been used this round, tier 3 is mixed in slowly with what's left;
@@ -14,7 +15,7 @@ import roster from '../subaccounts.json' with { type: 'json' };
 
 export const DEFAULT_RULES = {
   perRequest: 10, // zips per request
-  perWeek: 3, // automatic requests per rep per week (Mon–Sun, Arizona)
+  perWeek: 3, // automatic requests per rep per state per week (Mon–Sun, Arizona)
   holdDays: 30, // a zip stays with the rep this long
   tier3At: 0.8, // share of tier 1 + 2 used this round before tier 3 joins
   tier3Mix: 3, // tier 3 zips per request once it joins (the rest tier 1 + 2)
@@ -58,7 +59,7 @@ export function ruleText(r = DEFAULT_RULES) {
   const pct = Math.round(r.tier3At * 100);
   return [
     { group: 'Requests', key: 'perRequest', text: `A request gives ${r.perRequest} zips.` },
-    { group: 'Requests', key: 'perWeek', text: `A rep can request ${r.perWeek} times a week (Monday–Sunday, Arizona time). Zips an owner assigns don't count.` },
+    { group: 'Requests', key: 'perWeek', text: `A rep can request ${r.perWeek} times a week in each of their states (Monday–Sunday, Arizona time). Zips an owner assigns don't count.` },
     { group: 'Requests', text: 'Requests are automatic: no approval, the best available zips in that state are picked.' },
     { group: 'Requests', text: 'A rep can only request zips in states they have a GHL sub-account in, and only while the state is Active on the territory sheet. Exploring states: owners assign zips by hand. Paused / Inactive: no zips go out.' },
     { group: 'Holding', key: 'holdDays', text: `A zip is held for ${r.holdDays} days, then released automatically. A rep can release one early.` },
@@ -199,9 +200,18 @@ async function give(db, { state, repId, zips, round, rules, via, user, asked, no
   return { id, at: now, until };
 }
 
-export async function weekRequests(db, repId, now = new Date()) {
-  const r = await db.prepare("SELECT COUNT(*) AS n FROM zip_requests WHERE rep_id = ? AND via = 'request' AND given > 0 AND at >= ?").bind(repId, weekStart(now)).first();
+// Requests this week — the limit is per state (Luke, Oct 15: "3 per
+// market"): with `state`, that state's count; without, every state's.
+export async function weekRequests(db, repId, now = new Date(), state = null) {
+  const r = state
+    ? await db.prepare("SELECT COUNT(*) AS n FROM zip_requests WHERE rep_id = ? AND state = ? AND via = 'request' AND given > 0 AND at >= ?").bind(repId, state, weekStart(now)).first()
+    : await db.prepare("SELECT COUNT(*) AS n FROM zip_requests WHERE rep_id = ? AND via = 'request' AND given > 0 AND at >= ?").bind(repId, weekStart(now)).first();
   return r?.n || 0;
+}
+// { state: requests this week } for one rep.
+export async function weekByState(db, repId, now = new Date()) {
+  const r = await db.prepare("SELECT state, COUNT(*) AS n FROM zip_requests WHERE rep_id = ? AND via = 'request' AND given > 0 AND at >= ? GROUP BY state").bind(repId, weekStart(now)).all();
+  return Object.fromEntries(r.results.map((x) => [x.state, x.n]));
 }
 
 // A rep's (or an owner's) automatic request. → { status, body }. Owners
@@ -216,8 +226,8 @@ export async function request(db, user, state, { now = new Date() } = {}) {
   const market = await marketOf(db, state);
   if (market !== 'Active') return { status: 403, body: { error: `${state} is ${market.toLowerCase()} right now — zips there come from an owner` } };
   const rules = await loadRules(db);
-  const used = await weekRequests(db, repId, now);
-  if (used >= rules.perWeek) return { status: 429, body: { error: `you've used all ${rules.perWeek} requests this week — the count resets Monday` } };
+  const used = await weekRequests(db, repId, now, state);
+  if (used >= rules.perWeek) return { status: 429, body: { error: `you've used all ${rules.perWeek} requests in ${state} this week — the count resets Monday` } };
   const round = roundOf(await loadRounds(db), state);
   for (let attempt = 0; attempt < 2; attempt++) {
     const zips = await stateZips(db, state);

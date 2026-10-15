@@ -179,10 +179,10 @@ export async function repContext(db, user, now = new Date()) {
   const rules = await Z.loadRules(db);
   const states = Z.repStates(user.rep_id);
   const holds = (await db.prepare('SELECT a.zip, a.state, a.assigned_at, a.expires_at, z.county, z.tier, z.flag FROM zip_assignments a JOIN zips z ON z.zip = a.zip WHERE a.rep_id = ? AND a.released_at IS NULL ORDER BY a.state, z.county, a.zip').bind(user.rep_id).all()).results;
-  const used = await Z.weekRequests(db, user.rep_id, now);
+  const used = await Z.weekByState(db, user.rep_id, now);
   return [
     `REP: ${user.name}. Their states (GHL sub-accounts): ${states.join(', ') || 'none'}.`,
-    `REQUESTS THIS WEEK: ${used} of ${rules.perWeek} used (week runs Monday–Sunday, Arizona time).`,
+    `REQUESTS THIS WEEK (limit ${rules.perWeek} per state; week runs Monday–Sunday, Arizona time): ${states.map((s) => `${s} ${used[s] || 0} of ${rules.perWeek}`).join(', ') || 'none'}.`,
     `RULES: ${Z.ruleText(rules).filter((r) => ['Requests', 'Holding', 'Which zips'].includes(r.group)).map((r) => r.text).join(' ')}`,
     `THEIR ZIPS (${holds.length}) — zip | state | county | tier | since | expires | days left`,
     ...(holds.length ? holds.map((h) => [h.zip, h.state, h.county, h.tier, d10(h.assigned_at), d10(h.expires_at), left(h.expires_at, now.getTime())].join(' | ') + (h.flag ? ` | flagged: ${h.flag}` : '')) : ['none']),

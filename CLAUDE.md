@@ -973,7 +973,8 @@ automatic requests that never hand out a zip twice.
   numbers) and `zip_rounds` ({state: round}).
 - **Rules** (`edge/zips.js`; owners change the numbers on Rules & data
   health, `ruleText` lists every rule for the page): 10 zips per request,
-  3 automatic requests per rep per week (Mon–Sun Arizona; owner
+  3 automatic requests per rep per state per week (Luke, Oct 15: "3 per
+  market"; `weekRequests(…, state)` / `weekByState`; Mon–Sun Arizona; owner
   assignments don't count), held 30 days then released (lazily, on every
   API call). A zip handed out is "used" for its state's round until owners
   approve a new round or reuse it. Pick (`pickZips`): active, unheld,
@@ -1010,7 +1011,8 @@ automatic requests that never hand out a zip twice.
   dropdown (more than 6 states) and search one state at a time.
 - **Pages** (all under Territory since Oct 14): **Get zips** (team, manager,
   owner; `MyZips.jsx`): state picker (non-Active states marked and blocked), "Get
-  10 zips", requests left this week, **Search zips** across all their states
+  10 zips", requests left this week in that state (each state button shows
+  its own "N left"), **Search zips** across all their states
   (zip / county / city; chips coloured available / yours / another rep / used
   / paused; copy buttons), held zips with days left and copy per state, Flag
   bad data, Release, and **Your pulls** (their request / assignment
