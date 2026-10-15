@@ -7,6 +7,11 @@
 // outline it and show its summary in a fixed bar under the map (Luke, Oct 14:
 // a box following the cursor made it hard to see where the cursor was);
 // click to open the state.
+// The bar keeps ONE fixed height whatever it shows (Luke, Oct 14: "glitchy
+// when scrolling over NC"): it used to be 52px for a state without reps and
+// 65px for one with them, so crossing NC / VA / TN / KY pushed the map 12px
+// up and down under the cursor, which landed on the neighbour, which resized
+// the bar again — a flicker loop. Overlays and labels never take the mouse.
 import { useEffect, useState } from 'react';
 import { REP_SCALE, LEGAL, OFF, fillFor, darkFill, STATUS_LOOK, SEASON_LOOK } from './mapColors.js';
 import { statusOf, seasonOf } from './status.js';
@@ -34,9 +39,9 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   const hoverShape = hover && geo.states.find((s) => s.id === hover.id);
   const selectedShape = selected && geo.states.find((s) => s.id === selected);
   return (
-    <div onMouseLeave={() => setHover(null)}>
-      <div className="mb-2 min-h-[58px] rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
-        {!hover ? <div className="h-[44px] flex items-center text-zinc-500">Point at a state to see who works it · click it for its details and year-to-date numbers</div> : (
+    <div className="@container" onMouseLeave={() => setHover(null)}>
+      <div className="mb-2 h-[116px] @[540px]:h-[76px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
+        {!hover ? <div className="h-full flex items-center text-zinc-500">Point at a state to see who works it · click it for its details and year-to-date numbers</div> : (
           <>
             <div className="flex items-center gap-2 truncate">
               <span className="font-semibold text-navy-800 text-[14px]">{hover.name}</span>

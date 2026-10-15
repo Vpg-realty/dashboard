@@ -3,6 +3,9 @@
 // (automatic — 10 at a time, 3 times a week, Active states only), search any
 // zip / county / city in their states, see what they hold and for how long,
 // copy them, release one early, flag bad data, and their pull history.
+// Owners get the same page (Luke, Oct 14: "Jack and I still need to request
+// zips"): they hold zips as themselves (edge/zips.js holderOf), in every
+// Active state with zips on file, with the same weekly limit.
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
 import { useZips, useManyStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } from './store.js';
@@ -11,11 +14,16 @@ import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
-function ZipSearch({ states, repId }) {
-  const [only, setOnly] = useState('');
+// Many states (an owner's list): search one state at a time, so the page
+// doesn't load every zip in the country.
+const MANY = 6;
+function ZipSearch({ states, repId, owner }) {
+  const many = states.length > MANY;
+  const [pick, setOnly] = useState('');
+  const only = many ? pick || states[0] : pick;
   const [q, setQ] = useState('');
-  const all = useManyStateZips(states);
-  const cs = new Map(useManyCounties(states));
+  const all = useManyStateZips(many ? [only] : states);
+  const cs = new Map(useManyCounties(many ? [only] : states));
   const w = q.trim().toLowerCase();
   const loading = all.some(([, z]) => z.status === 'loading');
   const results = (() => {
@@ -38,10 +46,10 @@ function ZipSearch({ states, repId }) {
   const kind = (z, round) => (z.status !== 'active' ? 'off' : z.held_by === repId ? 'mine' : z.held_by ? 'taken' : z.flag ? 'off' : z.last_round >= round ? 'used' : 'open');
   const LOOK = { open: 'bg-white ring-emerald-300 text-emerald-900', mine: 'bg-navy-700 ring-navy-700 text-white', taken: 'bg-zinc-100 ring-zinc-200 text-zinc-400', used: 'bg-zinc-50 ring-zinc-200 text-zinc-400', off: 'bg-white ring-zinc-100 text-zinc-300 line-through' };
   return (
-    <Panel title="Search zips" sub="a zip, county or city in your states">
+    <Panel title="Search zips" sub={many ? 'a zip, county or city in one state' : 'a zip, county or city in your states'}>
       <div className="p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={only} onChange={(e) => setOnly(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]"><option value="">All my states</option>{states.map((s) => <option key={s}>{s}</option>)}</select>
+          <select value={only} onChange={(e) => setOnly(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]">{!many && <option value="">All my states</option>}{states.map((s) => <option key={s}>{s}</option>)}</select>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 flex-1 min-w-[220px] rounded-lg border border-zinc-200 px-3 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
         </div>
         <div className="flex flex-wrap gap-3 text-[12px] text-zinc-600">
@@ -64,7 +72,7 @@ function ZipSearch({ states, repId }) {
             </div>
           );
         })}
-        <div className="text-[12px] text-zinc-500">Want a specific zip that's available? Ask Luke or Jack to assign it — “Get zips” always picks the best available ones for you.</div>
+        <div className="text-[12px] text-zinc-500">{owner ? 'Want specific zips? Select them under Zip Management and assign them to yourself — “Get zips” always picks the best available ones.' : 'Want a specific zip that\'s available? Ask Luke or Jack to assign it — “Get zips” always picks the best available ones for you.'}</div>
       </div>
     </Panel>
   );
@@ -124,7 +132,7 @@ export default function MyZips() {
     <div className="max-w-[1200px] mx-auto flex flex-col gap-5">
       <div>
         <h1 className="text-lg font-semibold tracking-tight text-navy-700">Get zips</h1>
-        <div className="text-zinc-500 text-[13px]">Ask for zips to pull agent data from. Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</div>
+        <div className="text-zinc-500 text-[13px]">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Ask for zips to pull agent data from. Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</div>
       </div>
 
       <Panel title="Request zips" right={<span className={`text-[12.5px] font-medium ${left ? 'text-navy-700' : 'text-red-700'}`}>{left} of {rules.perWeek} requests left this week · resets Monday</span>}>
@@ -132,12 +140,14 @@ export default function MyZips() {
           {me.states.length ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] text-zinc-600">State</span>
-              <span className="inline-flex flex-wrap rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
+              {me.states.length > MANY ? (
+                <select value={state} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px] font-medium">{me.states.map((s) => <option key={s}>{s}</option>)}</select>
+              ) : <span className="inline-flex flex-wrap rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
                 {me.states.map((s) => { const mk = me.markets?.[s] || 'Active'; return <button key={s} onClick={() => setPick(s)} title={STATUS_LOOK[mk]?.hint} className={`px-3 h-8 rounded-md ${state === s ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{s}{mk !== 'Active' ? <span className={`ml-1 text-[10.5px] ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>· {mk.toLowerCase()}</span> : null}</button>; })}
-              </span>
+              </span>}
               <button onClick={request} disabled={busy || !left || !state || stateMarket !== 'Active'} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-40">{busy ? 'Picking…' : `Get ${rules.perRequest} zips in ${state}`}</button>
             </div>
-          ) : <div className="text-zinc-500">You don't have a sub-account in any state yet.</div>}
+          ) : <div className="text-zinc-500">{me.owner ? 'No Active state has zips on file yet.' : 'You don\'t have a sub-account in any state yet.'}</div>}
           {msg && (
             <div className={`rounded-lg px-3.5 py-2.5 text-[13.5px] ${msg.ok ? 'bg-emerald-50 text-emerald-900 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
               {msg.text}{msg.zips?.length ? <div className="mt-1 font-mono text-[13px]">{msg.zips.join(', ')}</div> : null}
@@ -148,7 +158,7 @@ export default function MyZips() {
         </div>
       </Panel>
 
-      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} />}
+      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} owner={me.owner} />}
 
       <Panel title="Your zips" sub={`${all.length} held`} right={<CopyButton zips={all} label="Copy all my zips" />}>
         {!all.length && <div className="px-5 py-8 text-center text-zinc-500">No zips yet — request some above.</div>}

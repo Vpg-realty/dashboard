@@ -5,7 +5,8 @@
 // GET  /api/zips?state=Ohio  → { state, round, zips } (owners / managers / TC; a rep
 //                              only for a state they work)
 // POST /api/zips { action, … }:
-//   request  { state }               a rep (or manager) with a rep_id — automatic
+//   request  { state }               a rep (or manager) with a rep_id, or an owner
+//                                    (as themselves: owner:<email name>) — automatic
 //   release  { zips, reuse? }        own zips; owners any (reuse = owners)
 //   flag     { zip, reason, note? }  bad data, a zip in your states (owners any)
 //   assign   { repId, zips }         owners
@@ -23,15 +24,17 @@ import roster from '../../../subaccounts.json' with { type: 'json' };
 const SEES_ALL = ['owner', 'manager', 'tc'];
 const IN_APP = [...SEES_ALL, 'team'];
 
+// The signed-in person's own zips: a rep's, or an owner's (Z.holderOf).
 async function mine(db, user, now) {
-  if (!user.rep_id) return null;
+  const holder = Z.holderOf(user);
+  if (!holder) return null;
   const holds = (await db.prepare(`SELECT a.zip, a.state, a.assigned_at, a.expires_at, a.via, a.by_name, z.county, z.tier, z.flag
-    FROM zip_assignments a JOIN zips z ON z.zip = a.zip WHERE a.rep_id = ? AND a.released_at IS NULL ORDER BY a.state, z.county, z.tier, a.zip`).bind(user.rep_id).all()).results;
-  const states = Z.repStates(user.rep_id);
+    FROM zip_assignments a JOIN zips z ON z.zip = a.zip WHERE a.rep_id = ? AND a.released_at IS NULL ORDER BY a.state, z.county, z.tier, a.zip`).bind(holder).all()).results;
+  const states = await Z.holderStates(db, holder);
   const markets = Object.fromEntries(await Promise.all(states.map(async (st) => [st, await Z.marketOf(db, st)])));
   // Their pulls (Luke, Oct 14: "track who pulled it, when it was pulled").
-  const history = (await db.prepare('SELECT id, state, at, asked, given, via, by_name, note FROM zip_requests WHERE rep_id = ? ORDER BY at DESC LIMIT 25').bind(user.rep_id).all()).results;
-  return { repId: user.rep_id, name: Z.repName(user.rep_id), states, markets, holds, history, weekUsed: await Z.weekRequests(db, user.rep_id, now), weekStart: Z.weekStart(now) };
+  const history = (await db.prepare('SELECT id, state, at, asked, given, via, by_name, note FROM zip_requests WHERE rep_id = ? ORDER BY at DESC LIMIT 25').bind(holder).all()).results;
+  return { repId: holder, name: Z.repName(holder), owner: Z.isOwnerHolder(holder), states, markets, holds, history, weekUsed: await Z.weekRequests(db, holder, now), weekStart: Z.weekStart(now) };
 }
 
 export async function onRequestGet(context) {
@@ -41,6 +44,7 @@ export async function onRequestGet(context) {
   const db = context.env.DB;
   const now = new Date();
   await Z.expire(db, now.toISOString());
+  const owners = await Z.loadHolderNames(db);
   const rules = await Z.loadRules(db);
   const rounds = await Z.loadRounds(db);
   const state = new URL(context.request.url).searchParams.get('state');
@@ -61,6 +65,9 @@ export async function onRequestGet(context) {
   const sheetPulls = (await db.prepare("SELECT DISTINCT state, county, sheet_for, sheet_pulled FROM zips WHERE sheet_for IS NOT NULL AND sheet_for != 'N/A' AND sheet_pulled IS NOT NULL ORDER BY sheet_pulled DESC").all()).results;
   const reps = roster.reps.map((r) => ({ id: r.id, name: r.name, color: r.color, states: Z.repStates(r.id) }));
   const health = Z.health({ states, flagged, short, rules, sheetPulls, repStatesList: reps.map((r) => ({ repId: r.id, states: r.states })), now });
+  // Owners holding zips as themselves sit after the reps (navy, no states of
+  // their own), so every list names them and Assign can pick them.
+  for (const o of owners) reps.push({ ...o, color: '#1b385f', states: [], owner: true });
   return json({ ...base, states, holds, requests, flagged, health, reps });
 }
 
@@ -72,6 +79,7 @@ export async function onRequestPost(context) {
   try { b = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const db = context.env.DB;
   await Z.expire(db);
+  await Z.loadHolderNames(db);
   const owner = user.role === 'owner';
   const ownersOnly = () => json({ error: 'owners only' }, 403);
   let r;

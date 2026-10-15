@@ -53,6 +53,11 @@ export const SECTIONS = [
       { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['team', 'manager'] },
       { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
+      // Owners request zips too (Luke, Oct 14: "Jack and I still need to
+      // request zips"): the same page, listed after the map tabs so the
+      // section still opens on Who Works Where for them (the entry above is
+      // filtered out for owners, so /territory/zips finds this one).
+      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner'] },
       { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true },
       { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true },

@@ -192,7 +192,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   for team + manager; **Territory** for everyone (Oct 14: the one place for
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
-  manager), Who works where, Reps × states, Zip management (owner / manager
+  manager; owners too since Oct 14, listed after Reps × states so Territory
+  still opens on the map for them), Who works where, Reps × states, Zip management (owner / manager
   / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
   All deals, Summary) for owner + tc. A link a role can't open falls back
   to the section's first tab, then Home. Add Territory (tc, manager, owner)
@@ -746,7 +747,13 @@ the sheet read-only and the zip rules; `src/territory/`), replacing the
   coloured by number of reps / winter risk / legal status, or one rep's
   states (`?rep=`); hover outlines the state in tan and shows its summary
   in a fixed bar above the map with every value labelled (Reps, Legal,
-  Season risk, Dispo rep, Opps this month, New conversations last 7 days),
+  Season risk, Dispo rep, Opps this month, New conversations last 7 days) —
+  the bar has ONE fixed height (76px; 116px when the map is under 540px
+  wide, an `@container` query) whatever it shows: it used to grow from 52
+  to 65px for a state with reps, which pushed the map 12px under the cursor
+  onto the neighbour and back — the flicker over NC / VA / TN / KY (Luke,
+  Oct 14: "glitchy when scrolling over NC"); outlines and labels are
+  `pointerEvents="none"`,
   click a state (`?state=`) for its status / season (owners can change
   them), a navy **year to date** box near the top (Luke, Oct 14: "YTD
   numbers for that specific state … team numbers and only what is already
@@ -870,12 +877,25 @@ automatic requests that never hand out a zip twice.
 - **API** `functions/api/zips/index.js`: GET (rep: their holds, week count,
   rules; owners / managers / TC also per-state summary, holds, request log,
   flags, `health`); `?state=` (a rep only their states, and other holders
-  shown as "someone"); POST actions request (rep_id needed), release (own;
+  shown as "someone"); POST actions request (rep_id, or an owner — see above), release (own;
   owners any; reuse owners), flag (reasons `FLAG_REASONS`), and owners only:
   assign, status, newRound, rules. No writes while viewing as. Every change
   in `edit_log` (`zips.*`). Tests: node:sqlite shim + signed JWTs.
-- **Pages** (all under Territory since Oct 14): **Get zips** (team, manager;
-  `MyZips.jsx`): state picker (non-Active states marked and blocked), "Get
+- **Owners request too** (Luke, Oct 14: "Jack and I still need to request
+  zips"): `holderOf(user)` (edge/zips.js) = the user's `rep_id`, or for an
+  owner without one `owner:<email name>` (luke@ → `owner:luke`), stored in
+  the same `rep_id` columns of `zip_assignments` / `zip_requests` (no schema
+  change). Names: `loadHolderNames` (D1 users, called by the zips and chat
+  endpoints) feeds `repName`, so holds, the request log, health and the chat
+  tools say "Luke"; GET /api/zips lists owners after the reps in `reps`
+  (`owner: true`, navy, no states), so Who holds what and Assign include
+  them. Where: `holderStates` — every state with zips on file that's Active
+  on the territory sheet (owners aren't tied to sub-accounts). Same rules as
+  reps (zips per request, 3 requests a week); no writes while viewing as.
+  An owner with a `rep_id` is that rep. Get zips for owners: a state
+  dropdown (more than 6 states) and search one state at a time.
+- **Pages** (all under Territory since Oct 14): **Get zips** (team, manager,
+  owner; `MyZips.jsx`): state picker (non-Active states marked and blocked), "Get
   10 zips", requests left this week, **Search zips** across all their states
   (zip / county / city; chips coloured available / yours / another rep / used
   / paused; copy buttons), held zips with days left and copy per state, Flag

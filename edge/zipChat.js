@@ -71,7 +71,7 @@ export async function runZipTool(db, name, input, { rep = null, now = new Date()
   const t = now.getTime();
   const rules = await Z.loadRules(db);
   const rounds = await Z.loadRounds(db);
-  const reps = roster.reps.map((r) => ({ id: r.id, name: r.name }));
+  const reps = [...roster.reps.map((r) => ({ id: r.id, name: r.name })), ...await Z.loadHolderNames(db)];
   const myStates = rep ? Z.repStates(rep) : null;
   const status = (z) => {
     const round = Z.roundOf(rounds, z.state);

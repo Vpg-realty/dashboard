@@ -73,6 +73,7 @@ export function ruleText(r = DEFAULT_RULES) {
     { group: 'Running out', key: 'lowLeft', text: `Owners are warned when a state has fewer than ${r.lowLeft} requests' worth of zips left.` },
     { group: 'Running out', text: 'When a state runs out, the request gives what is left and owners are flagged. Owners approve the next step: start a new round (every zip not held becomes available again) or reuse specific zips.' },
     { group: 'Who can do what', text: 'Reps (and managers for their own states) request, release and flag their zips.' },
+    { group: 'Who can do what', text: 'Owners request zips for themselves the same way (same number per request and per week), in any Active state with zips on file.' },
     { group: 'Who can do what', text: 'Only owners assign specific zips to a rep, release anyone\'s zips, reuse zips, start a new round, change a zip\'s status and edit these rules.' },
     { group: 'Who can do what', text: 'Owners, managers and the TC see every state and every hold.' },
     { group: 'Data', text: 'Zip tiers come from the territory sheet (population: tier 1 20k+, tier 2 8k–20k, tier 3 under 8k). Zips the sheet left untiered count as tier 3; hand-picked lists (Idaho, Virginia) count as tier 1.' },
@@ -82,10 +83,39 @@ export function ruleText(r = DEFAULT_RULES) {
 
 const REP_NAME = new Map(roster.reps.map((r) => [r.id, r.name]));
 const MARKET = new Map(roster.markets.map((m) => [m.id, m.name]));
-export const repName = (id) => REP_NAME.get(id) || id;
+
+// Owners request zips too (Luke, Oct 14: "Jack and I still need to request
+// zips"). An owner with a rep_id is that rep; an owner without one holds zips
+// as "owner:<email name>" (luke@… → owner:luke) — the same rep_id columns,
+// no schema change. Their name comes from D1 users (loadHolderNames, called
+// by every zips / chat endpoint; the first name of the email until then).
+export const OWNER_PREFIX = 'owner:';
+export const isOwnerHolder = (id) => String(id || '').startsWith(OWNER_PREFIX);
+export const holderOf = (user) => user?.rep_id || (user?.role === 'owner' && user.email ? `${OWNER_PREFIX}${String(user.email).split('@')[0].toLowerCase()}` : null);
+const OWNER_NAME = new Map();
+export async function loadHolderNames(db) {
+  try {
+    const rows = (await db.prepare("SELECT email, name, rep_id FROM users WHERE role = 'owner'").all()).results;
+    for (const u of rows) if (!u.rep_id) OWNER_NAME.set(holderOf({ ...u, role: 'owner' }), u.name);
+  } catch { /* no users table */ }
+  return ownerHolders();
+}
+// The owners who hold zips as themselves, [{ id, name }].
+export const ownerHolders = () => [...OWNER_NAME].map(([id, name]) => ({ id, name }));
+export const repName = (id) => REP_NAME.get(id) || OWNER_NAME.get(id)
+  || (isOwnerHolder(id) ? id.slice(OWNER_PREFIX.length).replace(/^./, (c) => c.toUpperCase()) : id);
 // The states (full names) a rep has a sub-account in.
 export function repStates(repId) {
   return [...new Set(roster.subaccounts.filter((s) => s.repId === repId).map((s) => MARKET.get(s.marketId)).filter(Boolean))].sort();
+}
+
+// Where a holder may request: a rep's sub-account states; an owner (no
+// rep_id) every state with zips on file that's Active on the territory sheet.
+export async function holderStates(db, holder) {
+  if (!isOwnerHolder(holder)) return repStates(holder);
+  const states = (await db.prepare('SELECT DISTINCT state FROM zips').all()).results.map((r) => r.state);
+  const ok = await Promise.all(states.map(async (st) => (await marketOf(db, st)) === 'Active'));
+  return states.filter((_, i) => ok[i]).sort();
 }
 
 const DAY = 86400000;
@@ -174,11 +204,15 @@ export async function weekRequests(db, repId, now = new Date()) {
   return r?.n || 0;
 }
 
-// A rep's automatic request. → { status, body }.
+// A rep's (or an owner's) automatic request. → { status, body }. Owners
+// follow the same rules (perRequest, perWeek) — only where they may ask
+// differs (holderStates).
 export async function request(db, user, state, { now = new Date() } = {}) {
-  const repId = user.rep_id;
+  const repId = holderOf(user);
   if (!repId) return { status: 403, body: { error: 'your login isn\'t linked to a rep — ask an owner' } };
-  if (!repStates(repId).includes(state)) return { status: 403, body: { error: `you don't have a sub-account in ${state}` } };
+  if (isOwnerHolder(repId)) {
+    if (!(await holderStates(db, repId)).includes(state)) return { status: 403, body: { error: `${state} isn't an Active state with zips on file` } };
+  } else if (!repStates(repId).includes(state)) return { status: 403, body: { error: `you don't have a sub-account in ${state}` } };
   const market = await marketOf(db, state);
   if (market !== 'Active') return { status: 403, body: { error: `${state} is ${market.toLowerCase()} right now — zips there come from an owner` } };
   const rules = await loadRules(db);
@@ -205,9 +239,10 @@ export async function request(db, user, state, { now = new Date() } = {}) {
   return { status: 409, body: { error: 'someone took those zips at the same moment — try again' } };
 }
 
-// Owners: specific zips to a rep (no weekly limit; never a held zip).
+// Owners: specific zips to a rep, or to an owner (no weekly limit; never a
+// held zip).
 export async function assign(db, user, { repId, zips }) {
-  if (!REP_NAME.has(repId)) return { status: 400, body: { error: 'unknown rep' } };
+  if (!REP_NAME.has(repId) && !OWNER_NAME.has(repId)) return { status: 400, body: { error: 'unknown rep' } };
   const list = [...new Set((zips || []).map((z) => String(z).trim()))].filter(Boolean);
   if (!list.length || list.length > 200) return { status: 400, body: { error: 'pick 1–200 zips' } };
   const ph = list.map(() => '?').join(',');
@@ -238,7 +273,7 @@ export async function release(db, user, { zips, reuse = false, reason }) {
   if (reuse && !isOwner) return { status: 403, body: { error: 'owners only' } };
   const ph = list.map(() => '?').join(',');
   const holds = (await db.prepare(`SELECT id, zip, rep_id FROM zip_assignments WHERE released_at IS NULL AND zip IN (${ph})`).bind(...list).all()).results;
-  if (!isOwner && holds.some((h) => h.rep_id !== user.rep_id)) return { status: 403, body: { error: 'you can only release your own zips' } };
+  if (!isOwner && holds.some((h) => h.rep_id !== holderOf(user))) return { status: 403, body: { error: 'you can only release your own zips' } };
   const now = new Date().toISOString();
   const stmts = holds.map((h) => db.prepare('UPDATE zip_assignments SET released_at = ?, released_by = ?, release_reason = ? WHERE id = ?').bind(now, user.name, reuse ? 'reused' : String(reason || 'released').slice(0, 80), h.id));
   if (reuse) {
