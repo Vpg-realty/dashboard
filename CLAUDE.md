@@ -213,14 +213,18 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   date chip, Luke Oct 14; and the deal's **EMD status** — the tracker deal
   at the same address (`addrKey`, pending first) as `EmdPill` (pills.jsx,
   worded like Active's EMD column via `emdCell`: In · Buyer / In · VPG +
-  Buyer / In · VPG only / In · who placed? / Pending / Pending · payer; N/A or
-  none grey — who placed the EMD is always shown, Luke Oct 15, also as the
-  All deals EMD status cell), for everyone who sees Home — reps and
+  Buyer / In · VPG only / Pending — from EMD paid by alone, see "EMD status
+  = EMD paid by"; also the All deals EMD paid by cell), for everyone who sees Home — reps and
   managers read the pending deals through GET /api/deals; a deal not in the
   tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
-  attention (key date late or within 3 days, Late / Today & tomorrow / Next
+  attention (key date late or within 3 days — COE / IP end from the
+  tracker deal at the same address when there is one, `withTrackerDates`
+  in src/deals/store.js, else GHL's custom fields: Luke, Oct 15, a COE moved
+  in the tracker still read "today" because the site never writes to GHL;
+  the app's Pipeline page does the same via PipelineView's `dates`; the TV
+  board, Overview revenue and the AlertStrip still read GHL's — Late / Today & tomorrow / Next
   few days) and Wins this week. Oct 14 (Luke: "everything feels a little
   small or empty"): full width (max 1720px), app text 14px, big numbers with
   On pace / Near pace / Behind badges and a pace tick, and cards — Revenue
@@ -604,6 +608,14 @@ the server strips them (`forTc`) and refuses edits to them.
   returned cell fills too (their pills carry it). Active's EMD column is a
   pill too (In · Buyer / In · VPG + Buyer / In · VPG only / Pending / Pending · payer). Needs-info marks (red
   outline, "N missing" pill) use the site's red #B42318 family.
+- **EMD status = EMD paid by** (Luke, Oct 15: "remove emd status and keep
+  EMD paid by … if it is empty, the status is pending, or if it is either
+  vpg, buyer, or vpg+buyer it is in"): `emdStatus` left FIELDS (panel, All
+  deals, Needs info, Dropdown lists); `emdIn` / `emdStatusOf` (math.js)
+  derive it and compute() sets `emdStatus` (COMPLETE / PENDING) on every
+  deal, so older checks still read it; a stored value in D1 is ignored.
+  "PENDING" in the paid-by list counts as empty. EMD sent on is needed once
+  a payer is in.
 - **Deal status** (Luke, Oct 14: "everything [should] match the pipeline
   stages"): `STATUS_KEYS` (math.js) = PENDING, ASSIGNED (new), COMPLETE
   (reads "Closed"), CANCELLED — a fixed list in that order (`FIXED_LISTS`
