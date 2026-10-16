@@ -18,7 +18,7 @@
 const MIN = 60000;
 // Bump when the rules change so cached results (reused for 3 hours) are
 // recomputed on the next deploy.
-export const MESSAGING_VERSION = 4;
+export const MESSAGING_VERSION = 5;
 export const ANSWER_WITHIN_MIN = 15;
 // "Ends in a question" only judges real messages (Luke, Oct 12: soften it):
 // a last text under this many words, or a thanks / logistics line ("Sent!",
@@ -86,7 +86,9 @@ export const endsInQuestion = (body) => /\?(?:[\s"')\].!]|\p{Extended_Pictograph
 // threads, misses } — threads and misses are internal (never published):
 // misses are the agent texts that went unanswered, for Claude to judge
 // whether they needed an answer (scripts/review-messaging.mjs).
-export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, now = Date.now() }) {
+// `names` = contactId → name (from the sub-account's opportunities), so a
+// slow answer can show who texted and link to the conversation (Luke, Oct 15).
+export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, now = Date.now(), names = {} }) {
   const tz = MARKET_TZ[marketId] || 'America/Phoenix';
   const byConv = new Map();
   for (const m of messages || []) {
@@ -124,7 +126,7 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
             if (answered) speed.ok++;
             else {
               speed.missIds.push(m.id);
-              if (speed.slow.length < 25) speed.slow.push({ id: m.id, at: t, mins: Number.isFinite(first) ? Math.round((first - t) / MIN) : null });
+              if (speed.slow.length < 25) speed.slow.push({ id: m.id, at: t, mins: Number.isFinite(first) ? Math.round((first - t) / MIN) : null, conv, who: names[m.contactId] || null });
               // For Claude: the agent's text and the few texts before it.
               misses.push({
                 id: m.id,

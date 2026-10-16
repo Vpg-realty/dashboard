@@ -84,7 +84,11 @@ export const SECTIONS = [
     // Luke, Oct 14: each rep sees their own scorecard (team average line, no
     // notes, no other rep's scores); a simple page with the full breakdown below.
     id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team', 'manager'],
-    tabs: [{ id: 'scorecard', label: 'This Week & Trend', view: 'my-scorecard', scroll: true }],
+    tabs: [
+      { id: 'scorecard', label: 'This Week & Trend', view: 'my-scorecard', scroll: true },
+      // Its own tab (Luke, Oct 15: the "Show the full breakdown" button was easy to miss).
+      { id: 'breakdown', label: 'Full Breakdown', view: 'my-breakdown', scroll: true },
+    ],
   },
   {
     // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…).
@@ -114,7 +118,9 @@ export const SECTIONS = [
     // and dropdowns themselves. Shown at the bottom of the sidebar.
     // Luke, Oct 15: owners, managers and the TC suggest changes to the site;
     // owners review and answer (src/suggestions).
-    id: 'suggestions', label: 'Suggestion Box', icon: 'idea', roles: ['owner', 'manager', 'tc'], bottom: 'admin',
+    // In the sidebar just above Team Overview, tinted so it's easy to find
+    // (Luke, Oct 15) — `bottom: 'suggest'`, drawn by AppShell.
+    id: 'suggestions', label: 'Suggestion Box', icon: 'idea', roles: ['owner', 'manager', 'tc'], bottom: 'suggest',
     tabs: [{ id: 'all', label: 'Suggestions', view: 'suggestions', scroll: true }],
   },
   {

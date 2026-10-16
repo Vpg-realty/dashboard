@@ -59,6 +59,13 @@ export const SUBACCOUNTS = config.subaccounts;
 // A GHL opportunity's page (Luke, Oct 15: names on My scorecard's "Fix these"
 // link to the opportunity). `sub` = "<repId>|<marketId>"; null when unknown.
 const LOCATION_OF = Object.fromEntries(config.subaccounts.map((s) => [`${s.repId}|${s.marketId}`, s.locationId]));
+// A GHL conversation (Luke, Oct 15: slow answers on My scorecard link to the
+// agent's conversation).
+export function ghlConvUrl(sub, convId) {
+  const loc = LOCATION_OF[sub];
+  if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(convId || ''))) return null;
+  return `https://app.gohighlevel.com/v2/location/${loc}/conversations/conversations/${convId}`;
+}
 export function ghlOppUrl(sub, oppId) {
   const loc = LOCATION_OF[sub];
   if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(oppId || ''))) return null;

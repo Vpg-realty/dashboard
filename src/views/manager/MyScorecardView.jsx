@@ -7,10 +7,11 @@
 // only ever sends their own rows plus the team average.
 import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
-import { REPS, ghlOppUrl } from '../../data/config.js';
+import { REPS, ghlOppUrl, ghlConvUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, SPEED_WEIGHTS } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
+import { linkProps } from '../../shell/router.js';
 import RepView from './RepView.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
 import LineChart from './LineChart.jsx';
@@ -113,7 +114,7 @@ function slowTexts(pairs) {
     const sp = p.messaging?.speed;
     if (!sp?.slow) return [];
     const skip = new Set(sp.notNeeded || []);
-    return sp.slow.filter((b) => !skip.has(b.id)).map((b) => ({ id: `s${b.id}`, at: b.at, addr: `Agent text · ${azFmt.format(new Date(b.at))} · ${p.marketId}`, why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }));
+    return sp.slow.filter((b) => !skip.has(b.id)).map((b) => ({ id: `s${b.id}`, at: b.at, addr: `${b.who || 'Agent text'} · ${azFmt.format(new Date(b.at))} · ${p.marketId}`, why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min`, url: ghlConvUrl(`${p.repId}|${p.marketId}`, b.conv) }));
   }).sort((a, b) => b.at - a.at);
 }
 
@@ -129,10 +130,10 @@ function BadList({ bad, total }) {
       <ul className="mt-1 space-y-0.5 text-[13.5px]">
         {shown.map((b, i) => {
           // Deals open their GHL opportunity in a new tab (Luke, Oct 15).
-          const url = b.sub ? ghlOppUrl(b.sub, b.id) : null;
+          const url = b.url || (b.sub ? ghlOppUrl(b.sub, b.id) : null);
           return (
             <li key={`${b.id || ''}${i}`}>
-              {url ? <a href={url} target="_blank" rel="noreferrer" title="Open this opportunity in GoHighLevel" className="font-medium text-navy-700 underline decoration-navy-200 underline-offset-2 hover:decoration-navy-700">{b.addr} ↗</a> : <span className="font-medium">{b.addr}</span>}
+              {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="font-medium text-navy-700 underline decoration-navy-200 underline-offset-2 hover:decoration-navy-700">{b.addr} ↗</a> : <span className="font-medium">{b.addr}</span>}
               {' '}<span className="text-zinc-600">— {b.why}</span>
             </li>
           );
@@ -248,7 +249,6 @@ function Trend({ sc, rep }) {
 export default function MyScorecardView() {
   const me = useMe();
   const sc = useScorecards();
-  const [full, setFull] = useState(false);
   const [how, setHow] = useState(false);
   const rep = REPS.find((r) => r.id === me?.rep_id);
   if (!me) return null;
@@ -291,15 +291,26 @@ export default function MyScorecardView() {
       <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} m={m} />
       <Trend sc={sc} rep={rep} />
 
-      <button onClick={() => setFull((v) => !v)} className={`${card} px-5 py-3.5 flex items-center gap-3 text-left hover:bg-tan-50 ${full ? 'bg-navy-700 hover:bg-navy-800 border-navy-700' : ''}`}>
-        <span className={`font-semibold ${full ? 'text-white' : 'text-navy-800'}`}>{full ? 'Full breakdown' : 'Show the full breakdown'}</span>
-        <span className={`ml-auto text-[13px] ${full ? 'text-white/80' : 'text-zinc-500'}`}>{full ? 'hide ▴' : 'any week or month, every number, points by week, funnel, states ▾'}</span>
-      </button>
-      {full && (
-        <div className="app-team h-[1060px] min-w-[1100px]">
-          <RepView repId={rep.id} self breakdown />
-        </div>
-      )}
+      {/* The full breakdown is its own tab now (Luke, Oct 15: "hard to
+          see / easy to miss … a completely separate tab"). */}
+      <a {...linkProps('/me/breakdown')} className="rounded-xl bg-navy-700 hover:bg-navy-800 text-white px-5 py-4 flex items-center gap-3 shadow-sm">
+        <span className="font-semibold text-[15px]">Open your Full Breakdown</span>
+        <span className="text-[13px] text-white/75">any week or month, every number, points by week, funnel, states</span>
+        <span className="ml-auto text-tan-400 font-semibold">→</span>
+      </a>
+    </div>
+  );
+}
+
+// My Scorecard › Full Breakdown (its own tab, Luke Oct 15).
+export function MyBreakdownView() {
+  const me = useMe();
+  const rep = REPS.find((r) => r.id === me?.rep_id);
+  if (!me) return null;
+  if (!rep) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet.</div>;
+  return (
+    <div className="app-team h-[1060px] min-w-[1100px] max-w-[1600px] mx-auto">
+      <RepView repId={rep.id} self breakdown />
     </div>
   );
 }
