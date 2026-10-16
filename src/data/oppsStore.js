@@ -7,6 +7,9 @@ import { useEffect, useState } from 'react';
 
 const BASE = import.meta.env.BASE_URL || '/';
 const DAY = 86_400_000;
+// Calendar day number in Arizona (no daylight saving there).
+const AZ_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' });
+const dayNum = (ms) => Date.parse(`${AZ_FMT.format(new Date(ms))}T00:00:00Z`) / DAY;
 let state = { status: 'idle', opps: [], at: null, error: null };
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
@@ -20,9 +23,11 @@ async function load() {
     const now = Date.now();
     const opps = (data.pairs || []).flatMap((p) => (p.opps || []).map((o) => {
       const since = o.stageSince || o.created;
-      // Days since the rep / the agent last spoke (LastTalk on the card);
-      // 0 from the build = nothing in the lookback → null here.
-      const ago = (ms) => (ms ? Math.max(0, Math.floor((now - ms) / DAY)) : null);
+      // Days since the rep / the agent last spoke (LastTalk on the card),
+      // counted in Arizona calendar days (Luke, Oct 16: a talk yesterday
+      // afternoon read "today" the next morning when this counted 24-hour
+      // spans); 0 from the build = nothing in the lookback → null here.
+      const ago = (ms) => (ms ? Math.max(0, Math.round((dayNum(now) - dayNum(ms)))) : null);
       return { ...o, repId: p.repId, marketId: p.marketId, days: since ? Math.max(0, Math.floor((now - since) / DAY)) : null, repAgo: ago(o.lastRep), agentAgo: ago(o.lastAgent) };
     }));
     emit({ status: 'ready', opps, at: data.generatedAt || null, error: null });
