@@ -218,7 +218,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   managers read the pending deals through GET /api/deals; a deal not in the
   tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
-  from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
+  from `PODS`, rep = themself; the TC sees pipeline counts instead — a pod
+  lead gets two rows, **Your numbers** and **<Pod> · your reps**, Luke Oct
+  16: "separate it from his personal numbers, then his pods numbers"), Needs
   attention (key date late or within 3 days — COE / IP end from the
   tracker deal at the same address when there is one, `withTrackerDates`
   in src/deals/store.js, else GHL's custom fields: Luke, Oct 15, a COE moved
@@ -295,7 +297,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   both; Opportunities add a name / address search. Opportunity cards show
   days in the stage (amber 14+, red 30+), longest first, and above it **when
   the rep last spoke with the agent** (Luke, Oct 16; `LastTalk`: "Talked Nd
-  ago", green ≤ 3d / amber ≤ 7d / red, "No talk 21d+"; hover = the rep's last
+  ago" in Arizona calendar days (oppsStore `dayNum` — Oct 16: 24-hour spans
+  made yesterday afternoon read "today"), green ≤ 3d / amber ≤ 7d / red,
+  "No talk 21d+"; hover = the rep's last
   text / connected call and the agent's last message) — from the CRM check's
   hourly message pull (server/crm.js `contact` {oppId: [rep ms, agent ms]},
   21 days back, CRM_VERSION 3), copied onto each opp as `lastRep` /

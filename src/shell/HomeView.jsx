@@ -19,6 +19,7 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
+import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { EmdPill } from '../deals/pills.jsx';
@@ -277,10 +278,19 @@ export default function HomeView({ me }) {
   const showRep = !scope || scope.length > 1;
   const isTc = me?.role === 'tc';
   const count = (st) => deals.filter((d) => d.stage === st).length;
+  const numbers = (mm, k) => [['Contracts this week', mm.contractsW, T.contractsPerWeek * k, '#2563eb', 'week'], ['Offers this week', mm.offersW, T.offersPerWeek * k, '#7c3aed', 'week'], ['Opps opened this week', mm.oppsW, T.oppsOpenedPerWeek * k, '#d97706', 'week'], ['Contracts this month', mm.contractsM, T.contractsPerMonth * k, '#0d9488', 'month']];
   const stats = isTc
     ? [['Under contract', count('under_contract')], ['Dispo', count('dispo')], ['Assigned', count('assigned')], ['Closed this month', m.closedM]]
-    : [['Contracts this week', m.contractsW, T.contractsPerWeek * n, '#2563eb', 'week'], ['Offers this week', m.offersW, T.offersPerWeek * n, '#7c3aed', 'week'], ['Opps opened this week', m.oppsW, T.oppsOpenedPerWeek * n, '#d97706', 'week'], ['Contracts this month', m.contractsM, T.contractsPerMonth * n, '#0d9488', 'month']];
-  const scopeLabel = !scope ? 'Everyone' : me?.role === 'manager' ? `Your pod · ${n} people` : null;
+    : numbers(m, n);
+  // A pod lead sees their own numbers and their pod's separately (Luke,
+  // Oct 16: "separate it from his personal numbers, then his pods numbers …
+  // align with any pod lead"); the rest of Home still covers both.
+  const pod = me?.role === 'manager' && me.rep_id ? PODS.find((x) => x.lead === me.rep_id) : null;
+  const statRows = pod && !isTc ? [
+    { title: 'Your numbers', sub: me?.name || null, list: numbers(metrics(PAIRS.filter((p) => p.repId === me.rep_id)), 1) },
+    { title: `${pod.title} · your reps`, sub: pod.reps.map((id) => repById[id]?.name.split(' ')[0]).filter(Boolean).join(', '), list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
+  ] : [{ title: null, list: stats }];
+  const scopeLabel = !scope ? 'Everyone' : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
   const showMoney = !isTc;
   // Leaderboard: owners see every rep, a manager their pod.
   const leaders = me?.role === 'owner' ? REPS : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;
@@ -312,9 +322,19 @@ export default function HomeView({ me }) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
-        {stats.map(([l, v, t, c, per]) => <Stat key={l} label={l} value={v} target={t} color={c} period={per} />)}
-      </div>
+      {statRows.map((row) => (
+        <div key={row.title || 'all'} className="mt-5">
+          {row.title && (
+            <div className="mb-2 flex items-baseline gap-2 px-1">
+              <h2 className="text-[15px] font-semibold text-navy-700">{row.title}</h2>
+              {row.sub && <span className="text-[13px] text-zinc-500">{row.sub}</span>}
+            </div>
+          )}
+          <div className="grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
+            {row.list.map(([l, v, t, c, per]) => <Stat key={l} label={l} value={v} target={t} color={c} period={per} />)}
+          </div>
+        </div>
+      ))}
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
