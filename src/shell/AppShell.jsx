@@ -85,10 +85,10 @@ function Avatar({ name, size = 26 }) {
 }
 
 // A personal background for one person (Luke, Oct 16: Anthony "likes pink
-// polkadots … the full background of his screen"): keyed by rep_id, so View
+// polkadots … the full background of his screen", then "more bubbly and
+// fun" — the .bubbly class in index.css): keyed by rep_id, so View
 // as Anthony shows it too. Cards stay white on top of it.
-const POLKA = { backgroundColor: '#fde8f1', backgroundImage: 'radial-gradient(circle, #f472b6 9px, transparent 10px), radial-gradient(circle, #f9a8d4 9px, transparent 10px)', backgroundSize: '84px 84px', backgroundPosition: '0 0, 42px 42px' };
-const BACKDROP = { anthony: POLKA };
+const BACKDROP = { anthony: 'bubbly' };
 
 function useStoredFlag(key, initial) {
   const [v, setV] = useState(() => { try { const s = localStorage.getItem(key); return s == null ? initial : s === '1'; } catch { return initial; } });
@@ -142,7 +142,7 @@ export default function AppShell({ me }) {
   };
 
   return (
-    <div className={`h-app flex ${backdrop ? '' : 'bg-tan-50'} text-[14px] text-zinc-950 antialiased`} style={backdrop || undefined}>
+    <div className={`h-app flex ${backdrop || 'bg-tan-50'} text-[14px] text-zinc-950 antialiased`}>
       {/* Sidebar (desktop) */}
       <aside className={`relative hidden md:flex flex-col shrink-0 ${backdrop ? 'bg-white/80' : ''} ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
@@ -209,7 +209,7 @@ export default function AppShell({ me }) {
       </aside>
 
       {/* Page */}
-      <div style={backdrop || undefined} className={`flex-1 min-w-0 flex flex-col md:my-2 md:mr-2 md:rounded-xl md:border ${backdrop ? 'md:border-pink-200' : 'md:border-tan-200 bg-white'} overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.05)]`}>
+      <div className={`flex-1 min-w-0 flex flex-col md:my-2 md:mr-2 md:rounded-xl md:border ${backdrop ? `${backdrop} md:border-pink-200` : 'md:border-tan-200 bg-white'} overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.05)]`}>
         <ViewAsBanner me={me} />
         <header className={`h-12 shrink-0 flex items-center gap-3 px-4 md:px-5 border-b border-zinc-100 ${backdrop ? 'bg-white' : ''}`}>
           <span className="md:hidden"><Logo small /></span>

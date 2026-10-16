@@ -378,9 +378,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   — no more separate buttons at the top and bottom. Clicking your name
   (bottom left; the avatar top right on a phone) opens `UserMenu.jsx`:
   name, email and **Log out** (`/cdn-cgi/access/logout`, ends the Access
-  session). Anthony's whole screen background is pink polka
-  dots (Luke, Oct 16: "only him … the full background of his screen";
-  `BACKDROP` by rep_id in AppShell.jsx — cards, the header and tab bar stay
+  session). Anthony's whole screen background is pink
+  bubbles (Luke, Oct 16: "only him … the full background of his screen",
+  then "more bubbly and fun": glossy pink bubbles of mixed sizes, little
+  hearts and sparkles drifting slowly up — `.bubbly` in index.css, still
+  for reduced motion; `BACKDROP` by rep_id in AppShell.jsx — cards, the header and tab bar stay
   white, the sidebar gets a white wash; View as Anthony shows it too).
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
   average line yes, manager notes no, no other rep's scores or team rates):
