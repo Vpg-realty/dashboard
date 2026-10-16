@@ -1128,8 +1128,15 @@ the server strips them (`forTc`) and refuses edits to them.
     or a reload / tab close (beforeunload) — asks first: "You have N unsaved
     changes" with **Save changes / Discard / Keep editing**.
   - **Due Diligence card** (Luke, Oct 16: "start and end on same line. time
-    somewhere else"): Start → End as one line on top (auto), then Days and
-    "Ends at · time & time zone" side by side.
+    somewhere else", then "better, but not perfect"): a timeline on top
+    (`DdTimeline` — Starts date ●── N days ──● Ends date, the end time under
+    the end), then Length (days) and End time & time zone side by side for
+    editors (read-only viewers get the timeline only).
+  - **Section jump bar** (Luke, Oct 16: "hard to scroll and find what we are
+    looking for"): under the key-facts numbers, frozen with them — one
+    button per section (Commissions / Notes shortened), click scrolls the
+    panel to it, the section on screen is highlighted navy, a red dot marks
+    a section with needed fields.
   - **DD end time and time zone** share one cell.
     The time is `src/deals/TimePicker.jsx` (Luke, Oct 15: the browser's own
     picker was boxy and its lists looped past 59): a button in the
