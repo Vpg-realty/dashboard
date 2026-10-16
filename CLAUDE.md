@@ -378,7 +378,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   — no more separate buttons at the top and bottom. Clicking your name
   (bottom left; the avatar top right on a phone) opens `UserMenu.jsx`:
   name, email and **Log out** (`/cdn-cgi/access/logout`, ends the Access
-  session).
+  session). Anthony's profile button (and its menu header) is pink polka
+  dots — Luke, Oct 16: "only him" (`FLAIR` by rep_id in UserMenu.jsx).
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
   average line yes, manager notes no, no other rep's scores or team rates):
   sidebar section for team + managers, a scrolling page
@@ -930,6 +931,19 @@ the server strips them (`forTc`) and refuses edits to them.
   tile picked; "Re-sort now" when out of date; a closed-out card leaves at
   once), and Closed out is a green tile in the top row (`?only=out`) plus a
   full-width banner at the bottom.
+  **Page layout** (Luke, Oct 16: "a lot going on here … similar to … the
+  finance chart … a solid area where we can see due today … a list of
+  property addresses, then when you click it it opens the entire view"):
+  a navy band (Deals · TC List, three quick tiles — deals due today, active
+  deals, closing ≤ 7 days) and a left rail like Deal Summary's — Work: **Due
+  Today** (the default: every deal with something due and its items, one
+  row per deal) and **Active Deals**; Watch: IP ending, Past COE, Closing ≤
+  7 days, EM receipt to chase, Missing info; Finished: **Closed Out**
+  (`?view=`, older `?only=` links still read). Every view but Due Today is
+  a compact table (property + status, acq → dispo, COE chip, checklist
+  progress, due today, flags). A row opens the deal's whole card —
+  checklist, tasks, close-out prompt — in a side panel (`?card=<id>`, Esc /
+  × closes; the address in it opens the deal panel on top). No folding.
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
