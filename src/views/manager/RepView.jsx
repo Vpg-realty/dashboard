@@ -5,6 +5,7 @@
 // month or custom range, totalled from history.json.
 import { useRef, useState } from 'react';
 import Floating from '../../shell/Floating.jsx';
+import { PANEL_HEAD } from '../../shell/panelStyle.js';
 import { REPS, MARKETS } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { periodOptions, rangeLabel, shortDate, laToday, addDays, weekStart, LEGACY_CUTOFF } from '../../utils/historyRange.js';
@@ -355,31 +356,68 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
               })}
             </div>
           </div>
-          <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">By state · {when}</div>
-            <div className="text-lg font-bold mb-1">Which of {first(rep)}'s states are working</div>
-            <div className="grid grid-cols-[10rem_repeat(8,minmax(0,1fr))] gap-x-2 text-[10px] uppercase tracking-[0.04em] text-zinc-500 font-semibold pb-1.5 border-b border-zinc-200 text-right">
-              <span className="text-left">State</span><span>Convos</span><span>Opps</span><span>Offers</span><span>Contracts</span><span className="text-rose-700">Cancels</span><span>Closed</span><span>{range ? 'Revenue' : 'Projected'}</span><span>Convo→Opp</span>
-            </div>
-            <div className="flex-1 min-h-0 flex flex-col justify-around">
-              {markets.map(({ id, name, m: mm }) => (
-                <div key={id} className="grid grid-cols-[10rem_repeat(8,minmax(0,1fr))] gap-x-2 items-center text-right tabular-nums">
-                  <span className="flex items-center gap-2 text-left text-base font-bold truncate"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATE_DOT }} />{name}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('convosM') ? '—' : mm.convosM}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('oppsM') ? '—' : mm.oppsM}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('offersM') ? '—' : mm.offersM}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('contractsM') ? '—' : mm.contractsM}</span>
-                  <span className={`text-lg font-bold ${mm.cancelsM ? 'text-rose-700' : 'text-zinc-300'}`}>{mm.untracked?.has('cancelsM') ? '—' : mm.cancelsM || 0}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('closedM') ? '—' : mm.closedM}</span>
-                  <span className="text-lg font-bold">{mm.untracked?.has('projected') ? '—' : formatCompactCurrency(mm.projected)}</span>
-                  <span className={`rounded-md py-1 text-center text-base font-bold ${solo ? 'bg-zinc-100 text-zinc-700' : convCls(rate(mm, STEPS[0]), teamRates[0])}`}>{pct(rate(mm, STEPS[0]))}</span>
-                </div>
-              ))}
-            </div>
-            <div className="text-xs text-zinc-500 pt-2 border-t border-zinc-200">{solo ? 'Your states share your targets, so they show counts and conversion, not targets.' : "States share the rep's targets, so they show counts and conversion, not targets. Convo→Opp coloured vs the team rate."}</div>
-          </div>
+          <StateCard markets={markets} when={when} rep={rep} range={range} solo={solo} teamRate={teamRates[0]} />
         </div>
       </div>
     </ManagerFrame>
+  );
+}
+
+// By state (Luke, Oct 15: "bland and hard to understand … clean this up in
+// a similar style to other charts … uniformity"): a navy header band like
+// every app card, a clean table in the Home "This week by rep" style, each
+// count a chip shaded by how it compares with the rep's best state for that
+// number (darkest = best), cancels red, Convo→Opp coloured vs the team, and
+// a total row.
+const STATE_COLS = [['convosM', 'Convos'], ['oppsM', 'Opps'], ['offersM', 'Offers'], ['contractsM', 'Contracts'], ['cancelsM', 'Cancels'], ['closedM', 'Closed']];
+const SHADE = ['bg-white text-zinc-400 ring-zinc-200', 'bg-navy-50 text-navy-800 ring-navy-100', 'bg-navy-100 text-navy-800 ring-navy-200', 'bg-navy-600 text-white ring-navy-600', 'bg-navy-700 text-white ring-navy-700'];
+function StateCard({ markets, when, rep, range, solo, teamRate }) {
+  const has = (mm, k) => !mm.untracked?.has(k);
+  const max = Object.fromEntries(STATE_COLS.map(([k]) => [k, Math.max(0, ...markets.map(({ m: mm }) => (has(mm, k) ? mm[k] || 0 : 0)))]));
+  const shade = (k, v) => (!v ? SHADE[0] : SHADE[Math.min(4, 1 + Math.floor((v / Math.max(1, max[k])) * 3.999))]);
+  const chip = (k, mm) => {
+    if (!has(mm, k)) return <span className="text-zinc-300">—</span>;
+    const v = mm[k] || 0;
+    const cls = k === 'cancelsM' ? (v ? 'bg-rose-50 text-rose-700 ring-rose-200' : SHADE[0]) : shade(k, v);
+    return <span className={`inline-block min-w-[44px] rounded-md px-2 py-0.5 text-center tabular-nums font-semibold ring-1 ring-inset ${cls}`}>{v}</span>;
+  };
+  const sum = (k) => markets.reduce((t, { m: mm }) => t + (has(mm, k) ? mm[k] || 0 : 0), 0);
+  const tot = { convosM: sum('convosM'), oppsM: sum('oppsM') };
+  return (
+    <section className="rounded-xl bg-white border border-tan-200 flex flex-col min-h-0 overflow-hidden">
+      <div className={`px-4 py-2.5 ${PANEL_HEAD}`}>
+        <div className="flex items-baseline gap-2"><span className="font-semibold text-[15px]">By state</span><span className="text-[12.5px] text-white/70">{when}</span></div>
+        <div className="text-[12.5px] text-white/70">Which of {first(rep)}'s states are working — darker = {solo ? 'your' : 'their'} best state for that number</div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto px-3 pb-2">
+        <table className="w-full text-left text-[13.5px]">
+          <thead className="text-[11.5px] uppercase tracking-wide text-zinc-500 sticky top-0 bg-white"><tr>
+            <th className="py-2 pl-1 font-semibold">State</th>
+            {STATE_COLS.map(([k, l]) => <th key={k} className={`py-2 font-semibold text-center ${k === 'cancelsM' ? 'text-rose-700' : ''}`}>{l}</th>)}
+            <th className="py-2 font-semibold text-right">{range ? 'Revenue' : 'Projected'}</th>
+            <th className="py-2 font-semibold text-center">Convo→Opp</th>
+          </tr></thead>
+          <tbody>
+            {markets.map(({ id, name, m: mm }) => (
+              <tr key={id} className="border-t border-zinc-100">
+                <td className="py-2 pl-1"><span className="flex items-center gap-2 font-semibold text-navy-800"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATE_DOT }} />{name}</span></td>
+                {STATE_COLS.map(([k]) => <td key={k} className="py-2 text-center">{chip(k, mm)}</td>)}
+                <td className="py-2 text-right tabular-nums font-semibold text-emerald-700">{has(mm, 'projected') ? (mm.projected ? formatCompactCurrency(mm.projected) : <span className="text-zinc-300 font-normal">$0</span>) : '—'}</td>
+                <td className="py-2 text-center"><span className={`inline-block min-w-[52px] rounded-md px-2 py-0.5 tabular-nums font-semibold ${solo ? 'bg-zinc-100 text-zinc-700' : convCls(rate(mm, STEPS[0]), teamRate)}`}>{pct(rate(mm, STEPS[0]))}</span></td>
+              </tr>
+            ))}
+            {markets.length > 1 && (
+              <tr className="border-t-2 border-navy-100 bg-navy-50/50 font-semibold">
+                <td className="py-2 pl-1 text-navy-800">Total</td>
+                {STATE_COLS.map(([k]) => <td key={k} className={`py-2 text-center tabular-nums ${k === 'cancelsM' && sum(k) ? 'text-rose-700' : 'text-navy-800'}`}>{sum(k)}</td>)}
+                <td className="py-2 text-right tabular-nums text-emerald-700">{formatCompactCurrency(sum('projected'))}</td>
+                <td className="py-2 text-center tabular-nums text-navy-800">{tot.convosM ? `${Math.round((100 * tot.oppsM) / tot.convosM)}%` : '—'}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="text-[12px] text-zinc-500 px-4 py-2 border-t border-tan-100">{solo ? 'Your states share your targets, so they show counts and conversion, not targets.' : "States share the rep's targets, so they show counts and conversion. Convo→Opp is green / amber / red vs the team rate."}</div>
+    </section>
   );
 }

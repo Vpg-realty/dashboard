@@ -12,7 +12,7 @@ import PipelineView from '../views/PipelineView.jsx';
 import TeamHub from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
-import MyScorecardView from '../views/manager/MyScorecardView.jsx';
+import MyScorecardView, { MyBreakdownView } from '../views/manager/MyScorecardView.jsx';
 import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
@@ -51,7 +51,7 @@ const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
   'fin-payouts': PayoutsView, suggestions: SuggestionsView, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
-  'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
+  'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
@@ -154,6 +154,18 @@ export default function AppShell({ me }) {
             for everyone; its TV Mode button sits in its tab bar — Luke,
             Oct 15) — then the owners' admin. */}
         <nav className="flex flex-col gap-0.5 mb-2" aria-label="Team screens">
+          {/* Suggestion Box (Luke, Oct 15: "above team overview and colored
+              slightly differently to easily find"). */}
+          {sections.filter((x) => x.bottom === 'suggest').map((s) => {
+            const on = s.id === section.id;
+            return (
+              <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} title={collapsed ? s.label : 'Suggest a change or see what others asked for'}
+                className={`relative flex items-center gap-2.5 h-9 mb-1 rounded-lg font-semibold ring-1 ring-inset transition-colors ${collapsed ? 'justify-center px-0' : 'px-2.5'} ${on ? 'bg-tan-500 text-white ring-tan-600' : 'bg-tan-100 text-tan-700 ring-tan-200 hover:bg-tan-200 hover:text-navy-800'}`}>
+                <Icon name={s.icon} className={on ? 'text-white' : 'text-tan-600'} />
+                {!collapsed && s.label}
+              </a>
+            );
+          })}
           {sections.filter((x) => x.bottom === 'screens').map(navItem)}
           {/* Team Chat (Luke, Oct 15): the team's Discord, in a new tab. */}
           {me.teamChat && (

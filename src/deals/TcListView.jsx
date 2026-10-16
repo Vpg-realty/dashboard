@@ -25,7 +25,9 @@ const FLAG_CHIP = {
   closing: 'bg-amber-50 text-amber-800 ring-amber-200', emd: 'bg-amber-50 text-amber-800 ring-amber-200',
 };
 const FLAG_TEXT = { ip: 'IP ending', past: 'Past COE', closing: 'Closing soon', emd: 'EM receipt to chase' };
-const FOLD_KEY = 'vpg.tc.open';
+// Cards are open by default (Luke, Oct 15: the checklist was easy to miss);
+// the ones folded are remembered per device.
+const FOLD_KEY = 'vpg.tc.closed';
 const up = (x) => String(x ?? '').trim().toUpperCase();
 
 // Ticks that are really deal fields (Luke, Oct 15: "any edit anywhere should
@@ -115,13 +117,15 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
       {/* The property is the header. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-navy-700 text-white">
-        <button type="button" onClick={onFold} aria-expanded={open} aria-label={open ? 'Fold the checklist' : 'Open the checklist'} className="grid place-items-center w-6 h-6 rounded-md hover:bg-white/10">
+      {/* The whole banner folds / opens the card (Luke, Oct 15). */}
+      <div onClick={onFold} title={open ? 'Click to fold' : 'Click to open the checklist'} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-navy-700 text-white cursor-pointer select-none hover:bg-navy-800">
+        <button type="button" onClick={(e) => { e.stopPropagation(); onFold(); }} aria-expanded={open} aria-label={open ? 'Fold the checklist' : 'Open the checklist'} className="grid place-items-center w-6 h-6 rounded-md hover:bg-white/10">
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${open ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>
         </button>
-        <button type="button" onClick={() => onOpen(d.id)} className="font-semibold text-[14.5px] text-left hover:underline underline-offset-2">{d.address}</button>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(d.id); }} title="Open the deal" className="font-semibold text-[14.5px] text-left hover:underline underline-offset-2">{d.address}</button>
         <StatusChip status={d.status} />
         {[...c.flags].filter((f) => FLAG_TEXT[f]).map((f) => <span key={f} className={`rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset ${FLAG_CHIP[f]}`}>{FLAG_TEXT[f]}</span>)}
+        <span className="ml-auto text-[12px] text-white/60">{open ? 'Hide checklist ▴' : 'Show checklist ▾'}</span>
       </div>
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tan-100 text-[12.5px] text-zinc-600">
         <span className="inline-flex items-center gap-1.5"><Person name={d.acq} />{d.dispoMember && <><span className="text-zinc-300">→</span><Person name={d.dispoMember} /></>}</span>
@@ -187,22 +191,22 @@ export default function TcListView() {
   const { open, panel } = useDealPanel();
   const { st, err, post } = useTc();
   const [busy, setBusy] = useState(false);
-  const [unfolded, setUnfolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
+  const [folded, setFolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
   const { query } = useLocation();
   const only = TC_FLAGS.some((f) => f.id === query.get('only')) ? query.get('only') : null;
   const today = laToday();
   const cards = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
-  const fold = (id) => setUnfolded((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
+  const fold = (id) => setFolded((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
   const run = async (body) => { setBusy(true); try { return await post(body); } finally { setBusy(false); } };
   const shown = only ? cards.filter((c) => c.flags.has(only)) : cards;
   const count = (id) => cards.filter((c) => c.flags.has(id)).length;
-  const allOpen = shown.length > 0 && shown.every((c) => unfolded.has(c.deal.id));
-  const setAll = (on) => { const n = new Set(unfolded); for (const c of shown) { if (on) n.add(c.deal.id); else n.delete(c.deal.id); } setUnfolded(n); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } };
+  const allOpen = shown.length > 0 && shown.every((c) => !folded.has(c.deal.id));
+  const setAll = (on) => { const n = new Set(folded); for (const c of shown) { if (on) n.delete(c.deal.id); else n.add(c.deal.id); } setFolded(n); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } };
   return (
     <div className="max-w-[1500px] mx-auto">
-      <PageHead title="TC List" sub={`${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })} · one card per deal: what's due today, then its checklist (open a card to tick items or add a task).`} />
+      <PageHead title="TC List" sub={`${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })} · one card per deal: what's due today, its checklist and tasks. Click a deal's blue banner to fold it.`} />
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-3">
         <button type="button" onClick={() => setQuery({ only: null })} aria-pressed={!only} className={`text-left px-4 py-3 rounded-xl border ${!only ? 'border-navy-700 ring-1 ring-navy-700 bg-navy-50' : 'border-tan-200 bg-white hover:border-navy-300'}`}>
           <div className="text-[12.5px] text-zinc-600 font-medium">All deals</div>
@@ -226,7 +230,7 @@ export default function TcListView() {
       </div>
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className="flex flex-col gap-3">
-        {shown.map((c) => <Card key={c.deal.id} c={c} open={unfolded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} />)}
+        {shown.map((c) => <Card key={c.deal.id} c={c} open={!folded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} />)}
         {shown.length === 0 && <div className="py-10 text-center text-zinc-500">Nothing here right now.</div>}
       </div>
       <p className="mt-4 text-[12px] text-zinc-500">The checklists: New contract (from the contract date; EM placed by its due date), Assigned (once the deal is assigned; the buyer's EM receipt is chased while the EMD is empty or VPG only), COE (72 hours, 24 hours, closing day, the day after). Items the deal's own fields already show are ticked “from the deal”. Items that were due before the list started (Oct 15) aren't put in Due today.</p>

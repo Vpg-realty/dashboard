@@ -240,7 +240,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
-  use it from Oct 16): sidebar bottom (`bottom: 'admin'`, roles owner /
+  use it from Oct 16): in the sidebar just above Team Overview, tinted tan
+  so it's easy to find (`bottom: 'suggest'`, drawn by AppShell; roles owner /
   manager / tc), `/suggestions/all` (`src/suggestions/SuggestionsView.jsx`).
   A "Suggest a change" button in the header (those roles, every page) opens
   the form with the page it came from (`?new=1&from=<path>`); kind (Something
@@ -307,7 +308,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   dashed team average for reference. Flagged deals in "Fix these" (pipeline,
   notes, follow-ups, dispo handoffs) link to their GHL opportunity (Luke, Oct
   15; `autoCrm` tags each with `sub` = "<repId>|<marketId>", `ghlOppUrl`) —
-  the managers' Scorecard lists do the same. "Show the full breakdown" opens
+  the managers' Scorecard lists do the same. Slow agent texts show who
+  texted (`who`, from the sub-account's opportunities' contacts, passed to
+  `analyzeMessaging` as `names`; MESSAGING_VERSION 5) and link to the GHL
+  conversation (`conv`, `ghlConvUrl`). The full breakdown is its own tab,
+  **My Scorecard › Full Breakdown** (`/me/breakdown`, `MyBreakdownView`;
+  Luke, Oct 15: the "Show the full breakdown" button was easy to miss) —
   `RepView` with `self breakdown`: any period, the six tiles (+ a Speed tile
   for a week: live, or a past week's frozen `speedOk` / `speedTotal` — every
   RepView shows it), points per
@@ -719,7 +725,9 @@ the server strips them (`forTc`) and refuses edits to them.
   navy header (status and flag chips only — Luke, Oct 15: the COE / EMD /
   "x/y done" corner was confusing; the address opens the deal panel), people,
   title agency (red when none) and missing-info chips, a **Due today** box,
-  and a fold-down checklist by stage — `CHECKLIST`, the one place the items
+  and a checklist by stage (cards are **open by default** and the whole navy
+  banner folds / opens a card — Luke, Oct 15: the checklist was easy to miss;
+  folded cards are remembered per device, `vpg.tc.closed`) — `CHECKLIST`, the one place the items
   live: **New contract** (contract and documents received, title opened,
   wire instructions received or on file, EM placed — due from the contract
   date, EM by its due date), **Assigned** (assignment sent to title, wire
@@ -1711,7 +1719,11 @@ Under `src/views/`:
     scaled to 25 with * while some items aren't graded), funnel with step
     rates vs team (bars sized against the biggest step shown and capped —
     Oct 12, a past week with a closing but no conversations on record ran
-    off the screen), and a by-state table (the page scrolls on short
+    off the screen), and a by-state card (`StateCard`, Luke Oct 15: "bland
+    and hard to understand … uniformity"): navy header band, a table in
+    Home's "This week by rep" style — each count a chip shaded navy by how it
+    compares with the rep's best state for that number, cancels red,
+    Convo→Opp coloured vs the team — and a Total row (the page scrolls on short
     screens). Pickers always in the order rep · period · How the score
     works. Period dropdown (Luke, Oct 12): Custom range… on top, then the
     weeks — opening on "This week (Oct 12–18)" (live numbers) — then the
