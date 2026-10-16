@@ -276,8 +276,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   "tiles … bulky … address on one line, 2 lines total" and "titles … not so
   much text"): a navy band (Pipeline · scope, a one-line headline, the
   person filter as tan buttons), no stage-summary boxes; PipelineView's
-  `brand` prop draws one-line column titles (dot, stage, count, $, late /
-  today chips) and two-line cards (address + value; avatar, rep · state, IP
+  `brand` prop draws the column titles as option A of the Oct 16 round
+  (Luke: "late badge at the top right corner … value to the bottom right
+  corner in green"): a navy band with a stage-colour line along its bottom,
+  row 1 the stage in normal case ("Closed in October") with late / today
+  pills at the right, row 2 the count + "deals" with the value in green at
+  the right (`BrandHead`) and two-line cards (address + value; avatar, rep · state, IP
   and COE chips — the key date in its deadline colour, "Nd" on maroon when
   late, the other date grey and the first to shrink). The TV board passes no
   `brand` / `calendar` and is unchanged.

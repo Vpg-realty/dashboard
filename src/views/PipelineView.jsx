@@ -422,29 +422,39 @@ function Avatar({ rep }) {
 }
 
 // One line: dot + stage name in its colour, then the count, $ and late flag.
-function BrandHead({ color, title, count, money, chips }) {
+// Column titles, option A (Luke, Oct 16): the navy band every card on the
+// site uses, a stage-colour line along its bottom, two rows — the stage (in
+// normal case) with any late / today flags at the top right, then the count
+// with the value in green at the bottom right.
+function BrandHead({ color, title, count, unit = 'deals', money, chips }) {
   return (
-    <div className="flex items-center gap-2 px-3 h-10 border-b border-tan-100 shrink-0" style={{ boxShadow: `inset 0 3px 0 ${color}` }}>
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-      <h3 className="text-[12.5px] font-bold uppercase tracking-[0.08em] truncate" style={{ color }}>{title}</h3>
-      <span className="text-[13px] font-semibold text-navy-800 tabular-nums">{count}</span>
-      {money > 0 && <span className="text-[12px] font-semibold text-emerald-700 tabular-nums">{formatCurrency(money)}</span>}
-      <span className="ml-auto flex items-center gap-1">{chips}</span>
+    <div className="bg-navy-700 text-white px-3 pt-2 pb-2.5 shrink-0 flex flex-col gap-0.5" style={{ boxShadow: `inset 0 -3px 0 ${color}` }}>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="w-2 h-2 rounded-full shrink-0 ring-2 ring-white/25" style={{ background: color }} />
+        <h3 className="text-[14px] font-semibold truncate">{title}</h3>
+        <span className="ml-auto flex items-center gap-1 shrink-0">{chips}</span>
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[18px] font-bold tabular-nums leading-tight">{count}</span>
+        <span className="text-[12px] text-white/70">{count === 1 ? unit.replace(/s$/, '') : unit}</span>
+        {money > 0 && <span className="ml-auto text-[14px] font-bold text-emerald-300 tabular-nums">{formatCurrency(money)}</span>}
+      </div>
     </div>
   );
 }
-const smallChip = (cls, text) => <span className={`rounded px-1.5 py-[1px] text-[11px] font-bold whitespace-nowrap ${cls}`}>{text}</span>;
+const sentence = (t) => t.charAt(0) + t.slice(1).toLowerCase();
+const smallChip = (cls, text) => <span className={`rounded-full px-2 py-[1px] text-[11px] font-bold whitespace-nowrap ${cls}`}>{text}</span>;
 
 function BrandColumn({ col, deals, today }) {
   const closed = col.stage === 'closed';
   const total = deals.reduce((a, d) => a + d.value, 0);
   const late = deals.filter((d) => d.late).length;
   const soon = deals.filter((d) => d.keyDays === 0).length;
-  const title = closed ? `Closed · ${MONTHS_LONG[+today.slice(5, 7) - 1].slice(0, 3)}` : col.title;
+  const title = closed ? `Closed in ${MONTHS_LONG[+today.slice(5, 7) - 1]}` : sentence(col.title);
   return (
     <section className="rounded-xl border border-tan-200 bg-white flex flex-col min-h-0 overflow-hidden">
       <BrandHead color={col.color} title={title} count={deals.length} money={total}
-        chips={<>{late > 0 && smallChip('bg-[#4c0519] text-white', `${late} late`)}{soon > 0 && smallChip('bg-red-600 text-white', `${soon} today`)}</>} />
+        chips={<>{late > 0 && smallChip('bg-[#4c0519] text-white ring-1 ring-white/30', `${late} late`)}{soon > 0 && smallChip('bg-red-600 text-white', `${soon} today`)}</>} />
       <AutoScroll className="p-1.5 flex flex-col gap-1">
         {deals.length === 0 && <div className="text-[13px] text-zinc-400 text-center py-6">Nothing here</div>}
         {deals.map((d) => <BrandCard key={d.id} deal={d} closed={closed} />)}
@@ -538,7 +548,7 @@ function BrandOppColumn({ col, opps, repById, marketById }) {
   const stale = list.filter((o) => o.days >= 14).length;
   return (
     <section className="rounded-xl border border-tan-200 bg-white flex flex-col min-h-0 overflow-hidden">
-      <BrandHead color={col.color} title={col.title} count={list.length} money={total} chips={stale > 0 && smallChip('bg-amber-100 text-amber-900', `${stale} 14d+`)} />
+      <BrandHead color={col.color} title={sentence(col.title)} count={list.length} unit="opportunities" money={total} chips={stale > 0 && smallChip('bg-amber-100 text-amber-900', `${stale} 14d+`)} />
       <AutoScroll className="p-1.5 flex flex-col gap-1">
         {list.length === 0 && <div className="text-[13px] text-zinc-400 text-center py-6">Nothing here</div>}
         {list.map((o) => {
