@@ -117,7 +117,7 @@ const STAGE_ORDER = [['under_contract', 'Under contract', '#2563eb'], ['dispo', 
 function PipelineCard({ deals }) {
   const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
   return (
-    <Card title="Pipeline" right={more('/pipeline', 'Open')}>
+    <Card title="Pipeline" right={more('/pipeline/all', 'Open')}>
       <div className="flex flex-col gap-2.5">
         {STAGE_ORDER.map(([k, label, color]) => {
           const list = deals.filter((d) => d.stage === k);
@@ -318,7 +318,7 @@ export default function HomeView({ me }) {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
-        <Card title="Needs attention" right={more('/pipeline', 'Pipeline')}>
+        <Card title="Needs attention" right={more('/pipeline/all', 'Pipeline')}>
           {open.length === 0 ? (
             <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
           ) : (
