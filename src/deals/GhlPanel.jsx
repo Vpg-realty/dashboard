@@ -4,7 +4,7 @@ import StageChip from '../shell/StageChip.jsx';
 import { money, shortDate, primaryCls } from './format.js';
 import { CoeChip } from './ui.jsx';
 
-export default function GhlPanel({ g, canAdd, onAdd, onClose, loading }) {
+export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) {
   const facts = [
     ['Stage in GHL', <StageChip key="s" stage={g.stage} />],
     ['Rep', g.repName || '—'],
@@ -35,10 +35,18 @@ export default function GhlPanel({ g, canAdd, onAdd, onClose, loading }) {
               </div>
             ))}
           </div>
+          {ended ? (
+            // Luke, Oct 16 (10869 Waltman): finished in the tracker, still open in GHL.
+            <div className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] px-4 py-3.5 text-[#7A271A]">
+              <div className="font-semibold">{ended === 'CANCELLED' ? 'Cancelled in the deal tracker' : 'Closed in the deal tracker'}</div>
+              <div className="mt-1 text-[14px]">GHL still has it in {g.stage === 'under_contract' ? 'Under contract' : g.stage === 'assigned' ? 'Assigned' : 'Dispo active'}. Move it to {ended === 'CANCELLED' ? 'Lost / Abandoned' : 'Closed'} in GoHighLevel so it stops showing as an active deal.</div>
+            </div>
+          ) : (
           <div className="rounded-xl border border-tan-200 bg-white px-4 py-3.5 text-zinc-600">
             {loading ? 'Looking for this deal in the tracker…' : <>Not in the deal tracker yet — deals are added automatically when they reach <span className="font-medium text-zinc-800">Dispo active</span> in GHL.</>}
             {!loading && canAdd && <div className="mt-3"><button onClick={onAdd} className={primaryCls}>Add to tracker now</button></div>}
           </div>
+          )}
         </div>
       </section>
     </div>

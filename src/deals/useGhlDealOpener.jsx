@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import DealPanel from './DealPanel.jsx';
 import GhlPanel from './GhlPanel.jsx';
-import { useDeals, ghlDeals, addrKey, fieldsFromGhl } from './store.js';
+import { useDeals, ghlDeals, addrKey, fieldsFromGhl, endedByAddr } from './store.js';
 
 export default function useGhlDealOpener() {
   const s = useDeals();
@@ -25,7 +25,7 @@ export default function useGhlDealOpener() {
     const g = ghlDeals().get(k) || pick;
     panel = match
       ? <DealPanel key={match.id} id={match.id} onClose={close} />
-      : <GhlPanel g={g} loading={s.status === 'loading' || s.status === 'idle'} canAdd={ready && !s.readOnly} onAdd={() => { setPick(null); setDraft(fieldsFromGhl(g)); }} onClose={close} />;
+      : <GhlPanel g={g} ended={ready && k ? endedByAddr(s).get(k) || null : null} loading={s.status === 'loading' || s.status === 'idle'} canAdd={ready && !s.readOnly} onAdd={() => { setPick(null); setDraft(fieldsFromGhl(g)); }} onClose={close} />;
   }
   return { openGhl: setPick, panel };
 }

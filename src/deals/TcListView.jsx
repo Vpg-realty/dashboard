@@ -7,14 +7,18 @@
 // ticked fades and asks "Close out deal?" (Luke, Oct 16): Yes takes it off
 // the list (Closed out, at the bottom, can reopen it); No keeps it, with a
 // "Close out deal" button on the card (the No is remembered per device,
-// `vpg.tc.keep`). Ticks and tasks: D1 via /api/tc, with who
+// `vpg.tc.keep`). Cards keep their place while you work (Luke, Oct 16: "the
+// tc list reorders itself while i'm working on it" — useFrozenOrder, like
+// Active / All deals; "Re-sort now" when the order is out of date). Closed
+// out is a tile on top (`?only=out`). Ticks and tasks: D1 via /api/tc, with who
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
 import { buildTcCards, TC_FLAGS, CLOSE_OUT, vpgPlacedEm } from './tcList.js';
-import { PageHead, Loading, NeedChips, StatusChip } from './ui.jsx';
+import { PageHead, Loading, NeedChips, StatusChip, ResortBar } from './ui.jsx';
+import useFrozenOrder from './useFrozenOrder.js';
 import { Person } from './people.jsx';
 import { LABEL } from './fieldLib.js';
 import { shortDate, primaryCls } from './format.js';
@@ -236,26 +240,31 @@ export default function TcListView() {
   const [busy, setBusy] = useState(false);
   const [folded, setFolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
   const [kept, setKept] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(KEEP_KEY) || '[]')); } catch { return new Set(); } });
-  const [showOut, setShowOut] = useState(false);
   const { query } = useLocation();
-  const only = TC_FLAGS.some((f) => f.id === query.get('only')) ? query.get('only') : null;
+  const only = TC_FLAGS.some((f) => f.id === query.get('only')) || query.get('only') === 'out' ? query.get('only') : null;
   const today = laToday();
   const all = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
   const cards = all.filter((c) => !c.out);
   const outCards = all.filter((c) => c.out);
+  // The order is set when the list loads or a tile is picked; ticking things
+  // off never moves a card. A card closed out leaves at once; one that no
+  // longer matches the tile stays until Re-sort.
+  const pool = only === 'out' ? outCards : cards;
+  const wrap = (c) => ({ id: c.deal.id, c });
+  const frozen = useFrozenOrder((only && only !== 'out' ? cards.filter((c) => c.flags.has(only)) : pool).map(wrap), only || 'all', { byId: new Map(pool.map((c) => [c.deal.id, wrap(c)])) });
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
   const fold = (id) => setFolded((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
   const run = async (body) => { setBusy(true); try { return await post(body); } finally { setBusy(false); } };
   const keep = (id) => setKept((u) => { const n = new Set(u); n.add(id); try { localStorage.setItem(KEEP_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
-  const shown = only ? cards.filter((c) => c.flags.has(only)) : cards;
+  const shown = frozen.rows.map((r) => r.c);
   const count = (id) => cards.filter((c) => c.flags.has(id)).length;
   const allOpen = shown.length > 0 && shown.every((c) => !folded.has(c.deal.id));
   const setAll = (on) => { const n = new Set(folded); for (const c of shown) { if (on) n.delete(c.deal.id); else n.add(c.deal.id); } setFolded(n); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } };
   return (
     <div className="max-w-[1500px] mx-auto">
       <PageHead title="TC List" sub={`${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })} · one card per deal: what's due today, its checklist and tasks. Click a deal's blue banner to fold it.`} />
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 mb-3">
         <button type="button" onClick={() => setQuery({ only: null })} aria-pressed={!only} className={`text-left px-4 py-3 rounded-xl border ${!only ? 'border-navy-700 ring-1 ring-navy-700 bg-navy-50' : 'border-tan-200 bg-white hover:border-navy-300'}`}>
           <div className="text-[12.5px] text-zinc-600 font-medium">All deals</div>
           <div className="mt-1 text-[26px] leading-none font-semibold tabular-nums text-navy-800">{cards.length}</div>
@@ -271,21 +280,33 @@ export default function TcListView() {
             </button>
           );
         })}
+        {/* Closed out (Luke, Oct 16: "it gets completely lost down there"). */}
+        <button type="button" disabled={!outCards.length && only !== 'out'} onClick={() => setQuery({ only: only === 'out' ? null : 'out' })} aria-pressed={only === 'out'}
+          className={`text-left px-4 py-3 rounded-xl border ${only === 'out' ? 'border-emerald-700 ring-1 ring-emerald-700 bg-emerald-50' : outCards.length ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-400' : 'border-tan-200 bg-white opacity-55 cursor-default'}`}>
+          <div className="text-[12.5px] text-emerald-800 font-medium truncate">Closed out ✓</div>
+          <div className={`mt-1 text-[26px] leading-none font-semibold tabular-nums ${outCards.length ? 'text-emerald-700' : 'text-zinc-300'}`}>{outCards.length}</div>
+        </button>
       </div>
       <div className="flex flex-wrap items-center gap-3 mb-3 text-[13px]">
-        {only && <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">{TC_FLAGS.find((f) => f.id === only).label} · {shown.length}<button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button></span>}
-        <button type="button" onClick={() => setAll(!allOpen)} className="ml-auto text-navy-700 font-medium hover:underline">{allOpen ? 'Fold all checklists' : 'Open all checklists'}</button>
+        {only && <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">{only === 'out' ? 'Closed out' : TC_FLAGS.find((f) => f.id === only).label} · {shown.length}<button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button></span>}
+        <span className="ml-auto"><ResortBar stale={frozen.stale} onResort={frozen.resort} quiet /></span>
+        <button type="button" onClick={() => setAll(!allOpen)} className="text-navy-700 font-medium hover:underline">{allOpen ? 'Fold all checklists' : 'Open all checklists'}</button>
       </div>
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className="flex flex-col gap-3">
-        {shown.map((c) => <Card key={c.deal.id} c={c} open={!folded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} kept={kept.has(c.deal.id)} onKeep={() => keep(c.deal.id)} />)}
+        {shown.map((c) => <Card key={c.deal.id} c={c} open={!c.out && !folded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} kept={kept.has(c.deal.id)} onKeep={() => keep(c.deal.id)} />)}
         {shown.length === 0 && <div className="py-10 text-center text-zinc-500">Nothing here right now.</div>}
       </div>
-      {outCards.length > 0 && (
-        <div className="mt-5">
-          <button type="button" onClick={() => setShowOut((v) => !v)} className="text-[13px] font-medium text-navy-700 hover:underline">{showOut ? '▾' : '▸'} Closed out · {outCards.length}</button>
-          {showOut && <div className="mt-2 flex flex-col gap-3">{outCards.map((c) => <Card key={c.deal.id} c={c} open={false} onFold={() => {}} onOpen={open} post={run} busy={busy} today={today} kept onKeep={() => keep(c.deal.id)} />)}</div>}
-        </div>
+      {only !== 'out' && outCards.length > 0 && (
+        <button type="button" onClick={() => { setQuery({ only: 'out' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          className="mt-5 w-full flex items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-left hover:border-emerald-400">
+          <span className="grid place-items-center w-10 h-10 rounded-full bg-emerald-600 text-white text-lg">✓</span>
+          <span className="flex-1">
+            <span className="block text-[16px] font-semibold text-emerald-900">Closed out deals · {outCards.length}</span>
+            <span className="block text-[13px] text-emerald-800/80">Deals finished and taken off the list — open them to look back or reopen one.</span>
+          </span>
+          <span className="text-emerald-800 font-medium">Show ›</span>
+        </button>
       )}
       <p className="mt-4 text-[12px] text-zinc-500">The checklists: New contract (from the contract date; EM placed by its due date), Assigned (once the deal is assigned; the buyer's EM receipt is chased while the EMD is empty or VPG only), COE (72 hours, 24 hours, closing day, the day after), Post Close (unlocks when the deal is closed: HUD statement, wire received, EM returned — ticked by itself when VPG never placed EM). A closed deal ticks the first three by itself; once every box is ticked it asks to be closed out. Items the deal's own fields already show are ticked “from the deal”. Items that were due before the list started (Oct 15) aren't put in Due today.</p>
       {panel}

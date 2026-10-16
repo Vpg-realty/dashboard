@@ -36,12 +36,15 @@ const TZ_FIELD = FIELDS.find((f) => f.key === 'ddEndTz');
 // One look for every highlighted field box (Luke, Oct 14: "needed" and
 // "check this" boxes looked different and ran together): same padding,
 // radius and ring on every field — needed red, check amber, retrade amber
-// and stronger — with the grid's gap between boxes.
+// and stronger — with the grid's gap between boxes. Oct 16 (Luke: "the
+// yellow boxes are too large … needs to be cleaner"): needed / check this
+// are a thin coloured edge on the left and a small label, not a filled box,
+// and read-only viewers don't get "check this" (nothing for them to do).
 const BOX = 'rounded-lg p-2 ring-1 ring-inset';
 const BOX_TONE = {
   plain: 'ring-transparent',
-  need: 'bg-[#FDF1F0] ring-[#F5C2BD]',
-  check: 'bg-[#FFF8E6] ring-[#F5D9A8]',
+  need: 'ring-transparent rounded-l-none shadow-[inset_3px_0_0_#D92D20] bg-[#FEF7F6]',
+  check: 'ring-transparent rounded-l-none shadow-[inset_3px_0_0_#F79009]',
   retrade: 'bg-amber-50 ring-2 ring-amber-400 transition-colors duration-700',
   flash: 'bg-amber-200 ring-2 ring-amber-500 transition-colors duration-700',
   alert: 'ring-[#F5C2BD]',
@@ -340,7 +343,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       const locked = BOOKS_KEYS.includes(f.key) && !booksOpen(merged);
                       const reprice = f.key === 'price' && retradePending(merged);
                       const lossHigh = f.key === 'netLoss' && netLossHigh(merged);
-                      const check = !isNew && flagged.has(f.key) && step.tone !== 'green';
+                      const check = !isNew && !ro && flagged.has(f.key) && step.tone !== 'green';
                       const tone = reprice ? (flash ? 'flash' : 'retrade') : need.has(f.key) ? 'need' : check ? 'check' : lossHigh ? 'alert' : 'plain';
                       return (
                         <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
@@ -348,8 +351,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                             {f.key === 'ddEndTime' ? 'End time & time zone' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
                             {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
-                              : need.has(f.key) ? <span className="text-[10.5px] font-semibold text-[#B42318]">● needed</span>
-                                : check ? <span className="text-[10.5px] font-semibold text-[#B54708]">● check this</span> : null}
+                              : need.has(f.key) ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>
+                                : check ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FEF0C7] text-[#B54708]">check this</span> : null}
                             {lossHigh && <span className="text-[10.5px] font-semibold text-[#B42318]">● over 20%</span>}
                             {locked && <span className="text-[10.5px] font-normal text-zinc-400" title="Bookkeeping can be filled in once the COE date is reached or the deal is closed">locked · unlocks at COE</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] font-normal text-zinc-400">auto</span>}
