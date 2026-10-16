@@ -19,7 +19,7 @@ import { REPS, MARKETS, SUBACCOUNTS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery } from './router.js';
-import { useDeals, addrKey, trackerByAddr, withTrackerDates } from '../deals/store.js';
+import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { useOpps } from '../data/oppsStore.js';
 import { scopeReps } from './scope.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
@@ -73,7 +73,9 @@ export default function PipelinePage() {
   const byAddr = useMemo(() => trackerByAddr(s.deals), [s.deals]);
   const dates = (d) => withTrackerDates(d, byAddr.get(addrKey(d.address || d.name)));
   const inScope = (repId) => (rep ? repId === rep.id : podOnly ? pod.includes(repId) : true);
-  const keep = (d, p) => (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
+  // Closed / cancelled in the tracker but still open in GHL: left out.
+  const ended = endedByAddr(s);
+  const keep = (d, p) => !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const needle = q.trim().toLowerCase();
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);

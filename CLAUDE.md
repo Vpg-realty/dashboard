@@ -282,6 +282,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   by split-private-data.mjs into **`opps.json`** (same login rule as
   data.json — functions/_middleware.js TEAM_FILES, `_routes.json`), loaded
   by `src/data/oppsStore.js` only when the tab opens (every 5 min while open).
+- **Finished in the tracker, open in GHL** (Luke, Oct 16 — 10869 Waltman,
+  cancelled in the tracker, still Dispo active in GHL, showed as "IP end 6d
+  late" on Axel's Home and "Not in the deal tracker yet" in the panel): GET
+  /api/deals also sends `ended` — address keys + status of the deals a rep
+  doesn't receive (closed / cancelled); `endedByAddr` (deals/store.js) joins
+  them with the finished deals owners / TC have. Home's Needs attention and
+  the app's Pipeline leave such a deal out (unless its GHL stage is Closed),
+  and the GHL panel says "Cancelled / Closed in the deal tracker — move it
+  to Lost / Closed in GoHighLevel". `addrKey` now lives in math.js (the
+  server uses it). The TV board still reads GHL only.
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
   `useGhlDealOpener` (src/deals): the tracker deal at the same address
@@ -779,7 +789,11 @@ the server strips them (`forTc`) and refuses edits to them.
   stores the `closeout` tick (tc_checks) and takes it off the list — a
   "Closed out · N" fold at the bottom lists them with Reopen; No keeps it
   (remembered per device, `vpg.tc.keep`) with a green "Close out deal"
-  button in its banner.
+  button in its banner. Oct 16 (Luke: "the tc list reorders itself while
+  i'm working on it"): cards keep their place (useFrozenOrder, keyed by the
+  tile picked; "Re-sort now" when out of date; a closed-out card leaves at
+  once), and Closed out is a green tile in the top row (`?only=out`) plus a
+  full-width banner at the bottom.
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
@@ -933,7 +947,10 @@ the server strips them (`forTc`) and refuses edits to them.
     "At COE — fill in bookkeeping" task. Commission paid stays secret.
   - **Field boxes in the panel**: one style for every field (padding,
     radius, ring, a gap between boxes): needed = red, check this = amber,
-    retrade price = amber ring.
+    retrade price = amber ring. Oct 16 (Luke: "the yellow boxes are too
+    large"): needed / check this are a 3px coloured left edge with a small
+    label chip, no filled box; read-only viewers (reps / managers) get no
+    "check this".
   - **Searchable dropdowns** (`src/deals/SearchSelect.jsx`): every deals
     dropdown (panel and in-place lists, acq. manager, dispo member, buyer /
     title past entries — "✎ Custom — type it in" pinned on top, "(N deals)"

@@ -19,7 +19,7 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
-import { useDeals, addrKey, trackerByAddr, withTrackerDates } from '../deals/store.js';
+import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { EmdPill } from '../deals/pills.jsx';
 import { nextStep, dueTone } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
@@ -240,6 +240,9 @@ export default function HomeView({ me }) {
   const tracker = useDeals();
   const byAddr = trackerByAddr(tracker.deals);
   const trackedOf = (d) => byAddr.get(addrKey(d.address || d.name)) || null;
+  // Closed / cancelled in the tracker while GHL still shows it open: no
+  // date alerts (the GHL panel says to update GHL).
+  const ended = endedByAddr(tracker);
   const scope = scopeReps(me);
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
@@ -250,6 +253,7 @@ export default function HomeView({ me }) {
     .map((d) => {
       const key = KEY[d.stage];
       const date = key && d[key];
+      if (d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) return null;
       return date ? { ...d, key, days: daysInclusive(today, date) - 1 } : null;
     })
     .filter((d) => d && d.days <= 3)

@@ -297,3 +297,11 @@ export function forTc(deal) {
   for (const k of SECRET_KEYS) { delete d[k]; delete d.fixed[k]; }
   return d;
 }
+
+// A tracker deal and a GHL opportunity are the same property when the house
+// number and the first word of the street match ("408 Lynchester Ct" =
+// "408 Lynchester Dr. Raleigh"). Pure, so the server uses it too.
+export function addrKey(a) {
+  const m = /^\s*(\d+[a-z]?)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i.exec(String(a || ''));
+  return m ? `${m[1]} ${m[2]}`.toLowerCase() : null;
+}

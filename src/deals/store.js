@@ -3,11 +3,11 @@
 // Shared by the Deals tabs and the deal side panel.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { compute, STAGE_STATUS, isOpen } from './math.js';
+import { compute, STAGE_STATUS, isOpen, addrKey } from './math.js';
 import { PAIRS } from '../data/source.js';
 import { REPS, MARKETS } from '../data/config.js';
 
-let state = { status: 'idle', deals: [], raw: [], lists: {}, rules: {}, owner: false, sync: null, error: null };
+let state = { status: 'idle', deals: [], raw: [], ended: [], lists: {}, rules: {}, owner: false, sync: null, error: null };
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 
@@ -17,7 +17,7 @@ export async function loadDeals() {
   emit({ status: state.raw.length ? 'refreshing' : 'loading', error: null });
   try {
     const r = await call('deals');
-    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner, readOnly: !!r.readOnly, sync: r.sync || null });
+    emit({ status: 'ready', raw: r.deals, deals: withCalc(r.deals, r.rules, r.lists), lists: r.lists || {}, rules: r.rules || {}, owner: !!r.owner, readOnly: !!r.readOnly, sync: r.sync || null, ended: r.ended || [] });
   } catch (e) {
     emit({ status: 'error', error: e.status === 0 ? 'The deal tracker only works on the live site.' : e.message });
   }
@@ -60,12 +60,20 @@ export async function deleteDeal(id) {
 export const dealHistory = (id) => call(`deals/${id}`);
 
 // --- GHL link -------------------------------------------------------------------
-// A tracker deal and a GHL opportunity are the same property when the house
-// number and the first word of the street match ("408 Lynchester Ct" =
-// "408 Lynchester Dr. Raleigh").
-export function addrKey(a) {
-  const m = /^\s*(\d+[a-z]?)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i.exec(String(a || ''));
-  return m ? `${m[1]} ${m[2]}`.toLowerCase() : null;
+// addrKey (math.js): the house number + first street word.
+export { addrKey };
+
+// Tracker deals that are finished (closed / cancelled) by address, where no
+// open tracker deal shares it — key → status. Reps don't receive finished
+// deals, only their keys (`ended` from GET /api/deals). Luke, Oct 16: a deal
+// cancelled in the tracker but still Dispo active in GHL kept showing as
+// late on Home.
+export function endedByAddr(s) {
+  const open = new Set(s.raw.filter(isOpen).map((d) => addrKey(d.address)));
+  const out = new Map();
+  for (const d of s.raw) { const k = addrKey(d.address); if (k && !isOpen(d) && !open.has(k)) out.set(k, d.status); }
+  for (const e of s.ended || []) if (e.key && !open.has(e.key)) out.set(e.key, e.status);
+  return out;
 }
 
 const repName = Object.fromEntries(REPS.map((r) => [r.id, r.name]));
