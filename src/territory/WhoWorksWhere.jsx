@@ -5,7 +5,7 @@
 // own tab (RepsStates.jsx). Numbers: this month from GHL, new conversations
 // over the last 7 days (history.json), the sheet from D1, and — owners / TC —
 // the deal tracker.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { REPS } from '../data/config.js';
 import { PAIRS, historyEntries } from '../data/source.js';
 import { useLocation, setQuery } from '../shell/router.js';
@@ -37,69 +37,125 @@ export function Tile({ label, value, sub, tone }) {
   );
 }
 
-// The year so far for one state, set apart in navy so it's easy to find.
+// The state panel as a VPG market card (Luke, Oct 16: "too claude-like …
+// personalize this a little more"): a navy hero with the state's own outline,
+// its status / season / legal chips and the people on it; then how the year
+// is going as coloured tiles in the site's style; then the market's facts.
+const STATE_ACCENT = { opps: '#d97706', offers: '#0d9488', contracts: '#2563eb', closed: '#059669', revenue: '#059669', cancels: '#dc2626' };
+let geoCache = null;
+function useStateShape(abbr) {
+  const [geo, setGeo] = useState(geoCache);
+  useEffect(() => { if (!geoCache) import('./usStates.json').then((m) => { geoCache = m.default; setGeo(geoCache); }); }, []);
+  const shape = geo?.states.find((x) => x.id === abbr);
+  if (!shape) return null;
+  const nums = shape.d.match(/-?\d+(\.\d+)?/g).map(Number);
+  const xs = nums.filter((_, i) => i % 2 === 0); const ys = nums.filter((_, i) => i % 2 === 1);
+  const x0 = Math.min(...xs); const y0 = Math.min(...ys);
+  return { d: shape.d, box: `${x0 - 2} ${y0 - 2} ${Math.max(...xs) - x0 + 4} ${Math.max(...ys) - y0 + 4}` };
+}
+function Person({ rep, role, sub }) {
+  const c = rep?.color || '#ad9b7a';
+  const name = rep?.name || '—';
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl bg-white/10 ring-1 ring-inset ring-white/15 pl-1.5 pr-3 py-1.5 min-w-0">
+      <span className="w-8 h-8 rounded-full shrink-0 grid place-items-center text-[13px] font-bold text-white" style={{ background: c }}>{name.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>
+      <span className="min-w-0 leading-tight">
+        <span className="block text-[13.5px] font-semibold text-white truncate">{name}</span>
+        <span className="block text-[11.5px] text-tan-400 truncate">{role}{sub ? ` · ${sub}` : ''}</span>
+      </span>
+    </div>
+  );
+}
 function YearToDate({ st, tracker, owner }) {
   const y = stateYtd({ entries: historyEntries(), pairs: PAIRS, abbr: st.abbr });
   const t = st.tracker;
   const anyGhl = YTD_FIELDS.some(([k]) => y[k].since);
   return (
-    <div className="rounded-xl border border-navy-200 bg-navy-50/60 overflow-hidden">
-      <div className="px-4 py-2 bg-navy-700 text-white flex items-center gap-2">
-        <span className="text-[13.5px] font-semibold">{st.state} · {y.year} year to date</span>
-        <span className="ml-auto text-[11.5px] text-navy-100">whole team</span>
+    <div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <h4 className="text-[15px] font-semibold text-navy-800">How {y.year} is going in {st.state}</h4>
+        <span className="text-[12px] text-zinc-500">whole team · from GHL</span>
       </div>
       {anyGhl ? (
-        <div className="grid grid-cols-3">
-          {YTD_FIELDS.map(([k, , label]) => (
-            <div key={k} className="px-4 py-2.5 border-r border-b border-navy-100 [&:nth-child(3n)]:border-r-0">
-              <div className="text-[11.5px] text-zinc-500">{label}</div>
-              <div className={`text-[20px] font-semibold tabular-nums leading-tight ${k === 'cancels' && y[k].value ? 'text-red-700' : k === 'closed' || k === 'revenue' ? 'text-emerald-800' : 'text-navy-900'}`}>{y[k].since ? (k === 'revenue' ? money(y[k].value) : y[k].value.toLocaleString()) : '—'}</div>
-              <div className="text-[10.5px] text-zinc-400">{y[k].since ? `since ${monthName(y[k].since)}` : 'not tracked'}</div>
-            </div>
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {YTD_FIELDS.map(([k, , label]) => {
+            const v = y[k].value;
+            const tone = !y[k].since ? 'text-zinc-300' : k === 'cancels' ? (v ? 'text-red-700' : 'text-zinc-400') : k === 'closed' || k === 'revenue' ? 'text-emerald-700' : 'text-navy-800';
+            return (
+              <div key={k} className="relative rounded-xl border border-tan-200 bg-white px-3 pt-3 pb-2 overflow-hidden">
+                <span className="absolute inset-x-0 top-0 h-1" style={{ background: STATE_ACCENT[k] }} />
+                <div className="text-[12px] text-zinc-500 font-medium">{label}</div>
+                <div className={`text-[22px] font-semibold tabular-nums leading-tight ${tone}`}>{y[k].since ? (k === 'revenue' ? money(v) : v.toLocaleString()) : '—'}</div>
+                <div className="text-[10.5px] text-zinc-400">{y[k].since ? `since ${monthName(y[k].since)}` : 'not tracked'}</div>
+              </div>
+            );
+          })}
         </div>
-      ) : <div className="px-4 py-3 text-[13px] text-zinc-500">No GHL sub-account here yet, so no numbers.</div>}
+      ) : <div className="rounded-xl border border-dashed border-tan-200 bg-white px-4 py-3 text-[13px] text-zinc-500">No GHL sub-account here yet, so no numbers.</div>}
       {tracker && t && (
-        <div className="px-4 py-2.5 border-t border-navy-100 bg-white/70 text-[13px] flex flex-wrap gap-x-4 gap-y-1">
-          <span className="font-semibold text-navy-800">Deal tracker {y.year}:</span>
-          <span><b className="tabular-nums">{t.contracts}</b> contracts</span>
-          <span className="text-emerald-800"><b className="tabular-nums">{t.closed}</b> closed</span>
-          <span className={t.cancelled ? 'text-red-700' : ''}><b className="tabular-nums">{t.cancelled}</b> cancelled</span>
-          <span><b className="tabular-nums">{t.pending}</b> pending</span>
-          {t.pending * 2 < t.contracts && <span>close rate <b>{pct(t.closeRate)}</b></span>}
-          <span>gross <b>{money(t.gross)}</b></span>
-          {owner && <span>net profit <b>{money(t.profit)}</b>{t.avgNet != null ? ` · ${money(t.avgNet)} / closed` : ''}</span>}
+        <div className="mt-2 rounded-xl bg-tan-50 border border-tan-200 px-3.5 py-2.5 text-[13px]">
+          <div className="text-[11.5px] font-semibold uppercase tracking-wide text-tan-700 mb-1">Deal tracker · {y.year}</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-zinc-700">
+            <span><b className="tabular-nums text-navy-800">{t.contracts}</b> contracts</span>
+            <span className="text-emerald-700"><b className="tabular-nums">{t.closed}</b> closed</span>
+            <span className={t.cancelled ? 'text-red-700' : ''}><b className="tabular-nums">{t.cancelled}</b> cancelled</span>
+            <span><b className="tabular-nums text-navy-800">{t.pending}</b> pending</span>
+            {t.pending * 2 < t.contracts && <span>close rate <b className="text-navy-800">{pct(t.closeRate)}</b></span>}
+            <span>gross <b className="text-navy-800">{money(t.gross)}</b></span>
+            {owner && <span>net profit <b className="text-emerald-700">{money(t.profit)}</b>{t.avgNet != null ? ` · ${money(t.avgNet)} per closing` : ''}</span>}
+          </div>
         </div>
       )}
-      <div className="px-4 py-1.5 text-[10.5px] text-zinc-500 border-t border-navy-100">GHL numbers add up each month's final count{tracker ? '; the tracker counts deals by contract date (or COE) this year' : ''}.</div>
     </div>
   );
 }
 
 function StateDetail({ st, tracker, owner }) {
+  const shape = useStateShape(st?.abbr);
   if (!st) return <div className="p-6 text-zinc-500">Click a state on the map to see who works it, its year-to-date numbers, legal and season notes and dispo coverage.</div>;
+  const repStats = (id) => {
+    const p = PAIRS.find((x) => x.repId === id && x.marketId === st.abbr);
+    return p ? `${p.oppsOpenedMonth || 0} opps · ${p.contractsMonth || 0} contracts` : null;
+  };
+  const dispoRep = REPS.find((r) => r.name.split(' ')[0].toLowerCase() === String(st.dispo || '').split(' ')[0].toLowerCase());
   return (
-    <div className="p-5 flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[20px] font-semibold text-navy-800 mr-1">{st.state}</h3>
-        <StatusChip st={st} /><SeasonChip st={st} /><Legal v={st.legal} />
+    <div className="flex flex-col">
+      <div className="relative overflow-hidden bg-navy-700 text-white px-5 pt-5 pb-4">
+        {shape && (
+          <svg viewBox={shape.box} className="absolute -right-4 -top-2 h-[150px] w-[190px] opacity-[0.18]" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+            <path d={shape.d} fill="#ad9b7a" stroke="#ffffff" strokeWidth="0.6" />
+          </svg>
+        )}
+        <div className="relative">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Valley Property Group · Market</div>
+          <div className="mt-1 flex items-baseline gap-2.5">
+            <h3 className="text-[26px] font-semibold tracking-tight">{st.state}</h3>
+            <span className="text-[14px] font-semibold text-white/50">{st.abbr}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5"><StatusChip st={st} /><SeasonChip st={st} /><Legal v={st.legal} /></div>
+          <div className="mt-4 text-[11.5px] font-semibold uppercase tracking-wide text-white/60">Who's on it</div>
+          <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {st.ghl.map((r) => <Person key={r.id} rep={REPS.find((x) => x.id === r.id) || r} role="Acquisitions · month" sub={repStats(r.id)} />)}
+            {st.dispo ? <Person rep={dispoRep || { name: st.dispo, color: '#ad9b7a' }} role="Dispo" sub={st.dispoBackup ? `backup ${st.dispoBackup}` : null} />
+              : <div className="rounded-xl bg-red-500/20 ring-1 ring-inset ring-red-300/40 px-3 py-2 text-[13px] font-medium text-red-100">No dispo rep on the sheet</div>}
+            {!st.ghl.length && <div className="rounded-xl bg-white/10 px-3 py-2 text-[13px] text-white/70">No acquisitions rep here yet</div>}
+          </div>
+          {st.projected ? <div className="mt-2 text-[12px] text-white/60">Planned {st.projected} reps{st.staffing ? ` · ${st.staffing}` : ''}{st.marketNote ? ` · ${st.marketNote}` : ''}</div> : null}
+        </div>
       </div>
-      {owner && <StateControls st={st} />}
-      <YearToDate st={st} tracker={tracker} owner={owner} />
-      <div>
-        <div className="text-[12px] font-medium text-zinc-500 mb-1.5">Reps working it (GHL)</div>
-        {st.ghl.length ? (
-          <div className="flex flex-wrap gap-1.5">{st.ghl.map((r) => <span key={r.id} className="inline-flex items-center gap-1.5 rounded-md border border-tan-200 bg-white px-2 py-1 text-[13px] font-medium"><RepDot rep={r} />{r.name}</span>)}</div>
-        ) : <div className="text-zinc-500">Nobody yet.</div>}
-        {st.projected ? <div className="text-[12.5px] text-zinc-500 mt-1.5">Planned {st.projected} · {st.staffing || ''}{st.marketNote ? ` · ${st.marketNote}` : ''}</div> : null}
+      <div className="p-5 flex flex-col gap-5">
+        {owner && <StateControls st={st} />}
+        <YearToDate st={st} tracker={tracker} owner={owner} />
+        <div>
+          <h4 className="text-[15px] font-semibold text-navy-800 mb-2">This market at a glance</h4>
+          <div className="grid grid-cols-2 gap-2 text-[13.5px]">
+            <Fact l="This month" v={`${st.act.opps} opps · ${st.act.offers} offers · ${st.act.contracts} contracts`} />
+            <Fact l="New conversations · last 7 days" v={st.act.convos7.toLocaleString()} />
+            <Fact l="Counties · zips on the sheet" v={`${st.counties} · ${st.zips.toLocaleString()}`} />
+            <Fact l="Legal" v={st.legalNote || st.legal || '—'} />
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[13.5px]">
-        <Fact l="Dispo rep" v={st.dispo ? `${st.dispo}${st.dispoBackup ? ` (backup ${st.dispoBackup})` : ''}` : <span className="text-red-700 font-medium">None on the sheet</span>} />
-        <Fact l="Counties · zips" v={`${st.counties} · ${st.zips.toLocaleString()}`} />
-        <Fact l="This month" v={`${st.act.opps} opps · ${st.act.offers} offers · ${st.act.contracts} contracts`} />
-        <Fact l="New conversations (7 days)" v={st.act.convos7.toLocaleString()} />
-      </div>
-      {st.legalNote && <div className="text-[12.5px] text-zinc-600"><span className="font-medium text-zinc-500">Legal note: </span>{st.legalNote}</div>}
     </div>
   );
 }
@@ -128,7 +184,7 @@ function RepDetail({ row, flags, onState }) {
     </div>
   );
 }
-const Fact = ({ l, v }) => <div className="min-w-0"><div className="text-[12px] font-medium text-zinc-500">{l}</div><div className="font-semibold text-navy-900 mt-0.5">{v}</div></div>;
+const Fact = ({ l, v }) => <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2"><div className="text-[11.5px] font-medium text-zinc-500">{l}</div><div className="font-semibold text-navy-900 mt-0.5">{v}</div></div>;
 
 // Open a state (or a rep) and bring the map into view.
 function focusMap(patch) {

@@ -1094,7 +1094,14 @@ the sheet read-only and the zip rules; `src/territory/`), replacing the
   this month's live pairs, each with "since <month>" because history starts
   late June / mid-Sept; owners / TC also the tracker's contracts / closed /
   cancelled / pending / close rate / gross, owners net profit), reps, dispo,
-  this month and 7-day conversations. "Show on map ↑" in Needs review sets
+  this month and 7-day conversations. Oct 16 (Luke: "too claude-like …
+  personalize"): the panel is a VPG **market card** — a navy hero with the
+  state's own outline (from usStates.json), its chips and "Who's on it"
+  (each acquisitions rep and the dispo rep as a person card with their
+  colour and this month's opps / contracts there), then "How <year> is going"
+  as accent tiles, the tracker line, and "This market at a glance". The bar
+  above the map shows the hovered state, else the **selected** one (tagged
+  "Selected"), so it stays after a click. "Show on map ↑" in Needs review sets
   the state (or the rep) and scrolls the map into view.
   "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
   page): quiet market (sub-account with no new conversations in 7 days,
