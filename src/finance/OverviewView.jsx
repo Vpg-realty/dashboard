@@ -74,7 +74,7 @@ export default function OverviewView() {
   const fCols = cols.filter((c) => !['Paid out', 'Still owed'].includes(c.label)).map((c) => (c.label === 'Month' ? { ...c, label: 'Closing' } : c.label === 'Closed deals' ? { ...c, label: 'Deals' } : c));
   return (
     <div className="max-w-[1400px] mx-auto">
-      <FinanceHead eyebrow="Overview" title="Money in and out" sub="Closed deals by closing date: what came in, what was paid out in commissions, and what's left." right={<PeriodBar deals={f.deals} defaultKey={`y:${laToday().slice(0, 4)}`} showCompare={false} showBy={false} />} />
+      <FinanceHead eyebrow="Overview" title="Money In and Out" sub="Closed deals by closing date: what came in, what was paid out in commissions, and what's left." right={<PeriodBar deals={f.deals} defaultKey={`y:${laToday().slice(0, 4)}`} showCompare={false} showBy={false} />} />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
         <MoneyTile label="Net revenue" value={money(t.net)} sub={`${t.deals} closed deal${t.deals === 1 ? '' : 's'} · ${period.label}`} />
         <MoneyTile label="Commissions" accent="violet" value={money(t.comm)} sub={`${pct(t.comm, t.net)} of net revenue`} />

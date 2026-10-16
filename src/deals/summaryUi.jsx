@@ -1,7 +1,7 @@
 // Small pieces shared by the Deal Summary and its files (SummaryView.jsx,
 // SummaryFile.jsx).
 import { compact } from './format.js';
-import { pctTxt } from './summaryStats.js';
+import { pctTxt, closeRateTone, CLOSE_RATE_CLS } from './summaryStats.js';
 
 export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
   if (then == null) return null;
@@ -30,12 +30,12 @@ export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub
   );
 }
 
-export function RateCell({ r, avg }) {
+// Fixed targets (closeRateTone in summaryStats): green 50%+, amber 40–50%,
+// red under 40% — every row coloured by the same rule.
+export function RateCell({ r }) {
   if (!r.decided) return <span className="text-zinc-300" title="Nothing closed or cancelled yet">—</span>;
-  const rel = avg ? r.closeRate / avg : 1;
-  // Too few closed / cancelled yet to judge → no colour.
-  const cls = r.decided < 3 ? 'text-zinc-600' : rel >= 1.1 ? 'bg-emerald-50 text-emerald-800' : rel <= 0.75 ? 'bg-red-50 text-red-700' : 'text-zinc-700';
-  return <span className={`inline-block min-w-[48px] rounded px-1.5 py-px text-center ${cls}`}>{pctTxt(r.closeRate)}</span>;
+  const cls = CLOSE_RATE_CLS[closeRateTone(r.closeRate)];
+  return <span className={`inline-block min-w-[48px] rounded px-1.5 py-px text-center ${cls}`} title={`${r.closed} closed of ${r.decided} closed or cancelled · target 50%+`}>{pctTxt(r.closeRate)}</span>;
 }
 
 // The Deal Summary's two number bands (Luke, Oct 16: "lets clean this up …

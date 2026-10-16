@@ -6,6 +6,7 @@
 // page and its tests call buildModel().
 
 import { statusOf, seasonOf } from './status.js';
+import { CLOSE_RATE_OK } from '../deals/summaryStats.js';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
@@ -24,7 +25,7 @@ export const FLAG_RULES = [
   ['sheet', 'Sheet ≠ GHL', 'The sheet\'s Market Assignments and GHL sub-accounts disagree about who works a state.'],
   ['dispo', 'No dispo coverage', 'Reps are working a state with no dispo rep on the sheet.'],
   ['legal', 'High-risk legal', 'Reps are working a state the sheet marks "High Risk".'],
-  ['close', 'Low close rate', 'A state\'s tracker close rate this year is under 60% of the company\'s (8+ contracts, most of them already closed or cancelled).'],
+  ['close', 'Low close rate', 'A state\'s tracker close rate this year is under 40% — the target is 50%+ (8+ contracts, most of them already closed or cancelled).'],
   ['open', 'Open seats', 'The sheet plans more reps for an active market than work it today.'],
   ['paused', 'Paused market in use', 'The state is Paused or Inactive but a rep still has a sub-account there.'],
 ];
@@ -103,7 +104,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
     if (st.ghl.length && st.legal === 'High Risk') add('info', 'legal', `${st.state} is high-risk legally`, st.legalNote || 'License required, or agents are legally restricted — confirm with an attorney before campaigns.', { state: st.abbr });
     if (['Paused', 'Inactive'].includes(statusOf(st)) && st.ghl.length) add('med', 'paused', `${st.state} is ${statusOf(st).toLowerCase()} but still worked`, `${st.ghl.map(first).join(', ')} still ${st.ghl.length === 1 ? 'has a sub-account' : 'have sub-accounts'} there.`, { state: st.abbr });
     if (statusOf(st) === 'Active' && st.projected && st.ghl.length < st.projected) add('info', 'open', `${st.state} needs ${st.projected - st.ghl.length} more rep${st.projected - st.ghl.length === 1 ? '' : 's'}`, `Planned ${st.projected}, working today ${st.ghl.length}.${st.marketNote ? ` Sheet note: ${st.marketNote}` : ''}`, { state: st.abbr });
-    if (company && st.tracker && st.tracker.contracts >= 8 && st.tracker.pending * 2 < st.tracker.contracts && st.tracker.closeRate < company.closeRate * 0.6) add('med', 'close', `${st.state} closes few of its contracts`, `${st.tracker.closed} closed, ${st.tracker.cancelled} cancelled this year (${Math.round(st.tracker.closeRate * 100)}% vs ${Math.round(company.closeRate * 100)}% company), ${st.tracker.cancelled} cancelled.`, { state: st.abbr });
+    if (company && st.tracker && st.tracker.contracts >= 8 && st.tracker.pending * 2 < st.tracker.contracts && st.tracker.closeRate < CLOSE_RATE_OK) add('med', 'close', `${st.state} closes few of its contracts`, `${st.tracker.closed} closed, ${st.tracker.cancelled} cancelled this year: ${Math.round(st.tracker.closeRate * 100)}% close rate, under the 40% line (target 50%+; company ${Math.round(company.closeRate * 100)}%).`, { state: st.abbr });
   }
   const order = { high: 0, med: 1, info: 2 };
   flags.sort((a, b) => order[a.sev] - order[b.sev]);

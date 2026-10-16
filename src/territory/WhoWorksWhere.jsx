@@ -19,6 +19,7 @@ import { StatusChip, SeasonChip } from './badges.jsx';
 import { STATUS_LOOK, statusOf } from './status.js';
 import StateControls from './StateControls.jsx';
 import { money } from '../deals/format.js';
+import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
 
 const first = (r) => String(r?.name || '').split(' ')[0];
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
@@ -100,7 +101,7 @@ function YearToDate({ st, tracker, owner }) {
             <span className="text-emerald-700"><b className="tabular-nums">{t.closed}</b> closed</span>
             <span className={t.cancelled ? 'text-red-700' : ''}><b className="tabular-nums">{t.cancelled}</b> cancelled</span>
             <span><b className="tabular-nums text-navy-800">{t.pending}</b> pending</span>
-            {t.pending * 2 < t.contracts && <span>close rate <b className="text-navy-800">{pct(t.closeRate)}</b></span>}
+            {t.pending * 2 < t.contracts && <span>close rate <b className={`rounded px-1 ${CLOSE_RATE_CLS[closeRateTone(t.closeRate)]}`}>{pct(t.closeRate)}</b></span>}
             <span>gross <b className="text-navy-800">{money(t.gross)}</b></span>
             {owner && <span>net profit <b className="text-emerald-700">{money(t.profit)}</b>{t.avgNet != null ? ` · ${money(t.avgNet)} net per closing` : ''}</span>}
           </div>

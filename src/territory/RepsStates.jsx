@@ -13,6 +13,7 @@ import { RepDot } from './WhoWorksWhere.jsx';
 import { StatusChip, SeasonChip } from './badges.jsx';
 import { SEASON_LOOK, seasonOf, statusOf } from './status.js';
 import { money } from '../deals/format.js';
+import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
 
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
@@ -163,7 +164,7 @@ export default function RepsStates() {
                   <td className="px-3 py-2 text-right tabular-nums">{s.ghl.length ? s.act.contracts : ''}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{s.ghl.length ? s.act.convos7.toLocaleString() : ''}</td>
                   {tracker && <td className="px-3 py-2 text-right tabular-nums">{s.tracker ? `${s.tracker.closed} / ${s.tracker.contracts}` : ''}</td>}
-                  {tracker && <td className="px-3 py-2 text-right tabular-nums">{s.tracker ? (s.tracker.pending * 2 >= s.tracker.contracts ? <span className="text-zinc-400" title="Most deals still pending">—</span> : pct(s.tracker.closeRate)) : ''}</td>}
+                  {tracker && <td className="px-3 py-2 text-right tabular-nums">{s.tracker ? (s.tracker.pending * 2 >= s.tracker.contracts ? <span className="text-zinc-400" title="Most deals still pending">—</span> : <span className={`inline-block rounded px-1.5 py-px ${CLOSE_RATE_CLS[closeRateTone(s.tracker.closeRate)]}`}>{pct(s.tracker.closeRate)}</span>) : ''}</td>}
                   {owner && <td className="px-3 py-2 text-right tabular-nums">{s.tracker?.avgNet != null ? money(s.tracker.avgNet) : ''}</td>}
                 </tr>
               ))}

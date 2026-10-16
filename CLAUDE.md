@@ -1028,6 +1028,17 @@ the server strips them (`forTc`) and refuses edits to them.
   hard to read) — new deals join at the end, and "Order is out of date — Re-sort
   now" appears once a fresh sort would differ. Header clicks still sort.
   Same on Active (both lists and Needs info).
+- **Period picker** (`PeriodBar.jsx`, Luke Oct 16: "not clear enough. i
+  got stuck on march … easy way to go back and forth between FY and month"):
+  a Year / Quarter / Month / All / Custom switch (switching keeps the time —
+  March → Q1 → 2026; a period that holds today goes to today's month /
+  quarter), ‹ › to step, and the period's name opens a jump picker (a year
+  with ‹ › and its months / quarters + "All of <year>", or the years).
+- **Close rate colours** (Luke, Oct 16: "50% and great is the target -
+  green. 40-50% is yellow, below 40% is red"): `closeRateTone` /
+  `CLOSE_RATE_CLS` in summaryStats.js — Deal Summary's rep / state / month
+  tables (`RateCell`, every row, no longer vs the company average), Reps ×
+  States and the state card; the territory "Low close rate" flag = under 40%.
 - **Periods** (`src/deals/period.js`, reused by Finance later): `all`,
   `y:2026`, `q:2026-4`, `m:2026-10`, `r:2026-09-01..2026-10-14`; compare
   `prev` / `yoy`.
