@@ -263,10 +263,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   before the title: Mine, Full team, then Pick a person (it was easy to miss
   on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
-  **Three top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
-  — the four stages from Under Contract, Full team allowed), **Calendar**
-  (`/pipeline/calendar`, `CalendarBoard`: two weeks from Monday, Earlier /
-  Later, a row per open stage, a Late column, each deal on its key date) and
+  **Two top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
+  — the four stages from Under Contract, Full team allowed) and
   **Opportunities** (`/pipeline/opportunities`; old `?view=opps` links
   redirect — New Lead, Review, Offer Submitted, Negotiation; one person
   only: reps their own, owners / managers / TC pick a person; Oct 16 (Luke):
@@ -294,6 +292,21 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   by split-private-data.mjs into **`opps.json`** (same login rule as
   data.json — functions/_middleware.js TEAM_FILES, `_routes.json`), loaded
   by `src/data/oppsStore.js` only when the tab opens (every 5 min while open).
+- **Calendar** (Luke, Oct 16: "an entire category … fully separate"): its
+  own sidebar section `/calendar` (`solo: true` in sections.js = no tab bar,
+  breadcrumb just "Calendar"; old /pipeline/calendar links redirect via
+  `MOVED`), drawn by PipelinePage `mode="cal"` → PipelineView `calendar`
+  (`CalendarBoard`): same person / state filters, two weeks from Monday
+  (Earlier / Later), a row per open stage, a Late column. Each deal shows its
+  **IP end** (Under contract / Dispo, with the tracker's end time and zone —
+  `withIpTime`, "5p ET") and its **COE**; the stage's key date is coloured by
+  how close it is (an IP end whose time has passed today counts late), the
+  other one is a dashed reference chip. Dates come from the tracker when it
+  has the deal (`withTrackerDates`), and open tracker deals GHL doesn't have
+  are added (`trackerOnly`: stage from the GHL mirror or status, rep from
+  acq. manager). "If anything changes … the calendar should reflect it":
+  edits in the app show at once (shared deals store); others' are picked up
+  every 2 minutes and on window focus (`loadDeals`), GHL's with data.json.
 - **Finished in the tracker, open in GHL** (Luke, Oct 16 — 10869 Waltman,
   cancelled in the tracker, still Dispo active in GHL, showed as "IP end 6d
   late" on Axel's Home and "Not in the deal tracker yet" in the panel): GET

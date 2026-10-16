@@ -75,33 +75,33 @@ const PipeCtx = createContext({});
 // titles on one line and two-line white cards; `calendar` shows the deals on
 // their key date instead of the columns (PipelineCalendar). The TV passes
 // neither and keeps its look.
-export default function PipelineView({ keep, onOpen, still, dates, opps, brand, calendar } = {}) {
+export default function PipelineView({ keep, onOpen, still, dates, opps, brand, calendar, extra } = {}) {
   const today = laToday();
   const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
   const marketById = Object.fromEntries(MARKETS.map((m) => [m.id, m]));
 
-  const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((g) => {
-    const d = dates ? dates(g) : g;
+  const shape = (d, repId, marketId) => {
     const ipDays = daysFrom(today, d.ipEnd);
     const coeDays = daysFrom(today, d.coe);
     const keyDays = KEY_DATE[d.stage] === 'ip' ? ipDays : KEY_DATE[d.stage] === 'coe' ? coeDays : null;
     return {
       ...d,
-      rep: repById[p.repId],
-      market: marketById[p.marketId],
+      rep: repById[repId],
+      market: marketById[marketId],
       ipDays,
       coeDays,
       keyDays,
       late: keyDays != null && keyDays < 0,
       soon: keyDays != null && keyDays >= 0 && keyDays <= 1,
     };
-  }));
+  };
+  const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((g) => shape(dates ? dates(g) : g, p.repId, p.marketId)));
 
   // Sub-accounts whose address / COE / IP custom fields couldn't be read —
   // named in a note so blank fields aren't mistaken for "no date set".
   const fieldIssues = PAIRS.filter((p) => !p._unconfigured && (p.dealFieldsError || p.dealFieldsMissing?.length));
 
-  if (calendar) return <PipeCtx.Provider value={{ onOpen, still }}><CalendarBoard deals={deals} today={today} /></PipeCtx.Provider>;
+  if (calendar) return <PipeCtx.Provider value={{ onOpen, still }}><CalendarBoard deals={[...deals, ...(extra || []).map((x) => shape(x, x.repId, x.marketId))]} today={today} /></PipeCtx.Provider>;
   if (brand) {
     return (
       <PipeCtx.Provider value={{ onOpen, still }}>
@@ -566,18 +566,33 @@ function BrandOppColumn({ col, opps, repById, marketById }) {
   );
 }
 
-// ---- Calendar (Luke, Oct 16: "i like the calendar as well … a separate tab"):
-// two weeks at a time (?w= weeks from this one), a row per open stage, a
-// column per day plus "Late"; each deal sits on its key date as a small chip.
+// ---- Calendar (Luke, Oct 16: its own sidebar section): two weeks at a time,
+// a row per open stage, a column per day plus "Late"; each deal's IP end (with
+// its time) and COE as small chips.
 const CAL_STAGES = COLUMNS.filter((c) => c.stage !== 'closed');
 function CalendarBoard({ deals, today }) {
   const [w, setW] = useState(0);
   const monday = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + w * 7);
   const days = Array.from({ length: 14 }, (_, i) => addDays(monday, i));
   const open = deals.filter((d) => d.stage !== 'closed');
-  const keyDate = (d) => (KEY_DATE[d.stage] === 'coe' ? d.coe : d.ipEnd);
-  const lateOf = (stage) => open.filter((d) => d.stage === stage && d.late);
-  const on = (stage, day) => open.filter((d) => d.stage === stage && keyDate(d) === day).sort((a, b) => b.value - a.value);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
+  // Every date a deal has (Luke, Oct 16: "add inspection period dates and
+  // times"): its IP end (Under contract / Dispo — with the time from the
+  // tracker) and its COE. The stage's key date is coloured by how close it
+  // is; the other one is a plain reference chip. A key date already passed
+  // (an IP end whose time has gone by today too) sits in Late.
+  const events = open.flatMap((d) => {
+    const out = [];
+    if (d.ipEnd && d.stage !== 'assigned') {
+      const late = d.ipDays < 0 || (d.ipDays === 0 && d.ipMs && d.ipMs < now);
+      out.push({ deal: d, kind: 'ip', date: d.ipEnd, key: true, late, days: d.ipDays, sort: d.ipMs || Date.parse(`${d.ipEnd}T23:59:00Z`) });
+    }
+    if (d.coe) out.push({ deal: d, kind: 'coe', date: d.coe, key: d.stage === 'assigned', late: d.stage === 'assigned' && d.coeDays < 0, days: d.coeDays, sort: Date.parse(`${d.coe}T23:59:30Z`) });
+    return out;
+  });
+  const lateOf = (stage) => events.filter((e) => e.deal.stage === stage && e.late).sort((a, b) => a.sort - b.sort);
+  const on = (stage, day) => events.filter((e) => e.deal.stage === stage && e.date === day && !e.late).sort((a, b) => a.sort - b.sort);
   const range = `${shortDate(days[0])} – ${shortDate(days[13])}`;
   const btn = 'h-8 px-3 rounded-md text-[13px] font-semibold text-navy-900 bg-tan-500 hover:bg-tan-400 shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
   return (
@@ -588,7 +603,9 @@ function CalendarBoard({ deals, today }) {
         <button type="button" className={btn} onClick={() => setW(w + 1)}>Later →</button>
         {w !== 0 && <button type="button" onClick={() => setW(0)} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this week</button>}
         <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-500">
-          {CAL_STAGES.map((c) => <span key={c.stage} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />{c.title} · {KEY_DATE[c.stage] === 'coe' ? 'COE' : 'IP end'}</span>)}
+          <span className="inline-flex items-center gap-1.5"><span className="rounded bg-navy-700 text-white px-1 text-[10px] font-bold">IP</span>inspection period ends (time from the tracker)</span>
+          <span className="inline-flex items-center gap-1.5"><span className="rounded bg-emerald-700 text-white px-1 text-[10px] font-bold">COE</span>closing</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-white" />not the date the stage runs on</span>
         </span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-tan-200 bg-white">
@@ -611,11 +628,12 @@ function CalendarBoard({ deals, today }) {
                 <td className="px-3 py-2 border-b border-tan-100" style={{ boxShadow: `inset 3px 0 0 ${c.color}` }}>
                   <div className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: c.color }}>{c.title}</div>
                   <div className="text-[11.5px] text-zinc-500">{open.filter((d) => d.stage === c.stage).length} open</div>
+                  <div className="text-[11px] text-zinc-400">runs on {KEY_DATE[c.stage] === 'coe' ? 'COE' : 'IP end'}</div>
                 </td>
-                <td className="p-1 border-b border-tan-100 bg-[#4c0519]/[0.04]"><div className="flex flex-col gap-1">{lateOf(c.stage).map((d) => <CalChip key={d.id} deal={d} late />)}</div></td>
+                <td className="p-1 border-b border-tan-100 bg-[#4c0519]/[0.04]"><div className="flex flex-col gap-1">{lateOf(c.stage).map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div></td>
                 {days.map((d, i) => (
                   <td key={d} className={`p-1 border-b border-l border-tan-100 ${d === today ? 'bg-navy-50/60' : i % 7 >= 5 ? 'bg-tan-50/50' : ''} ${i === 7 ? 'border-l-2 border-l-tan-300' : ''}`}>
-                    <div className="flex flex-col gap-1">{on(c.stage, d).map((x) => <CalChip key={x.id} deal={x} />)}</div>
+                    <div className="flex flex-col gap-1">{on(c.stage, d).map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div>
                   </td>
                 ))}
               </tr>
@@ -626,16 +644,25 @@ function CalendarBoard({ deals, today }) {
     </div>
   );
 }
-function CalChip({ deal, late }) {
+function CalChip({ ev }) {
   const { onOpen } = useContext(PipeCtx);
+  const { deal, kind, key, late, days } = ev;
   const street = String(deal.address || 'No address').split(',')[0];
-  const t = late ? null : deadlineTone(deal.keyDays);
+  const t = !late && key ? deadlineTone(days) : null;
+  const tone = late ? LATE : t && days <= 3 ? t.box : key ? 'border-tan-200 bg-white text-zinc-800' : 'border-dashed border-zinc-300 bg-white text-zinc-500';
+  const tag = kind === 'ip' ? 'IP' : 'COE';
+  const when = late ? ` · ${-days || 0}d late` : '';
   return (
-    <button type="button" onClick={onOpen ? () => onOpen(deal) : undefined} title={`${deal.address} · ${deal.rep?.name || ''}${deal.value ? ` · ${formatCurrency(deal.value)}` : ''}`}
-      className={`w-full text-left rounded border px-1.5 py-1 text-[11.5px] leading-tight hover:shadow-sm ${late ? LATE : t.rel && deal.keyDays <= 3 ? t.box : 'border-tan-200 bg-white text-zinc-800'}`}
+    <button type="button" onClick={onOpen ? () => onOpen(deal) : undefined}
+      title={`${deal.address} · ${kind === 'ip' ? `IP ends ${shortDate(deal.ipEnd)}${deal.ipTime ? ` ${deal.ipTime}` : ''}` : `COE ${shortDate(deal.coe)}`} · ${deal.rep?.name || ''}${deal.value ? ` · ${formatCurrency(deal.value)}` : ''}${deal.fromTracker ? ' · in the tracker, not in GHL' : ''}`}
+      className={`w-full text-left rounded border px-1.5 py-1 text-[11.5px] leading-tight hover:shadow-sm ${tone}`}
       style={{ borderLeft: `3px solid ${deal.rep?.color || '#a1a1aa'}` }}>
-      <span className="block font-semibold truncate">{street}</span>
-      <span className="block opacity-75 truncate">{deal.rep?.name?.split(' ')[0] || '—'}{late ? ` · ${-deal.keyDays}d` : ''}{deal.value > 0 ? ` · ${formatCurrency(deal.value)}` : ''}</span>
+      <span className="flex flex-wrap items-center gap-x-1 min-w-0">
+        <span className={`shrink-0 rounded px-1 text-[10px] font-bold text-white ${kind === 'ip' ? 'bg-navy-700' : 'bg-emerald-700'}`}>{tag}</span>
+        {kind === 'ip' && deal.ipTime && <span className="text-[10.5px] font-bold whitespace-nowrap">{deal.ipTime}</span>}
+      </span>
+      <span className="block font-semibold mt-0.5 break-words">{street}</span>
+      <span className="block opacity-75 truncate">{deal.rep?.name?.split(' ')[0] || '—'}{when}</span>
     </button>
   );
 }
