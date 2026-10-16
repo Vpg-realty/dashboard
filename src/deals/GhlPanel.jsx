@@ -1,12 +1,12 @@
 // A GHL deal that isn't in the deal tracker yet, shown in the deal panel's
 // style (see useGhlDealOpener.jsx).
-import { GHL_STAGE } from './store.js';
+import StageChip from '../shell/StageChip.jsx';
 import { money, shortDate, primaryCls } from './format.js';
 import { CoeChip } from './ui.jsx';
 
 export default function GhlPanel({ g, canAdd, onAdd, onClose, loading }) {
   const facts = [
-    ['Stage in GHL', GHL_STAGE[g.stage] || g.stage],
+    ['Stage in GHL', <StageChip key="s" stage={g.stage} />],
     ['Rep', g.repName || '—'],
     ['State', g.stateName || g.marketId || '—'],
     ['IP end', g.ipEnd ? shortDate(g.ipEnd, { year: true }) : '—'],

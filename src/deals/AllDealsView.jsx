@@ -14,6 +14,8 @@
 // resort"): the order is frozen until you click "Re-sort now" or pick a sort
 // / filter yourself (useFrozenOrder). Cells a deal still needs for its stage
 // (required.js) get a red outline; the "Needs info" filter shows only those.
+import StageChip from '../shell/StageChip.jsx';
+import { stageColor } from '../shell/stages.js';
 import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -33,7 +35,7 @@ import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import { missingKeys } from './required.js';
 import { ValuePill, EmdPill } from './pills.jsx';
-import { PILL_KEYS, PILL_TONE, pretty } from './values.js';
+import { PILL_KEYS, pretty } from './values.js';
 import { Person } from './people.jsx';
 import Floating from '../shell/Floating.jsx';
 import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
@@ -54,6 +56,14 @@ const cell = (f, v, editable, d) => {
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
   // EMD status says who placed it (Luke, Oct 15).
+  // Links: a short label per link instead of the long URL (Luke, Oct 16: no
+  // wasted space); notes: two lines, the whole note on hover.
+  if (f.key === 'links') {
+    const urls = String(v).match(/https?:\/\/\S+/g) || [];
+    if (!urls.length) return String(v).split('\n')[0];
+    return <span className="inline-flex flex-wrap gap-x-2">{urls.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-navy-700 underline underline-offset-2 hover:text-navy-900">{/zillow/i.test(u) ? 'Zillow' : /dropbox/i.test(u) ? 'Dropbox' : (u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])} ↗</a>)}</span>;
+  }
+  if (f.key === 'notes') return <span className="line-clamp-2" title={String(v)}>{String(v)}</span>;
   if (f.key === 'emdPaidBy') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
   if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
@@ -63,14 +73,18 @@ const cell = (f, v, editable, d) => {
 const PAY_DOT = { green: 'bg-[#16A34A]', blue: 'bg-[#2563EB]', amber: 'bg-[#D97706]', red: 'bg-[#DC2626]' };
 const isNum = (f) => f.type === 'money' || f.type === 'percent' || f.type === 'number';
 const CENTER = new Set(['date', 'list', 'number', 'percent']);
-// Column widths like the sheet's (a little roomier).
-const W = { address: 300, acq: 150, title: 210, buyer: 200, notes: 280, links: 190, ghlStage: 120, status: 132, dispoMember: 140 };
-const widthOf = (f) => W[f.key] || (f.type === 'money' ? 116 : f.type === 'date' ? 92 : f.type === 'longtext' ? 200 : f.type === 'number' ? 74 : 108);
+// Column widths follow their contents (Luke, Oct 16: "some name boxes or
+// items are being cut off … no unused blank space"): no fixed widths, cells
+// don't truncate; long free text (titles, buyer, notes, links) gets a column
+// of WRAP_MIN–WRAP_MAX px and wraps beyond that instead of stretching the sheet.
+const WRAP = (f) => f.type === 'longtext' || ['title', 'buyer', 'notes', 'links'].includes(f.key);
+const WRAP_MIN = 210;
+const WRAP_MAX = 320;
 
 function GhlStage({ d, live }) {
   const label = d.ghlStage || (live ? GHL_STAGE[live.stage] : null);
   if (!label) return '';
-  return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE.violet}`}>{label}</span>;
+  return <StageChip stage={label} />;
 }
 
 const menuRow = (on) => `w-full flex items-baseline justify-between gap-2 px-3 py-1.5 text-left hover:bg-navy-50 ${on ? 'font-semibold text-navy-800' : 'text-zinc-800'}`;
@@ -255,7 +269,6 @@ export default function AllDealsView() {
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
         <div ref={tableBox} className="flex-1 min-h-0 overflow-auto">
           <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
-            <colgroup>{cols.map((f) => <col key={f.key} style={{ width: widthOf(f), minWidth: widthOf(f) }} />)}</colgroup>
             <thead>
               <tr>
                 {bands.map((b, i) => (
@@ -296,7 +309,7 @@ export default function AllDealsView() {
                       // The status set by hand differs from GHL's stage (Luke,
                       // Oct 14: GHL's stage drives it, people can override).
                       if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
-                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the status was set by hand`} className="text-[10.5px] font-semibold text-violet-700 not-italic">GHL: {d.ghlStage}</span></span>;
+                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the status was set by hand`} className="text-[10.5px] font-semibold not-italic" style={{ color: stageColor(d.ghlStage) }}>GHL: {d.ghlStage}</span></span>;
                       }
                       const pay = payMap.get(d.id);
                       const line = pay && partOfField(f.key) ? pay.parts[partOfField(f.key)] : null;
@@ -310,12 +323,12 @@ export default function AllDealsView() {
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} data-need={missing ? '' : undefined} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
-                          className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
-                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, maxWidth: widthOf(f) + 60 }}>
+                          className={`px-2.5 py-[5px] ${WRAP(f) ? 'whitespace-normal break-words' : 'whitespace-nowrap'} ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
+                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, ...(WRAP(f) ? { minWidth: WRAP_MIN, maxWidth: WRAP_MAX, width: WRAP_MIN } : {}) }}>
                           {f.key === 'address' ? (
                             <span className="flex items-center gap-1.5 min-w-0">
                               <span className={`shrink-0 w-2 h-2 rounded-full ${TONES[step.tone].dot}`} title={step.text} />
-                              <button type="button" onClick={() => open(d.id)} title={`${step.text} — open the full deal`} className="truncate text-left hover:underline underline-offset-2">{d.address}</button>
+                              <button type="button" onClick={() => open(d.id)} title={`${step.text} — open the full deal`} className="text-left whitespace-nowrap hover:underline underline-offset-2">{d.address}</button>
                               {d._stale && <span title="Changed since the table was sorted — Re-sort now puts it in its place" className="shrink-0 rounded px-1 text-[10px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200 not-italic">changed · re-sort</span>}
                               {d._need.length > 0 && (
                                 <button type="button" onClick={() => open(d.id, 'need')} title={`Needs: ${d._need.map((k) => LABEL[k]).join(', ')}`}
@@ -323,8 +336,8 @@ export default function AllDealsView() {
                               )}
                             </span>
                           ) : editable ? (
-                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null}>{shown}</EditableCell>
-                          ) : <span className="block truncate">{shown}</span>}
+                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} fit={WRAP(f) ? 'wrap' : true}>{shown}</EditableCell>
+                          ) : <span className="block">{shown}</span>}
                         </td>
                       );
                     })}
