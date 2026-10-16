@@ -86,10 +86,11 @@ export default function MonthView() {
   const entries = historyEntries();
   const log = useMonthLog();
   const months = monthsOnFile(entries, log, today);
-  // First Fridays review the month just ended, so open on last month.
+  // Opens on the current month (Luke, Oct 15: "automatically set to current
+  // month when you go to it"); earlier months are in the picker.
   const [pick, setPick] = useState(null);
-  const lastMonth = prevMonth(today.slice(0, 7));
-  const mo = pick || (months.some((m) => m.value === lastMonth) ? lastMonth : months[0]?.value || today.slice(0, 7));
+  const thisMonth = today.slice(0, 7);
+  const mo = pick || (months.some((m) => m.value === thisMonth) ? thisMonth : months[0]?.value || thisMonth);
   const [tab, setTab] = useState('contracts');
 
   const cur = monthTotals(entries, mo);

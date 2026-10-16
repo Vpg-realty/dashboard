@@ -162,11 +162,36 @@ function Panel({ page, onClose }) {
 }
 
 // The floating button on the Territory pages: owners, and reps / managers with
-// a rep on the board (the server checks again and picks the thread).
+// a rep on the board (the server checks again and picks the thread). While an
+// owner is viewing as someone (Luke, Oct 15: "ask claude option is missing for
+// everyone besides owners on the get zips page" — it was only hidden by View
+// as) the button shows as that person would see it, opening a preview: the
+// conversation is theirs alone and nothing can be asked as them.
+function Preview({ name, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-navy-900/25" onClick={onClose} />
+      <section className="relative w-full max-w-[620px] h-full bg-tan-50 shadow-2xl flex flex-col" role="dialog" aria-label="Ask Claude">
+        <header className="shrink-0 bg-navy-700 text-white px-5 py-4 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400"><Spark />Ask Claude · only they see this</div>
+            <h2 className="mt-1 text-[19px] font-semibold">Their zips</h2>
+          </div>
+          <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+        </header>
+        <div className="p-6 text-[14px] text-zinc-700 leading-relaxed">
+          <p><b>{name}</b> gets this button on the Territory pages: a private conversation with Claude about their own zips and what's free in their states (25 questions a day).</p>
+          <p className="mt-3 text-zinc-500">You're viewing as {name}, so their conversation isn't shown and nothing can be asked in their name. Exit “View as” to use your own.</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AskClaude({ page = 'territory' }) {
   const me = useMe();
   const [open, setOpen] = useState(false);
-  if (!me || me.viewAs) return null;
+  if (!me) return null;
   const owner = me.role === 'owner';
   const rep = ['team', 'manager'].includes(me.role) && me.rep_id;
   if (!owner && !rep) return null;
@@ -175,7 +200,7 @@ export default function AskClaude({ page = 'territory' }) {
       <button onClick={() => setOpen(true)} className="fixed z-40 bottom-24 md:bottom-6 right-6 inline-flex items-center gap-2 rounded-full bg-navy-700 text-white pl-4 pr-5 h-11 shadow-lg ring-4 ring-tan-50 hover:bg-navy-800">
         <span className="text-tan-400"><Spark /></span><span className="font-semibold">Ask Claude</span>
       </button>
-      {open && <Panel page={page} onClose={() => setOpen(false)} />}
+      {open && (me.viewAs ? <Preview name={me.name} onClose={() => setOpen(false)} /> : <Panel page={page} onClose={() => setOpen(false)} />)}
     </>
   );
 }

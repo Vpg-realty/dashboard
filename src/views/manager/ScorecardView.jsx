@@ -654,7 +654,6 @@ export default function ScorecardView({ onPickRep }) {
         {sc.loaded && !shownIds.length && <div className="rounded-2xl bg-white border border-tan-200 text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
 
         {/* 5 · Where they leak */}
-        {shownIds.length > 0 && <LeakCard ids={shownIds} week={week} isLive={isLive} onPickRep={onPickRep} />}
 
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">
