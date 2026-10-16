@@ -14,6 +14,8 @@
 // resort"): the order is frozen until you click "Re-sort now" or pick a sort
 // / filter yourself (useFrozenOrder). Cells a deal still needs for its stage
 // (required.js) get a red outline; the "Needs info" filter shows only those.
+import { useDealPay } from '../finance/store.js';
+import { partOfField, payText } from '../finance/lines.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl } from './math.js';
 import { showEndTime } from './ddTime.js';
@@ -52,12 +54,13 @@ const cell = (f, v, editable, d) => {
   if (f.type === 'date') return shortDate(v, { year: false });
   if (f.key === 'state') return stateCode(v);
   // EMD status says who placed it (Luke, Oct 15).
-  if (f.key === 'emdStatus') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
+  if (f.key === 'emdPaidBy') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
   if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
   const text = String(v).split('\n')[0];
   return f.type === 'list' ? pretty(f.key, text) : text; // free text stays as typed
 };
+const PAY_DOT = { green: 'bg-[#16A34A]', blue: 'bg-[#2563EB]', amber: 'bg-[#D97706]', red: 'bg-[#DC2626]' };
 const isNum = (f) => f.type === 'money' || f.type === 'percent' || f.type === 'number';
 const CENTER = new Set(['date', 'list', 'number', 'percent']);
 // Column widths like the sheet's (a little roomier).
@@ -99,6 +102,9 @@ function Menu({ label, children, align = 'right' }) {
 
 export default function AllDealsView() {
   const s = useDeals();
+  // Finance's payouts on each deal (owners): a mark beside every commission
+  // and "N of M paid" beside Commission paid (Luke, Oct 15).
+  const payMap = useDealPay(!!s.owner);
   const { query } = useLocation();
   const { period, by } = usePeriod('y:2026');
   const { open, openNew, panel } = useDealPanel();
@@ -194,7 +200,7 @@ export default function AllDealsView() {
           </div>
         </Menu>
         <button onClick={csv} className={btnCls}>Export CSV</button>
-        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
+        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
@@ -226,14 +232,14 @@ export default function AllDealsView() {
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ background: b.style.bg, color: b.id === 'loss' ? '#FFFFFF' : '#E6DCC8' }}>{b.label}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
                   <th key={f.key} onClick={() => sortBy(f.key)} title={sort.replace(/^-/, '') === f.key ? (sort === f.key ? 'Sorted A → Z / low → high · click for the reverse' : custom ? 'Sorted Z → A / high → low · click to clear' : 'Default order · click to sort') : 'Click to sort'}
-                    className={`group/h sticky top-[30px] px-2.5 pt-2 pb-2 align-bottom text-[12px] font-semibold leading-tight ${isNum(f) ? 'text-right' : 'text-left'} cursor-pointer select-none hover:bg-navy-50 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    className={`group/h sticky top-[30px] px-2.5 pt-2 pb-2 align-bottom text-[12px] font-semibold leading-tight text-left cursor-pointer select-none hover:bg-navy-50 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ ...headStyle(f), borderBottom: `2px solid ${HEAD_RULE}` }}>
                     {f.key === 'address' ? 'Address' : f.label}
                     {sort.replace(/^-/, '') === f.key
@@ -264,6 +270,15 @@ export default function AllDealsView() {
                       // Oct 14: GHL's stage drives it, people can override).
                       if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
                         shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the status was set by hand`} className="text-[10.5px] font-semibold text-violet-700 not-italic">GHL: {d.ghlStage}</span></span>;
+                      }
+                      const pay = payMap.get(d.id);
+                      const line = pay && partOfField(f.key) ? pay.parts[partOfField(f.key)] : null;
+                      if (line) {
+                        const t = payText(line);
+                        shown = <span className="inline-flex items-center gap-1 justify-end"><span title={`Finance: ${t.text}`} className={`w-1.5 h-1.5 rounded-full ${PAY_DOT[t.tone]}`} />{shown}</span>;
+                      }
+                      if (f.key === 'commPaid' && pay && pay.total > 0 && pay.paid < pay.total) {
+                        shown = <span className="inline-flex items-center gap-1">{shown}<span title="Commissions paid in Finance" className="text-[10.5px] font-semibold text-[#8A4B05] not-italic">{pay.paid} of {pay.total} paid</span></span>;
                       }
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (

@@ -13,12 +13,9 @@ export function ValuePill({ k, v, caret }) {
 }
 
 // The EMD pill, worded like Active's EMD column (status.js emdCell): In ·
-// Buyer / VPG + Buyer (green), In · VPG only / Pending (red), Pending · <payer>
-// or In · who placed? (amber). Used on Home's
-// Needs attention rows (Luke, Oct 14). Any other status (N/A) or none yet →
-// grey.
+// Buyer / VPG + Buyer (green), In · VPG only / Pending (red) — from EMD paid
+// by alone since Oct 15. Used on Home's Needs attention rows (Luke, Oct 14).
 export function EmdPill({ deal }) {
   const e = emdCell(deal);
-  const text = e.tone ? e.text : deal.emdStatus ? pretty('emdStatus', deal.emdStatus) : 'Not set';
-  return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[e.tone || 'grey']}`}>{text}</span>;
+  return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[e.tone || 'grey']}`}>{e.text}</span>;
 }

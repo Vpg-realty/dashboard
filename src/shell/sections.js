@@ -52,6 +52,7 @@ export const SECTIONS = [
     tabs: [
       { id: 'summary', label: 'Deal Summary', view: 'deals-summary', scroll: true },
       { id: 'payouts', label: 'Payouts', view: 'fin-payouts', scroll: true },
+      { id: 'wires', label: 'Wires In', view: 'fin-wires', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
       { id: 'overview', label: 'Overview', view: 'fin-overview', scroll: true },
     ],
@@ -69,10 +70,12 @@ export const SECTIONS = [
       // everyone (Luke, Oct 15: "keep the same order … so Jack and I can
       // easily switch to other views").
       { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager'] },
-      // Everyone (Luke, Oct 15); its Needs review panel is owners only.
-      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true },
+      // Managers, owners and the TC (Luke, Oct 15: "i was wrong, this should
+      // be managers, owner, tc view only"); its Needs review panel owners only.
+      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true },
+      // Managers, owners and the TC (Luke, Oct 15).
+      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true },
     ],
@@ -109,6 +112,12 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: one place for owners to change people, commission rules
     // and dropdowns themselves. Shown at the bottom of the sidebar.
+    // Luke, Oct 15: owners, managers and the TC suggest changes to the site;
+    // owners review and answer (src/suggestions).
+    id: 'suggestions', label: 'Suggestion Box', icon: 'idea', roles: ['owner', 'manager', 'tc'], bottom: 'admin',
+    tabs: [{ id: 'all', label: 'Suggestions', view: 'suggestions', scroll: true }],
+  },
+  {
     id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin',
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true },

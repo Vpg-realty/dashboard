@@ -3,8 +3,8 @@
 // lines by src/finance/lines.js.
 import { useEffect, useMemo, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { useDeals } from '../deals/store.js';
-import { buildLines, upcoming } from './lines.js';
+import { useDeals, loadDeals } from '../deals/store.js';
+import { buildLines, upcoming, payByDeal } from './lines.js';
 
 let state = { status: 'idle', rows: [], error: null };
 const listeners = new Set();
@@ -24,17 +24,27 @@ export async function loadFinance() {
 export async function act(body) {
   const r = await call('finance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   emit({ status: 'ready', rows: r.rows || [] });
+  // Paying can change the deal's "Commission paid" — refresh the tracker.
+  loadDeals();
   return r;
 }
 
-function useFinanceRows() {
+function useFinanceRows(enabled = true) {
   const [s, set] = useState(state);
   useEffect(() => {
     listeners.add(set);
-    if (state.status === 'idle') loadFinance();
+    if (enabled && state.status === 'idle') loadFinance();
     return () => listeners.delete(set);
-  }, []);
+  }, [enabled]);
   return s;
+}
+
+// The tracker's view of Finance (owners only; others get an empty map and
+// nothing is fetched): dealId → { parts: {part: line}, paid, total }.
+export function useDealPay(enabled) {
+  const d = useDeals();
+  const f = useFinanceRows(enabled);
+  return useMemo(() => (enabled && f.status !== 'idle' && f.status !== 'error' ? payByDeal(buildLines(d.deals, d.rules, f.rows)) : new Map()), [enabled, d.deals, d.rules, f.rows, f.status]);
 }
 
 // { status, error, deals, rules, lines, coming, people }

@@ -9,7 +9,7 @@
 // Cancelled deals are red, closed ones green — as the sheet's Deals tab
 // colours whole rows. The Active lists, the All deals table, Home and the
 // deal panel all read the same next step from here.
-import { pretty } from './values.js';
+import { emdIn } from './math.js';
 import { laToday } from '../utils/historyRange.js';
 import { ipEndAlert } from './ddTime.js';
 
@@ -50,8 +50,8 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
   // checks: it's the one with a clock on it.
   const ip = asg ? null : ipEndAlert(d, now);
   if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime'], ip };
-  if (d.emdStatus === 'PENDING' && !d.emdPaidBy) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdStatus', 'emdPaidBy'] };
-  if (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
+  if (!emdIn(d)) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdPaidBy'] };
+  if (String(d.emdPaidBy).toUpperCase() === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
   if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd'] };
   if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd'] };
   if (!asg) // Dispositions fields aren't asked for before a deal is assigned (Luke, Oct 15).
@@ -73,16 +73,14 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
 // Who placed it is always shown (Luke, Oct 15: "visible to everyone so we
 // know if buyer has placed em, vpg, or if both"): In · Buyer / In · VPG +
 // Buyer (green), In · VPG only (red), In · who placed? (amber, payer unknown).
+// Since Oct 15 the status comes from EMD paid by alone (emdIn, math.js):
+// empty → Pending, VPG / Buyer / VPG + Buyer → In.
 export function emdCell(d) {
-  if (d.emdStatus === 'COMPLETE') {
-    const by = String(d.emdPaidBy || '').toUpperCase();
-    if (by === 'VPG') return { text: 'In · VPG only', tone: 'red' };
-    if (by === 'BUYER') return { text: 'In · Buyer', tone: 'green' };
-    if (by === 'VPG + BUYER') return { text: 'In · VPG + Buyer', tone: 'green' };
-    return { text: 'In · who placed?', tone: 'amber' };
-  }
-  if (d.emdStatus === 'PENDING') return d.emdPaidBy && d.emdPaidBy !== 'PENDING' ? { text: `Pending · ${pretty('emdPaidBy', d.emdPaidBy)}`, tone: 'amber' } : { text: 'Pending', tone: 'red' };
-  return { text: '—', tone: null };
+  const by = String(d?.emdPaidBy || '').toUpperCase();
+  if (by === 'VPG') return { text: 'In · VPG only', tone: 'red' };
+  if (by === 'BUYER') return { text: 'In · Buyer', tone: 'green' };
+  if (by === 'VPG + BUYER') return { text: 'In · VPG + Buyer', tone: 'green' };
+  return { text: 'Pending', tone: 'red' };
 }
 // Its Days column: red when past, amber within 7 days.
 export function daysTone(n) {

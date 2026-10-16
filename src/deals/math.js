@@ -37,7 +37,6 @@ export const FIELDS = [
   ['optionFee', 'Option fee amount', 'emd', 'money'],
   ['cfar', 'Cancel for any reason?', 'emd', 'list'],
   ['emdDue', 'EMD due date', 'emd', 'date', 'calc'],
-  ['emdStatus', 'EMD status', 'emd', 'list'],
   ['emdSent', 'EMD sent on', 'emd', 'date'],
   ['emdPaidBy', 'EMD paid by', 'emd', 'list'],
   ['ddDays', '# of days', 'dd', 'number'],
@@ -142,6 +141,14 @@ export const retradePending = (d) => String(d?.retrade ?? '').toUpperCase() === 
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
 const is = (x, y) => up(x) === up(y);
+// EMD status is no longer its own field (Luke, Oct 15: "remove emd status and
+// keep EMD paid by … if it is empty, the status is pending, or if it is either
+// vpg, buyer, or vpg+buyer it is in"). `emdIn` / `emdStatusOf` derive it;
+// compute() puts it on every deal as `emdStatus` (COMPLETE / PENDING), so the
+// checks that read it keep working. A stored value in D1 is ignored.
+export const EMD_PAYERS = ['VPG', 'BUYER', 'VPG + BUYER'];
+export const emdIn = (d) => EMD_PAYERS.includes(up(d?.emdPaidBy));
+export const emdStatusOf = (d) => (emdIn(d) ? 'COMPLETE' : 'PENDING');
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 const isDate = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
 export function addDays(iso, n) {
@@ -201,6 +208,7 @@ export function compute(deal, rules, lists) {
   const cancelled = is(d.status, 'CANCELLED');
   const finders = is(d.dealType, "FINDER'S FEE");
 
+  d.emdStatus = emdStatusOf(d);
   set('emdDue', addDays(d.accepted, 2));
   set('ddStart', addDays(d.accepted, 1));
   set('ddEnd', addDays(d.accepted, num(d.ddDays)));

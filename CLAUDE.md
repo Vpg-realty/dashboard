@@ -195,9 +195,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
   manager + owners — first for everyone, so owners see the same tab order
-  as the team, Luke Oct 15), Who works where (everyone since Oct 15; its
-  Needs review panel owners only), Reps × states, Zip management (owner / manager
-  / tc), Territory sheet and Zip rules & data health (everyone); Deals (Active,
+  as the team, Luke Oct 15), Who works where and Territory sheet (owner /
+  manager / tc — Luke, Oct 15; Needs review owners only), Reps × states, Zip
+  management (owner / manager / tc) and Zip rules & data health (everyone); Deals (Active,
   TC List, All deals, Map — Summary moved to Finance as "Deal Summary",
   Luke Oct 15: everything with financials in the one section the team can't
   see; old /deals/summary links redirect via `MOVED`) for owner + tc. A link a role can't open falls back
@@ -213,14 +213,18 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   date chip, Luke Oct 14; and the deal's **EMD status** — the tracker deal
   at the same address (`addrKey`, pending first) as `EmdPill` (pills.jsx,
   worded like Active's EMD column via `emdCell`: In · Buyer / In · VPG +
-  Buyer / In · VPG only / In · who placed? / Pending / Pending · payer; N/A or
-  none grey — who placed the EMD is always shown, Luke Oct 15, also as the
-  All deals EMD status cell), for everyone who sees Home — reps and
+  Buyer / In · VPG only / Pending — from EMD paid by alone, see "EMD status
+  = EMD paid by"; also the All deals EMD paid by cell), for everyone who sees Home — reps and
   managers read the pending deals through GET /api/deals; a deal not in the
   tracker shows no chip, Luke Oct 14): greeting, this week's numbers vs target for
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead), Needs
-  attention (key date late or within 3 days, Late / Today & tomorrow / Next
+  attention (key date late or within 3 days — COE / IP end from the
+  tracker deal at the same address when there is one, `withTrackerDates`
+  in src/deals/store.js, else GHL's custom fields: Luke, Oct 15, a COE moved
+  in the tracker still read "today" because the site never writes to GHL;
+  the app's Pipeline page does the same via PipelineView's `dates`; the TV
+  board, Overview revenue and the AlertStrip still read GHL's — Late / Today & tomorrow / Next
   few days) and Wins this week. Oct 14 (Luke: "everything feels a little
   small or empty"): full width (max 1720px), app text 14px, big numbers with
   On pace / Near pace / Behind badges and a pace tick, and cards — Revenue
@@ -234,6 +238,19 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   now), like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
+- **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
+  comments in to review and approve for changes to the system" — managers
+  use it from Oct 16): sidebar bottom (`bottom: 'admin'`, roles owner /
+  manager / tc), `/suggestions/all` (`src/suggestions/SuggestionsView.jsx`).
+  A "Suggest a change" button in the header (those roles, every page) opens
+  the form with the page it came from (`?new=1&from=<path>`); kind (Something
+  is wrong / Change something / New idea), where (a sidebar section), title,
+  details. Everyone in those roles sees and comments on every suggestion;
+  owners set the status (New → Under review → Approved → Done, or Not now)
+  with an answer; the author can remove theirs while New, owners any. Tiles
+  filter (`?show=`), search. D1 `suggestions` / `suggestion_comments`
+  (`edge/suggestions.sql`, created Oct 15); API `functions/api/suggestions`
+  (logic `edge/suggestions.js`), writes in `edit_log`, none while viewing as.
 - **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
   the team's own page — `PipelineView` with optional `keep` (filter),
   `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
@@ -245,6 +262,21 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   before the title: Mine, Full team, then Pick a person (it was easy to miss
   on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
+  **Two views** (Luke, Oct 15): **Contracted deals** (`?view` unset — the
+  four stages from Under Contract, Full team allowed) and **Opportunities**
+  (`?view=opps` — New Lead, Review, Offer Submitted, Negotiation; one person
+  only: reps their own, owners / managers / TC pick a person, no Full team);
+  Due This Week stays on the left in both (that person's contracted deals).
+  A **State** chip row (`?st=`, the person's states with counts) filters
+  both; Opportunities add a name / address search. Opportunity cards show
+  days in the stage (amber 14+, red 30+), longest first, and open the GHL
+  opportunity in a new tab (`ghlOppUrl` in src/data/config.js:
+  `app.gohighlevel.com/v2/location/<loc>/opportunities/list/<id>?tab=
+  OpportunityDetails`). Data: `extractOpps` (server/deals.js, open opps in
+  those stages, ≤ 400 per sub-account) → `pair.opps`, moved out of data.json
+  by split-private-data.mjs into **`opps.json`** (same login rule as
+  data.json — functions/_middleware.js TEAM_FILES, `_routes.json`), loaded
+  by `src/data/oppsStore.js` only when the tab opens (every 5 min while open).
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
   `useGhlDealOpener` (src/deals): the tracker deal at the same address
@@ -272,7 +304,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   flagged deal, `badN` = how many in all); speed below 75% adds a row with
   each slow / unanswered agent text; the rest folded
   into one "all good" row), and the weekly score over 8 weeks with the
-  dashed team average for reference. "Show the full breakdown" opens
+  dashed team average for reference. Flagged deals in "Fix these" (pipeline,
+  notes, follow-ups, dispo handoffs) link to their GHL opportunity (Luke, Oct
+  15; `autoCrm` tags each with `sub` = "<repId>|<marketId>", `ghlOppUrl`) —
+  the managers' Scorecard lists do the same. "Show the full breakdown" opens
   `RepView` with `self breakdown`: any period, the six tiles (+ a Speed tile
   for a week: live, or a past week's frozen `speedOk` / `speedTotal` — every
   RepView shows it), points per
@@ -313,6 +348,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   edge/auth.js) differs from the one stored. Click / Esc skips;
   stored per email in localStorage `vpg.welcome.<email>`; reduced motion
   respected; never in TV mode. Home's `scopeReps` moved to `shell/scope.js`.
+- **Ask Claude while viewing as** (Luke, Oct 15: it looked missing for reps
+  on Get zips — it was only hidden by View as): the button shows as that
+  person sees it and opens a preview (their conversation stays private,
+  nothing can be asked in their name).
 - **Login page & icons**: the Access login page uses the logo at
   `public/brand/vpg-logo.png` (rendered from the logo in Montserrat; served
   publicly from raw.githubusercontent.com, since the login page shows before
@@ -604,6 +643,14 @@ the server strips them (`forTc`) and refuses edits to them.
   returned cell fills too (their pills carry it). Active's EMD column is a
   pill too (In · Buyer / In · VPG + Buyer / In · VPG only / Pending / Pending · payer). Needs-info marks (red
   outline, "N missing" pill) use the site's red #B42318 family.
+- **EMD status = EMD paid by** (Luke, Oct 15: "remove emd status and keep
+  EMD paid by … if it is empty, the status is pending, or if it is either
+  vpg, buyer, or vpg+buyer it is in"): `emdStatus` left FIELDS (panel, All
+  deals, Needs info, Dropdown lists); `emdIn` / `emdStatusOf` (math.js)
+  derive it and compute() sets `emdStatus` (COMPLETE / PENDING) on every
+  deal, so older checks still read it; a stored value in D1 is ignored.
+  "PENDING" in the paid-by list counts as empty. EMD sent on is needed once
+  a payer is in.
 - **Deal status** (Luke, Oct 14: "everything [should] match the pipeline
   stages"): `STATUS_KEYS` (math.js) = PENDING, ASSIGNED (new), COMPLETE
   (reads "Closed"), CANCELLED — a fixed list in that order (`FIXED_LISTS`
@@ -686,6 +733,11 @@ the server strips them (`forTc`) and refuses edits to them.
   deals don't arrive with a backlog), IP ending ≤ 48 h with no buyer, past
   COE, and added tasks due. **EM receipt to chase** (Luke: only after the
   deal is assigned AND the EMD is empty or VPG only — `needsBuyerEmReceipt`).
+  Ticks that are deal fields write the deal (Luke, Oct 15, `LinkAsk`): EM
+  placed asks who placed it and saves EMD paid by (+ EMD sent on today when
+  empty); Buyer EM receipt saves EMD paid by Buyer (VPG + Buyer when VPG
+  had); Title opened with no title agency asks for it and saves it — they
+  then read "done — from the deal".
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
@@ -871,7 +923,8 @@ the server strips them (`forTc`) and refuses edits to them.
     dropdowns' style opening hour 1–12 / minutes in 5s + :59 / AM–PM lists
     with a clear top and bottom, quick picks 9:00 AM · 12:00 PM · 5:00 PM ·
     11:59 PM, Clear / Done; the value is still "HH:MM".
-  - **All deals table head** (Luke, Oct 15: "clunky … when you click the
+  - **All deals table head** (Luke, Oct 15: every column title and band
+  left-aligned, numbers too; "clunky … when you click the
     column name it sorts, but you cannot clear it easily"): no title band
     inside the table card ("as of" moved to the page subtitle); one navy
     group band (no vertical lines in it or the header row — Luke, Oct 15; the address column's band reads
@@ -917,16 +970,57 @@ the approval records who).
   in edit_log `finance.*`. When every line of a deal is paid the deal's
   "Commission paid" becomes Yes (deal history: "<name> (Finance)"); undoing
   a payment sets it to No. Tests: node:sqlite shim + signed JWTs.
+- **Look** (Luke, Oct 15: "very bland and slightly confusing … match the
+  style of the rest of the dashboard"): every Finance page opens with a navy
+  band (`FinanceHead` in ui.jsx — eyebrow, title, what the page does,
+  controls on the right) and accent tiles (`MoneyTile` with a coloured top
+  bar: amber to approve, sky to pay, violet TC, green paid, tan coming due).
 - **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
-  **Payouts** (tiles To approve / To pay / Paid this month /
-  Coming due, tabs the same, person filter `?who=`, search, select rows →
-  Approve N / Mark N paid… (date, method, reference) / Undo approval / Undo
-  payment, totals row; deals open in the deal panel). **Statements** (one
+  **Payouts** (Oct 15 rework, `?tab=` deals | tc | paid | coming, person
+  filter `?who=`, search): **By deal** — a card per closed deal with
+  commissions to approve / pay (navy header with the address → deal panel,
+  "N of M paid", total; a row per person with status and trail, per-row
+  Approve / Mark paid / Undo; footer "Approve deal" / "Mark deal paid…"),
+  in two groups To approve and Approved — ready to pay; **TC monthly** — a
+  row per month (closings, total, status, Approve month / Mark paid… / Undo,
+  unfolds to the deals); **Paid** history and **Coming due** tables. The pay
+  dialog lists what's being paid. **Statements** (one
   person, any period by COE via PeriodBar: earned / paid / still owed /
   coming due, the lines, Print statement — a clean page in a new window —
   and CSV). **Overview** (any period by COE: net revenue (net assignment),
   commissions, net profit, paid out, still owed — by month with a total —
   and a forecast of open assigned deals with a price by COE month).
+- **TC paid monthly** (Luke, Oct 15: "if acq/dispo/managers are paid, it
+  marks as paid across the sheet. TC fees get paid at the end of the month
+  based on total deals for the month"): the TC line is its own category
+  (`isTcLine`, `tcMonths` in lines.js) — the deal's Commission paid covers
+  acq / dispo / manager / override only; TC lines from closings since
+  `TC_MONTHLY_FROM` (2026-10-01) are approved and paid a month at a time
+  (Payouts › TC monthly); earlier ones count as settled when the deal says
+  Commission paid Yes.
+- **Linked with the tracker** (Luke, Oct 15: "any edit anywhere should
+  automatically populate the deal sheet"): marking payouts paid sets the
+  deal's Commission paid — Yes when its acq / dispo / manager / override
+  lines are all paid, No when only some are (or a payment is undone); a TC
+  payment never touches it. A Yes set in the tracker settles those lines
+  ("Paid (tracker)", approved ones too). The deal panel shows
+  each commission's Finance state beside it (`PayTag`: Paid <date> · <method>
+  / Approved · to pay / To approve; `payByDeal` / `payText` / `PART_FIELD` in
+  lines.js, `useDealPay` in finance/store.js — owners only, nothing fetched
+  for anyone else) and "N of M paid" under Commission paid; All deals puts a
+  coloured dot beside each commission and "N of M paid" beside Commission
+  paid. A Finance action reloads the deals. **Wires In** tab
+  (`WiresView.jsx`, `/finance/wires`): every non-cancelled deal closed or
+  past its COE with a wire expected — Waiting / Received / Short, "Mark
+  received…" (amount, date) saves the deal's own Total wire received and
+  Wire date received (PATCH, logged), so the tracker and this page are the
+  same data. **EMD returned is confirmed separately** (Luke, Oct 15: "a wire
+  may come in and be only the assignment fee and EM is never returned"): an
+  "EMD returned?" column (Returned / Not returned → the deal's EMD returned,
+  only where VPG put up EMD) and an "EMD to confirm" tile / tab. "Short" only
+  for wires dated from Oct 1 (older sheet rows recorded wires their own way)
+  and net of VPG's EMD when it wasn't returned. The TC List never changes a
+  deal's status (Luke, Oct 15) — its ticks only fill EMD paid by / title.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)
@@ -1497,7 +1591,8 @@ Under `src/views/`:
     biggest leak ringed #c2410c (20%+ below), "N pts below"; the live week
     uses this month, a past week the month to date as of its Sunday
     (`rangeMetrics` + month-log contracts, like the Rep page). Plain-words
-    legend at the foot.
+    legend at the foot. (Since Oct 15, Luke: Where they leak is no longer on
+    the Scorecard — it's the Coaching tab.)
     Week picker: this week (live until the freeze) and every week in
     scorecards.json ("from sheet" = imported), plus **Trends · last 8 weeks**
     (`TrendsView.jsx`, `trends.js` `weekSeries`; Luke Oct 11, reworked Oct 12
@@ -1638,7 +1733,8 @@ Under `src/views/`:
     pace), plus "N of M days on file". Untracked (pre-Sept 14 or no
     snapshot) reads "—", never 0.
   - **Month in Review** (`MonthView.jsx`, `monthReview.js`; Luke, Oct 9 —
-    the first-Friday recap). Month picker (opens on last month). Totals per
+    the first-Friday recap). Month picker (opens on the current month —
+    Luke, Oct 15). Totals per
     rep from the month's last `history.json` snapshot (contractsMonth,
     dealsClosedMonth, revenueMonth, offersMonth, oppsOpenedMonth; before
     Sept 14 only closed + revenue exist → "—"). Six tiles vs team month goal

@@ -19,6 +19,8 @@ import SummaryView from '../deals/SummaryView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
 import PayoutsView from '../finance/PayoutsView.jsx';
+import SuggestionsView from '../suggestions/SuggestionsView.jsx';
+import WiresView from '../finance/WiresView.jsx';
 import StatementsView from '../finance/StatementsView.jsx';
 import FinanceOverview from '../finance/OverviewView.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
@@ -48,7 +50,7 @@ import ZipRules from '../zips/RulesHealth.jsx';
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
-  'fin-payouts': PayoutsView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
+  'fin-payouts': PayoutsView, suggestions: SuggestionsView, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
@@ -192,6 +194,14 @@ export default function AppShell({ me }) {
             {tab ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {['owner', 'manager', 'tc'].includes(me.role) && section.id !== 'suggestions' && (
+              // Luke, Oct 15: the suggestion box, one click from any page (the
+              // page it came from goes with it).
+              <a {...linkProps(`/suggestions/all?new=1&from=${encodeURIComponent(path + (window.location.search || ''))}`)} title="Suggest a change to this page or anything else"
+                className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-lg border border-tan-200 bg-tan-50 font-medium text-navy-700 hover:bg-tan-100">
+                <Icon name="idea" size={14} /><span className="hidden lg:inline">Suggest a change</span>
+              </a>
+            )}
             <ViewAsButton me={me} />
             {status?.lastSync && <span className="hidden sm:inline text-xs text-zinc-400" title={new Date(status.lastSync).toLocaleString()}>Updated {ago(status.lastSync)}</span>}
             {isManager && (

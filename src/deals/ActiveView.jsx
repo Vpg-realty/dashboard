@@ -21,7 +21,7 @@ import { money, compact, shortDate, stateCode, btnCls, primaryCls } from './form
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
 import EditableCell from './EditableCell.jsx';
-import { FIELD, isOpen } from './math.js';
+import { FIELD, isOpen, emdIn } from './math.js';
 import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
@@ -225,7 +225,7 @@ export default function ActiveView() {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const match = (d) => !words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state}`.toLowerCase().includes(w));
     const actives = withStep.filter((d) => isOpen(d) && (!mineOnly || d.mine));
-    const emdRisk = (d) => (d.emdStatus === 'PENDING' && !d.emdPaidBy) || (d.emdStatus === 'COMPLETE' && d.emdPaidBy === 'VPG');
+    const emdRisk = (d) => !emdIn(d) || String(d.emdPaidBy).toUpperCase() === 'VPG';
     const pastCoe = (d) => ISO.test(d.coe || '') && d.coe < today;
     const soon = (d) => ISO.test(d.coe || '') && d.coe >= today && days(today, d.coe) <= 7;
     const filters = { asg: isAsg, buyer: (d) => !isAsg(d), emd: emdRisk, past: pastCoe, soon, need: (d) => d._needs.length > 0 };
@@ -352,7 +352,7 @@ export default function ActiveView() {
           </span>
         )}
         <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
-        {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE', emdStatus: 'PENDING' })} className={primaryCls}>+ New deal</button>}
+        {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className={`grid grid-cols-2 sm:grid-cols-3 ${ed ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-2.5`}>
         <FilterTile label="All active deals" value={tiles.active} active={!only} activeText="Showing all" onClick={() => setOnly(null)} sub="pending + assigned" />

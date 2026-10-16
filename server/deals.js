@@ -98,6 +98,31 @@ export function extractDeals({ opportunities, stageOf, fieldIds, moStart }) {
   return deals;
 }
 
+// The Pipeline's Opportunities tab (Luke, Oct 15: "include all stages prior
+// to under contract … in a different tab called opportunities"): every open
+// opportunity in New Lead, Review, Offer Submitted or Negotiation — the
+// newest stage moves first, at most `cap` per sub-account. Published apart
+// from data.json as opps.json (scripts/split-private-data.mjs), so the TV's
+// 30-second poll doesn't carry it.
+export const OPP_STAGES = ['new_lead', 'review', 'offer_submitted', 'negotiation'];
+export function extractOpps({ opportunities, stageOf, fieldIds, cap = 400 }) {
+  const ts = (v) => (v ? new Date(v).getTime() : 0);
+  const out = [];
+  for (const o of opportunities || []) {
+    const stage = stageOf(o);
+    if (!OPP_STAGES.includes(stage) || (o.status && o.status !== 'open')) continue;
+    out.push({
+      id: o.id,
+      stage,
+      address: customValue(o, fieldIds.address) || o.name || '',
+      value: Number(o.monetaryValue || 0),
+      stageSince: ts(o.lastStageChangeAt) || null,
+      created: ts(o.createdAt || o.dateAdded) || null,
+    });
+  }
+  return out.sort((a, b) => (b.stageSince || b.created || 0) - (a.stageSince || a.created || 0)).slice(0, cap);
+}
+
 // Opportunities that are Abandoned or Lost now — by stage (VPG has real
 // Abandoned / Lost stages) or by status — and got there since `sinceMs`.
 // server/stickyCounts.js turns the ones that had been under contract into

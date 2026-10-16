@@ -6,7 +6,7 @@
 // are all paid gets "Commission paid" = Yes in the tracker (logged in its
 // history as Finance) — undoing a payment sets it back to No.
 import { compute } from '../src/deals/math.js';
-import { buildLines, lineKey, METHODS } from '../src/finance/lines.js';
+import { buildLines, lineKey, METHODS, isTcLine } from '../src/finance/lines.js';
 import { rowToDeal, getSetting } from './deals.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -50,7 +50,7 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     approve: (l) => (l.status === 'owed' || (l.status === 'approved' && l.changed) ? (l.amount > 0 ? null : 'nothing is owed on it') : 'it is not waiting for approval'),
     unapprove: (l) => (l.status === 'approved' ? null : 'it is not approved'),
     pay: (l) => (l.status !== 'approved' ? 'approve it first' : l.changed ? 'its commission changed since it was approved — approve it again' : null),
-    unpay: (l) => (l.status === 'paid' && !l.sheet ? null : l.sheet ? 'it was settled in the sheet' : 'it is not paid'),
+    unpay: (l) => (l.status === 'paid' && !l.sheet ? null : l.sheet ? 'it was marked paid in the deal tracker — set Commission paid to No there' : 'it is not paid'),
   }[action];
   for (const l of picked) {
     const w = why(l);
@@ -73,15 +73,18 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     }
   }
 
-  // "Commission paid" on the deal follows its lines.
-  const touched = [...new Set(picked.map((l) => l.dealId))];
+  // "Commission paid" on the deal follows its acq / dispo / manager /
+  // override lines — the TC is paid monthly, on its own (lines.js isTcLine).
+  const touched = [...new Set(picked.filter((l) => !isTcLine(l)).map((l) => l.dealId))];
   const pickedKeys = new Set(keys);
   for (const id of touched) {
     const deal = all.deals.find((d) => d.id === id);
     if (!deal) continue;
-    const mine = all.lines.filter((l) => l.dealId === id && !l.gone);
+    const mine = all.lines.filter((l) => l.dealId === id && !l.gone && !isTcLine(l));
     const allPaid = mine.length > 0 && mine.every((l) => l.status === 'paid' || (action === 'pay' && pickedKeys.has(l.key)));
-    const want = action === 'pay' && allPaid ? 'YES' : action === 'unpay' ? 'NO' : null;
+    // Paid in full → Yes; partly paid or a payment undone → No (Luke, Oct 15:
+    // the tracker follows Finance; the panel shows which parts are paid).
+    const want = action === 'pay' ? (allPaid ? 'YES' : 'NO') : action === 'unpay' ? 'NO' : null;
     const cur = String(deal.commPaid || '').toUpperCase() || null;
     if (!want || cur === want) continue;
     st.push({ commPaid: { id, from: deal.commPaid ?? null, to: want } });

@@ -15,7 +15,7 @@ const MANAGER_FILES = ['/data-mgr.json', '/scorecards.json', '/messaging-review.
 // Everyone's board data (Luke, Oct 14: the login lets in any
 // @valleypropertygroup.com email; Settings › People decides who's in): only
 // people on the list, and the build, may read it.
-const TEAM_FILES = ['/data.json', '/history.json', '/opp-state.json'];
+const TEAM_FILES = ['/data.json', '/history.json', '/opp-state.json', '/opps.json'];
 const KNOWN = ['owner', 'manager', 'tc', 'team', 'tv', 'service'];
 
 export async function onRequest(context) {

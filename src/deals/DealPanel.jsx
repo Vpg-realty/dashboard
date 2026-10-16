@@ -4,7 +4,7 @@
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { setLeaveGuard } from '../shell/router.js';
+import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
@@ -18,6 +18,17 @@ import { editFields } from './edits.js';
 import { PANEL_HEAD, PANEL_NUM } from '../shell/panelStyle.js';
 import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
+import { useDealPay } from '../finance/store.js';
+import { partOfField, payText } from '../finance/lines.js';
+import { PILL_TONE } from './values.js';
+
+// Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
+// To approve — Finance › Payouts is where it changes.
+function PayTag({ line }) {
+  const t = payText(line);
+  if (!t) return null;
+  return <a {...linkProps('/finance/payouts')} title="Commission payouts are approved and paid in Finance › Payouts" className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t.tone]}`}>{t.text}</a>;
+}
 
 const TZ_FIELD = FIELDS.find((f) => f.key === 'ddEndTz');
 
@@ -125,6 +136,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [leaving, setLeaving] = useState(null);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
+  const fin = useDealPay(!!owner && !isNew).get(id) || null;
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -346,6 +358,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                           {f.calc || f.type === 'ghl' ? (
                             <div className={`flex items-center gap-2 ${ro ? '' : 'min-h-8'}`}>
                               <span className={`tabular-nums ${ro ? 'text-[14.5px] font-semibold' : 'text-[14px] font-medium'} ${isFixed ? 'text-amber-900' : lossHigh ? 'text-[#B42318] font-bold' : ro ? 'text-navy-900' : 'text-zinc-900'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400 font-normal">no buyer yet</span> : show(f, merged[f.key])}</span>
+                              {fin && partOfField(f.key) && <PayTag line={fin.parts[partOfField(f.key)]} />}
                               {isFixed && !ro && (owner || !f.secret) && <button type="button" onClick={(e) => { e.preventDefault(); setFixed(f.key, 'formula'); }} className="text-xs text-blue-600 hover:underline">use formula</button>}
                             </div>
                           ) : f.key === 'links' && ro ? (
@@ -363,6 +376,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                 </div>
                               ) : <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
+                              {f.key === 'commPaid' && fin && fin.total > 0 && <span className="block mt-1 text-[11.5px] text-zinc-500">Finance: {fin.paid} of {fin.total} commission{fin.total === 1 ? '' : 's'} paid — set automatically when a payout is marked paid in <a {...linkProps('/finance/payouts')} className="text-navy-700 underline">Finance</a>.</span>}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>
                           )}

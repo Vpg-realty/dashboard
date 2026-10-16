@@ -5,8 +5,8 @@
 import { useMemo } from 'react';
 import { useFinance } from './store.js';
 import { METHODS, lineAmount, partLabel, sum } from './lines.js';
-import { StatusPill, MoneyTile } from './ui.jsx';
-import { PageHead, Loading } from '../deals/ui.jsx';
+import { StatusPill, MoneyTile, FinanceHead } from './ui.jsx';
+import { Loading } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, downloadCsv } from '../deals/format.js';
 import PeriodBar from '../deals/PeriodBar.jsx';
 import { usePeriod, inPeriod } from '../deals/period.js';
@@ -17,7 +17,7 @@ import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const paidText = (l) => (l.status !== 'paid' ? '' : l.sheet ? 'Paid (sheet)' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
+const paidText = (l) => (l.status !== 'paid' ? '' : l.sheet ? 'Paid (tracker)' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
 const statusText = (l) => (l.status === 'paid' ? 'Paid' : l.status === 'approved' ? 'Approved' : 'Owed');
 
 function printStatement({ who, period, rows, totals }) {
@@ -57,7 +57,7 @@ export default function StatementsView() {
 
   return (
     <div className="max-w-[1400px] mx-auto">
-      <PageHead title="Statements" sub="One person's commissions for a period, by the deal's closing date." right={<>
+      <FinanceHead eyebrow="Statements" title="Commission statements" sub="One person's commissions for a period, by the deal's closing date — print it or download a CSV." right={<>
         <button type="button" onClick={csv} className={btnCls} disabled={!rows.length}>Export CSV</button>
         <button type="button" onClick={() => printStatement({ who, period, rows, totals })} className={btnCls} disabled={!who}>Print statement</button>
       </>} />
@@ -67,16 +67,16 @@ export default function StatementsView() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <MoneyTile label="Earned" value={money(totals.earned)} sub={`${rows.length} payout${rows.length === 1 ? '' : 's'} · ${period.label}`} />
-        <MoneyTile label="Paid" value={money(totals.paid)} sub={`${paid.length} paid`} tone="text-[#15803D]" />
-        <MoneyTile label="Still owed" value={money(totals.owed)} sub={`${owed.filter((l) => l.status === 'approved').length} approved · ${owed.filter((l) => l.status === 'owed').length} to approve`} tone={totals.owed ? 'text-[#B54708]' : 'text-zinc-400'} />
-        <MoneyTile label="Coming due" value={money(sum(coming))} sub={`${coming.length} open assigned deal${coming.length === 1 ? '' : 's'}`} />
+        <MoneyTile label="Paid" accent="green" value={money(totals.paid)} sub={`${paid.length} paid`} tone="text-[#15803D]" />
+        <MoneyTile label="Still owed" accent="amber" value={money(totals.owed)} sub={`${owed.filter((l) => l.status === 'approved').length} approved · ${owed.filter((l) => l.status === 'owed').length} to approve`} tone={totals.owed ? 'text-[#B54708]' : 'text-zinc-400'} />
+        <MoneyTile label="Coming due" accent="tan" value={money(sum(coming))} sub={`${coming.length} open assigned deal${coming.length === 1 ? '' : 's'}`} />
       </div>
       <section className="mt-4 rounded-xl border border-tan-200 bg-white overflow-hidden">
         <PanelHead title={`${who || '—'} · ${period.label}`} sub="click a property to open the deal" />
         {rows.length === 0 ? <div className="px-5 py-8 text-center text-zinc-500">No commissions for {who} in {period.label}.</div> : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13.5px]">
-              <thead className="text-[11px] uppercase tracking-wide font-bold" style={{ background: '#EEF2F6', color: '#6B7280' }}>
+              <thead className="text-[12px] font-semibold text-navy-700 bg-navy-50/70">
                 <tr><th className="pl-5 px-2.5 py-2 w-[40%]">Property</th><th className="px-2.5 py-2">Closed</th><th className="px-2.5 py-2">For</th><th className="px-2.5 py-2 text-right">Amount</th><th className="px-2.5 py-2">Status</th><th className="px-2.5 py-2">Paid</th></tr>
               </thead>
               <tbody>

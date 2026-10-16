@@ -8,7 +8,7 @@
 //   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
 import { STAGE_ALIASES } from './config.js';
-import { extractDeals, extractLost, extractTrackerFeed, resolveDealFieldIds, DEAL_FIELD_KEYS, TRACKER_FIELD_KEYS } from './deals.js';
+import { extractDeals, extractOpps, extractLost, extractTrackerFeed, resolveDealFieldIds, DEAL_FIELD_KEYS, TRACKER_FIELD_KEYS } from './deals.js';
 
 const startOfWeek = () => {
   const d = new Date();
@@ -165,6 +165,13 @@ export function aggregatePair({
     fieldIds,
     moStart,
   });
+  // Open opportunities before Under Contract — the Pipeline's Opportunities
+  // tab (moved out of data.json into opps.json at build).
+  const opps = extractOpps({
+    opportunities,
+    stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
+    fieldIds,
+  });
   // Abandoned / Lost since the start of last month — stickyCounts.js picks
   // out the ones that had been under contract (cancellations). Internal,
   // stripped before publish like _oppRanks.
@@ -239,6 +246,7 @@ export function aggregatePair({
     revenueMonth,
     // Pipeline tab (server/deals.js).
     deals,
+    opps,
     dealFieldsMissing,
     dealFieldsError,
     // Stripped from data.json by stickyCounts.js before it reaches the browser.

@@ -56,6 +56,15 @@ export const TEAM_TARGETS = {
 // reporting. Each entry is { repId, marketId, locationId }.
 export const SUBACCOUNTS = config.subaccounts;
 
+// A GHL opportunity's page (Luke, Oct 15: names on My scorecard's "Fix these"
+// link to the opportunity). `sub` = "<repId>|<marketId>"; null when unknown.
+const LOCATION_OF = Object.fromEntries(config.subaccounts.map((s) => [`${s.repId}|${s.marketId}`, s.locationId]));
+export function ghlOppUrl(sub, oppId) {
+  const loc = LOCATION_OF[sub];
+  if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(oppId || ''))) return null;
+  return `https://app.gohighlevel.com/v2/location/${loc}/opportunities/list/${oppId}?tab=OpportunityDetails`;
+}
+
 // Tier definitions — Luke uses literal "Tier 1/2/3/4" tags in GHL.
 export const TIERS = [
   { id: 1, label: 'Tier 1 — VIP',     color: '#fbbf24', desc: 'Routine deals, easy follow-up' },
