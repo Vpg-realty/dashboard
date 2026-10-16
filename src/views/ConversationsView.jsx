@@ -9,18 +9,21 @@ import { segmentLabel } from '../components/SegmentLabel.jsx';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// Week-over-week badge in the trend panel header (Luke, Oct 7: the grey
-// subtitle was too easy to miss). Green ▲ when completed days are at or
-// above the same days last week, red ▼ when below.
-function WowBadge({ now, last, pct, range }) {
+// Change boxes in the trend panel header (Luke, Oct 7: the grey subtitle was
+// too easy to miss; Oct 16: one box for the day and one for the week, less
+// text). Green ▲ at or above the same days last week, red ▼ below; only
+// finished days are compared — there's no intraday history, so today so far
+// vs a full day last week would always look behind.
+function Change({ label, now, last }) {
+  if (!last) return null;
+  const pct = Math.round(((now - last) / last) * 100);
   const up = now >= last;
-  const diff = now - last;
   return (
-    <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${up ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-red-50 text-red-700 ring-1 ring-red-200'}`}>
-      <span className="text-2xl leading-none">{up ? '▲' : '▼'}</span>
-      <div className="leading-tight text-right">
-        <div className="text-xl font-extrabold tabular-nums">{diff >= 0 ? '+' : ''}{pct}%</div>
-        <div className="text-[11px] font-semibold opacity-80 tabular-nums">{range}: {now} vs {last} ({diff >= 0 ? '+' : ''}{diff})</div>
+    <div className={`rounded-lg px-3 py-1 min-w-[6.5rem] ring-1 ${up ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-red-50 text-red-700 ring-red-200'}`}>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75 whitespace-nowrap">{label}</div>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-lg font-extrabold tabular-nums leading-tight whitespace-nowrap">{up ? '▲' : '▼'} {pct >= 0 ? '+' : ''}{pct}%</span>
+        <span className="text-[11px] font-semibold opacity-70 tabular-nums whitespace-nowrap">{now} vs {last}</span>
       </div>
     </div>
   );
@@ -62,13 +65,29 @@ export default function ConversationsView() {
     const now = i < todayIdx ? byDay.get(d) : i === todayIdx ? head.conversationsToday : null;
     return { label, last: last ?? null, now: now ?? null };
   });
-  // Week-over-week on completed days only (we don't keep intraday history,
-  // so today vs a full day last week would always look behind).
-  const doneDays = trend.slice(0, todayIdx);
-  const doneNow = doneDays.reduce((a, r) => a + (r.now || 0), 0);
-  const doneLast = doneDays.reduce((a, r) => a + (r.last || 0), 0);
-  const wow = doneLast > 0 ? Math.round(((doneNow - doneLast) / doneLast) * 100) : null;
+  // Day: yesterday vs the same weekday last week. Week: the finished days so
+  // far (Mon–yesterday) vs the same days last week; on a Monday, last week vs
+  // the week before.
+  const yday = addDays(today, -1);
+  const dayName = DAYS[(todayIdx + 6) % 7];
+  const dayNow = byDay.get(yday) ?? null;
+  const dayLast = byDay.get(addDays(yday, -7)) ?? null;
+  // Days missing from history on either side are left out of both sums.
+  const weekN = todayIdx > 0 ? todayIdx : 7;
+  const weekFrom = todayIdx > 0 ? monday : lastMonday;
+  let weekNow = 0, weekLast = 0;
+  for (let i = 0; i < weekN; i++) {
+    const a = byDay.get(addDays(weekFrom, i)), b = byDay.get(addDays(weekFrom, i - 7));
+    if (a != null && b != null) { weekNow += a; weekLast += b; }
+  }
+  const weekLabel = todayIdx === 0 ? 'Last week' : todayIdx === 1 ? 'Week · Mon' : `Week · Mon–${DAYS[todayIdx - 1]}`;
   const lastWeekTotal = trend.reduce((a, r) => a + (r.last || 0), 0);
+  const changes = (dayLast || weekLast) ? (
+    <div className="flex items-stretch gap-2">
+      {dayNow != null && <Change label={`Yesterday · ${dayName}`} now={dayNow} last={dayLast} />}
+      <Change label={weekLabel} now={weekNow} last={weekLast} />
+    </div>
+  ) : null;
 
   return (
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 h-full min-h-0">
@@ -119,9 +138,7 @@ export default function ConversationsView() {
       <Panel
         className="col-span-12 lg:col-span-5 min-h-0"
         title="This Week vs Last Week"
-        subtitle={todayIdx > 0 && wow != null
-          ? <WowBadge now={doneNow} last={doneLast} pct={wow} range={todayIdx > 1 ? `${DAYS[0]}–${DAYS[todayIdx - 1]}` : DAYS[0]} />
-          : `last week: ${lastWeekTotal} total`}
+        subtitle={changes || `last week: ${lastWeekTotal} total`}
         accent="New conversations · team"
       >
         <div className="h-full flex flex-col gap-2 min-h-0">
