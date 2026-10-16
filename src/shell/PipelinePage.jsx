@@ -151,6 +151,15 @@ export default function PipelinePage({ mode = 'deals' }) {
         </div>
         {/* The person filter (Luke, Oct 14): Mine, My pod, Full team, then a person. */}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* In the band, not the state row, so the columns below sit at the
+              same height on both tabs (Luke, Oct 16). */}
+          {isOpps && oppScope && (
+            <label className="relative">
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search name or address…"
+                className="h-8 w-60 rounded-md bg-white/10 text-white placeholder:text-white/50 ring-1 ring-inset ring-white/25 pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-tan-400" />
+              <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5 top-1.5 !text-white/60 hover:!text-white hover:!bg-white/10" />
+            </label>
+          )}
           {mineId && seg('me', 'Mine')}
           {pod && seg('pod', 'My pod')}
           {(!scoped || teamOpps) && seg('all', 'Full team')}
@@ -163,18 +172,11 @@ export default function PipelinePage({ mode = 'deals' }) {
           )}
         </div>
       </div>
-      {(states.length > 1 || isOpps) && (!scoped || oppScope) && (
+      {states.length > 1 && (!scoped || oppScope) && (
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           <span className="text-[12.5px] text-zinc-500 mr-1">State</span>
           {chip(null, 'All states')}
           {states.map((m) => chip(m.id, MARKET_NAME[m.id] || m.id, counts[m.id]))}
-          {isOpps && (
-            <label className="relative ml-auto">
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search name or address…"
-                className="h-8 w-64 rounded-lg border border-zinc-200 bg-white pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-navy-100" />
-              <ClearX value={q} onClear={() => setQ('')} />
-            </label>
-          )}
         </div>
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>

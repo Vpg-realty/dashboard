@@ -106,7 +106,9 @@ export default function PipelineView({ keep, onOpen, still, dates, opps, brand, 
     return (
       <PipeCtx.Provider value={{ onOpen, still }}>
         <div className="flex flex-col gap-2.5 h-full min-h-0">
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0 ${opps ? 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_1fr]' : 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_0.8fr]'}`}>
+          {/* The same five columns on both tabs (Luke, Oct 16: "make them even so
+              they dont move when switching"). */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0 xl:grid-cols-5">
             <BrandDue deals={deals} today={today} />
             {opps && OPP_COLUMNS.map((col) => <BrandOppColumn key={col.stage} col={col} opps={opps.filter((o) => o.stage === col.stage)} repById={repById} marketById={marketById} />)}
             {!opps && COLUMNS.map((col) => <BrandColumn key={col.stage} col={col} deals={sortDeals(deals.filter((d) => d.stage === col.stage), col.stage)} today={today} />)}
