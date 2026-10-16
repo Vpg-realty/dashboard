@@ -207,7 +207,7 @@ export default function AppShell({ me }) {
         <header className="h-12 shrink-0 flex items-center gap-3 px-4 md:px-5 border-b border-zinc-100">
           <span className="md:hidden"><Logo small /></span>
           <div className="min-w-0 truncate text-zinc-500">
-            {tab ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
+            {tab && !section.solo ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
           </div>
           <div className="ml-auto flex items-center gap-2">
             {/* The header's "Suggest a change" button was removed (Luke, Oct 16) —
@@ -225,7 +225,7 @@ export default function AppShell({ me }) {
           </div>
         </header>
 
-        {section.tabs && !section.rail && (
+        {section.tabs && !section.rail && !section.solo && (
           <div className="shrink-0 flex gap-1 px-3 md:px-4 border-b border-zinc-100 overflow-x-auto">
             {section.tabs.map((t) => {
               const on = t.id === tab.id;

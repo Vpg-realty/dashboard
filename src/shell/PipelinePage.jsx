@@ -19,7 +19,10 @@ import { REPS, MARKETS, SUBACCOUNTS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery, navigate } from './router.js';
-import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
+import { useDeals, loadDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
+import { endTimeOf, fmtTime, ddEndMs } from '../deals/ddTime.js';
+import { isOpen } from '../deals/math.js';
+import { stageKey } from './stages.js';
 import { useOpps } from '../data/oppsStore.js';
 import { scopeReps } from './scope.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
@@ -50,17 +53,21 @@ export default function PipelinePage({ mode = 'deals' }) {
   const [q, setQ] = useState('');
   const canPick = ['owner', 'manager', 'tc'].includes(me?.role);
   const mineId = me?.rep_id || null;
-  // Opportunities: owners / TC see everyone; a manager only their pod.
+  // Opportunities and the Calendar (Luke, Oct 16: "reps should only see deals
+  // that apply to them - no team view. pod leads/managers … their deals and
+  // their pods deals … owners see full team"): owners / TC see everyone; a
+  // manager their own, their pod or one of its reps; a rep only their own.
+  const scoped = isOpps || view === 'cal';
   const teamOpps = me?.role === 'owner' || me?.role === 'tc';
-  const pod = isOpps && me?.role === 'manager' ? scopeReps(me) : null;
+  const pod = scoped && me?.role === 'manager' ? scopeReps(me) : null;
   const pickable = pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
   // Luke, Oct 14: "Mine" is the default for anyone with a rep (reps and
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).
-  const dflt = mineId ? 'me' : isOpps && !teamOpps ? '' : 'all';
+  const dflt = mineId ? 'me' : scoped && !teamOpps ? '' : 'all';
   const asked = query.get('who') || dflt;
   const outside = !['all', 'me', 'pod'].includes(asked) && !(canPick && pickable.some((r) => r.id === asked));
-  const raw = (isOpps && asked === 'all' && !teamOpps) || (asked === 'pod' && !pod) || outside ? dflt : asked;
+  const raw = (scoped && asked === 'all' && !teamOpps) || (asked === 'pod' && !pod) || outside ? dflt : asked;
   const picked = !['all', 'me', 'pod'].includes(raw) && canPick && pickable.some((r) => r.id === raw) ? raw : null;
   const who = raw === 'me' ? mineId : picked;
   const podOnly = raw === 'pod' && !!pod;
@@ -79,14 +86,31 @@ export default function PipelinePage({ mode = 'deals' }) {
   // COE / IP end from the tracker when it has the deal (GHL's custom fields
   // aren't updated when the date changes on the site).
   const byAddr = useMemo(() => trackerByAddr(s.deals), [s.deals]);
-  const dates = (d) => withTrackerDates(d, byAddr.get(addrKey(d.address || d.name)));
+  // The IP end's time and zone come with it (Calendar, Luke Oct 16: "add
+  // inspection period dates and times automatically").
+  const dates = (d) => withIpTime(withTrackerDates(d, byAddr.get(addrKey(d.address || d.name))), byAddr.get(addrKey(d.address || d.name)));
+  // Calendar: "if anything changes/is updated the calendar should reflect it"
+  // — edits made here show at once (shared store); everyone else's are picked
+  // up every 2 minutes and whenever the window comes back into focus. GHL's
+  // side refreshes with data.json as everywhere else.
+  useEffect(() => {
+    if (view !== 'cal') return undefined;
+    const again = () => { if (document.visibilityState === 'visible') loadDeals(); };
+    const t = setInterval(again, 120_000);
+    window.addEventListener('focus', again);
+    return () => { clearInterval(t); window.removeEventListener('focus', again); };
+  }, [view]);
   const inScope = (repId) => (rep ? repId === rep.id : podOnly ? pod.includes(repId) : true);
   // Closed / cancelled in the tracker but still open in GHL: left out.
   const ended = endedByAddr(s);
   const keep = (d, p) => !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const needle = q.trim().toLowerCase();
+  const ghlAddr = new Set(PAIRS.flatMap((p) => (p.deals || []).map((d) => addrKey(d.address || d.name))));
+  const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !ghlAddr.has(addrKey(t.address))).map(trackerOnly)
+    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? pod.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);
+  const calBlocked = view === 'cal' && !oppScope;
   const oppList = isOpps && oppScope
     ? opps.opps.filter((o) => inScope(o.repId) && (!st || o.marketId === st) && (!needle || String(o.address).toLowerCase().includes(needle)))
     : isOpps ? [] : null;
@@ -99,10 +123,10 @@ export default function PipelinePage({ mode = 'deals' }) {
   const lined = shown.filter((d) => d.stage === 'assigned').reduce((a, d) => a + (d.value || 0), 0);
   const scopeName = rep ? (raw === 'me' ? 'Mine' : rep.name.split(' ')[0]) : podOnly ? 'My pod' : 'Full team';
   const headline = view === 'opps' ? (oppScope ? `${oppList.length} open ${oppList.length === 1 ? 'opportunity' : 'opportunities'}` : 'Pick a person')
-    : view === 'cal' ? 'IP ends and closings by day'
+    : view === 'cal' ? 'Inspection periods and closings'
       : `${open.length} contracted deal${open.length === 1 ? '' : 's'}${lined ? ` · ${formatCompactCurrency(lined)} lined up` : ''}`;
   const blurb = view === 'opps' ? 'New leads through negotiation, before a contract. Click a card to open it in GoHighLevel.'
-    : view === 'cal' ? 'Each deal sits on its key date: IP end for Under contract and Dispo, COE for Assigned.'
+    : view === 'cal' ? 'IP end dates and times and COEs, straight from the deal tracker — change a date anywhere and it moves here.'
       : `Under contract through closed this month${rep ? (raw === 'me' ? ', plus deals where you’re the dispo member' : ', plus deals where they’re the dispo member') : ''}. Click a deal to open it.`;
 
   const seg = (v, label) => {
@@ -121,7 +145,7 @@ export default function PipelinePage({ mode = 'deals' }) {
     <div className="flex flex-col gap-3 h-full min-h-0">
       <div className="shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Pipeline · {scopeName}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{view === 'cal' ? 'Calendar' : 'Pipeline'} · {scopeName}</div>
           <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{headline}</h1>
           <p className="text-[12.5px] text-white/70">{blurb}</p>
         </div>
@@ -129,7 +153,7 @@ export default function PipelinePage({ mode = 'deals' }) {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {mineId && seg('me', 'Mine')}
           {pod && seg('pod', 'My pod')}
-          {(!isOpps || teamOpps) && seg('all', 'Full team')}
+          {(!scoped || teamOpps) && seg('all', 'Full team')}
           {canPick && (
             <select aria-label="Pick a person" value={picked || ''} onChange={(e) => setQuery({ who: e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'), st: null })}
               className={`h-8 rounded-md px-2 text-[13px] font-semibold text-navy-900 shadow-[0_1px_2px_rgba(0,0,0,0.25)] ${picked ? 'bg-white' : 'bg-tan-500'}`}>
@@ -139,7 +163,7 @@ export default function PipelinePage({ mode = 'deals' }) {
           )}
         </div>
       </div>
-      {(states.length > 1 || isOpps) && (!isOpps || oppScope) && (
+      {(states.length > 1 || isOpps) && (!scoped || oppScope) && (
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           <span className="text-[12.5px] text-zinc-500 mr-1">State</span>
           {chip(null, 'All states')}
@@ -154,15 +178,39 @@ export default function PipelinePage({ mode = 'deals' }) {
         </div>
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>
-        {isOpps && !oppScope ? (
+        {calBlocked ? (
+          <div className="h-full min-h-[200px] grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Your calendar shows once your account is linked to your rep in Settings › People.</div>
+        ) : isOpps && !oppScope ? (
           <div className="h-full grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Pick a person to see their opportunities.</div>
         ) : isOpps && opps.status === 'error' ? (
           <div className="h-full grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px] text-center px-6">Opportunities show up after the next data refresh{opps.error ? ` (${opps.error})` : ''}.</div>
         ) : (
-          <PipelineView keep={keep} onOpen={openGhl} still dates={dates} opps={oppList} brand calendar={view === 'cal'} />
+          <PipelineView keep={keep} onOpen={openGhl} still dates={dates} opps={oppList} brand calendar={view === 'cal'} extra={extra} />
         )}
       </div>
       {panel}
     </div>
   );
+}
+
+// The tracker's IP end time on a GHL deal whose IP end came from the tracker.
+const ZONE_ABBR = { ARIZONA: 'AZ', PACIFIC: 'PT', MOUNTAIN: 'MT', CENTRAL: 'CT', EASTERN: 'ET' };
+function withIpTime(d, t) {
+  if (!t || d.ipEnd !== t.ddEnd) return d;
+  const e = endTimeOf(t);
+  // "5p ET", "11:59p AZ" — short enough for a calendar cell.
+  const short = e.time ? fmtTime(e.time).replace(':00', '').replace(' AM', 'a').replace(' PM', 'p') : null;
+  return { ...d, ipTime: short ? `${short}${e.zone ? ` ${ZONE_ABBR[e.zone] || ''}` : ''}`.trim() : null, ipMs: ddEndMs(t) };
+}
+
+// An open tracker deal GHL doesn't have (no deal at that address): shown on
+// the calendar too, its stage from the GHL mirror or the deal status.
+const STATUS_STAGE = { PENDING: 'dispo', ASSIGNED: 'assigned' };
+const GHL_STAGE = new Set(['under_contract', 'dispo', 'assigned']);
+function trackerOnly(t) {
+  const r = REPS.find((x) => norm(x.name) === norm(t.acq)) || REPS.find((x) => norm(x.name.split(' ')[0]) === norm(String(t.acq || '').split(' ')[0]));
+  const m = MARKETS.find((x) => norm(x.name) === norm(t.state) || norm(x.id) === norm(t.state));
+  const g = stageKey(t.ghlStage);
+  const stage = (GHL_STAGE.has(g) && g) || STATUS_STAGE[t.status] || 'dispo';
+  return withIpTime({ id: `t_${t.id}`, address: t.address, stage, ipEnd: t.ddEnd || null, coe: t.coe || null, value: Number(t.vpgAssign) > 0 ? Number(t.grossAssign) || 0 : 0, repId: r?.id || null, marketId: m?.id || null, dispoMember: t.dispoMember, fromTracker: true }, t);
 }

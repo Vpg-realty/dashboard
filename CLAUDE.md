@@ -263,10 +263,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   before the title: Mine, Full team, then Pick a person (it was easy to miss
   on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
-  **Three top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
-  — the four stages from Under Contract, Full team allowed), **Calendar**
-  (`/pipeline/calendar`, `CalendarBoard`: two weeks from Monday, Earlier /
-  Later, a row per open stage, a Late column, each deal on its key date) and
+  **Two top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
+  — the four stages from Under Contract, Full team allowed) and
   **Opportunities** (`/pipeline/opportunities`; old `?view=opps` links
   redirect — New Lead, Review, Offer Submitted, Negotiation; one person
   only: reps their own, owners / managers / TC pick a person; Oct 16 (Luke):
@@ -278,8 +276,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   "tiles … bulky … address on one line, 2 lines total" and "titles … not so
   much text"): a navy band (Pipeline · scope, a one-line headline, the
   person filter as tan buttons), no stage-summary boxes; PipelineView's
-  `brand` prop draws one-line column titles (dot, stage, count, $, late /
-  today chips) and two-line cards (address + value; avatar, rep · state, IP
+  `brand` prop draws the column titles as option A of the Oct 16 round
+  (Luke: "late badge at the top right corner … value to the bottom right
+  corner in green"): a navy band with a stage-colour line along its bottom,
+  row 1 the stage in normal case ("Closed in October") with late / today
+  pills at the right, row 2 the count + "deals" with the value in green at
+  the right (`BrandHead`) and two-line cards (address + value; avatar, rep · state, IP
   and COE chips — the key date in its deadline colour, "Nd" on maroon when
   late, the other date grey and the first to shrink). The TV board passes no
   `brand` / `calendar` and is unchanged.
@@ -294,6 +296,24 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   by split-private-data.mjs into **`opps.json`** (same login rule as
   data.json — functions/_middleware.js TEAM_FILES, `_routes.json`), loaded
   by `src/data/oppsStore.js` only when the tab opens (every 5 min while open).
+- **Calendar** (Luke, Oct 16: "an entire category … fully separate"): its
+  own sidebar section `/calendar` (`solo: true` in sections.js = no tab bar,
+  breadcrumb just "Calendar"; old /pipeline/calendar links redirect via
+  `MOVED`), drawn by PipelinePage `mode="cal"` → PipelineView `calendar`
+  (`CalendarBoard`): who sees what (Luke, Oct 16) — reps only their own
+  deals (no Full team), managers Mine / My pod / a rep of their pod, owners
+  and the TC Full team or anyone (`scoped` in PipelinePage, as on
+  Opportunities); state filter, two weeks from Monday
+  (Earlier / Later), a row per open stage, a Late column. Each deal shows its
+  **IP end** (Under contract / Dispo, with the tracker's end time and zone —
+  `withIpTime`, "5p ET") and its **COE**; the stage's key date is coloured by
+  how close it is (an IP end whose time has passed today counts late), the
+  other one is a dashed reference chip. Dates come from the tracker when it
+  has the deal (`withTrackerDates`), and open tracker deals GHL doesn't have
+  are added (`trackerOnly`: stage from the GHL mirror or status, rep from
+  acq. manager). "If anything changes … the calendar should reflect it":
+  edits in the app show at once (shared deals store); others' are picked up
+  every 2 minutes and on window focus (`loadDeals`), GHL's with data.json.
 - **Finished in the tracker, open in GHL** (Luke, Oct 16 — 10869 Waltman,
   cancelled in the tracker, still Dispo active in GHL, showed as "IP end 6d
   late" on Axel's Home and "Not in the deal tracker yet" in the panel): GET
