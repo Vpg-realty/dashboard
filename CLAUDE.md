@@ -190,7 +190,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Pipeline tab was dropped the same day — the Pipeline section replaces it,
   old /board/pipeline links redirect to /pipeline via `MOVED`) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
-  Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
+  Scorecard, CRM Review (Oct 16), Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; **Territory** for everyone (Oct 14: the one place for
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
@@ -272,8 +272,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   both; Opportunities add a name / address search. Opportunity cards show
   days in the stage (amber 14+, red 30+), longest first, and open the GHL
   opportunity in a new tab (`ghlOppUrl` in src/data/config.js:
-  `app.gohighlevel.com/v2/location/<loc>/opportunities/list/<id>?tab=
-  OpportunityDetails`). Data: `extractOpps` (server/deals.js, open opps in
+  `app.gohighlevel.com/v2/location/<loc>/opportunities/<id>?tab=
+  Opportunity+details` — the format Luke copied from GHL, Oct 16; the
+  changelog's `/list/<id>?tab=OpportunityDetails` opened an empty pane). Data: `extractOpps` (server/deals.js, open opps in
   those stages, ≤ 400 per sub-account) → `pair.opps`, moved out of data.json
   by split-private-data.mjs into **`opps.json`** (same login rule as
   data.json — functions/_middleware.js TEAM_FILES, `_routes.json`), loaded
@@ -681,7 +682,10 @@ the server strips them (`forTc`) and refuses edits to them.
   same conflict check); calculated and GHL cells aren't, nor locked
   bookkeeping cells. The address (with a next-step dot) opens the full deal;
   "N missing" opens it on the first missing field. **Needs info** filter
-  (`?need=1`); cells a deal still needs are outlined red.
+  (`?need=1`); cells a deal still needs are outlined red, and turning the
+  filter on scrolls the sheet to the first one (Luke, Oct 16; `data-need`).
+  **Status filter** = toggle chips, any combination (`?status=PENDING,
+  ASSIGNED` — Luke, Oct 16).
 - **Active** = the sheet's Pipeline tab: "As of" date, tiles (Active,
   Assigned, Needs a buyer, EMD at risk, Past COE, Closing ≤ 7 days, Needs
   info), the green "Assigned — headed to close" and blue "Needs a buyer —
@@ -1587,6 +1591,18 @@ Under `src/views/`:
     together") with a coloured title band (Pod A violet, Pod B teal, leads /
     no pod tan) and its own column titles, and, for real pods, a totals row (sums vs per-rep target × reps,
     pod score = average, CRM avg · pooled speed); By score: one ranked list.
+    **CRM in the row** (Luke, Oct 16: "i do not like having to click into
+    each person individually to see the CRM scores"): the CRM · Speed column
+    is `CrmDots` — five small grade chips (Pipe / Notes / Msg / Dispo / F/U,
+    green 2 / amber 1 / red 0, "A" automatic, hover for what the check found)
+    that managers grade straight from the row, the points, and speed under
+    them. **Names open the rep in a side panel** (`RepDrawer`: RepView over
+    the scorecard, ← / → through the reps shown, Esc closes, "Full page"
+    opens `?rep=` as before). **CRM Review** tab (`/team/crm`,
+    `CrmReviewHub` → `ScorecardView mode="crm"`): every rep's five items as
+    big chips with "N flagged" / "x of y OK" under each, CRM points, speed and
+    the week's note inline — Friday grading on one screen, same week picker,
+    filters and Save bar; click a row for the deals / texts behind it.
     Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
     pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
     handoffs", Luke Oct 12 — not to be confused with the dispo team),

@@ -109,7 +109,9 @@ export default function AllDealsView() {
   const { period, by } = usePeriod('y:2026');
   const { open, openNew, panel } = useDealPanel();
   const q = query.get('q') || '';
+  // Several statuses at once (Luke, Oct 16): ?status=PENDING,ASSIGNED.
   const status = query.get('status') || '';
+  const statuses = useMemo(() => (status ? status.split(',').filter((x) => STATUS_KEYS.includes(x)) : []), [status]);
   const acq = query.get('acq') || '';
   const state = query.get('state') || '';
   const needOnly = query.get('need') === '1';
@@ -130,7 +132,7 @@ export default function AllDealsView() {
   const sorted = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const list = withNeed.filter((d) => inPeriod(d[by], period)
-      && (!status || d.status === status) && (!acq || d.acq === acq) && (!state || d.state === state)
+      && (!statuses.length || statuses.includes(d.status)) && (!acq || d.acq === acq) && (!state || d.state === state)
       && (!needOnly || d._need.length > 0)
       && (!words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state} ${d.escrow} ${d.notes}`.toLowerCase().includes(w))));
     const key = sort.replace(/^-/, ''); const dir = sort.startsWith('-') ? -1 : 1;
@@ -140,11 +142,29 @@ export default function AllDealsView() {
       if (x === y) return 0; if (x == null) return 1; if (y == null) return -1;
       return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * dir;
     });
-  }, [withNeed, q, status, acq, state, needOnly, period, by, sort]);
+  }, [withNeed, q, statuses, acq, state, needOnly, period, by, sort]);
   const frozenKey = JSON.stringify([q, status, acq, state, needOnly, period.key, by, sort]);
   const { rows, stale, resort } = useFrozenOrder(sorted, frozenKey, { byId });
 
   const rawById = useMemo(() => new Map(s.raw.map((d) => [d.id, d])), [s.raw]);
+  // Needs info on (Luke, Oct 16: "it should scroll to the box where info is
+  // needed"): bring the first red-outlined cell into view — the sheet is
+  // wide, so it's usually off to the right (past the sticky address column).
+  const tableBox = useRef(null);
+  useEffect(() => {
+    if (!needOnly) return undefined;
+    const t = setTimeout(() => {
+      const box = tableBox.current;
+      if (!box) return;
+      const cells = [...box.querySelectorAll('td[data-need]')];
+      if (!cells.length) return;
+      const first = cells.reduce((a, c) => (c.offsetLeft < a.offsetLeft ? c : a));
+      const sticky = box.querySelector('td.sticky')?.offsetWidth || 300;
+      box.scrollTo({ left: Math.max(0, first.offsetLeft - sticky - 24), top: Math.max(0, first.parentElement.offsetTop - 80), behavior: 'smooth' });
+      first.animate?.([{ backgroundColor: '#FDECEA' }, { backgroundColor: 'transparent' }], { duration: 1600 });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [needOnly]);
   const past = useMemo(() => ({ buyer: pastValues(s.raw, 'buyer'), title: pastValues(s.raw, 'title') }), [s.raw]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   const opts = (k) => [...new Set(s.deals.map((d) => d[k]).filter(Boolean))].sort();
@@ -206,8 +226,15 @@ export default function AllDealsView() {
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
         <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
         <span className="w-px h-5 bg-zinc-200 mx-0.5" />
-        <SearchSelect className="w-36" value={status || null} placeholder="All statuses" pinned={[{ value: null, label: 'All statuses' }]} clearable={false} onChange={(x) => setQuery({ status: x || null })}
-          sort={false} options={STATUS_KEYS.map((x) => ({ value: x, label: statusLabel(x) }))} />
+        <span className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5" role="group" aria-label="Deal status">
+          {STATUS_KEYS.map((x) => {
+            const on = statuses.includes(x);
+            const next = on ? statuses.filter((y) => y !== x) : [...statuses, x];
+            return <button key={x} type="button" aria-pressed={on} onClick={() => setQuery({ status: next.length ? STATUS_KEYS.filter((y) => next.includes(y)).join(',') : null })}
+              className={`h-7 px-2.5 rounded-md text-[12.5px] font-medium ${on ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{on ? '✓ ' : ''}{statusLabel(x)}</button>;
+          })}
+          {statuses.length > 0 && <button type="button" onClick={() => setQuery({ status: null })} title="Show every status" className="h-7 px-2 text-[12.5px] text-zinc-400 hover:text-zinc-700">All</button>}
+        </span>
         <SearchSelect className="w-40" value={acq || null} placeholder="Everyone" pinned={[{ value: null, label: 'Everyone' }]} clearable={false} onChange={(x) => setQuery({ acq: x || null })}
           options={opts('acq').map((x) => ({ value: x, label: x }))} />
         <SearchSelect className="w-36" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
@@ -226,7 +253,7 @@ export default function AllDealsView() {
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>
       </div>
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div ref={tableBox} className="flex-1 min-h-0 overflow-auto">
           <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
             <colgroup>{cols.map((f) => <col key={f.key} style={{ width: widthOf(f), minWidth: widthOf(f) }} />)}</colgroup>
             <thead>
@@ -282,7 +309,7 @@ export default function AllDealsView() {
                       }
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
-                        <td key={f.key} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
+                        <td key={f.key} data-need={missing ? '' : undefined} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
                           className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
                           style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, maxWidth: widthOf(f) + 60 }}>
                           {f.key === 'address' ? (

@@ -9,7 +9,7 @@ import AgentsView from '../views/AgentsView.jsx';
 import OpportunitiesView from '../views/OpportunitiesView.jsx';
 import MasterView from '../views/MasterView.jsx';
 import PipelineView from '../views/PipelineView.jsx';
-import TeamHub from '../views/manager/TeamHub.jsx';
+import TeamHub, { CrmReviewHub } from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
 import MyScorecardView, { MyBreakdownView } from '../views/manager/MyScorecardView.jsx';
@@ -55,7 +55,7 @@ const VIEWS = {
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
-  'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
+  'mgr-team': TeamHub, 'mgr-crm': CrmReviewHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
 function ago(iso) {

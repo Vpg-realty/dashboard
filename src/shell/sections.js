@@ -95,6 +95,8 @@ export const SECTIONS = [
     id: 'team', label: 'Management', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
+      // Luke, Oct 16: every rep's CRM grades on one screen for Friday grading.
+      { id: 'crm', label: 'CRM Review', view: 'mgr-crm', phone: DESK },
       { id: 'coaching', label: 'Coaching', view: 'mgr-coaching', phone: DESK },
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
     ],
