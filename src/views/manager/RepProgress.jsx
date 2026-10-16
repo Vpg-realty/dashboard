@@ -3,7 +3,9 @@
 // each part of the score earned week by week, and a few call-outs (vs last
 // week, vs the weeks before, best week, streak in the current band). Weeks
 // from scorecards.json + the live week (trends.js).
-import { SCORE_PARTS, scoreTone } from './metrics.js';
+import { SCORE_PARTS as ALL_PARTS, scoreTone } from './metrics.js';
+
+const SCORE_PARTS = ALL_PARTS.filter((p) => p.weight > 0);
 import LineChart from './LineChart.jsx';
 import { weekSeries, avgOf } from './trends.js';
 

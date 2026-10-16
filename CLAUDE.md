@@ -1804,9 +1804,15 @@ Under `src/views/`:
     … 40-team standard is 1, team standard and great is 2. lower is 0"): a
     sixth chip after the five CRM items in the row, the expanded row and CRM
     Review — `speedGrade` (scorecard-lib): 2 at 75%+, 1 at 40%+
-    (`SPEED_GRADE_ONE`), 0 below, no agent texts = 2; automatic only ("A"),
-    shown only — the score's speed points still come from `speedShare`, and
-    CRM points stay the five items. **Names open the rep in a side panel** (`RepDrawer`: RepView over
+    (`SPEED_GRADE_ONE`), 0 below, no agent texts = 2; automatic only ("A").
+    Then (Luke, Oct 16: "i want it to go into the crm score - we can make it
+    out of 12") it **counts as the sixth CRM item** from the week of Oct 12
+    (`speedInCrm`): `SPEED_WEIGHTS` = contracts 35, CRM 30 (six items, 5
+    points each), projected 15, offers 15, opps 5 — speed's own 10 points
+    moved into CRM; `scoreWeek` returns `crmGrades` (the six), `crmItems`,
+    `crmHave`; CRM shows out of 12; CRM Review puts Speed before the CRM
+    total; Next move can say "Answer agents faster". Weeks before Oct 12 are
+    unchanged (five items, sheet weights). **Names open the rep in a side panel** (`RepDrawer`: RepView over
     the scorecard, ← / → through the reps shown, Esc closes, "Full page"
     opens `?rep=` as before). **CRM Review** tab (`/team/crm`,
     `CrmReviewHub` → `ScorecardView mode="crm"`): every rep's five items as

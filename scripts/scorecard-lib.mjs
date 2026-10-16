@@ -68,8 +68,14 @@ export const CRM_ITEMS = [
 // offers 15, opps 10), so their frozen scores never move. Zero contracts caps
 // the score at 89. Parts not known yet (ungraded CRM items, speed with no
 // messaging check) are left out and the rest scaled to 100 — `estimate`.
+// Oct 16 (Luke: "i want it to go into the crm score - we can make it out of
+// 12"): from that same week speed is the CRM checklist's sixth item, graded
+// 0 / 1 / 2 by speedGrade (75%+ = 2, 40%+ = 1), and its 10 points moved into
+// CRM — contracts 35, CRM 30 (six items, 5 points each), projected 15, offers
+// 15, opps 5. `speedInCrm(monday)` says which weeks.
 export const SPEED_FROM = '2026-10-12';
-export const SPEED_WEIGHTS = { contracts: 35, crm: 20, speed: 10, projected: 15, offers: 15, opps: 5 };
+export const SPEED_WEIGHTS = { contracts: 35, crm: 30, speed: 0, projected: 15, offers: 15, opps: 5 };
+export const speedInCrm = (monday) => !monday || monday >= SPEED_FROM;
 export const SHEET_WEIGHTS = { contracts: 35, crm: 25, speed: 0, projected: 15, offers: 15, opps: 10 };
 export const weightsFor = (monday) => (!monday || monday >= SPEED_FROM ? SPEED_WEIGHTS : SHEET_WEIGHTS);
 // Speed to response: agent texts answered within 15 min (weekdays 8–5 AZ),
@@ -79,9 +85,13 @@ export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 
   const W = weightsFor(monday);
   const cap = (x) => Math.max(0, Math.min(1, x));
   const pace = 6250 * Math.min(4, Math.max(1, weekOfMonth || 1));
-  const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
+  const inCrm = speedInCrm(monday);
+  const five = Array.from({ length: 5 }, (_, i) => (Array.isArray(crm) ? crm[i] ?? null : null));
+  const crmGrades = inCrm ? [...five, speedGrade(speedOk, speedTotal)] : five;
+  const items = crmGrades.length;
+  const known = crmGrades.filter((v) => v === 0 || v === 1 || v === 2);
   const speedKnown = W.speed > 0 && speedTotal != null;
-  const perItem = W.crm / 5;
+  const perItem = W.crm / items;
   const parts = {
     contracts: cap(contractsW / 1) * W.contracts,
     projected: cap(projected / pace) * W.projected,
@@ -95,8 +105,9 @@ export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 
   const earned = Object.values(parts).reduce((a, b) => a + (b || 0), 0);
   let score = Math.round((earned / possible) * 100);
   if (!contractsW) score = Math.min(89, score);
-  const crmPts = known.length === 5 ? known.reduce((a, b) => a + b, 0) : null;
-  return { score, estimate: known.length < 5 || (W.speed > 0 && !speedKnown), crm: crmPts, crmKnown: known.length, speedKnown, parts, max, weights: W, possible, projectedPace: pace };
+  const crmPts = known.length === items ? known.reduce((a, b) => a + b, 0) : null;
+  const crmHave = known.reduce((a, b) => a + b, 0);
+  return { score, estimate: known.length < items || (W.speed > 0 && !speedKnown), crm: crmPts, crmHave, crmKnown: known.length, crmItems: items, crmGrades, speedInCrm: inCrm, speedKnown, parts, max, weights: W, possible, projectedPace: pace };
 }
 // A rep's speed to response for the week, from each sub-account's messaging
 // check (null when none ran).
@@ -117,7 +128,7 @@ export const MESSAGING_SPEED_TARGET = 0.75;
 // Speed as a grade box next to the five CRM items (Luke, Oct 16: "40-team
 // standard is 1, team standard and great is 2. lower is 0"): 2 at the 75%
 // standard or better, 1 from 40%, 0 below; no agent texts = 2; not checked
-// yet = null. Shown only — the score still uses speedShare for its points.
+// yet = null. From SPEED_FROM it's the CRM checklist's sixth item (scoreWeek).
 export const SPEED_GRADE_ONE = 0.4;
 export function speedGrade(ok, total) {
   if (total == null) return null;

@@ -117,8 +117,10 @@ export function biggestLeak(m, teamRates) {
 // the views. `weight` here = the current weights.
 export const SCORE_PARTS = [
   { key: 'contracts', label: 'Contracts', weight: 35, color: '#1d4ed8' },
-  { key: 'crm', label: 'CRM cleanliness', short: 'CRM', weight: 20, color: '#475569' },
-  { key: 'speed', label: 'Speed to response', short: 'Speed', weight: 10, color: '#db2777' },
+  { key: 'crm', label: 'CRM cleanliness', short: 'CRM', weight: 30, color: '#475569' },
+  // Speed to response had its own 10 points the week of Oct 12 only until
+  // Luke moved it into CRM the same day (Oct 16) — kept so older code reads.
+  { key: 'speed', label: 'Speed to response', short: 'Speed', weight: 0, color: '#db2777' },
   { key: 'projected', label: 'Projected $', weight: 15, color: '#0d9488' },
   { key: 'offers', label: 'Offers', weight: 15, color: '#7c3aed' },
   { key: 'opps', label: 'Opps opened', short: 'Opps', weight: 5, color: '#d97706' },
@@ -127,8 +129,8 @@ export const partOf = (key) => SCORE_PARTS.find((p) => p.key === key);
 export const weekOfMonth = () => weekInfo(azDate()).weekOfMonth;
 export const thisMonday = () => weekInfo(azDate()).monday;
 export function scoreParts(m, crm = null, wom = weekOfMonth(), monday = thisMonday()) {
-  const known = (Array.isArray(crm) ? crm : []).filter((v) => v === 0 || v === 1 || v === 2);
   const s = scoreWeek(m, crm, wom, monday);
+  const known = s.crmGrades.filter((v) => v === 0 || v === 1 || v === 2);
   const want = { contracts: T.contractsPerWeek, crm: 2 * known.length, speed: m.speedTotal ? Math.ceil(m.speedTotal * MESSAGING_SPEED_TARGET) : 0, projected: s.projectedPace, offers: T.offersPerWeek, opps: T.oppsOpenedPerWeek };
   const have = { contracts: m.contractsW, crm: known.reduce((a, b) => a + b, 0), speed: m.speedOk, projected: m.projected, offers: m.offersW, opps: m.oppsW };
   const parts = SCORE_PARTS.filter((p) => s.weights[p.key] > 0).map((p) => {
@@ -136,7 +138,7 @@ export function scoreParts(m, crm = null, wom = weekOfMonth(), monday = thisMond
     const pending = p.key === 'crm' ? !known.length : p.key === 'speed' ? !s.speedKnown : false;
     const pts = s.parts[p.key] || 0;
     const max = pending ? 0 : s.max[p.key];
-    return { ...p, weight, have: have[p.key] || 0, want: want[p.key], share: max ? pts / max : 0, pts, max, pending, partial: p.key === 'crm' && known.length > 0 && known.length < 5, known: known.length, total: p.key === 'speed' ? m.speedTotal : undefined };
+    return { ...p, weight, have: have[p.key] || 0, want: want[p.key], share: max ? pts / max : 0, pts, max, pending, partial: p.key === 'crm' && known.length > 0 && known.length < s.crmItems, known: known.length, items: s.crmItems, total: p.key === 'speed' ? m.speedTotal : undefined };
   });
   const scale = 100 / s.possible;
   const raw = Math.round(parts.reduce((a, p) => a + p.pts, 0) * scale);

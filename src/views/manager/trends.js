@@ -36,7 +36,9 @@ export function weekSeries(sc, max = 8) {
 }
 
 export const avgOf = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-export const crmTenths = (crm) => {
+// CRM as a share of its points, on a scale of `of` (10 for five items, 12
+// once speed is the sixth — pass the row's scoreWeek crmGrades).
+export const crmTenths = (crm, of = 10) => {
   const known = (crm || []).filter((v) => v != null);
-  return known.length ? (known.reduce((a, b) => a + b, 0) / (2 * known.length)) * 10 : null;
+  return known.length ? (known.reduce((a, b) => a + b, 0) / (2 * known.length)) * of : null;
 };
