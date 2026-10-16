@@ -38,7 +38,7 @@ function Tile({ label, v, t, frac, money, na, sub, subText }) {
       <div className="flex items-baseline gap-1 mt-1 min-w-0">
         <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums whitespace-nowrap leading-none ${tone ? tone.text : 'text-zinc-300'}`}>{na ? '—' : money ? kMoney(v) : v}</span>
         {!money && <span className={`text-sm font-bold whitespace-nowrap ${tone ? tone.text : 'text-zinc-400'} opacity-60`}>/ {t}</span>}
-        {word && <span className="ml-auto self-center text-[8.5px] font-extrabold px-1 py-0.5 rounded shrink-0 bg-tan-100 text-navy-800 ring-1 ring-inset ring-tan-400/70">{word}</span>}
+        {word && <span className={`ml-auto self-center text-[8.5px] font-extrabold px-1 py-0.5 rounded shrink-0 ${tone.badge}`}>{word}</span>}
       </div>
       <div className="relative h-1.5 rounded-full bg-white/70 mt-2">
         {tone && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (v / t) * 100)}%`, background: tone.bar }} />}

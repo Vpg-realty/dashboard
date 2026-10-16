@@ -80,7 +80,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
       else if (d.status === 'CANCELLED') t.cancelled += 1;
       else t.pending += 1;
     }
-    for (const st of byAbbr.values()) if (st.tracker) { st.tracker.closeRate = st.tracker.closed + st.tracker.cancelled ? st.tracker.closed / (st.tracker.closed + st.tracker.cancelled) : 0; st.tracker.avgNet = st.tracker.closed ? st.tracker.profit / st.tracker.closed : null; }
+    for (const st of byAbbr.values()) if (st.tracker) { st.tracker.closeRate = st.tracker.closed + st.tracker.cancelled ? st.tracker.closed / (st.tracker.closed + st.tracker.cancelled) : 0; st.tracker.avgNet = st.tracker.closed ? st.tracker.net / st.tracker.closed : null; /* net assignment per closing (Luke, Oct 16) */ }
     company = { ...tot, closeRate: tot.closed + tot.cancelled ? tot.closed / (tot.closed + tot.cancelled) : 0 }; // closed ÷ decided (Luke, Oct 16)
   }
 

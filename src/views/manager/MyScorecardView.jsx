@@ -14,7 +14,7 @@ import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import { linkProps } from '../../shell/router.js';
 import RepView from './RepView.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
-import { PACE_CHIP } from '../../shell/panelStyle.js';
+import { paceChip } from '../../shell/panelStyle.js';
 import LineChart from './LineChart.jsx';
 import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
@@ -49,7 +49,7 @@ function Kpi({ label, v, t, frac, money }) {
     <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${tone.box}`}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-medium text-zinc-600">{label}</span>
-        <span className={`ml-auto ${PACE_CHIP}`}>{word}</span>
+        <span className={`ml-auto ${paceChip(word)}`}>{word}</span>
       </div>
       <div className="mt-2 flex items-baseline gap-1.5">
         <span className="text-[30px] leading-none font-bold tabular-nums text-navy-800">{money ? kMoney(v) : v}</span>

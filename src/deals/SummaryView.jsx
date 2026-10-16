@@ -90,7 +90,7 @@ function Overview({ data, then, owner, compareLabel }) {
         <BandStat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
         <BandStat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
         {owner && <BandStat feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
-        {owner && <BandStat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closing" />}
+        {owner && <BandStat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
         {owner && <BandStat label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}
       </Band>
       {compareLabel && !then && <div className="text-zinc-500 text-[13.5px]">No deals on file for {compareLabel}, so there's nothing to compare with.</div>}

@@ -17,7 +17,7 @@ import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
-import { PACE_CHIP } from './panelStyle.js';
+import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
@@ -58,7 +58,7 @@ function Stat({ label, value, target, color, period }) {
     <div className={`px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${badge ? badge[2] : ''}`}>
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] text-zinc-500 font-medium">{label}</span>
-        {badge && <span className={`ml-auto ${PACE_CHIP}`}>{badge[0]}</span>}
+        {badge && <span className={`ml-auto ${paceChip(badge[0])}`}>{badge[0]}</span>}
       </div>
       <div className="mt-2 text-[34px] leading-none font-semibold tracking-tight tabular-nums text-navy-800">
         {value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}
@@ -83,7 +83,7 @@ function Card({ title, right, children, className = '', tint = 'bg-white' }) {
   );
 }
 
-const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-navy-800 hover:text-navy-900 hover:underline underline-offset-2 font-medium flex items-center gap-1">{text} <Icon name="arrow" size={13} /></a>;
+const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-navy-900 font-semibold flex items-center gap-1">{text} <Icon name="arrow" size={13} /></a>;
 
 // Revenue this month for the scope: closed + Assigned with a COE this month
 // = projected, against the per-rep goal × people (same rule as Overview).
@@ -98,7 +98,7 @@ function RevenueCard({ m, n }) {
       <div className="flex items-baseline gap-2">
         <span className="text-[30px] leading-none font-semibold tracking-tight text-navy-800 tabular-nums">{formatCompactCurrency(m.projected)}</span>
         <span className="text-zinc-500">projected of {formatCompactCurrency(goal)}</span>
-        {badge && <span className={`ml-auto self-start ${PACE_CHIP}`}>{badge[0]}</span>}
+        {badge && <span className={`ml-auto self-start ${paceChip(badge[0])}`}>{badge[0]}</span>}
       </div>
       <div className="relative mt-4 h-3 rounded-full bg-zinc-100 overflow-hidden">
         <div className="absolute inset-y-0 left-0 bg-emerald-600" style={{ width: w(m.revenueM) }} />
