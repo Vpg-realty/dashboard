@@ -299,6 +299,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   it to Lost / Closed in GHL" when the tracker finished it), COE ("use
   GHL's"), IP end vs DD end — shown also when only the `ghlStage` mirror is
   known. The GHL panel's finished-in-the-tracker note uses the same purple.
+  Oct 16 (Luke: "GHL status should just be the stage … Tracker - Cancelled |
+  GHL - Dispo Active | Next step - move to lost/abandon in GHL … text
+  clearly separated"): each mismatch is a row (`Mismatch.jsx`, words in
+  `mismatchRow.js`) — what it is (Status / COE / IP end), then three
+  labelled cells Tracker | GHL (the GHL stage name, never a status) | Next
+  step (always a change in GHL — the tracker is the source of truth; editors
+  also get "or use GHL's date here" for the COE).
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
   `useGhlDealOpener` (src/deals): the tracker deal at the same address
