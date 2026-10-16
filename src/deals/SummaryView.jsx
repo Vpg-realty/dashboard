@@ -132,7 +132,7 @@ function Overview({ data, then, owner, compareLabel }) {
 // Reps or states: one row each with the counts, close rate, net (with a bar
 // and the change vs the compare period) and, for owners, avg net and their
 // commission (states: net profit). A row opens the file.
-function GroupTable({ kind, rows, prev, now, owner }) {
+function GroupTable({ kind, rows, prev, owner }) {
   const maxNet = Math.max(1, ...rows.map((r) => r.net));
   const money2 = { acq: ['Acq. commission', 'acqComm'], dispo: ['Dispo commission', 'dispoComm'], state: ['Net profit', 'profit'] }[kind];
   const cols = ['Contracts', 'Closed', 'Cancelled', 'Close rate'];
@@ -157,7 +157,7 @@ function GroupTable({ kind, rows, prev, now, owner }) {
                 <td className="px-3 py-3 text-right tabular-nums font-semibold text-navy-900">{r.contracts}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{dim(r.closed, (v) => <span className="text-emerald-700 font-semibold">{v}</span>)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{dim(r.cancelled, (v) => <span className="text-red-700 font-semibold">{v}</span>)}</td>
-                <td className="px-3 py-3 text-right tabular-nums"><RateCell r={r} avg={now.closeRate} /></td>
+                <td className="px-3 py-3 text-right tabular-nums"><RateCell r={r} /></td>
                 <td className="px-3 py-3 min-w-[300px]">
                   <span className="flex items-center gap-3">
                     <span className="flex-1 h-2.5 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full rounded-full bg-navy-600" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>
@@ -200,7 +200,7 @@ function Months({ data, owner }) {
                 <td className="px-3 py-2.5 text-right tabular-nums">{r.contracts}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dim(r.closed)}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dim(r.cancelled, (v) => <span className="text-red-700 font-semibold">{v}</span>)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums"><RateCell r={r} avg={data.yearTotal.closeRate} /></td>
+                <td className="px-3 py-2.5 text-right tabular-nums"><RateCell r={r} /></td>
                 <td className="px-3 py-2.5 min-w-[320px]">
                   <span className="flex items-center gap-3">
                     {!r.total ? <span className="flex-1 h-3 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full rounded-full bg-navy-600" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span> : <span className="flex-1" />}
@@ -252,7 +252,7 @@ export default function SummaryView() {
   return (
     <div className="max-w-[1720px] mx-auto">
       <FinanceHead eyebrow="Deal Summary" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
-        right={<div className="rounded-xl bg-white/95 px-2 py-1.5 text-zinc-800"><PeriodBar deals={s.deals} defaultKey="y:2026" /></div>} />
+        right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <Rail view={view} counts={counts} />
         <div className="min-w-0">

@@ -53,3 +53,10 @@ export function groupStats(list, kind) {
 
 export const titleCase = (s) => String(s || '—').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 export const pctTxt = (x) => `${Math.round(x * 100)}%`;
+
+// Close rate colours (Luke, Oct 16: "50% and great is the target - green.
+// 40-50% is yellow, below 40% is red") — the same everywhere close rate shows.
+export const CLOSE_RATE_GOOD = 0.5;
+export const CLOSE_RATE_OK = 0.4;
+export const closeRateTone = (r) => (r == null ? null : r >= CLOSE_RATE_GOOD ? 'good' : r >= CLOSE_RATE_OK ? 'ok' : 'bad');
+export const CLOSE_RATE_CLS = { good: 'bg-emerald-50 text-emerald-800', ok: 'bg-amber-50 text-amber-800', bad: 'bg-red-50 text-red-700' };
