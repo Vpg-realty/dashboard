@@ -293,28 +293,27 @@ function Issues({ auto, manual }) {
   );
 }
 
-function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, onCrm, onNote, onPickRep }) {
-  const { id, n, crm, manual, auto, note, s, prev } = row;
+function Row({ row, rank, wom, week, frac, canEdit, showNotes, onCrm, onOpen }) {
+  const { id, n, crm, note, s, prev } = row;
   const rep = repOf(id);
   const tone = scoreTone(s.score);
-  const crmPts = s.crmHave;
   const move = nextMove(n, crm, wom, week);
   const cancels = (n.cancelsW || 0) + (n.cancelsM || 0) > 0;
   return (
-    <div className={`border-b border-[#f0ebe1] ${open ? 'bg-tan-50/60' : ''}`}>
+    <div className="border-b border-[#f0ebe1]">
       <div
         role="button"
         tabIndex={0}
-        aria-expanded={open}
-        onClick={onToggle}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+        title={`Open ${rep.name}'s scorecard`}
+        onClick={onOpen}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
         className="grid gap-x-4 items-center px-6 py-3 cursor-pointer hover:bg-tan-50 focus-visible:outline-2 focus-visible:outline-navy-500"
         style={GRID}
       >
         <span className="flex items-center gap-3 min-w-0">
           {rank != null && <span className="w-5 text-right text-[15px] font-bold text-zinc-400 tabular-nums">{rank}</span>}
           <span className="w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center text-white text-[14px] font-bold" style={{ background: rep.color }}>{rep.name[0]}</span>
-          <button onClick={(e) => { e.stopPropagation(); onPickRep?.(id); }} className="text-[17px] font-semibold text-zinc-900 truncate hover:text-navy-700 hover:underline underline-offset-2 text-left" title={`Open ${rep.name}'s page`}>{first(id)}</button>
+          <span className="text-[17px] font-semibold text-zinc-900 truncate">{first(id)}</span>
           {showNotes && note && <NoteIcon note={note} />}
         </span>
         <span className={`justify-self-start inline-flex flex-col items-start rounded-[10px] px-3 py-1.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of ${s.crmItems} CRM items graded${s.weights.speed && !s.speedKnown ? ', speed not checked yet' : ''} (graded parts scaled to 100)` : ratingOf(s.score)}>
@@ -329,40 +328,8 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
         <Num v={n.projected} t={s.projectedPace} money title={`Projected $ month to date (closed + Assigned with a COE this month) vs $6,250 × week ${wom} of the month`} />
         <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} />
         <span className={`justify-self-start rounded-full px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap ${tone.bg} ${tone.text}`} title={move.why}>{move.text}</span>
-        <span className={`text-zinc-400 text-[14px] transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▸</span>
+        <span className="text-zinc-400 text-[14px]" aria-hidden>▸</span>
       </div>
-      {open && (
-        <div className="px-6 pb-4 pt-1 grid gap-6" style={{ gridTemplateColumns: showNotes ? 'auto minmax(0,1.4fr) minmax(0,1fr)' : 'auto minmax(0,1fr)' }}>
-          <div className="flex flex-col gap-3">
-            <div className="text-[14px] font-bold text-navy-700">CRM checklist <span className="font-medium text-zinc-500">· {s.crmKnown ? `${crmPts} of ${2 * s.crmKnown}` : 'not graded yet'}</span></div>
-            <CrmChips row={row} canEdit={canEdit} onCrm={onCrm} />
-            <div className="text-[13px] text-zinc-600 leading-snug">
-              <b className="text-navy-700">Month to date:</b> contracts {n.contractsM ?? '—'} of {T.contractsPerMonth} · offers {n.offersM ?? '—'} of {T.offersPerWeek * 4} · opps {n.oppsM ?? '—'} of {T.oppsOpenedPerWeek * 4}{n.cancelsM != null ? ` · cancels ${n.cancelsM}` : ''}
-            </div>
-            <button onClick={() => onPickRep?.(id)} className="self-start text-[13px] font-semibold text-navy-600 hover:underline">Open {first(id)}’s page →</button>
-          </div>
-          <div className="min-w-0">
-            <div className="text-[14px] font-bold text-navy-700 mb-1">What the automatic checks found</div>
-            <Issues auto={auto} manual={manual} />
-          </div>
-          {showNotes && (
-            <div className="min-w-0 flex flex-col gap-1">
-              <div className="text-[14px] font-bold text-navy-700">Note</div>
-              {canEdit ? (
-                <textarea
-                  key={note}
-                  defaultValue={note}
-                  placeholder="Add a note for this week"
-                  onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
-                  className="min-h-24 text-[14px] leading-snug rounded-lg border border-tan-200 bg-white px-3 py-2 focus:outline-2 focus:outline-navy-500"
-                />
-              ) : (
-                <div className="text-[14px] text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">No note</span>}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -499,10 +466,54 @@ export function LeakCard({ ids, week, isLive, onPickRep }) {
   );
 }
 
+// The CRM scores at the foot of the rep's panel (Luke, Oct 16: the panel is
+// the one place to open a rep — "the only thing that is missing … are the
+// crm scores"): the scorecard week's six grade chips (managers pick grades
+// here), what the automatic checks found, and the week's note. Edits go into
+// the same draft as the table, saved with Save here or on the page.
+function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard }) {
+  const { id, auto, manual, note, s } = row;
+  return (
+    <section className="mt-4 min-w-[1100px] rounded-2xl bg-white border border-tan-200 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3 bg-navy-700 text-white">
+        <h3 className="text-[16px] font-semibold">CRM scores · week of {weekLabel}</h3>
+        <span className="rounded-md bg-tan-500 text-navy-900 px-2 py-0.5 text-[13px] font-bold tabular-nums">{s.crmKnown ? `${s.crmHave} / ${2 * s.crmKnown}` : 'not graded yet'}</span>
+        {canEdit && (dirty || error) && (
+          <span className="ml-auto flex items-center gap-2 text-[13px]">
+            <span className={error ? 'text-rose-200 font-semibold' : 'text-white/80'}>{error || 'Unsaved changes'}</span>
+            <button onClick={discard} className="rounded px-2 py-1 text-white/80 hover:bg-white/10">Discard</button>
+            <button disabled={saving} onClick={save} className="rounded bg-tan-500 text-navy-900 font-semibold px-3 py-1 hover:bg-tan-400 disabled:opacity-60">{saving ? 'Saving…' : 'Save'}</button>
+          </span>
+        )}
+      </div>
+      <div className="p-5 grid gap-6" style={{ gridTemplateColumns: showNotes ? 'auto minmax(0,1.4fr) minmax(0,1fr)' : 'auto minmax(0,1fr)' }}>
+        <div className="flex flex-col gap-2">
+          <CrmChips row={row} canEdit={canEdit} onCrm={onCrm} />
+          {canEdit && <span className="text-[12.5px] text-zinc-500">Pick a grade from a box (or Automatic). A = graded automatically.</span>}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[14px] font-bold text-navy-700 mb-1">What the automatic checks found</div>
+          <Issues auto={auto} manual={manual} />
+        </div>
+        {showNotes && (
+          <div className="min-w-0 flex flex-col gap-1">
+            <div className="text-[14px] font-bold text-navy-700">Note</div>
+            {canEdit ? (
+              <textarea key={`${id}:${note}`} defaultValue={note} placeholder="Add a note for this week"
+                onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
+                className="min-h-24 text-[14px] leading-snug rounded-lg border border-tan-200 bg-white px-3 py-2 focus:outline-2 focus:outline-navy-500" />
+            ) : <div className="text-[14px] text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">No note</span>}</div>}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // A rep's page in a panel over the scorecard (Luke, Oct 16: no leaving the
 // team view to look at one person): ← / → step through the reps shown, Esc
 // or the backdrop closes, "Full page" opens it as before.
-function RepDrawer({ id, ids, onPick, onClose, onFullPage }) {
+function RepDrawer({ id, ids, onPick, onClose, crm }) {
   const rep = repOf(id);
   const i = ids.indexOf(id);
   useEffect(() => {
@@ -526,7 +537,6 @@ function RepDrawer({ id, ids, onPick, onClose, onFullPage }) {
           <span className="ml-auto flex items-center gap-1">
             <button className={btn} disabled={i <= 0} onClick={() => onPick(ids[i - 1])}>← Prev</button>
             <button className={btn} disabled={i < 0 || i >= ids.length - 1} onClick={() => onPick(ids[i + 1])}>Next →</button>
-            <button className={btn} onClick={onFullPage}>Full page ↗</button>
             <button onClick={onClose} className="text-white/70 hover:text-white text-2xl leading-none px-2" aria-label="Close">×</button>
           </span>
         </header>
@@ -534,89 +544,9 @@ function RepDrawer({ id, ids, onPick, onClose, onFullPage }) {
           <div className="app-team h-[1060px] min-w-[1100px]">
             <RepView key={id} repId={id} onPickRep={(x) => (x === '__team' ? onClose() : onPick(x))} onBack={onClose} />
           </div>
+          {crm?.row && <DrawerCrm {...crm} />}
         </div>
       </section>
-    </div>
-  );
-}
-
-// CRM Review (Luke, Oct 16: one screen for Friday grading): every rep, the
-// five items as grade chips with what the checks found under each, CRM
-// points, speed and the week's note — click a row for the full list.
-function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, onToggle }) {
-  const { id, crm, manual, auto, note, n, s } = row;
-  const rep = repOf(id);
-  const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
-  return (
-    <div className={`border-b border-[#f0ebe1] ${open ? 'bg-tan-50/60' : ''}`}>
-      <div className="grid gap-x-3 items-start px-5 py-3 cursor-pointer hover:bg-tan-50" style={CGRID} onClick={onToggle}>
-        <span className="flex items-center gap-2.5 min-w-0 pt-1">
-          <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-[13px] font-bold" style={{ background: rep.color }}>{rep.name[0]}</span>
-          <button onClick={(e) => { e.stopPropagation(); onPeek(id); }} className="text-[16px] font-semibold text-zinc-900 truncate hover:text-navy-700 hover:underline underline-offset-2 text-left">{first(id)}</button>
-          {showNotes && note && <NoteIcon note={note} />}
-        </span>
-        {CRM_ITEMS.map((it, i) => {
-          const val = crm?.[i] ?? null;
-          const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
-          const d = auto?.detail?.[it.key];
-          const flagged = d ? (d.badN ?? (d.total != null ? d.total - d.ok : d.bad?.length || 0)) : null;
-          return (
-            <span key={it.key} className="flex items-start gap-2 min-w-0">
-              <span onClick={(e) => e.stopPropagation()} title={canEdit ? 'Pick a grade (or Automatic)' : undefined}
-                className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-bold ${chip(val)} ${canEdit ? 'hover:ring-2 hover:ring-navy-500 cursor-pointer' : ''}`}>
-                {val ?? '–'}
-                {isAuto && <span className="absolute top-0 right-1 text-[9px] font-bold opacity-80">A</span>}
-                {canEdit && (
-                  <select aria-label={`${it.label} grade for ${first(id)}`} value={manual?.[i] == null ? 'auto' : String(manual[i])}
-                    onChange={(e) => onCrm(id, i, e.target.value === 'auto' ? null : Number(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                    <option value="auto">Automatic{auto?.grades?.[i] != null ? ` (${auto.grades[i]})` : ''}</option>
-                    <option value="2">2 — all good</option>
-                    <option value="1">1 — about 60%</option>
-                    <option value="0">0 — below 60%</option>
-                  </select>
-                )}
-              </span>
-              <span className="min-w-0 text-[12.5px] leading-snug">
-                <span className={`block font-semibold ${!d ? 'text-zinc-400' : flagged ? 'text-rose-700' : 'text-emerald-700'}`}>{!d ? (it.key === 'messaging' ? 'not checked' : '—') : d.parts ? (d.share != null ? `${Math.round(d.share * 100)}% of standard` : 'waiting') : flagged ? `${flagged} flagged` : 'all OK'}</span>
-                {d && !d.parts && d.total != null && <span className="block text-zinc-500">{d.ok} of {d.total} OK</span>}
-                {manual?.[i] != null && <span className="block text-navy-600 font-semibold">manager: {manual[i]}</span>}
-              </span>
-            </span>
-          );
-        })}
-        <span className="flex items-start gap-2 min-w-0" title={speedWhy(n)}>
-          <span className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
-            {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
-            {n.speedTotal != null && <span className="absolute top-0 right-1 text-[9px] font-bold opacity-80">A</span>}
-          </span>
-          <span className="min-w-0 text-[12.5px] leading-snug">
-            <span className={`block font-semibold ${n.speedTotal == null ? 'text-zinc-400' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_GRADE_ONE ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no agent texts' : `${Math.round(sp * 100)}% answered`}</span>
-            {!!n.speedTotal && <span className="block text-zinc-500">{n.speedOk} of {n.speedTotal} texts</span>}
-          </span>
-        </span>
-        <span className="pt-1 text-[18px] font-bold tabular-nums text-navy-800">{s.crmKnown ? `${s.crmHave}` : '–'}<span className="text-[12.5px] font-medium text-zinc-500">/{2 * (s.crmKnown || s.crmItems)}</span></span>
-        {showNotes && (
-          <span onClick={(e) => e.stopPropagation()}>
-            {canEdit ? (
-              <textarea key={note} defaultValue={note} rows={2} placeholder="Note for this week" onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
-                className="w-full text-[13px] leading-snug rounded-lg border border-tan-200 bg-white px-2 py-1.5 focus:outline-2 focus:outline-navy-500" />
-            ) : <span className="text-[13px] text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">—</span>}</span>}
-          </span>
-        )}
-      </div>
-      {open && <div className="px-5 pb-4"><div className="rounded-lg border border-tan-200 bg-white p-3"><Issues auto={auto} manual={manual} /></div></div>}
-    </div>
-  );
-}
-const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(6,minmax(8.5rem,1fr)) 4.5rem minmax(12rem,1.4fr)' };
-function CrmReviewHead({ showNotes }) {
-  return (
-    <div className="grid gap-x-3 items-end px-5 py-2.5 bg-[#eef2f7] border-y border-[#d5deea]" style={CGRID}>
-      <span className={HEAD}>Rep</span>
-      {CRM_ITEMS.map((it) => <span key={it.key} className={HEAD} title={it.help}>{it.short}</span>)}
-      <span className={HEAD}>Speed</span>
-      <span className={HEAD}>CRM</span>
-      {showNotes && <span className={HEAD}>Note</span>}
     </div>
   );
 }
@@ -628,19 +558,21 @@ const FILTERS = [
 ];
 
 // `mode` 'crm' = the CRM Review tab (Luke, Oct 16).
-export default function ScorecardView({ onPickRep, mode }) {
-  const crmMode = mode === 'crm';
-  const [peek, setPeek] = useState(null);
+export default function ScorecardView() {
   const sc = useScorecards();
   const cur = currentWeek();
   const { query } = useLocation();
+  // The rep open in the side panel, in the link (?rep=) — a row or a name opens
+  // it (Luke, Oct 16: "clicking the line … the exact same thing as … the
+  // reps name"); ⌘K and the Coaching tab land here too.
+  const peek = REPS.some((r) => r.id === query.get('rep')) ? query.get('rep') : null;
+  const setPeek = (id) => setQuery({ rep: id || null }, { replace: false });
   const show = FILTERS.some((f) => f.id === query.get('show')) ? query.get('show') : 'all';
   const byScore = query.get('sort') === 'score';
   const [week, setWeek] = useState(cur.monday);
   const [drafts, setDrafts] = useState({});   // week → { reps: { id: { crm, note } }, reviewedBy }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [open, setOpen] = useState(() => new Set());
   const me = useMe();
   const canEdit = canGrade(me) && !sc.editsError;
   const showNotes = canGrade(me);
@@ -716,14 +648,9 @@ export default function ScorecardView({ onPickRep, mode }) {
       setError(String(err?.message || err).slice(0, 160));
     } finally { setSaving(false); }
   };
-  const toggle = (id) => setOpen((s) => { const c = new Set(s); if (c.has(id)) c.delete(id); else c.add(id); return c; });
 
   const pickers = (
     <>
-      <select className="rounded-md bg-white text-zinc-900 px-2 py-1.5 text-sm font-semibold border border-tan-200" value="__team" onChange={(e) => onPickRep?.(e.target.value === '__team' ? null : e.target.value)}>
-        <option value="__team">Full team (scorecard)</option>
-        {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-      </select>
       <select className="rounded-md bg-white text-zinc-900 px-2 py-1.5 text-sm font-semibold border border-tan-200" value={week} onChange={(e) => setWeek(e.target.value)}>
         <option value="__trends">📈 Trends · last 8 weeks</option>
         {weekOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -735,7 +662,7 @@ export default function ScorecardView({ onPickRep, mode }) {
   if (trends) {
     return (
       <ManagerFrame title="Weekly Scorecard" subtitle="trends · week by week" right={pickers}>
-        <TrendsView sc={sc} groups={groups()} onPickRep={onPickRep} />
+        <TrendsView sc={sc} groups={groups()} onPickRep={(id) => { setWeek(cur.monday); setPeek(id); }} />
       </ManagerFrame>
     );
   }
@@ -760,9 +687,8 @@ export default function ScorecardView({ onPickRep, mode }) {
   ];
   const chipCls = (on) => `rounded-full px-4 py-2 text-[15px] font-semibold border transition-colors ${on ? 'bg-navy-700 border-navy-700 text-white' : 'bg-white border-[#d9cfbd] text-navy-700 hover:bg-tan-50'}`;
 
-  // Names open the rep's page in a side panel (Luke, Oct 16).
-  const rowProps = (r) => ({ row: r, wom, week, frac, open: open.has(r.id), onToggle: () => toggle(r.id), canEdit, showNotes, onCrm, onNote, onPickRep: setPeek });
-  const crmProps = (r) => ({ row: r, canEdit, showNotes, onCrm, onNote, onPeek: setPeek, open: open.has(r.id), onToggle: () => toggle(r.id) });
+  // A row or a name opens the rep's page in a side panel (Luke, Oct 16).
+  const rowProps = (r) => ({ row: r, wom, week, frac, canEdit, showNotes, onCrm, onOpen: () => setPeek(r.id) });
 
   return (
     <div className="h-full overflow-y-auto -mx-1 px-1">
@@ -770,7 +696,7 @@ export default function ScorecardView({ onPickRep, mode }) {
         {/* 1 · Title, pickers, filters */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">{crmMode ? 'MANAGEMENT · CRM REVIEW' : 'MANAGEMENT · SCORECARD'}</span>
+            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">MANAGEMENT · SCORECARD</span>
             <h1 className="m-0 text-[30px] leading-tight font-bold text-navy-700">Week of {weekLabel} <span className="text-[19px] font-medium text-zinc-500">{subtitle}</span></h1>
             <span className="text-[13.5px] text-zinc-600">
               {reviewedBy ? <>Reviewed by <b className="text-navy-700">{reviewedBy}</b>{reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</> : 'Not reviewed yet'} · {graded} of {N} reps fully graded
@@ -790,8 +716,8 @@ export default function ScorecardView({ onPickRep, mode }) {
           </span>
         </div>
 
-        {/* 2 · Team strip (not on CRM Review) */}
-        {!crmMode && <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
+        {/* 2 · Team strip */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
           <div className="flex flex-col gap-1 flex-1 min-w-[18rem]">
             <span className="text-[14px] font-semibold text-[#d9cfbd] tracking-[0.06em]">TEAM</span>
             <span className="text-[30px] font-bold leading-tight">
@@ -810,12 +736,7 @@ export default function ScorecardView({ onPickRep, mode }) {
               <span className="text-[12.5px] text-[#d9cfbd]/90">{sub}</span>
             </div>
           ))}
-        </div>}
-        {crmMode && (
-          <div className="rounded-xl bg-navy-50 border border-navy-100 px-5 py-3 text-[13.5px] text-navy-800">
-            Every rep's six CRM items (the five checklist items + Speed, out of 12) on one screen. <b>A</b> = graded automatically from GHL; click a chip to set a grade (or put it back to Automatic), write the week's note on the right, then <b>Save</b>. Click a row to see the deals and texts behind each grade; click a name for the rep's page.
-          </div>
-        )}
+        </div>
 
         {/* Save bar / view-only note (sticks while you scroll the table) */}
         {(canEdit && (dirty || error)) || !canEdit ? (
@@ -839,8 +760,8 @@ export default function ScorecardView({ onPickRep, mode }) {
         {!sc.loaded && <div className="text-[14px] text-zinc-400 px-1">Loading scorecards…</div>}
         {byScore ? (ranked.length > 0 && (
           <section className="rounded-2xl bg-white border border-tan-200 overflow-x-auto shadow-sm">
-            {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
-            {ranked.map((r, i) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} rank={i + 1} {...rowProps(r)} />))}
+            <TableHead />
+            {ranked.map((r, i) => <Row key={r.id} rank={i + 1} {...rowProps(r)} />)}
           </section>
         )) : shownGroups.map((g) => {
           const c = POD_COLORS[g.podId] || NEUTRAL;
@@ -851,15 +772,16 @@ export default function ScorecardView({ onPickRep, mode }) {
                 {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
                 <span className="text-[13px] text-zinc-500">· {g.rows.length} rep{g.rows.length === 1 ? '' : 's'}</span>
               </div>
-              {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
-              {g.rows.map((r) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} {...rowProps(r)} />))}
-              {g.total && !crmMode && <PodTotal g={g} frac={frac} />}
+              <TableHead />
+              {g.rows.map((r) => <Row key={r.id} {...rowProps(r)} />)}
+              {g.total && <PodTotal g={g} frac={frac} />}
             </section>
           );
         })}
         {sc.loaded && !shownIds.length && <div className="rounded-2xl bg-white border border-tan-200 text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
 
-        {peek && <RepDrawer id={peek} ids={shownIds} onPick={setPeek} onClose={() => setPeek(null)} onFullPage={() => { const x = peek; setPeek(null); onPickRep?.(x); }} />}
+        {peek && <RepDrawer id={peek} ids={shownIds.includes(peek) ? shownIds : allRows.map((r) => r.id)} onPick={setPeek} onClose={() => setPeek(null)}
+          crm={{ row: allRows.find((r) => r.id === peek) || null, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard: () => setDrafts((d) => { const c = { ...d }; delete c[week]; return c; }) }} />}
 
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">

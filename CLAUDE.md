@@ -190,7 +190,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Pipeline tab was dropped the same day — the Pipeline section replaces it,
   old /board/pipeline links redirect to /pipeline via `MOVED`) for
   everyone; **Management** (section id `team`, renamed from "Team" Oct 14:
-  Scorecard, CRM Review (Oct 16), Coaching, Month in Review) for owner / manager; My scorecard
+  Scorecard, Coaching, Month in Review) for owner / manager; My scorecard
   for team + manager; **Territory** for everyone (Oct 14: the one place for
   areas, states and zips — the separate Zip center section folded into it,
   old /zips/* links redirect via `MOVED` in sections.js): Get zips (team +
@@ -315,7 +315,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   listed above it; a click on a date (or a day heading in Two weeks) opens
   `DayPanel` (`?day=`) on the right — every IP end (with its time) and
   closing that day, a row opens the deal. Two weeks: two weeks from Monday
-  (Earlier / Later), a row per open stage, a Late column. Each deal shows its
+  (Earlier / Later), a row per open stage, a Late column. Month's name is a
+  picker (`MonthPicker`, Luke Oct 16: "click the month we want
+  immediately"): a year with ‹ › and its twelve months. Each deal shows its
   **IP end** (Under contract / Dispo, with the tracker's end time and zone —
   `withIpTime`, "5p ET") and its **COE**; the stage's key date is coloured by
   how close it is (an IP end whose time has passed today counts late), the
@@ -1766,9 +1768,8 @@ Under `src/views/`:
   - **Scorecard** (nav label; view key `mgr-team`; renamed from Team, Luke
     Oct 11) = Weekly Scorecard (Luke, Oct 11 — replaces the "VPG - Weekly
     Score Card" sheet; run side-by-side with it for 1–2 Fridays, then the
-    sheet retires). `views/manager/TeamHub.jsx`: the picker shows "Full
-    team (scorecard)" (`ScorecardView.jsx`) or one rep (the Rep view below;
-    Rep and Team are one tab). Grouped like the sheet (`PODS` /
+    sheet retires). `views/manager/TeamHub.jsx`: always the full team
+    (`ScorecardView.jsx`); a rep opens in the side panel (the Rep view below). Grouped like the sheet (`PODS` /
     `POD_LEADS` in scorecard-lib): Pod A (lead Anthony: Spencer, Axel,
     Cayden), Pod B (lead Sam: Danni, Daniel, Rory), Pod Leads (Anthony,
     Sam — not in pod totals), No pod (Patrick, and any rep not listed).
@@ -1814,19 +1815,22 @@ Under `src/views/`:
     moved into CRM; `scoreWeek` returns `crmGrades` (the six), `crmItems`,
     `crmHave`; CRM shows out of 12; CRM Review puts Speed before the CRM
     total; Next move can say "Answer agents faster". Weeks before Oct 12 are
-    unchanged (five items, sheet weights). **Names open the rep in a side panel** (`RepDrawer`: RepView over
-    the scorecard, ← / → through the reps shown, Esc closes, "Full page"
-    opens `?rep=` as before). **CRM Review** tab (`/team/crm`,
-    `CrmReviewHub` → `ScorecardView mode="crm"`): every rep's five items as
-    big chips with "N flagged" / "x of y OK" under each, CRM points, speed and
-    the week's note inline — Friday grading on one screen, same week picker,
-    filters and Save bar; click a row for the deals / texts behind it.
-    Click a row (or ▸) to expand it: the five CRM chips (`CRM_ITEMS`:
+    unchanged (five items, sheet weights). **A row (or the name) opens the rep in a side panel** (Luke, Oct
+    16: "clicking the line … the exact same thing as … the reps name";
+    `RepDrawer`: RepView over the scorecard, ← / → through the reps shown,
+    Esc closes; `?rep=` in the link, so ⌘K, the Coaching tab and old links
+    open it) with **CRM scores** at its foot (`DrawerCrm`: the week's six
+    grade chips — managers grade here, what the automatic checks found, the
+    note, Save / Discard). The rows no longer expand, there's no rep picker
+    at the top (always the full team) and no full rep page; the **CRM
+    Review** tab (Oct 16) was removed the same day as a duplicate
+    (/team/crm redirects via `MOVED`). (Before Oct 16 a row expanded to show:
+    the five CRM chips (`CRM_ITEMS`:
     pipeline, notes, messaging, Dispo Handoffs (renamed from "Clean dispo
     handoffs", Luke Oct 12 — not to be confused with the dispo team),
     follow-ups; 2 = all good, 1 = ~60%, 0 = below) with the managers' grade
     dropdowns and `A` marks, what the automatic checks found, the month to
-    date and the note (owners / managers only). Below: **Where they leak**
+    date and the note (owners / managers only).) Below: **Where they leak**
     — the Coaching funnel (`STEPS` / `rate` / `biggestLeak`) for the reps
     shown: new conversations, Convo→Opp, Opp→Offer, Offer→Contract ("n of
     d"), team rate row, green ≥ team / amber within 20% below / red more,
