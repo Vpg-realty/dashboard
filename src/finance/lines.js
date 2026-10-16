@@ -29,7 +29,25 @@ export const settledInSheet = (d) => ['YES', 'NA', 'N/A'].includes(up(d.commPaid
 // Commission paid covered them).
 export const TC_MONTHLY_FROM = '2026-10-01';
 export const isTcLine = (l) => l.part === 'tc';
-const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || String(d.coe || '') < TC_MONTHLY_FROM);
+// Luke, Oct 16: the TC is paid on every deal that hits Dispo Active — not at
+// closing — so from October a deal's TC line is due in the month it reached
+// Dispo Active, whatever happens to it after (the rules decide the amount,
+// cancelled deals included). When it got there: the GHL sync's logged move
+// into Dispo Active / Assigned / Closed, or the day the sync created it
+// (`dispoAt`, from the server, edge/deals.js dispoTimes); else the contract
+// date. A deal still Under Contract in GHL hasn't reached it yet. Deals that
+// reached it before October keep the old way: a line once closed, by COE,
+// settled by the sheet's Commission paid for closings before October.
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const azDay = (iso) => new Date(Date.parse(iso) - 7 * 3600e3).toISOString().slice(0, 10);
+const PRE_DISPO = /under contract|new lead|review|offer|negotiat/i;
+export const reachedDispo = (d) => !PRE_DISPO.test(String(d.ghlStage || ''));
+export function dispoDate(d) {
+  if (d.dispoAt && !Number.isNaN(Date.parse(d.dispoAt))) return azDay(d.dispoAt);
+  return ISO.test(d.accepted || '') ? d.accepted : null;
+}
+export const tcOnDispo = (d) => reachedDispo(d) && (dispoDate(d) || '') >= TC_MONTHLY_FROM;
+const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || (!tcOnDispo(d) && String(d.coe || '') < TC_MONTHLY_FROM));
 export const lineKey = (dealId, part) => `${dealId}:${part}`;
 
 // deals: computed (math.js compute); rows: fin_payouts rows.
@@ -38,13 +56,21 @@ export function buildLines(deals, rules, rows = []) {
   const out = [];
   const seen = new Set();
   for (const d of deals) {
-    if (!isClosed(d)) continue;
+    const closed = isClosed(d);
+    const onDispo = tcOnDispo(d);
+    if (!closed && !onDispo) continue;
     for (const p of payouts(d, rules)) {
+      if (!closed && p.part !== 'tc') continue;
       const key = lineKey(d.id, p.part);
       seen.add(key);
       const r = byKey.get(key);
       const amount = cents(p.amount);
       const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount };
+      // The TC's month: when the deal reached Dispo Active (from October), else its COE.
+      if (p.part === 'tc') {
+        Object.assign(base, { dealStatus: d.status, dispoOn: onDispo ? dispoDate(d) : null });
+        base.month = onDispo ? base.dispoOn.slice(0, 7) : String(d.coe || '').slice(0, 7) || 'none';
+      }
       // "Commission paid" = Yes in the tracker settles every line not paid
       // here (no row, or only approved).
       if (!r || (r.status !== 'paid' && settles(d, p.part))) {
@@ -102,13 +128,13 @@ export function payText(l) {
   return { text: 'To approve', tone: 'amber' };
 }
 
-// The TC's months: every TC line by its deal's COE month, newest first →
+// The TC's months: every TC line by its month (above), newest first →
 // [{ month, lines, total, status: owed | approved | paid | mixed, changed }].
 export function tcMonths(lines) {
   const by = new Map();
   for (const l of lines) {
     if (!isTcLine(l) || l.gone || l.sheet) continue;
-    const m = String(l.coe || '').slice(0, 7) || 'none';
+    const m = l.month || String(l.coe || '').slice(0, 7) || 'none';
     by.set(m, [...(by.get(m) || []), l]);
   }
   return [...by.entries()].map(([month, ls]) => {
@@ -128,5 +154,5 @@ export const partLabel = (p) => PARTS[p] || p;
 export function upcoming(deals, rules) {
   return deals
     .filter((d) => (up(d.status) === 'PENDING' || up(d.status) === 'ASSIGNED') && isAssigned(d) && typeof d.vpgAssign === 'number' && d.vpgAssign > 0)
-    .flatMap((d) => payouts(d, rules).map((p) => ({ key: lineKey(d.id, p.part), dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount: cents(p.amount) })));
+    .flatMap((d) => payouts(d, rules).filter((p) => !(p.part === 'tc' && tcOnDispo(d))).map((p) => ({ key: lineKey(d.id, p.part), dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount: cents(p.amount) })));
 }
