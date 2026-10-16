@@ -259,7 +259,13 @@ export function compute(deal, rules, lists) {
       : !d.dispoMember ? 0 : num(d.commBase) * num(r.dispoRate));
 
   const m = r.manager || {};
-  const mgrRep = (m.reps || []).find((x) => is(x.rep, d.acq) && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore)));
+  // The manager is paid on the deals of the reps listed — on the acquisition
+  // side only (Luke, Oct 16: "if spencer acqs a deal, commission is paid to
+  // anthony. if he dispos a deal, no commission is paid to anthony off of the
+  // dispo side"); rule `manager.side` 'both' also pays on deals a listed rep
+  // dispositioned. Once per deal either way.
+  const listed = (who) => (m.reps || []).find((x) => is(x.rep, who) && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore)));
+  const mgrRep = listed(d.acq) || (m.side === 'both' && d.dispoMember ? listed(d.dispoMember) : null);
   set('mgrComm', mgrRep && !waiting ? num(d.commBase) * num(m.rate) : 0);
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];

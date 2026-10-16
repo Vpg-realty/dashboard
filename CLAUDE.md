@@ -502,7 +502,18 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `settings.deal_rules.change` with the old value), with identical
   results for every deal. `checkRules` checks the shape and the rule set in
   effect on every start date; `rulesFor` gives the TC only the TC-fee
-  timelines.
+  timelines. **Commission by person** (Luke, Oct 16: "where is a specific
+  section to adjust commission per rep?"): the first card on the page —
+  everyone the rules or lists name, with what they're paid today on the
+  acquisition side (standard rate / % of net / none), the dispo side, as
+  manager / pod lead / TC, and who they report to; each Edit opens and
+  scrolls to the rule it comes from ("Pay on net instead" starts a
+  per-person rate). **Manager paid on** (`manager.side`, Luke Oct 16: "if
+  spencer acqs a deal, commission is paid to anthony. if he dispos a deal,
+  no commission is paid to anthony off of the dispo side … editable in
+  settings"): 'acq' (default, nothing stored = acquisitions only — what the
+  formula always did) or 'both' (also deals a listed rep dispositioned;
+  once per deal); checked by edge/settings.js.
   **Dropdown Lists** — `settings.deal_lists` and Reports to. Reports to
   (Luke, Oct 14) is laid out as columns: each pod lead on top of a column
   with their reps under it (Move… menu, ×), "+ Add a rep" per column, a "No

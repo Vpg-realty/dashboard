@@ -77,6 +77,9 @@ function checkRuleSet(r) {
   if (!r.acqOfNet || typeof r.acqOfNet !== 'object' || !Object.entries(r.acqOfNet).every(([k, v]) => k.length <= 60 && num(v, 0, 1))) return 'bad "paid on net" rates';
   const m = r.manager || {};
   if (typeof m.name !== 'string' || !num(m.rate, 0, 1) || !Array.isArray(m.reps) || !m.reps.every((x) => typeof x.rep === 'string' && (!x.coeBefore || DATE.test(x.coeBefore)))) return 'bad manager commission';
+  // Which side of a deal pays the manager (math.js): acquisitions only (the
+  // default) or both sides.
+  if (m.side !== undefined && !['acq', 'both'].includes(m.side)) return 'manager: paid on acquisitions only or both sides';
   const o = r.override || {};
   if (typeof o.name !== 'string' || !num(o.rate, 0, 1) || (o.from && !DATE.test(o.from)) || (o.status && !STATUSES.includes(o.status))) return 'bad override';
   return null;
