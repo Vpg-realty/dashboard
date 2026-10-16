@@ -292,7 +292,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `brand` / `calendar` and is unchanged.
   A **State** chip row (`?st=`, the person's states with counts) filters
   both; Opportunities add a name / address search. Opportunity cards show
-  days in the stage (amber 14+, red 30+), longest first, and open the GHL
+  days in the stage (amber 14+, red 30+), longest first, and above it **when
+  the rep last spoke with the agent** (Luke, Oct 16; `LastTalk`: "Talked Nd
+  ago", green ≤ 3d / amber ≤ 7d / red, "No talk 21d+"; hover = the rep's last
+  text / connected call and the agent's last message) — from the CRM check's
+  hourly message pull (server/crm.js `contact` {oppId: [rep ms, agent ms]},
+  21 days back, CRM_VERSION 3), copied onto each opp as `lastRep` /
+  `lastAgent` by snapshot.js (no extra GHL calls); and open the GHL
   opportunity in a new tab (`ghlOppUrl` in src/data/config.js:
   `app.gohighlevel.com/v2/location/<loc>/opportunities/<id>?tab=
   Opportunity+details` — the format Luke copied from GHL, Oct 16; the
