@@ -402,6 +402,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - Sidebar logo = the VPG "V" mark (navy #1b385f / tan #ad9b7a) from the
   logo Luke sent Oct 14 (drawn as an inline SVG in AppShell.jsx), with
   "VALLEY PROPERTY / GROUP" set like the logo.
+- **Stage colours** (Luke, Oct 16: "every stage is colored purple …
+  different colors per stage and match throughout the whole site"):
+  `src/shell/stages.js` is the one map — New lead sky, Review slate, Offer
+  submitted teal, Negotiation orange, Under contract blue, Dispo active
+  amber, Assigned violet, Closed green, Lost / abandoned red (`stageKey`
+  reads keys or labels) — drawn by `src/shell/StageChip.jsx` on Home, the
+  deal sheet's GHL stage column (and its "GHL: …" hint), Active, the deal
+  panel and the GHL panel; the Pipeline's column colours come from it too.
 - **Company colours** (Luke, Oct 14: "incorporate our colors … a company
   wide system"): `navy-*` and `tan-*` Tailwind colours in `src/index.css`
   (`@theme`). The app uses them lightly: warm tan-50 page background and
@@ -675,7 +683,11 @@ the server strips them (`forTc`) and refuses edits to them.
   hint (`statusDiffersFromGhl`); original contracted price after retrade), the full sheet by
   default (`cols=overview` for the short set, or column groups), header
   bands + coloured headers sticky, address column sticky, dense Arial-like
-  rows, a totals row. **Every cell is editable in place**
+  rows, a totals row. **Columns fit their contents** (Luke, Oct 16: "some
+  name boxes … cut off … no unused blank space"): no fixed widths, nothing
+  truncated; title agency / buyer / notes / links get 210–320px and wrap
+  beyond that (`WRAP`), links show as short "Zillow ↗" labels, notes two
+  lines with the whole note on hover. **Every cell is editable in place**
   (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
   Enter or click-away, Esc cancels, buyer / title use the same past-entries
   picker; one field per save — except the moves in `edits.js` — logged,
@@ -1082,7 +1094,14 @@ the sheet read-only and the zip rules; `src/territory/`), replacing the
   this month's live pairs, each with "since <month>" because history starts
   late June / mid-Sept; owners / TC also the tracker's contracts / closed /
   cancelled / pending / close rate / gross, owners net profit), reps, dispo,
-  this month and 7-day conversations. "Show on map ↑" in Needs review sets
+  this month and 7-day conversations. Oct 16 (Luke: "too claude-like …
+  personalize"): the panel is a VPG **market card** — a navy hero with the
+  state's own outline (from usStates.json), its chips and "Who's on it"
+  (each acquisitions rep and the dispo rep as a person card with their
+  colour and this month's opps / contracts there), then "How <year> is going"
+  as accent tiles, the tracker line, and "This market at a glance". The bar
+  above the map shows the hovered state, else the **selected** one (tagged
+  "Selected"), so it stays after a click. "Show on map ↑" in Needs review sets
   the state (or the rep) and scrolls the map into view.
   "At a glance" tiles, **Needs review** flags (`FLAG_RULES`, shown on the
   page): quiet market (sub-account with no new conversations in 7 days,

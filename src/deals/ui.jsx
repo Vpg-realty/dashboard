@@ -1,6 +1,6 @@
 // Small shared pieces for the Deals pages.
+import StageChip from '../shell/StageChip.jsx';
 import Icon from '../shell/icons.jsx';
-import { GHL_STAGE } from './store.js';
 import { statusLabel } from './format.js';
 import { TONES, dueTone, daysBetween } from './status.js';
 import { shortDate } from './format.js';
@@ -17,7 +17,7 @@ export function StatusChip({ status }) {
 }
 export function GhlChip({ g }) {
   if (!g) return null;
-  return <span title="Stage in GoHighLevel" className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-violet-700 bg-violet-50 ring-1 ring-inset ring-violet-200 whitespace-nowrap">GHL · {GHL_STAGE[g.stage] || g.stage}</span>;
+  return <StageChip stage={g.stage} prefix="GHL · " />;
 }
 
 export function PageHead({ title, sub, right }) {

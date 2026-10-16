@@ -3,10 +3,11 @@
 // sheet, grouped like its header; formulas recalculate as you type; nothing
 // is saved until "Save". History shows who changed what. The TC never sees
 // the commission / profit group (the server doesn't send it either).
+import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen } from './math.js';
-import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey, GHL_STAGE } from './store.js';
+import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
 import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
@@ -281,7 +282,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             <div className="flex flex-col gap-4">
               {g && (
                 <Notice tone="violet">
-                  <div className="font-medium">In GoHighLevel: {GHL_STAGE[g.stage]} · {g.repName}</div>
+                  <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
                   <div className="text-[12.5px] mt-0.5">
                     IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
                     {g.coe && ISO.test(merged.coe || '') && g.coe !== merged.coe && (

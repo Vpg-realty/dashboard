@@ -8,6 +8,7 @@
 // width, bigger numbers with pace badges, and a right-hand column of cards —
 // revenue this month, the pipeline by stage, the deal tracker (owners / TC),
 // wins — plus a weekly leaderboard for owners and managers.
+import StageChip from './StageChip.jsx';
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
@@ -26,7 +27,6 @@ import Icon from './icons.jsx';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
 const KEY_LABEL = { ipEnd: 'IP end', coe: 'COE' };
-const STAGE = { under_contract: 'Under contract', dispo: 'Dispo active', assigned: 'Assigned', closed: 'Closed' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
 const DAY = 86_400_000;
 
@@ -193,14 +193,8 @@ function Leaderboard({ reps }) {
   );
 }
 
-// Stage chips in the board Pipeline's column colours, and the due date as
-// the same coloured chip as the board / Deals (Luke, Oct 14: "deal status
-// color coded … easy to read").
-const STAGE_COLOR = { under_contract: '#2563eb', dispo: '#d97706', assigned: '#7c3aed', closed: '#059669' };
-function StageChip({ stage }) {
-  const c = STAGE_COLOR[stage] || '#71717a';
-  return <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold whitespace-nowrap" style={{ color: c, background: `${c}14`, boxShadow: `inset 0 0 0 1px ${c}40` }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />{STAGE[stage] || stage}</span>;
-}
+// Stage chips: one colour per GHL stage, the same across the site
+// (src/shell/stages.js — Luke, Oct 16).
 function dueText(days, key) {
   const what = KEY_LABEL[key];
   const text = days < 0 ? `${-days}d late` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`;

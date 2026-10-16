@@ -1,5 +1,6 @@
 import { Fragment, createContext, useContext, useEffect, useRef } from 'react';
 import { REPS, MARKETS, ghlOppUrl } from '../data/config.js';
+import { STAGES } from '../shell/stages.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
@@ -21,21 +22,22 @@ import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRang
 // list per day; they stay in their stage columns too. Late
 // deals are only a count at its foot (they're red at the top of each column).
 
+// Column colours = the site's stage colours (src/shell/stages.js).
 const COLUMNS = [
-  { stage: 'under_contract', title: 'Under Contract', color: '#2563eb' },
-  { stage: 'dispo', title: 'Dispo Active', color: '#d97706' },
-  { stage: 'assigned', title: 'Assigned', color: '#7c3aed' },
-  { stage: 'closed', title: 'Closed', color: '#059669' },
+  { stage: 'under_contract', title: 'Under Contract', color: STAGES.under_contract.color },
+  { stage: 'dispo', title: 'Dispo Active', color: STAGES.dispo.color },
+  { stage: 'assigned', title: 'Assigned', color: STAGES.assigned.color },
+  { stage: 'closed', title: 'Closed', color: STAGES.closed.color },
 ];
 
 // The Opportunities view (Luke, Oct 15: the stages before Under Contract, in
 // their own tab on the app's Pipeline page; Due This Week stays): `opps`
 // replaces the four stage columns with these.
 const OPP_COLUMNS = [
-  { stage: 'new_lead', title: 'New Lead', color: '#0284c7' },
-  { stage: 'review', title: 'Review', color: '#475569' },
-  { stage: 'offer_submitted', title: 'Offer Submitted', color: '#0d9488' },
-  { stage: 'negotiation', title: 'Negotiation', color: '#d97706' },
+  { stage: 'new_lead', title: 'New Lead', color: STAGES.new_lead.color },
+  { stage: 'review', title: 'Review', color: STAGES.review.color },
+  { stage: 'offer_submitted', title: 'Offer Submitted', color: STAGES.offer_submitted.color },
+  { stage: 'negotiation', title: 'Negotiation', color: STAGES.negotiation.color },
 ];
 
 // The date each open stage is run off (Luke, Oct 8).

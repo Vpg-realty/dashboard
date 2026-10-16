@@ -48,7 +48,7 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
   if (!editing) {
     return (
       <button type="button" onClick={start} title="Click to edit"
-        className={`${fit ? 'min-w-full whitespace-nowrap' : 'w-full truncate'} min-h-6 text-left rounded px-1.5 -mx-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-navy-200 cursor-text ${f.type === 'money' || f.type === 'number' ? 'text-right' : ''}`}>
+        className={`${fit === 'wrap' ? 'w-full whitespace-normal break-words' : fit ? 'min-w-full whitespace-nowrap' : 'w-full truncate'} min-h-6 text-left rounded px-1.5 -mx-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-navy-200 cursor-text ${f.type === 'money' || f.type === 'number' ? 'text-right' : ''}`}>
         {children}
       </button>
     );

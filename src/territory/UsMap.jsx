@@ -35,16 +35,23 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
   const [hover, setHover] = useState(null);
   useEffect(() => { let on = true; import('./usStates.json').then((m) => on && setGeo(m.default)); return () => { on = false; }; }, []);
   if (!geo) return <div className="aspect-[975/610] grid place-items-center text-zinc-400">Loading map…</div>;
-  const hs = hover && byAbbr.get(hover.id);
+  // The bar shows the state under the cursor, else the selected one, so a
+  // picked state's summary stays put (Luke, Oct 16: "when i select a state
+  // the box at the top should stay there").
+  const selShape0 = selected && geo.states.find((s) => s.id === selected);
+  const shown = hover || (selShape0 ? { id: selShape0.id, name: selShape0.name } : null);
+  const pinned = !hover && !!shown;
+  const hs = shown && byAbbr.get(shown.id);
   const hoverShape = hover && geo.states.find((s) => s.id === hover.id);
   const selectedShape = selected && geo.states.find((s) => s.id === selected);
   return (
     <div className="@container" onMouseLeave={() => setHover(null)}>
       <div className="mb-2 h-[116px] @[540px]:h-[76px] overflow-hidden rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-1.5 text-[12.5px] leading-snug">
-        {!hover ? <div className="h-full flex items-center text-zinc-500">Point at a state to see who works it · click it for its details and year-to-date numbers</div> : (
+        {!shown ? <div className="h-full flex items-center text-zinc-500">Point at a state to see who works it · click it for its details and year-to-date numbers</div> : (
           <>
             <div className="flex items-center gap-2 truncate">
-              <span className="font-semibold text-navy-800 text-[14px]">{hover.name}</span>
+              <span className="font-semibold text-navy-800 text-[14px]">{shown.name}</span>
+              {pinned ? <span className="rounded px-1.5 text-[11px] font-semibold bg-navy-700 text-white">Selected</span> : selected && hover.id !== selected ? <span className="text-[11px] text-zinc-500">· pointing at</span> : null}
               {hs && <span className={`rounded px-1.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_LOOK[statusOf(hs)].chip}`}>{statusOf(hs)}</span>}
               {!hs && <span className="text-zinc-500">Not on the territory sheet</span>}
             </div>
