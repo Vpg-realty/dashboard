@@ -275,8 +275,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   **Pipeline A look** (Luke, Oct 16 — picked from the proposals page, then
   "tiles … bulky … address on one line, 2 lines total" and "titles … not so
   much text"): a navy band (Pipeline · scope, a one-line headline, the
-  person filter — managers get My pod on Contracted deals too (Luke, Oct
-  16); option 1: "Viewing" + one dark switch with
+  person filter — managers get My pod on Contracted deals too and pick
+  only people in their pod (Luke, Oct 16); option 1: "Viewing" + one dark switch with
   the selected choice raised in tan, the person picker outlined until
   someone is picked, then tan; the Opportunities search sits in the band so
   both tabs' columns line up — five equal columns on both), no
