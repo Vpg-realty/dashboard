@@ -4,6 +4,7 @@
 // `group`, `sub`, `title` and `blurb` of each tab in sections.js). AppShell
 // wraps every Settings page in it instead of the usual top tabs.
 import { linkProps } from '../shell/router.js';
+import { titleCase } from '../shell/titleCase.js';
 
 export default function SettingsFrame({ section, tab, children }) {
   const groups = [];
@@ -15,7 +16,7 @@ export default function SettingsFrame({ section, tab, children }) {
     <div className="max-w-[1500px] mx-auto">
       <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 mb-5 shadow-sm">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Settings · {tab.label}</div>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{tab.title || tab.label}</h1>
+        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{titleCase(tab.title || tab.label)}</h1>
         {tab.blurb && <p className="mt-1 text-[13.5px] text-white/75 max-w-[760px]">{tab.blurb}</p>}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">

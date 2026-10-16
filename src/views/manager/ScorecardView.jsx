@@ -33,6 +33,7 @@ import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, wei
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import { weekSeries, avgOf, crmTenths } from './trends.js';
 import TrendsView from './TrendsView.jsx';
+import { titleCase } from '../../shell/titleCase.js';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
@@ -416,7 +417,7 @@ export function LeakCard({ ids, week, isLive, onPickRep }) {
   return (
     <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-6 py-4 bg-[#eef2f7] border-b border-[#d5deea]">
-        <h2 className="text-[18px] font-bold text-navy-700">{title}</h2>
+        <h2 className="text-[18px] font-bold text-navy-700">{titleCase(title)}</h2>
         <span className="text-[14px] text-zinc-600">conversion step by step vs the team rate · ringed = biggest leak</span>
       </div>
       <div className="grid gap-x-4 items-end px-6 py-3 border-b border-[#f0ebe1]" style={LGRID}>
@@ -476,7 +477,7 @@ function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, s
   return (
     <section className="mt-4 min-w-[1100px] rounded-2xl bg-white border border-tan-200 overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3 bg-navy-700 text-white">
-        <h3 className="text-[16px] font-semibold">CRM scores · week of {weekLabel}</h3>
+        <h3 className="text-[16px] font-semibold">CRM Scores · Week of {weekLabel}</h3>
         <span className="rounded-md bg-tan-500 text-navy-900 px-2 py-0.5 text-[13px] font-bold tabular-nums">{s.crmKnown ? `${s.crmHave} / ${2 * s.crmKnown}` : 'not graded yet'}</span>
         {canEdit && (dirty || error) && (
           <span className="ml-auto flex items-center gap-2 text-[13px]">

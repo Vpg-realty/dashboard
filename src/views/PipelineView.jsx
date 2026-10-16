@@ -5,6 +5,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
+import { titleCase } from '../shell/titleCase.js';
 
 // Pipeline tab (Luke, Sept 29): every deal currently in Under Contract, Dispo
 // Active or Assigned, plus deals that reached Closed this month. Cards show
@@ -434,7 +435,7 @@ function BrandHead({ color, title, count, unit = 'deals', money, chips }) {
     <div className="bg-navy-700 text-white px-3 pt-2 pb-2.5 shrink-0 flex flex-col gap-0.5" style={{ boxShadow: `inset 0 -3px 0 ${color}` }}>
       <div className="flex items-center gap-2 min-w-0">
         <span className="w-2 h-2 rounded-full shrink-0 ring-2 ring-white/25" style={{ background: color }} />
-        <h3 className="text-[14px] font-semibold truncate">{title}</h3>
+        <h3 className="text-[14px] font-semibold truncate">{titleCase(title)}</h3>
         <span className="ml-auto flex items-center gap-1 shrink-0">{chips}</span>
       </div>
       <div className="flex items-baseline gap-1.5">

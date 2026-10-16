@@ -7,6 +7,7 @@ import { shortDate } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import ClearX from '../shell/ClearX.jsx';
 import { escClears } from '../shell/escClears.js';
+import { titleCase } from '../shell/titleCase.js';
 
 const STATUS_STYLE = {
   PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', ASSIGNED: 'bg-violet-100 text-violet-900 ring-violet-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
@@ -24,7 +25,7 @@ export function PageHead({ title, sub, right }) {
   return (
     <div className="flex flex-wrap items-end gap-x-4 gap-y-2 mb-4">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">{title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">{titleCase(title)}</h1>
         {sub && <div className="text-zinc-500 mt-0.5">{sub}</div>}
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>

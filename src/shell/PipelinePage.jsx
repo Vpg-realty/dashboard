@@ -28,6 +28,7 @@ import { scopeReps } from './scope.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import ClearX from './ClearX.jsx';
 import { formatCompactCurrency } from '../utils/format.js';
+import { titleCase } from './titleCase.js';
 
 const norm = (x) => String(x || '').trim().toLowerCase();
 const MARKET_NAME = Object.fromEntries(MARKETS.map((m) => [m.id, m.name]));
@@ -148,7 +149,7 @@ export default function PipelinePage({ mode = 'deals' }) {
       <div className="shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{view === 'cal' ? 'Calendar' : 'Pipeline'} · {scopeName}</div>
-          <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{headline}</h1>
+          <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{view === 'cal' ? titleCase(headline) : headline}</h1>
           <p className="text-[12.5px] text-white/70">{blurb}</p>
         </div>
         {/* The person filter (Luke, Oct 14): Mine, My pod, Full team, then a person. */}

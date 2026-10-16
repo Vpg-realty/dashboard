@@ -196,7 +196,7 @@ export default function AllZips() {
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Zip management</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Zip Management</h1>
         <div className="text-zinc-500 text-[13px]">Every zip from the territory sheet, who has it and for how long. Reps request their own (automatic); {owner ? 'you can' : 'owners'} assign, release and approve new rounds.</div>
       </div>
 

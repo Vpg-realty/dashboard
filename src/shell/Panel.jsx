@@ -7,12 +7,13 @@
 // Controls in the right slot sit on a small white tray so they keep their
 // own colours. The TV board keeps its own look.
 import { PANEL_HEAD, PANEL_NUM, PANEL_TRAY } from './panelStyle.js';
+import { titleCase } from './titleCase.js';
 
 export function PanelHead({ title, sub, right, num, className = '' }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 py-2.5 ${PANEL_HEAD} ${className}`}>
       {num != null && <span className={PANEL_NUM}>{num}</span>}
-      <h2 className="text-[14.5px] font-semibold text-white">{title}</h2>
+      <h2 className="text-[14.5px] font-semibold text-white">{titleCase(title)}</h2>
       {sub && <span className="text-[12.5px] text-white/70">{sub}</span>}
       {right && <span className={PANEL_TRAY}>{right}</span>}
     </div>

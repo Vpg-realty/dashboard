@@ -506,6 +506,17 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the V mark on Home. Status colours (red / amber / green) and rep colours
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
+- **Proper case for titles** (Luke, Oct 16: "chart titles or headers to be
+  proper case throughout the whole site"): `src/shell/titleCase.js`
+  (`titleCase` — small words a / an / and / & / as / at / by / for / in / of /
+  on / or / per / the / to / vs stay lower unless first; words with a capital
+  or starting with a digit / symbol are left as they are) is applied by every
+  shared header — PanelHead / Panel (app and TV), FinanceHead, Settings'
+  Frame, ManagerFrame, Home's Card groups, Active's fold bars, the deals page
+  title, the Pipeline column titles and the Calendar headline; one-off
+  headings are written in proper case, as are the deal groups (`GROUPS`,
+  All deals' bands). Write new titles in proper case; labels, pills and
+  uppercase eyebrows are untouched.
 - **Card headers** (Luke, Oct 14: "blue headers for the charts …
   uniform"; Oct 15: "easy to miss … match the dark blue … brand focused …
   across the entire site"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a
@@ -1159,8 +1170,12 @@ the approval records who).
 - **Look** (Luke, Oct 15: "very bland and slightly confusing … match the
   style of the rest of the dashboard"): every Finance page opens with a navy
   band (`FinanceHead` in ui.jsx — eyebrow, title, what the page does,
-  controls on the right) and accent tiles (`MoneyTile` with a coloured top
-  bar: amber to approve, sky to pay, violet TC, green paid, tan coming due).
+  controls on the right) and brand tiles (`MoneyTile`, Luke Oct 16: "too
+  claude-like … more brand focused": white card, tan border, the label as a
+  tan eyebrow behind a status dot — amber to approve, sky to pay, violet TC,
+  green paid, tan coming due — the number in navy (red only for a negative /
+  short), a short tan rule, the V mark faint in the corner; the picked tab
+  turns brand navy).
 - **How the company is looking** (Luke, Oct 16; `CompanyOutlook.jsx`,
   `outlook.js`), on Payouts and Wires In: Closed + Lined up (open deals
   assigned with a price) = Projected net assignment − Projected payouts

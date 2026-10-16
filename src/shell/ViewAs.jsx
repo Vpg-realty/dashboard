@@ -9,6 +9,7 @@ import { ROLE_LABEL } from './sections.js';
 import Icon from './icons.jsx';
 import { REPS } from '../data/config.js';
 import { PODS } from '../../scripts/scorecard-lib.mjs';
+import { titleCase } from './titleCase.js';
 
 export function ViewAsBanner({ me }) {
   if (!me?.viewAs) return null;
@@ -64,7 +65,7 @@ export function ViewAsButton({ me }) {
             {groups.map((g) => (
               <div key={g.key} className="border-b border-tan-100 last:border-0">
                 <div className="sticky top-0 flex items-baseline gap-2 px-4 py-1.5 bg-tan-50 border-b border-tan-100">
-                  <span className="text-[12.5px] font-semibold text-navy-800">{g.title}</span>
+                  <span className="text-[12.5px] font-semibold text-navy-800">{titleCase(g.title)}</span>
                   <span className="text-[11.5px] text-zinc-400">{g.list.length}</span>
                   <span className="ml-auto text-[11px] text-zinc-500">{g.note}</span>
                 </div>

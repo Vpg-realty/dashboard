@@ -147,7 +147,7 @@ function StateDetail({ st, tracker, owner }) {
         {owner && <StateControls st={st} />}
         <YearToDate st={st} tracker={tracker} owner={owner} />
         <div>
-          <h4 className="text-[15px] font-semibold text-navy-800 mb-2">This market at a glance</h4>
+          <h4 className="text-[15px] font-semibold text-navy-800 mb-2">This Market at a Glance</h4>
           <div className="grid grid-cols-2 gap-2 text-[13.5px]">
             <Fact l="This month" v={`${st.act.opps} opps · ${st.act.offers} offers · ${st.act.contracts} contracts`} />
             <Fact l="New conversations · last 7 days" v={st.act.convos7.toLocaleString()} />
@@ -211,7 +211,7 @@ export default function WhoWorksWhere() {
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-navy-700">Who works where</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-navy-700">Who Works Where</h1>
           <div className="text-zinc-500 text-[13px]">Reps from GHL sub-accounts, states from the territory sheet · click a state for its year-to-date numbers.</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">

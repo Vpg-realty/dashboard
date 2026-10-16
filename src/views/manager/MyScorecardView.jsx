@@ -268,7 +268,7 @@ export default function MyScorecardView() {
     <div className="max-w-[1600px] mx-auto flex flex-col gap-4 overflow-x-auto">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-navy-800">My scorecard</h1>
+          <h1 className="text-[22px] font-semibold tracking-tight text-navy-800">My Scorecard</h1>
           <div className="text-zinc-500 mt-0.5">{weekOfLabel ? `Week of ${weekOfLabel}` : 'This week'} · {frozen ? 'final (frozen Friday noon)' : 'live until Friday noon'}</div>
         </div>
         <span className="ml-auto"><ScoreHelp /></span>

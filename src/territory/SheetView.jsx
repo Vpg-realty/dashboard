@@ -200,7 +200,7 @@ export default function SheetView() {
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Territory sheet</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Territory Sheet</h1>
         <div className="text-zinc-500 text-[13px]">The "VPG_Territory_Tracker" sheet, imported Oct 14 · {t.list.length} states · {total.c.toLocaleString()} counties · {total.z.toLocaleString()} zips. Pick a state on the left; open a county for its zips and copy them.</div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5 items-start">
