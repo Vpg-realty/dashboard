@@ -764,6 +764,19 @@ the server strips them (`forTc`) and refuses edits to them.
   empty); Buyer EM receipt saves EMD paid by Buyer (VPG + Buyer when VPG
   had); Title opened with no title agency asks for it and saves it — they
   then read "done — from the deal".
+  **Post Close & close-out** (Luke, Oct 16): a closed deal ticks every New
+  contract / Assigned / COE item by itself ("done — deal closed") and
+  unlocks a fourth group, **Post Close**: HUD statement received, Wire
+  received (ticked from the deal's wire date — Wires In), EM returned
+  (ticking it saves the deal's EMD returned = Yes; ticked by itself, "VPG
+  never placed EM — nothing to return", when EMD paid by isn't VPG / VPG +
+  Buyer). Closed deals stay on the list (COE from `POST_CLOSE_FROM`
+  2026-10-01) until closed out. When every box and task is ticked the card
+  fades and a "Close out deal?" card springs in (index.css `tc-*`): Yes
+  stores the `closeout` tick (tc_checks) and takes it off the list — a
+  "Closed out · N" fold at the bottom lists them with Reopen; No keeps it
+  (remembered per device, `vpg.tc.keep`) with a green "Close out deal"
+  button in its banner.
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
@@ -1003,6 +1016,28 @@ the approval records who).
   band (`FinanceHead` in ui.jsx — eyebrow, title, what the page does,
   controls on the right) and accent tiles (`MoneyTile` with a coloured top
   bar: amber to approve, sky to pay, violet TC, green paid, tan coming due).
+- **How the company is looking** (Luke, Oct 16; `CompanyOutlook.jsx`,
+  `outlook.js`), on Payouts and Wires In: Closed + Lined up (open deals
+  assigned with a price) = Projected net assignment − Projected payouts
+  (`payouts()`, TC included) = Projected net profit (the tracker's net
+  profit), by COE for This month / Next month / This quarter / This year
+  (per device, `vpg.fin.outlook`); open deals in the stretch with no buyer
+  are named but not counted; Wires In adds the wires received.
+- **Deal Summary rework** (Luke, Oct 16: "very hard to decipher … sections
+  on the left side … acq reps, dispo reps, state by state, month by month";
+  `SummaryView.jsx`, numbers in `summaryStats.js`, pieces in
+  `summaryUi.jsx`): the navy Finance band with the period / date-by /
+  compare bar, a section rail on the left (`?view=` overview | acq | dispo
+  | state | months), one view at a time. Company overview: four headline
+  tiles (contracts, closed, net, net profit), six smaller ones, Coming in,
+  net by month (bars, click = that month), top 5 acq reps / dispo reps /
+  states. Reps and states: one row each (counts, close rate, net bar with
+  the change vs the compare period, avg net and their commission / net
+  profit for owners). A rep or state opens its **file** (`SummaryFile.jsx`,
+  `?file=acq:<name>` / `dispo:` / `state:`): a side panel with the same
+  period bar, their numbers vs the compare period, their rank by net, and
+  every deal counted for them (status chips `?fs=`, CSV, a deal opens the
+  deal panel on top); Esc / × closes.
 - **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
   **Payouts** (Oct 15 rework, `?tab=` deals | tc | paid | coming, person
   filter `?who=`, search): **By deal** — a card per closed deal with
@@ -1018,6 +1053,18 @@ the approval records who).
   and CSV). **Overview** (any period by COE: net revenue (net assignment),
   commissions, net profit, paid out, still owed — by month with a total —
   and a forecast of open assigned deals with a price by COE month).
+- **TC paid on Dispo Active** (Luke, Oct 16: "she is paid on every deal
+  that hits the stage dispo active"): from October a deal's TC line is due
+  in the month it reached Dispo Active, whatever happens after (open, closed
+  or cancelled — the rules' TC commission statuses decide the amount), and
+  it leaves Coming due. When: `dispoTimes` (edge/deals.js — the GHL sync's
+  first logged move from an earlier stage into Dispo active / Assigned /
+  Closed, else the day the sync created the deal) sent as `dispoAt` by GET
+  /api/deals and used by edge/finance.js; else the contract date
+  (`dispoDate` in lines.js). A deal still Under Contract in GHL isn't there
+  yet. Deals that got there before October keep the rule below (a line once
+  closed, by COE). TC monthly rows show each deal's status and Dispo Active
+  date.
 - **TC paid monthly** (Luke, Oct 15: "if acq/dispo/managers are paid, it
   marks as paid across the sheet. TC fees get paid at the end of the month
   based on total deals for the month"): the TC line is its own category

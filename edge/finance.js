@@ -7,19 +7,20 @@
 // history as Finance) — undoing a payment sets it back to No.
 import { compute } from '../src/deals/math.js';
 import { buildLines, lineKey, METHODS, isTcLine } from '../src/finance/lines.js';
-import { rowToDeal, getSetting } from './deals.js';
+import { rowToDeal, getSetting, dispoTimes } from './deals.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const ACTIONS = ['approve', 'unapprove', 'pay', 'unpay'];
 
 export async function loadAll(db) {
-  const [dealRows, rows, rules, lists] = await Promise.all([
+  const [dealRows, rows, rules, lists, dispo] = await Promise.all([
     db.prepare('SELECT * FROM deals WHERE deleted = 0').all(),
     db.prepare('SELECT * FROM fin_payouts').all(),
     getSetting(db, 'deal_rules', {}),
     getSetting(db, 'deal_lists', {}),
+    dispoTimes(db),
   ]);
-  const deals = dealRows.results.map(rowToDeal).map((d) => compute(d, rules, lists));
+  const deals = dealRows.results.map(rowToDeal).map((d) => compute({ ...d, dispoAt: dispo.get(d.id) || null }, rules, lists));
   return { deals, rows: rows.results, rules, lists, lines: buildLines(deals, rules, rows.results) };
 }
 

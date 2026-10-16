@@ -1,211 +1,264 @@
-// Deals › Summary (Luke, Oct 14; the sheet's "Dashboard" tab) for any period
-// — a month, quarter, year or custom dates — with an optional compare-to
-// (previous period or the same one last year). Numbers are the sheet's:
-// contracts = deals dated in the period, closed = COMPLETE, sold volume =
-// final assignment price, gross / net assignment and net profit of closed
-// deals, margin = net profit / gross. Profit and commission columns are
-// owners only.
+// Finance › Deal Summary (Luke, Oct 14 — the sheet's "Dashboard" tab; Oct 16
+// rework: "very hard to decipher … sections on the left side … acq reps,
+// dispo reps, state by state, month by month"). One period / compare bar on
+// top (kept in the link), a section rail on the left (`?view=`), one clean
+// view at a time on the right. A rep or state opens its file (`?file=`,
+// SummaryFile.jsx): every deal counted for them, with the same period and
+// compare. Numbers: summaryStats.js. Profit and commissions are owners only.
 import { useMemo } from 'react';
 import { useDeals } from './store.js';
-import { PageHead, Loading } from './ui.jsx';
+import { Loading } from './ui.jsx';
 import { money, compact } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
-import { setQuery, navigate } from '../shell/router.js';
-import { assigned as isAssigned, hasAssignPrice } from './status.js';
-import { isOpen } from './math.js';
+import { setQuery, useLocation } from '../shell/router.js';
+import { Person } from './people.jsx';
+import { FinanceHead } from '../finance/ui.jsx';
+import SummaryFile from './SummaryFile.jsx';
+import useDealPanel from './useDealPanel.jsx';
+import { stats, groupStats, KINDS, MONTH, titleCase, pctTxt } from './summaryStats.js';
+import { Delta, Stat, RateCell } from './summaryUi.jsx';
 
-const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
-const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const VIEWS = [
+  ['overview', 'Company overview', 'The period at a glance'],
+  ['acq', 'Acquisition reps', 'Who brought the deals in'],
+  ['dispo', 'Dispo reps', 'Who sold them'],
+  ['state', 'State by state', 'Where the deals are'],
+  ['months', 'Month by month', 'The year, month by month'],
+];
 
-function stats(list) {
-  const closed = list.filter((d) => d.status === 'COMPLETE');
-  // Open = Pending or Assigned (Luke, Oct 14: the Assigned status); assigned =
-  // status Assigned or a VPG assignment price is in. Projected money only
-  // from those with a price (an Assigned deal with none yet adds no gross).
-  const pending = list.filter(isOpen);
-  const assigned = pending.filter(isAssigned);
-  const priced = assigned.filter(hasAssignPrice);
-  const sum = (arr, k) => arr.reduce((t, d) => t + n(d[k]), 0);
-  const comm = (arr) => arr.reduce((t, d) => t + n(d.acqComm) + n(d.dispoComm) + n(d.mgrComm) + n(d.override) + n(d.tcComm), 0);
-  const gross = sum(closed, 'grossAssign'); const profit = sum(closed, 'netProfit');
-  return {
-    contracts: list.length, closed: closed.length, cancelled: list.filter((d) => d.status === 'CANCELLED').length, pending: pending.length,
-    closeRate: list.length ? closed.length / list.length : 0,
-    volume: sum(closed, 'finalAssign'), gross, net: sum(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
-    avgNet: closed.length ? profit / closed.length : 0, comm: comm(closed),
-    projCount: assigned.length, projGross: sum(priced, 'grossAssign'), projNet: sum(priced, 'netAssign'), projProfit: sum(priced, 'netProfit'),
-  };
-}
+const dim = (v, f = (x) => x) => (v ? f(v) : <span className="text-zinc-300">0</span>);
 
-function Delta({ now, then, pct, money: isMoney, lowerIsBetter }) {
-  if (then == null) return null;
-  const diff = now - then;
-  if (Math.abs(diff) < 1e-9) return <span className="text-zinc-400">— same</span>;
-  const up = diff > 0;
-  const good = lowerIsBetter ? !up : up;
-  const text = pct ? `${Math.round(Math.abs(diff) * 100)} pts` : isMoney ? compact(Math.abs(diff)) : Math.abs(diff);
-  return <span className={`inline-flex items-center rounded px-1.5 py-px font-semibold ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
-}
-
-// One number in a group (Luke, Oct 14: "improve number visibility").
-function Kpi({ label, value, now, then, pct, isMoney, sub, lowerIsBetter, tone }) {
+function Rail({ view, counts }) {
   return (
-    <div className="px-5 py-4 border-tan-100 [&:not(:last-child)]:border-r min-w-0">
-      <div className="text-[13px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
-      <div className={`mt-1.5 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${tone || 'text-navy-800'}`}>{value}</div>
-      <div className="mt-2 text-xs whitespace-nowrap">{then != null ? <><Delta now={now} then={then} pct={pct} money={isMoney} lowerIsBetter={lowerIsBetter} /> <span className="text-zinc-400">vs {pct ? `${Math.round(then * 100)}%` : isMoney ? compact(then) : then}</span></> : <span className="text-zinc-500">{sub || '\u00a0'}</span>}</div>
+    <nav aria-label="Summary sections" className="lg:sticky lg:top-2 self-start flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
+      <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Summary</div>
+      {VIEWS.map(([k, label, sub]) => {
+        const on = view === k;
+        return (
+          <button key={k} type="button" onClick={() => setQuery({ view: k === 'overview' ? null : k })} aria-current={on ? 'page' : undefined}
+            className={`shrink-0 text-left rounded-xl px-3 py-2.5 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[14px] font-semibold whitespace-nowrap">{label}</span>
+              {counts[k] != null && <span className={`text-[12px] tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : 'bg-tan-100 text-zinc-600'}`}>{counts[k]}</span>}
+            </div>
+            <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function Card({ title, sub, right, children }) {
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+      <PanelHead title={title} sub={sub} right={right} />
+      {children}
+    </section>
+  );
+}
+
+// Company overview: four headline numbers, the rest in plain rows, what's
+// coming in, the year by month, and the top reps / states (each opens).
+function Overview({ data, then, owner, compareLabel }) {
+  const { now } = data;
+  const t = (k) => (then ? then[k] : null);
+  const maxNet = Math.max(1, ...(data.months || []).map((m) => m.net));
+  const top = (kind, rows) => rows.slice(0, 5).map((r) => (
+    <button key={r.key} type="button" onClick={() => setQuery({ file: `${kind}:${r.key}` }, { replace: false })} className="w-full flex items-center gap-3 px-4 py-2 border-t border-tan-100 first:border-t-0 hover:bg-tan-50 text-left">
+      <span className="min-w-0 flex-1">
+        <span className="block">{kind === 'state' ? <span className="font-medium text-navy-800">{titleCase(r.key)}</span> : <Person name={r.key} full />}</span>
+        <span className="block mt-0.5 text-[12px] text-zinc-500 tabular-nums">{r.contracts} contract{r.contracts === 1 ? '' : 's'} · {r.closed} closed</span>
+      </span>
+      <span className="w-20 text-right font-semibold tabular-nums text-navy-900">{compact(r.net)}</span>
+      <span className="text-zinc-300">›</span>
+    </button>
+  ));
+  return (
+    <div className="grid gap-4">
+      <div className={`grid grid-cols-2 ${owner ? 'xl:grid-cols-4' : 'xl:grid-cols-3'} gap-3`}>
+        <Stat big label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
+        <Stat big label="Closed" value={now.closed} now={now.closed} then={t('closed')} accent="green" tone="text-emerald-700" sub={`${pctTxt(now.closeRate)} close rate · ${now.cancelled} cancelled`} />
+        <Stat big label="Net assignment · closed" value={compact(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`${compact(now.gross)} gross`} />
+        {owner && <Stat big label="Net profit · closed" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney accent="tan" sub={`${pctTxt(now.margin)} margin`} />}
+      </div>
+      <div className={`grid grid-cols-2 lg:grid-cols-3 ${owner ? 'xl:grid-cols-6' : 'xl:grid-cols-4'} gap-3`}>
+        <Stat label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter accent="red" tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
+        <Stat label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct sub="closed ÷ contracts" />
+        <Stat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
+        <Stat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
+        {owner && <Stat label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" accent="tan" />}
+        {owner && <Stat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closing" accent="tan" />}
+      </div>
+      {compareLabel && !then && <div className="text-zinc-500 text-[13.5px]">No deals on file for {compareLabel}, so there's nothing to compare with.</div>}
+      {now.projCount > 0 && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-navy-900">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-sky-800">Coming in</span>
+          <span><b className="tabular-nums">{now.projCount}</b> open deal{now.projCount === 1 ? '' : 's'} already assigned</span>
+          <span><b className="tabular-nums">{money(now.projGross)}</b> gross</span>
+          <span><b className="tabular-nums">{money(now.projNet)}</b> net</span>
+          {owner && <span><b className="tabular-nums">{money(now.projProfit)}</b> net profit</span>}
+          <span className="text-[12.5px] text-zinc-500">if they close</span>
+        </div>
+      )}
+      {data.months && (
+        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals · click a month to open it" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
+          <div className="px-5 pt-4 pb-3 grid grid-cols-12 gap-2 items-end h-[190px]">
+            {data.months.map((m, i) => (
+              <button key={m.key} type="button" onClick={() => setQuery({ p: `m:${m.key}` })} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
+                <span className="text-[11.5px] tabular-nums text-zinc-600 group-hover:text-navy-800">{m.net ? compact(m.net) : ''}</span>
+                <span className="w-full max-w-[56px] rounded-t-md bg-navy-600 group-hover:bg-navy-800" style={{ height: `${Math.max(m.net ? 4 : 0, (m.net / maxNet) * 120)}px` }} />
+                <span className="w-full border-t border-tan-200 pt-1 text-center text-[12px] text-zinc-500">{MONTH[i].slice(0, 3)}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {[['acq', data.groups.acq], ['dispo', data.groups.dispo], ['state', data.groups.state]].map(([k, rows]) => (
+          <Card key={k} title={{ acq: 'Top acquisition reps', dispo: 'Top dispo reps', state: 'Top states' }[k]}
+            right={<button type="button" onClick={() => setQuery({ view: k })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">All ›</button>}>
+            {rows.length ? top(k, rows) : <div className="px-4 py-6 text-center text-zinc-500 text-[13.5px]">No deals in this period.</div>}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
 
-// A labelled group of numbers (Luke: the top "categories … hard to
-// differentiate"): a small coloured marker + name, then the numbers.
-function Group({ title, dot, cols, children }) {
+// Reps or states: one row each with the counts, close rate, net (with a bar
+// and the change vs the compare period) and, for owners, avg net and their
+// commission (states: net profit). A row opens the file.
+function GroupTable({ kind, rows, prev, now, owner }) {
+  const maxNet = Math.max(1, ...rows.map((r) => r.net));
+  const money2 = { acq: ['Acq. commission', 'acqComm'], dispo: ['Dispo commission', 'dispoComm'], state: ['Net profit', 'profit'] }[kind];
+  const cols = ['Contracts', 'Closed', 'Cancelled', 'Close rate'];
   return (
-    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: dot }} />{title}</span>} />
-      <div className={`grid grid-cols-2 ${cols}`}>{children}</div>
-    </section>
-  );
-}
-
-function Breakdown({ title, sub, rows, cols }) {
-  return (
-    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title={title} sub={sub} />
+    <Card title={KINDS[kind].label} sub={`${rows.length} ${kind === 'state' ? 'states' : 'people'} · click a row to open their file`}>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[14px]">
-          <thead className="text-[12px] text-zinc-500 bg-tan-50/60"><tr>{cols.map((c, i) => <th key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr></thead>
+          <thead className="text-[12px] text-zinc-500 bg-tan-50/60">
+            <tr>
+              <th className="pl-5 px-3 py-2.5 font-medium">{KINDS[kind].one}</th>
+              {cols.map((c) => <th key={c} className="px-3 py-2.5 font-medium text-right whitespace-nowrap">{c}</th>)}
+              <th className="px-3 py-2.5 font-medium whitespace-nowrap">Net assignment · closed{prev ? ' (change vs the compare period)' : ''}</th>
+              {owner && <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Avg net / closed</th>}
+              {owner && <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">{money2[0]}</th>}
+              <th className="w-8" />
+            </tr>
+          </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} onClick={r.onClick} className={`border-t border-tan-100 ${r.onClick ? 'hover:bg-tan-50 cursor-pointer' : ''} ${r.total ? 'font-semibold bg-tan-50/70 text-navy-900' : ''}`}>
-                {cols.map((c, i) => <td key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 whitespace-nowrap ${c.right ? 'text-right tabular-nums' : ''} ${c.wide ? 'w-[40%]' : ''}`}>{c.get(r)}</td>)}
+              <tr key={r.key} onClick={() => setQuery({ file: `${kind}:${r.key}` }, { replace: false })} className="border-t border-tan-100 hover:bg-tan-50 cursor-pointer">
+                <td className="pl-5 px-3 py-3 whitespace-nowrap">{kind === 'state' ? <span className="font-semibold text-navy-800">{titleCase(r.key)}</span> : <Person name={r.key} full />}</td>
+                <td className="px-3 py-3 text-right tabular-nums font-semibold text-navy-900">{r.contracts}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{dim(r.closed, (v) => <span className="text-emerald-700 font-semibold">{v}</span>)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{dim(r.cancelled, (v) => <span className="text-red-700 font-semibold">{v}</span>)}</td>
+                <td className="px-3 py-3 text-right tabular-nums"><RateCell r={r} avg={now.closeRate} /></td>
+                <td className="px-3 py-3 min-w-[300px]">
+                  <span className="flex items-center gap-3">
+                    <span className="flex-1 h-2.5 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full rounded-full bg-navy-600" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>
+                    <span className="w-20 text-right tabular-nums font-semibold text-navy-900">{compact(r.net)}</span>
+                    {prev && <span className="w-[72px]"><Delta now={r.net} then={prev.get(r.key)?.net ?? 0} isMoney /></span>}
+                  </span>
+                </td>
+                {owner && <td className="px-3 py-3 text-right tabular-nums">{r.closed ? money(r.avgNet) : <span className="text-zinc-300">—</span>}</td>}
+                {owner && <td className="px-3 py-3 text-right tabular-nums">{money(r[money2[1]])}</td>}
+                <td className="pr-4 text-zinc-300 text-lg">›</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={cols.length} className="px-3 py-6 text-center text-zinc-500">No deals in this period.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-zinc-500">No deals in this period.</td></tr>}
           </tbody>
         </table>
       </div>
-    </section>
+    </Card>
   );
 }
 
-const pctTxt = (x) => `${Math.round(x * 100)}%`;
-const title = (s) => String(s || '—').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-// Quiet colour only where it helps read the table: cancels red when any,
-// close rate shaded against the company's rate for the same period.
-const cancelCell = (v) => (v ? <span className="font-semibold text-red-700">{v}</span> : <span className="text-zinc-300">0</span>);
-function RateCell({ r, avg }) {
-  if (!r.contracts) return <span className="text-zinc-300">—</span>;
-  const rel = avg ? r.closeRate / avg : 1;
-  // Mostly still pending → too early to judge, so no colour.
-  const cls = r.pending > r.closed + r.cancelled ? 'text-zinc-600' : rel >= 1.1 ? 'bg-emerald-50 text-emerald-800' : rel <= 0.75 ? 'bg-red-50 text-red-700' : 'text-zinc-700';
-  return <span className={`inline-block min-w-[48px] rounded px-1.5 py-px text-center ${cls}`}>{pctTxt(r.closeRate)}</span>;
+function Months({ data, owner }) {
+  if (!data.months) return <Card title="Month by month"><div className="px-5 py-8 text-center text-zinc-500">Pick a period inside one year (a month, quarter or year) to see it month by month.</div></Card>;
+  const maxNet = Math.max(1, ...data.months.map((m) => m.net));
+  const rows = [...data.months, { key: 'total', name: 'Total', total: true, ...data.yearTotal }];
+  return (
+    <Card title={`Month by month · ${data.year}`} sub="click a month to open it">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-[14px]">
+          <thead className="text-[12px] text-zinc-500 bg-tan-50/60">
+            <tr>{['Month', 'Contracts', 'Closed', 'Cancelled', 'Close rate'].map((c, i) => <th key={c} className={`${i ? 'text-right' : 'pl-5'} px-3 py-2.5 font-medium whitespace-nowrap`}>{c}</th>)}
+              <th className="px-3 py-2.5 font-medium">Net assignment · closed</th>
+              {owner && <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Net profit</th>}
+              {owner && <th className="px-3 py-2.5 font-medium text-right">Margin</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} onClick={r.total ? undefined : () => setQuery({ p: `m:${r.key}`, view: null })} className={`border-t border-tan-100 ${r.total ? 'font-semibold bg-tan-50/70' : 'hover:bg-tan-50 cursor-pointer'}`}>
+                <td className={`pl-5 px-3 py-2.5 ${r.contracts || r.total ? 'text-navy-900 font-medium' : 'text-zinc-400'}`}>{r.name}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{r.contracts}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{dim(r.closed)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{dim(r.cancelled, (v) => <span className="text-red-700 font-semibold">{v}</span>)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums"><RateCell r={r} avg={data.yearTotal.closeRate} /></td>
+                <td className="px-3 py-2.5 min-w-[320px]">
+                  <span className="flex items-center gap-3">
+                    {!r.total ? <span className="flex-1 h-3 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full rounded-full bg-navy-600" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span> : <span className="flex-1" />}
+                    <span className="w-24 text-right tabular-nums font-semibold text-navy-900">{money(r.net)}</span>
+                  </span>
+                </td>
+                {owner && <td className="px-3 py-2.5 text-right tabular-nums">{money(r.profit)}</td>}
+                {owner && <td className="px-3 py-2.5 text-right tabular-nums">{r.gross ? pctTxt(r.margin) : '—'}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 }
-const strong = (v) => <span className="font-semibold text-navy-900">{v}</span>;
-const avgNetOf = (r) => (r.closed ? money(r.avgNet) : <span className="text-zinc-300">—</span>);
 
 export default function SummaryView() {
   const s = useDeals();
-  const { period, by, compare } = usePeriod(`y:2026`);
+  const { query } = useLocation();
+  const { period, by, compare } = usePeriod('y:2026');
+  const { open, panel } = useDealPanel();
   const owner = s.owner;
+  const view = VIEWS.some(([k]) => k === query.get('view')) ? query.get('view') : 'overview';
+  const file = query.get('file');
 
   const data = useMemo(() => {
     const list = s.deals.filter((d) => inPeriod(d[by], period));
-    const prev = compare ? s.deals.filter((d) => inPeriod(d[by], compare)) : null;
-    const group = (key, arr) => {
-      const m = new Map();
-      for (const d of arr) { const k = d[key] || '—'; if (!m.has(k)) m.set(k, []); m.get(k).push(d); }
-      return [...m.entries()].map(([k, ds]) => ({ key: k, ...stats(ds), dispoComm: ds.filter((d) => d.status === 'COMPLETE').reduce((t, d) => t + n(d.dispoComm), 0), acqComm: ds.filter((d) => d.status === 'COMPLETE').reduce((t, d) => t + n(d.acqComm), 0), mgrComm: ds.filter((d) => d.status === 'COMPLETE').reduce((t, d) => t + n(d.mgrComm) + n(d.override), 0) }))
-        .sort((a, b) => b.net - a.net || b.contracts - a.contracts);
-    };
-    // month by month for the period's year(s)
+    const prevList = compare ? s.deals.filter((d) => inPeriod(d[by], compare)) : null;
     const year = period.from ? period.from.slice(0, 4) : null;
-    const months = year && period.to.slice(0, 4) === year
-      ? MONTH.map((name, i) => { const mk = `${year}-${String(i + 1).padStart(2, '0')}`; return { key: mk, name, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(mk))) }; })
-      : null;
-    return { now: stats(list), then: prev ? stats(prev) : null, acq: group('acq', list), dispo: group('dispoMember', list.filter((d) => d.dispoMember)), states: group('state', list), months };
+    const inYear = year && period.to.slice(0, 4) === year;
+    const groups = Object.fromEntries(Object.keys(KINDS).map((k) => [k, groupStats(list, k)]));
+    const prevGroups = prevList ? Object.fromEntries(Object.keys(KINDS).map((k) => [k, new Map(groupStats(prevList, k).map((r) => [r.key, r]))])) : null;
+    return {
+      now: stats(list), then: prevList ? stats(prevList) : null, groups, prevGroups, year,
+      months: inYear ? MONTH.map((name, i) => { const mk = `${year}-${String(i + 1).padStart(2, '0')}`; return { key: mk, name, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(mk))) }; }) : null,
+      yearTotal: inYear ? stats(s.deals.filter((d) => String(d[by] || '').startsWith(year))) : null,
+    };
   }, [s.deals, period, by, compare]);
 
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
-  const { now } = data;
-  // Nothing on file for the compare period (e.g. before the tracker began): say so instead of "▲ vs 0".
+  // Nothing on file for the compare period: say so instead of "▲ vs 0".
   const then = data.then && data.then.contracts > 0 ? data.then : null;
-  const t = (k) => (then ? then[k] : null);
-  const drill = (patch) => () => navigate(`/deals/all?${new URLSearchParams({ p: period.key, ...(by !== 'coe' ? { by } : {}), ...patch })}`);
-  const maxNet = data.months ? Math.max(1, ...data.months.map((m) => m.net)) : 1;
+  const counts = { acq: data.groups.acq.length, dispo: data.groups.dispo.length, state: data.groups.state.length };
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <PageHead title="Deal summary" sub={`${period.label} · by ${DATE_BY[by]}`} right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
-      <div className={`grid grid-cols-1 ${owner ? 'xl:grid-cols-[4fr_3fr_3fr]' : 'xl:grid-cols-[4fr_3fr]'} gap-4`}>
-        <Group title="Deal flow" dot="#1b385f" cols="lg:grid-cols-4">
-          <Kpi label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open (pending or assigned)`} />
-          <Kpi label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-700" />
-          <Kpi label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
-          <Kpi label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct />
-        </Group>
-        <Group title="Money in · closed deals" dot="#059669" cols="lg:grid-cols-3">
-          <Kpi label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
-          <Kpi label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-          <Kpi label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney />
-        </Group>
-        {owner && (
-          <Group title="Profit · owners only" dot="#ad9b7a" cols="lg:grid-cols-3">
-            <Kpi label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney />
-            <Kpi label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />
-            <Kpi label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closed deal" />
-          </Group>
-        )}
-      </div>
-      {compare && !then && <div className="mt-3 text-zinc-500">No deals on file for {compare.label}, so there's nothing to compare with.</div>}
-      {now.projCount > 0 && (
-        <div className="mt-4 rounded-xl border border-navy-100 bg-navy-50/70 px-5 py-3 text-navy-900">
-          <span className="font-semibold">Projected:</span> {now.projCount} open deal{now.projCount === 1 ? '' : 's'} already assigned · {money(now.projGross)} gross · {money(now.projNet)} net{owner && <> · {money(now.projProfit)} net profit</>} if they close.
+      <FinanceHead eyebrow="Deal Summary" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
+        right={<div className="rounded-xl bg-white/95 px-2 py-1.5 text-zinc-800"><PeriodBar deals={s.deals} defaultKey="y:2026" /></div>} />
+      <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
+        <Rail view={view} counts={counts} />
+        <div className="min-w-0">
+          {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} />}
+          {(view === 'acq' || view === 'dispo' || view === 'state') && <GroupTable kind={view} rows={data.groups[view]} prev={then ? data.prevGroups[view] : null} now={data.now} owner={owner} />}
+          {view === 'months' && <Months data={data} owner={owner} />}
         </div>
-      )}
-
-      <div className="mt-5 grid grid-cols-1 gap-5">
-        <Breakdown title="Acquisition managers" sub="click a row for their deals" rows={[...data.acq.map((r) => ({ ...r, onClick: drill({ acq: r.key }) })), { key: 'total', total: true, ...now }]} cols={[
-          { label: 'Manager', get: (r) => (r.total ? 'Total' : <span className="font-medium text-zinc-900">{r.key}</span>) },
-          { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
-          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Acq. comm.', right: true, get: (r) => (r.total ? '' : money(r.acqComm)) }, { label: 'Mgr. / override', right: true, get: (r) => (r.total ? '' : money(r.mgrComm)) }] : []),
-        ]} />
-        <Breakdown title="Disposition managers" rows={data.dispo} cols={[
-          { label: 'Dispo member', get: (r) => <span className="font-medium text-zinc-900">{r.key}</span> },
-          { label: 'Deals', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
-          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Dispo comm.', right: true, get: (r) => money(r.dispoComm) }] : []),
-        ]} />
-        <Breakdown title="By state" sub="click a row for its deals" rows={[...data.states.map((r) => ({ ...r, onClick: drill({ state: r.key }) })), { key: 'total', total: true, ...now }]} cols={[
-          { label: 'State', get: (r) => (r.total ? 'Total' : <span className="font-medium text-zinc-900">{title(r.key)}</span>) },
-          { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-          { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
-          { label: 'Sold volume', right: true, get: (r) => money(r.volume) },
-          { label: 'Gross', right: true, get: (r) => money(r.gross) }, { label: 'Net', right: true, get: (r) => strong(money(r.net)) },
-          // Luke, Oct 14: "average net / closed deal as a column so we can see per state data".
-          ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
-        ]} />
-        {data.months && (
-          <Breakdown title={`Month by month · ${period.from.slice(0, 4)}`} sub="click a month to open it" rows={[...data.months.map((r) => ({ ...r, onClick: () => setQuery({ p: `m:${r.key}` }) })), { key: 'total', name: 'Total', total: true, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(period.from.slice(0, 4)))) }]} cols={[
-            { label: 'Month', get: (r) => (r.total ? 'Total' : <span className={`font-medium ${r.contracts ? 'text-zinc-900' : 'text-zinc-400'}`}>{r.name}</span>) },
-            { label: 'Contracts', right: true, get: (r) => r.contracts }, { label: 'Closed', right: true, get: (r) => r.closed },
-            { label: 'Cancelled', right: true, get: (r) => cancelCell(r.cancelled) }, { label: 'Close rate', right: true, get: (r) => <RateCell r={r} avg={now.closeRate} /> },
-            { label: 'Net assignment', wide: true, get: (r) => (
-              <span className="flex items-center gap-3">
-                {!r.total ? <span className="flex-1 min-w-[260px] h-3.5 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full bg-navy-600 rounded-full" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span> : <span className="flex-1 min-w-[260px]" />}
-                <span className="tabular-nums w-24 text-right font-semibold text-navy-900">{money(r.net)}</span>
-              </span>
-            ) },
-            ...(owner ? [{ label: 'Avg net / closed', right: true, get: avgNetOf }, { label: 'Net profit', right: true, get: (r) => money(r.profit) }, { label: 'Margin', right: true, get: (r) => (r.gross ? pctTxt(r.margin) : '—') }] : []),
-          ]} />
-        )}
       </div>
+      {file && <SummaryFile file={file} deals={s.deals} owner={owner} onOpenDeal={open} />}
+      {panel}
     </div>
   );
 }

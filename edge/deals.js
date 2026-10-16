@@ -98,6 +98,30 @@ export async function ghlLinks(db, dealId = null) {
   return new Map(rows.results.map((r) => [r.deal_id, ghlSub(r.location)]));
 }
 
+// When each deal reached Dispo Active (Luke, Oct 16: the TC is paid on every
+// deal that hits it; src/finance/lines.js): the GHL sync's first logged move
+// from an earlier stage into Dispo active / Assigned / Closed, else — for a
+// deal the sync created (it creates them at Dispo Active) — when it was
+// created. dealId → ISO time; deals with neither fall back to their contract
+// date in lines.js.
+const PRE = /under contract|new lead|review|offer|negotiat/i;
+const PAST = /dispo|assigned|closed/i;
+export async function dispoTimes(db) {
+  const out = new Map();
+  const [moves, made] = await Promise.all([
+    db.prepare("SELECT deal_id, at, old, new FROM deal_log WHERE field = 'ghlStage' ORDER BY at").all(),
+    db.prepare("SELECT id, created_at FROM deals WHERE created_by = 'GHL sync'").all(),
+  ]);
+  for (const r of moves.results) {
+    if (out.has(r.deal_id)) continue;
+    const from = r.old ? JSON.parse(r.old) : null;
+    const to = r.new ? JSON.parse(r.new) : null;
+    if (from && PRE.test(from) && to && PAST.test(to)) out.set(r.deal_id, r.at);
+  }
+  for (const r of made.results) if (!out.has(r.id)) out.set(r.id, r.created_at);
+  return out;
+}
+
 // What this person may receive.
 export function shape(deal, user) {
   if (isOwner(user)) return deal;

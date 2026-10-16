@@ -16,6 +16,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
 import { MoneyTile, FinanceHead } from './ui.jsx';
+import CompanyOutlook from './CompanyOutlook.jsx';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
@@ -100,6 +101,7 @@ export default function WiresView() {
   return (
     <div className="max-w-[1500px] mx-auto">
       <FinanceHead eyebrow="Wires In" title="Incoming wires" sub="The wire on every deal at or past its COE. Marking one received saves it on the deal (Total wire received, Wire date received); whether VPG's EMD came back is confirmed on its own. A change made in the tracker shows here too." />
+      <CompanyOutlook deals={s.deals} rules={s.rules} wires />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
         <MoneyTile label="Waiting" accent="amber" value={money(waiting.reduce((t, d) => t + n(d.wireExpected), 0))} sub={`${waiting.length} deal${waiting.length === 1 ? '' : 's'}`} tone={waiting.length ? 'text-[#B54708]' : 'text-zinc-400'} active={tab === 'waiting'} onClick={() => setTab('waiting')} />
         <MoneyTile label="Received this month" accent="green" value={money(thisMonth.reduce((t, d) => t + n(d.wireReceived), 0))} sub={`${thisMonth.length} wire${thisMonth.length === 1 ? '' : 's'}`} tone="text-[#15803D]" active={tab === 'in'} onClick={() => setTab('in')} />

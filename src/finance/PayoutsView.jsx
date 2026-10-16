@@ -14,7 +14,8 @@ import { useMemo, useState } from 'react';
 import { useFinance, act } from './store.js';
 import { METHODS, lineAmount, partLabel, sum, isTcLine, tcMonths, TC_MONTHLY_FROM } from './lines.js';
 import { StatusPill, Trail, MoneyTile, FinanceHead } from './ui.jsx';
-import { Loading, Search } from '../deals/ui.jsx';
+import CompanyOutlook from './CompanyOutlook.jsx';
+import { Loading, Search, StatusChip } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, primaryCls, selectCls } from '../deals/format.js';
 import { Person } from '../deals/people.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
@@ -116,7 +117,7 @@ function DealCard({ deal, lines, onOpen, run, pay, busy }) {
 function TcMonths({ months, run, pay, busy, onOpen, today }) {
   const [open, setOpen] = useState(() => new Set());
   const toggle = (m) => setOpen((s) => { const n = new Set(s); if (n.has(m)) n.delete(m); else n.add(m); return n; });
-  if (!months.length) return <div className="px-5 py-10 text-center text-zinc-500">No TC fees from closings since {shortDate(TC_MONTHLY_FROM, { year: true })} yet.</div>;
+  if (!months.length) return <div className="px-5 py-10 text-center text-zinc-500">No TC fees since {shortDate(TC_MONTHLY_FROM, { year: true })} yet.</div>;
   return (
     <div className="divide-y divide-tan-100">
       {months.map((m) => {
@@ -134,7 +135,7 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
                 <span className="font-semibold text-[15px] text-navy-800">{monthName(m.month)}</span>
                 {live && <span className={`${pill} bg-navy-50 text-navy-700 ring-navy-100`}>month in progress</span>}
               </button>
-              <span className="text-[13px] text-zinc-600">{m.lines.length} closing{m.lines.length === 1 ? '' : 's'}</span>
+              <span className="text-[13px] text-zinc-600">{m.lines.length} deal{m.lines.length === 1 ? '' : 's'}</span>
               <span className="flex items-center gap-1.5">{who.map((w) => <Person key={w} name={w} />)}</span>
               <span className="text-[18px] font-semibold tabular-nums text-navy-800">{money(m.total)}</span>
               <span className={PILL[st]}>{m.changed ? 'Changed — approve again' : MONTH_STATUS[m.status]}</span>
@@ -152,7 +153,8 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
                   {m.lines.map((l) => (
                     <tr key={l.key} className="border-t border-tan-50">
                       <td className="pl-12 pr-2 py-1.5"><button type="button" onClick={() => onOpen(l.dealId)} className="text-navy-800 hover:underline text-left">{l.address}</button></td>
-                      <td className="px-2 py-1.5 whitespace-nowrap text-zinc-500">closed {shortDate(l.coe)}</td>
+                      <td className="px-2 py-1.5"><StatusChip status={l.dealStatus} /></td>
+                      <td className="px-2 py-1.5 whitespace-nowrap text-zinc-500">{l.dispoOn ? `Dispo Active ${shortDate(l.dispoOn)}` : `closed ${shortDate(l.coe)}`}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{money(lineAmount(l))}</td>
                       <td className="px-2 pr-4 py-1.5"><StatusPill l={l} /></td>
                     </tr>
@@ -250,11 +252,12 @@ export default function PayoutsView() {
 
   return (
     <div className="max-w-[1500px] mx-auto">
-      <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC is paid once a month for the month's closings." right={<>
+      <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC is paid once a month for every deal that reached Dispo Active that month." right={<>
         <SearchSelect className="w-52" value={who} onChange={(v) => setQuery({ who: v || null })} placeholder="Everyone" options={f.people.map((p) => ({ value: p, label: p }))} />
         <Search value={q} onChange={setQ} placeholder="Search address or person…" />
       </>} />
 
+      <CompanyOutlook deals={f.deals} rules={f.rules} />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MoneyTile label="To approve" accent="amber" value={money(owedAmt)} sub={n(deals.filter((d) => d.toApprove).length, 'deal')} tone={owedAmt ? 'text-[#B54708]' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
         <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={n(deals.filter((d) => !d.toApprove).length, 'deal')} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
@@ -286,7 +289,7 @@ export default function PayoutsView() {
       )}
       {tab === 'tc' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
-          <PanelHead title="TC monthly" sub={`the TC fee on each month's closings, paid as one payment · from ${monthName(TC_MONTHLY_FROM.slice(0, 7))}`} />
+          <PanelHead title="TC monthly" sub={`the TC fee on every deal that reached Dispo Active in the month (closed, open or cancelled since), paid as one payment · from ${monthName(TC_MONTHLY_FROM.slice(0, 7))}`} />
           <TcMonths months={months} run={run} pay={pay} busy={busy} onOpen={open} today={today} />
         </section>
       )}
