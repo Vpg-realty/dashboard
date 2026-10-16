@@ -84,6 +84,12 @@ function Avatar({ name, size = 26 }) {
   return <span className="rounded-full bg-navy-700 text-white ring-2 ring-tan-200 grid place-items-center font-semibold shrink-0" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
 }
 
+// A personal background for one person (Luke, Oct 16: Anthony "likes pink
+// polkadots … the full background of his screen", then "more bubbly and
+// fun" — the .bubbly class in index.css): keyed by rep_id, so View
+// as Anthony shows it too. Cards stay white on top of it.
+const BACKDROP = { anthony: 'bubbly' };
+
 function useStoredFlag(key, initial) {
   const [v, setV] = useState(() => { try { const s = localStorage.getItem(key); return s == null ? initial : s === '1'; } catch { return initial; } });
   const set = (x) => { setV(x); try { localStorage.setItem(key, x ? '1' : '0'); } catch { /* private mode */ } };
@@ -92,6 +98,7 @@ function useStoredFlag(key, initial) {
 
 export default function AppShell({ me }) {
   const { path, query } = useLocation();
+  const backdrop = BACKDROP[me.rep_id] || null;
   const { section, tab } = resolve(path, me.role);
   const sections = sectionsFor(me.role);
   const [palette, setPalette] = useState(false);
@@ -135,9 +142,9 @@ export default function AppShell({ me }) {
   };
 
   return (
-    <div className="h-app flex bg-tan-50 text-[14px] text-zinc-950 antialiased">
+    <div className={`h-app flex ${backdrop || 'bg-tan-50'} text-[14px] text-zinc-950 antialiased`}>
       {/* Sidebar (desktop) */}
-      <aside className={`relative hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
+      <aside className={`relative hidden md:flex flex-col shrink-0 ${backdrop ? 'bg-white/80' : ''} ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
           <Logo />
           {!collapsed && (
@@ -202,9 +209,9 @@ export default function AppShell({ me }) {
       </aside>
 
       {/* Page */}
-      <div className="flex-1 min-w-0 flex flex-col md:my-2 md:mr-2 md:rounded-xl md:border md:border-tan-200 bg-white overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.05)]">
+      <div className={`flex-1 min-w-0 flex flex-col md:my-2 md:mr-2 md:rounded-xl md:border ${backdrop ? `${backdrop} md:border-pink-200` : 'md:border-tan-200 bg-white'} overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.05)]`}>
         <ViewAsBanner me={me} />
-        <header className="h-12 shrink-0 flex items-center gap-3 px-4 md:px-5 border-b border-zinc-100">
+        <header className={`h-12 shrink-0 flex items-center gap-3 px-4 md:px-5 border-b border-zinc-100 ${backdrop ? 'bg-white' : ''}`}>
           <span className="md:hidden"><Logo small /></span>
           <div className="min-w-0 truncate text-zinc-500">
             {tab && !section.solo ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
@@ -226,7 +233,7 @@ export default function AppShell({ me }) {
         </header>
 
         {section.tabs && !section.rail && !section.solo && (
-          <div className="shrink-0 flex gap-1 px-3 md:px-4 border-b border-zinc-100 overflow-x-auto">
+          <div className={`shrink-0 flex gap-1 px-3 md:px-4 border-b border-zinc-100 overflow-x-auto ${backdrop ? 'bg-white' : ''}`}>
             {section.tabs.map((t) => {
               const on = t.id === tab.id;
               return (
