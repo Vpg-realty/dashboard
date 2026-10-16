@@ -17,6 +17,7 @@ import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
+import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
@@ -57,7 +58,7 @@ function Stat({ label, value, target, color, period }) {
     <div className={`px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${badge ? badge[2] : ''}`}>
       <div className="flex items-center gap-2">
         <span className="text-[13.5px] text-zinc-500 font-medium">{label}</span>
-        {badge && <span className={`ml-auto rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${badge[1]}`}>{badge[0]}</span>}
+        {badge && <span className={`ml-auto ${paceChip(badge[0])}`}>{badge[0]}</span>}
       </div>
       <div className="mt-2 text-[34px] leading-none font-semibold tracking-tight tabular-nums text-navy-800">
         {value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}
@@ -82,7 +83,7 @@ function Card({ title, right, children, className = '', tint = 'bg-white' }) {
   );
 }
 
-const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-zinc-500 hover:text-navy-700 font-medium flex items-center gap-1">{text} <Icon name="arrow" size={13} /></a>;
+const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-navy-900 font-semibold flex items-center gap-1">{text} <Icon name="arrow" size={13} /></a>;
 
 // Revenue this month for the scope: closed + Assigned with a COE this month
 // = projected, against the per-rep goal × people (same rule as Overview).
@@ -92,10 +93,12 @@ function RevenueCard({ m, n }) {
   const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
   const badge = paceBadge(goal ? m.projected / (goal * Math.max(pace, 0.05)) : null);
   return (
-    <Card title="Revenue · this month" tint={badge ? badge[2] : undefined} right={<span className="flex items-center gap-3">{badge && <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${badge[1]}`}>{badge[0]}</span>}{more('/board/overview', 'Overview')}</span>}>
+    <Card title="Revenue · this month" tint={badge ? badge[2] : undefined} right={more('/board/overview', 'Overview')}>
+      {/* The pace badge sits in the box's own top right (Luke, Oct 16). */}
       <div className="flex items-baseline gap-2">
         <span className="text-[30px] leading-none font-semibold tracking-tight text-navy-800 tabular-nums">{formatCompactCurrency(m.projected)}</span>
         <span className="text-zinc-500">projected of {formatCompactCurrency(goal)}</span>
+        {badge && <span className={`ml-auto self-start ${paceChip(badge[0])}`}>{badge[0]}</span>}
       </div>
       <div className="relative mt-4 h-3 rounded-full bg-zinc-100 overflow-hidden">
         <div className="absolute inset-y-0 left-0 bg-emerald-600" style={{ width: w(m.revenueM) }} />

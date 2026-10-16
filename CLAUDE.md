@@ -243,8 +243,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
   so it's easy to find (`bottom: 'suggest'`, drawn by AppShell; roles owner /
   manager / tc), `/suggestions/all` (`src/suggestions/SuggestionsView.jsx`).
-  A "Suggest a change" button in the header (those roles, every page) opens
-  the form with the page it came from (`?new=1&from=<path>`); kind (Something
+  The header's "Suggest a change" button was removed Oct 16 (Luke) — the
+  sidebar entry is the way in; the form still takes `?new=1&from=<path>`; kind (Something
   is wrong / Change something / New idea), where (a sidebar section), title,
   details. Everyone in those roles sees and comments on every suggestion;
   owners set the status (New → Under review → Approved → Done, or Not now)
@@ -452,7 +452,17 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   tan number badge; classes in `src/shell/panelStyle.js`), the right slot on
   a small white tray so its controls keep their colours; the deal panel's
   numbered sections and Active's fold bars use the same band (Active's IP
-  ends bar dark red). Used by Home cards, Deals, My scorecard, Settings,
+  ends bar dark red). The corner boxes (Luke, Oct 16: "the boxes in the top right
+  corner of each square should be … beige", then "the wrong beige … more
+  like a button instead of a banner … less translucency"): the header's
+  right slot (`PANEL_TRAY`) is a solid button in the logo's tan #ad9b7a
+  (tan-500) with navy-900 semibold text. Pace badges (`paceChip(word)` in
+  panelStyle.js — On pace / Near pace / Behind on Home, My scorecard; the
+  Rep tiles keep their own) use the Team Overview board's style ("colored
+  like we have throughout"): small bold uppercase, tinted green / amber /
+  rose with a border, like KpiCard. Home's Revenue card has its pace badge
+  inside the box, top right. (The website couldn't be checked from a
+  Claude Code session — the host is blocked by the network policy.) The TV board keeps its own look. Used by Home cards, Deals, My scorecard, Settings,
   Territory and Zips. The TV board keeps its own look.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app. Team and My
@@ -611,7 +621,7 @@ the server strips them (`forTc`) and refuses edits to them.
   chips; full-width tables in the Active-table style with a Total row;
   cancels red when any; close rate shaded green (≥ 10% above the period's
   company rate) or red (≥ 25% below), left plain when most of the row is
-  still pending; **Avg net / closed** (net profit ÷ closed, owners) on the
+  still pending; **Avg net / closed** (net assignment ÷ closed since Oct 16 — it was net profit; owners) on the
   acq., dispo, state and month tables.
 - **GHL sync** (Luke, Oct 14: "automatically add properties every time a
   property hits dispo active"; later the same day he took back the

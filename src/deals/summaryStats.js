@@ -26,7 +26,9 @@ export function stats(list) {
     contracts: list.length, closed: closed.length, cancelled, pending: pending.length,
     decided, closeRate: decided ? closed.length / decided : 0,
     volume: sumOf(closed, 'finalAssign'), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
-    avgNet: closed.length ? profit / closed.length : 0,
+    // Avg net / closed = net assignment ÷ closings (Luke, Oct 16: "1 close at
+    // 70k, but its being divided by 2" — it was net profit, after commissions).
+    avgNet: closed.length ? sumOf(closed, 'netAssign') / closed.length : 0,
     acqComm: sumOf(closed, 'acqComm'), dispoComm: sumOf(closed, 'dispoComm'), mgrComm: sumOf(closed, 'mgrComm') + sumOf(closed, 'override'),
     projCount: assigned.length, projGross: sumOf(priced, 'grossAssign'), projNet: sumOf(priced, 'netAssign'), projProfit: sumOf(priced, 'netProfit'),
   };

@@ -102,7 +102,7 @@ function YearToDate({ st, tracker, owner }) {
             <span><b className="tabular-nums text-navy-800">{t.pending}</b> pending</span>
             {t.pending * 2 < t.contracts && <span>close rate <b className="text-navy-800">{pct(t.closeRate)}</b></span>}
             <span>gross <b className="text-navy-800">{money(t.gross)}</b></span>
-            {owner && <span>net profit <b className="text-emerald-700">{money(t.profit)}</b>{t.avgNet != null ? ` · ${money(t.avgNet)} per closing` : ''}</span>}
+            {owner && <span>net profit <b className="text-emerald-700">{money(t.profit)}</b>{t.avgNet != null ? ` · ${money(t.avgNet)} net per closing` : ''}</span>}
           </div>
         </div>
       )}
