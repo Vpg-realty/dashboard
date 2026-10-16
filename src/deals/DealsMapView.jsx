@@ -42,7 +42,7 @@ function Tip({ p, pinned, onClose, box }) {
   // Card placed beside the dot, flipped left / up near the edges.
   const left = p.x / box.w > 0.62; const up = p.y / box.h > 0.55;
   return (
-    <div className="absolute z-10 w-[260px] rounded-xl border border-tan-200 bg-white shadow-xl text-[13px] pointer-events-auto"
+    <div data-map-tip className="absolute z-10 w-[260px] rounded-xl border border-tan-200 bg-white shadow-xl text-[13px] pointer-events-auto"
       style={{ left: `${(p.x - box.x) / box.w * 100}%`, top: `${(p.y - box.y) / box.h * 100}%`, transform: `translate(${left ? 'calc(-100% - 12px)' : '12px'}, ${up ? 'calc(-100% + 8px)' : '-8px'})` }}>
       <div className={`flex items-start gap-2 px-3 py-2 rounded-t-xl ${PANEL_HEAD}`}>
         <span className="font-semibold leading-snug flex-1">{p.address}</span>
@@ -64,6 +64,14 @@ export default function DealsMapView() {
   const [err, setErr] = useState(null);
   const [hover, setHover] = useState(null);
   const [pin, setPin] = useState(null);
+  useEffect(() => {
+    if (!pin) return undefined;
+    const onDown = (e) => { if (!e.target.closest?.('[data-map-dot], [data-map-tip]')) setPin(null); };
+    const onKey = (e) => { if (e.key === 'Escape') setPin(null); };
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey); };
+  }, [pin]);
   const [q, setQ] = useState('');
   const { query } = useLocation();
   const year = query.get('y') || '';
@@ -130,6 +138,9 @@ export default function DealsMapView() {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const list = inZoom.filter((p) => !words.length || words.every((w) => p.address.toLowerCase().includes(w)));
   const tip = pin || hover;
+  // A pinned card closes on a click anywhere but a dot or the card itself
+  // (Luke, Oct 16: "when i click outside of the map it removes the box"),
+  // and on Esc; a hover card goes as soon as the cursor leaves its dot.
   const chip = (on) => `h-8 px-3 rounded-lg text-[13px] font-medium ring-1 ${on ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50'}`;
 
   return (
@@ -158,7 +169,7 @@ export default function DealsMapView() {
               const on = tip?.id === p.id;
               return (
                 <circle key={p.id} cx={p.x} cy={p.y} r={(on ? 6.5 : 4.2) * k} fill={isNew ? '#ad9b7a' : '#1b385f'} fillOpacity={on ? 1 : 0.85} stroke="#fff" strokeWidth={1.2 * k}
-                  className="cursor-pointer" onMouseEnter={() => setHover(p)} onClick={() => { if (!drag.current?.moved) setPin(pin?.id === p.id ? null : p); }}>
+                  data-map-dot className="cursor-pointer" onMouseEnter={() => setHover(p)} onMouseLeave={() => setHover(null)} onClick={() => { if (!drag.current?.moved) setPin(pin?.id === p.id ? null : p); }}>
                   <title>{p.address}</title>
                 </circle>
               );

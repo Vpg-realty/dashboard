@@ -796,7 +796,9 @@ the server strips them (`forTc`) and refuses edits to them.
   a chip or a click on the state — fits the state's outline), + / − /
   double-click zoom (from the full view towards the middle of the dots) and
   drag to pan, dots navy (this month tan); hover → card (address, sold date,
-  assignment price, Open on Zillow), click pins it; a searchable closings
+  assignment price, Open on Zillow), gone when the cursor leaves the dot;
+  click pins it, and a click anywhere but a dot / the card or Esc closes it
+  (Luke, Oct 16); a searchable closings
   list under the map; "still being placed" / "not found" note.
 - **Colour coding**: `src/deals/status.js` `nextStep()` (the sheet's rules
   in its order, plus Closed / Cancelled) gives each deal the sheet's
