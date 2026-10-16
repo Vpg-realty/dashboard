@@ -12,7 +12,7 @@ const selCls = 'h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px]'
 // the people reporting to them under it, an "Add a rep" menu per column, and
 // everyone on the acquisition list who reports to nobody in a "No manager"
 // column. Same stored shape as before — deal_lists.reportsTo {rep: lead}.
-function ReportsTo({ l, setL }) {
+export function ReportsTo({ l, setL }) {
   const rt = l.reportsTo || {};
   const people = l.acqTeam || [];
   // A lead added here has no reps yet, so nothing is stored for them until
@@ -103,10 +103,6 @@ export default function ListsView() {
   };
   return (
     <div className="max-w-[1100px] flex flex-col gap-5">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Dropdown lists</h1>
-        <p className="text-zinc-500 mt-0.5">The choices in the deal tracker's dropdowns — one per line. Removing a choice doesn't change deals that already use it.</p>
-      </div>
       <Section title="Lists">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {LISTS.map(([k, label]) => (
@@ -114,9 +110,6 @@ export default function ListsView() {
               <textarea value={lines(k)} onChange={(e) => setLines(k, e.target.value)} rows={Math.min(10, Math.max(3, (l[k] || []).length + 1))} className={`${inputCls} h-auto py-2 leading-snug`} /></label>
           ))}
         </div>
-      </Section>
-      <Section title="Reports to" sub="Each pod lead with the reps who report to them — the pod override is paid to the lead on their reps' closed deals. Move a rep with its Move… menu; changes save with the button below.">
-        <ReportsTo l={l} setL={setL} />
       </Section>
       <SaveBar dirty={dirty} busy={busy} msg={msg} onSave={save} onReset={() => { setL(structuredClone(saved)); setMsg(null); }} />
     </div>

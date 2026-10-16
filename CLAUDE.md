@@ -475,7 +475,17 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   five CRM columns are 3.5rem so their titles don't overlap.
 - **Settings** (owners; Luke, Oct 14: change things without going through
   Claude): bottom of the sidebar (`bottom: 'admin'` in sections.js),
-  `src/settings/`. **People** — D1 `users` (name, role, rep on the board),
+  `src/settings/`. **Layout A** (Luke, Oct 16 — picked from the proposals page):
+  the navy band (eyebrow, the page's `title` / `blurb` from sections.js) and
+  a left rail grouped by what you're deciding (`src/settings/Frame.jsx`;
+  the section has `rail: true`, so AppShell draws no top tabs): Team —
+  **People**, **Pods** (`PodsView`: Reports to columns + the Manager
+  commission and Pod override rules); Money — **Commissions** (RulesView:
+  Commission by person, acquisition / dispo rules, changes by start date),
+  **TC Pay** (`TcPayView`); Tracker — **Dropdown Lists**; Alerts —
+  **Discord & Chat** (`AlertsView`: Team Chat link + test alert).
+  RulesView takes `only` (section titles) and `?edit=<key>` opens that rule
+  (Commission by person's Edit jumps to Pods / TC Pay for their rules). **People** — D1 `users` (name, role, rep on the board),
   add / remove; can't change yourself, always one owner; a person must also
   be on the Cloudflare Access allow-list to sign in (signed in but not in
   `users` → a "not set up yet" page, App.jsx, instead of the TV board).
