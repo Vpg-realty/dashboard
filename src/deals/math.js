@@ -121,7 +121,17 @@ export function ghlMismatches(d, g) {
   const out = [];
   const want = g ? STAGE_STATUS[g.stage] : ghlStatus(d);
   const have = String(d?.status ?? '').trim().toUpperCase();
-  if (want && have && want !== have) out.push({ key: 'status', tracker: have, ghl: want, stage: g ? g.stage : d.ghlStage });
+  // Which side is behind (Luke, Oct 16: "under contract and dispo active in
+  // GHL come before assigned, so everything is correct here" — the tracker
+  // said Pending while GHL had it Assigned, and the note told him to move GHL
+  // back). The one further along wins: `fix: 'tracker'` = update the deal
+  // status here (GHL moved on, or GHL says Lost); `fix: 'ghl'` = move GHL
+  // (the tracker is further along, or finished the deal).
+  if (want && have && want !== have) {
+    const ORDER = { PENDING: 0, ASSIGNED: 1, COMPLETE: 2 };
+    const fix = have === 'CANCELLED' ? 'ghl' : want === 'CANCELLED' || (ORDER[want] ?? 0) > (ORDER[have] ?? 0) ? 'tracker' : 'ghl';
+    out.push({ key: 'status', tracker: have, ghl: want, stage: g ? g.stage : d.ghlStage, fix });
+  }
   if (g && DAY.test(g.coe || '') && DAY.test(d?.coe || '') && g.coe !== d.coe) out.push({ key: 'coe', tracker: d.coe, ghl: g.coe });
   if (g && DAY.test(g.ipEnd || '') && DAY.test(d?.ddEnd || '') && g.ipEnd !== d.ddEnd) out.push({ key: 'ipEnd', tracker: d.ddEnd, ghl: g.ipEnd });
   return out;

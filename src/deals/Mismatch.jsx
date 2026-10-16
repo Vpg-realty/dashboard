@@ -3,8 +3,9 @@
 // GHL … Tracker - Cancelled | GHL - Dispo Active | Next step - move to
 // lost/abandon in GHL … text clearly separated"). One row per mismatch
 // (math.js ghlMismatches, or a deal the tracker finished): what it is, then
-// three labelled cells — Tracker | GHL | Next step. The tracker is the
-// source of truth, so the next step is always a change in GHL (mismatchRow.js).
+// three labelled cells — Tracker | GHL | Next step. The next step names the
+// side that's behind (mismatchRow.js): GHL when the tracker is further along
+// or finished the deal, the tracker's deal status when GHL moved on first.
 function Cell({ label, children, strong }) {
   return (
     <div className="min-w-0 px-3 py-2">
