@@ -215,6 +215,18 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
         } catch (err) {
           pair.crmError = String(err?.message || err).slice(0, 200);
         }
+        // Last contact on each opportunity card (Luke, Oct 16), from the CRM
+        // check's message pull (same hourly cadence, no extra GHL calls):
+        // lastRep = the rep's last text / connected call, lastAgent = the
+        // agent's last message; 0 = none in MESSAGE_LOOKBACK_DAYS. Opps the
+        // check hasn't seen yet carry neither.
+        const contact = pair.crm?.contact;
+        if (contact) {
+          for (const x of pair.opps || []) {
+            const v = contact[x.id];
+            if (v) { x.lastRep = v[0] || 0; x.lastAgent = v[1] || 0; }
+          }
+        }
 
         // Messaging (CRM item 3, server/messaging.js): the rules every 3
         // hours; conversations for the AI review go out as _msgThreads

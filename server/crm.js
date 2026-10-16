@@ -18,7 +18,10 @@
 //                  GHL; counted from Monday or from when the deal opened).
 //
 // Published per pair as `crm` = { at, pipeline, notes, followups }, each
-// { total, badN, bad: [{ id, addr, why }] } (bad lists capped at 25). Grades (2 = all good, 1 = 60%+,
+// { total, badN, bad: [{ id, addr, why }] } (bad lists capped at 25), plus
+// `contact` = { oppId: [last rep touch ms, last agent message ms] } (0 = none
+// in the lookback) for the Pipeline's Opportunities cards (Luke, Oct 16:
+// "when the last time they spoke to the agent is"). Grades (2 = all good, 1 = 60%+,
 // 0 = below) are worked out per rep in scripts/scorecard-lib.mjs.
 
 import { customValue, toDateStr } from './deals.js';
@@ -27,7 +30,7 @@ import { isManualOutbound } from './messaging.js';
 const DAY = 86400000;
 // Bump when the checks change so the cached result (reused for 55 min) is
 // recomputed on the next deploy.
-export const CRM_VERSION = 2;
+export const CRM_VERSION = 3;
 export const STALE_DAYS = 14;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
 // Messages are read back this far: covers the 14-day staleness check and
@@ -102,6 +105,7 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     pipeline: { total: 0, bad: [] },
     notes: { total: 0, bad: [] },
     followups: messages ? { total: 0, bad: [] } : null,
+    contact: messages ? {} : null,
   };
   for (const o of opportunities || []) {
     if (o.status && o.status !== 'open') continue;
@@ -112,6 +116,10 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     const created = ts(o.createdAt) || ts(o.dateAdded);
     const notes = humanNotes(o).filter((n) => n.at >= created - DAY);
     const touches = (messages?.[o.contactId] || []).filter(isTouch).map((m) => ts(m.dateAdded)).filter(Boolean).sort((a, b) => a - b);
+    if (out.contact) {
+      const fromAgent = (messages[o.contactId] || []).filter((m) => m.direction === 'inbound').map((m) => ts(m.dateAdded));
+      out.contact[o.id] = [touches.length ? touches[touches.length - 1] : 0, Math.max(0, ...fromAgent)];
+    }
 
     // 1 Pipeline
     out.pipeline.total++;

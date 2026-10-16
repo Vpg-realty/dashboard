@@ -543,6 +543,26 @@ function BrandDueCard({ deal }) {
   );
 }
 
+// When the rep last spoke with the agent (Luke, Oct 16: "when the last time
+// they spoke to the agent is … above the 'xd in stage'"): the later of the
+// rep's last text / connected call and the agent's last message, from the
+// hourly CRM message pull (21 days back — older reads "21d+"). Green within
+// 3 days, amber within 7, red after. Hover for who spoke last.
+const LOOKBACK_DAYS = 21;
+function LastTalk({ o }) {
+  if (o.lastRep == null && o.lastAgent == null) return null;
+  const day = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Phoenix' });
+  const ago = (n) => (n === 0 ? 'today' : `${n}d ago`);
+  const d = o.repAgo == null ? o.agentAgo : o.agentAgo == null ? o.repAgo : Math.min(o.repAgo, o.agentAgo);
+  const tone = d == null || d > 7 ? 'border-red-200 bg-red-50 text-red-700' : d > 3 ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  const title = `Rep's last text or call: ${o.lastRep ? `${day(o.lastRep)} (${ago(o.repAgo)})` : `none in ${LOOKBACK_DAYS} days`}\nAgent's last message: ${o.lastAgent ? `${day(o.lastAgent)} (${ago(o.agentAgo)})` : `none in ${LOOKBACK_DAYS} days`}`;
+  return (
+    <span title={title} className={`shrink-0 rounded border px-1 py-px text-[11px] font-semibold leading-none whitespace-nowrap ${tone}`}>
+      {d == null ? `No talk ${LOOKBACK_DAYS}d+` : d === 0 ? 'Talked today' : `Talked ${d}d ago`}
+    </span>
+  );
+}
+
 function BrandOppColumn({ col, opps, repById, marketById }) {
   const { onOpen } = useContext(PipeCtx);
   void onOpen;
@@ -562,14 +582,17 @@ function BrandOppColumn({ col, opps, repById, marketById }) {
           return (
             <Tag key={o.id} {...(url ? { href: url, target: '_blank', rel: 'noreferrer', title: 'Open in GoHighLevel' } : {})}
               className={`block rounded-md border border-tan-100 bg-white px-2.5 py-1.5 shrink-0 ${url ? 'hover:border-navy-200 hover:shadow-sm' : ''}`} style={{ borderLeft: `3px solid ${rep?.color || '#a1a1aa'}` }}>
-              <div className="flex items-baseline gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[13.5px] font-semibold text-zinc-900 truncate flex-1 min-w-0">{o.address || 'No name'}</span>
-                {o.value > 0 && <span className="text-[13px] font-bold text-emerald-700 tabular-nums shrink-0">{formatCurrency(o.value)}</span>}
+                <LastTalk o={o} />
               </div>
               <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                 <Avatar rep={rep} />
                 <span className="text-[12px] text-zinc-500 truncate min-w-0">{rep?.name?.split(' ')[0] || '—'} · {marketById[o.marketId]?.id || o.marketId}</span>
-                {o.days != null && <span className={`ml-auto shrink-0 rounded border px-1 py-px text-[11px] font-semibold leading-none ${tone}`}>{o.days === 0 ? 'today' : `${o.days}d in stage`}</span>}
+                <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                  {o.value > 0 && <span className="text-[12.5px] font-bold text-emerald-700 tabular-nums">{formatCurrency(o.value)}</span>}
+                  {o.days != null && <span className={`rounded border px-1 py-px text-[11px] font-semibold leading-none ${tone}`}>{o.days === 0 ? 'today' : `${o.days}d in stage`}</span>}
+                </span>
               </div>
             </Tag>
           );

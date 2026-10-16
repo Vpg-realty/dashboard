@@ -20,7 +20,10 @@ async function load() {
     const now = Date.now();
     const opps = (data.pairs || []).flatMap((p) => (p.opps || []).map((o) => {
       const since = o.stageSince || o.created;
-      return { ...o, repId: p.repId, marketId: p.marketId, days: since ? Math.max(0, Math.floor((now - since) / DAY)) : null };
+      // Days since the rep / the agent last spoke (LastTalk on the card);
+      // 0 from the build = nothing in the lookback → null here.
+      const ago = (ms) => (ms ? Math.max(0, Math.floor((now - ms) / DAY)) : null);
+      return { ...o, repId: p.repId, marketId: p.marketId, days: since ? Math.max(0, Math.floor((now - since) / DAY)) : null, repAgo: ago(o.lastRep), agentAgo: ago(o.lastAgent) };
     }));
     emit({ status: 'ready', opps, at: data.generatedAt || null, error: null });
   } catch (e) {
