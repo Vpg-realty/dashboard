@@ -718,7 +718,7 @@ function MonthGrid({ events, today, ym, toggle, legend, btn, openDay }) {
       <div className="flex flex-wrap items-center gap-2">
         {toggle}
         <button type="button" className={btn} onClick={() => setQuery({ m: addMonths(ym, -1) })}>← {MONTHS_LONG[+addMonths(ym, -1).slice(5, 7) - 1].slice(0, 3)}</button>
-        <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{monthName(ym)}</span>
+        <MonthPicker ym={ym} today={today} />
         <button type="button" className={btn} onClick={() => setQuery({ m: addMonths(ym, 1) })}>{MONTHS_LONG[+addMonths(ym, 1).slice(5, 7) - 1].slice(0, 3)} →</button>
         {ym !== monthOf(today) && <button type="button" onClick={() => setQuery({ m: null })} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this month</button>}
         <span className="text-[12.5px] text-zinc-500 tabular-nums">{count((e) => e.kind === 'ip')} IP ends · {count((e) => e.kind === 'coe')} closings</span>
@@ -754,6 +754,53 @@ function MonthGrid({ events, today, ym, toggle, legend, btn, openDay }) {
         </div>
       </div>
     </>
+  );
+}
+// The month name opens a picker (Luke, Oct 16: "make calendar month
+// clickable so we can click the month we want immediately"): a year with ‹ ›
+// and its twelve months; this month is outlined, the one shown is navy.
+function MonthPicker({ ym, today }) {
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(+ym.slice(0, 4));
+  const box = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', away);
+    window.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); window.removeEventListener('keydown', esc); };
+  }, [open]);
+  const pick = (m) => { setQuery({ m: m === monthOf(today) ? null : m }); setOpen(false); };
+  return (
+    <span ref={box} className="relative">
+      <button type="button" aria-expanded={open} onClick={() => { setYear(+ym.slice(0, 4)); setOpen(!open); }}
+        className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 inline-flex items-center gap-1.5 hover:ring-navy-300">
+        {monthName(ym)} <span className="text-[10px] text-zinc-400">▾</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-10 z-30 w-64 rounded-xl bg-white shadow-xl ring-1 ring-tan-200 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" onClick={() => setYear(year - 1)} className="w-7 h-7 rounded-md text-navy-800 hover:bg-tan-100" aria-label="Previous year">‹</button>
+            <span className="text-[14px] font-bold text-navy-800 tabular-nums">{year}</span>
+            <button type="button" onClick={() => setYear(year + 1)} className="w-7 h-7 rounded-md text-navy-800 hover:bg-tan-100" aria-label="Next year">›</button>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {MONTHS_LONG.map((name, i) => {
+              const m = `${year}-${String(i + 1).padStart(2, '0')}`;
+              const on = m === ym;
+              const now = m === monthOf(today);
+              return (
+                <button key={m} type="button" onClick={() => pick(m)}
+                  className={`h-8 rounded-md text-[13px] font-semibold ${on ? 'bg-navy-700 text-white' : now ? 'ring-1 ring-inset ring-navy-400 text-navy-800 hover:bg-tan-100' : 'text-navy-800 hover:bg-tan-100'}`}>
+                  {name.slice(0, 3)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 function MonthChip({ ev, dim }) {
