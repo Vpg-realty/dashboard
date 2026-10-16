@@ -17,7 +17,7 @@ import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const paidText = (l) => (l.status !== 'paid' ? '' : l.sheet ? 'Paid (sheet)' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
+const paidText = (l) => (l.status !== 'paid' ? '' : l.sheet ? 'Paid (tracker)' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
 const statusText = (l) => (l.status === 'paid' ? 'Paid' : l.status === 'approved' ? 'Approved' : 'Owed');
 
 function printStatement({ who, period, rows, totals }) {

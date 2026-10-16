@@ -698,6 +698,11 @@ the server strips them (`forTc`) and refuses edits to them.
   deals don't arrive with a backlog), IP ending ≤ 48 h with no buyer, past
   COE, and added tasks due. **EM receipt to chase** (Luke: only after the
   deal is assigned AND the EMD is empty or VPG only — `needsBuyerEmReceipt`).
+  Ticks that are deal fields write the deal (Luke, Oct 15, `LinkAsk`): EM
+  placed asks who placed it and saves EMD paid by (+ EMD sent on today when
+  empty); Buyer EM receipt saves EMD paid by Buyer (VPG + Buyer when VPG
+  had); Title opened with no title agency asks for it and saves it — they
+  then read "done — from the deal".
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
@@ -883,7 +888,8 @@ the server strips them (`forTc`) and refuses edits to them.
     dropdowns' style opening hour 1–12 / minutes in 5s + :59 / AM–PM lists
     with a clear top and bottom, quick picks 9:00 AM · 12:00 PM · 5:00 PM ·
     11:59 PM, Clear / Done; the value is still "HH:MM".
-  - **All deals table head** (Luke, Oct 15: "clunky … when you click the
+  - **All deals table head** (Luke, Oct 15: every column title and band
+  left-aligned, numbers too; "clunky … when you click the
     column name it sorts, but you cannot clear it easily"): no title band
     inside the table card ("as of" moved to the page subtitle); one navy
     group band (no vertical lines in it or the header row — Luke, Oct 15; the address column's band reads
@@ -939,6 +945,22 @@ the approval records who).
   and CSV). **Overview** (any period by COE: net revenue (net assignment),
   commissions, net profit, paid out, still owed — by month with a total —
   and a forecast of open assigned deals with a price by COE month).
+- **Linked with the tracker** (Luke, Oct 15: "any edit anywhere should
+  automatically populate the deal sheet"): marking payouts paid sets the
+  deal's Commission paid — Yes when every line is paid, No when only some are
+  (or a payment is undone); a Yes set in the tracker settles every line not
+  paid in Finance ("Paid (tracker)", approved ones too). The deal panel shows
+  each commission's Finance state beside it (`PayTag`: Paid <date> · <method>
+  / Approved · to pay / To approve; `payByDeal` / `payText` / `PART_FIELD` in
+  lines.js, `useDealPay` in finance/store.js — owners only, nothing fetched
+  for anyone else) and "N of M paid" under Commission paid; All deals puts a
+  coloured dot beside each commission and "N of M paid" beside Commission
+  paid. A Finance action reloads the deals. **Wires In** tab
+  (`WiresView.jsx`, `/finance/wires`): every non-cancelled deal closed or
+  past its COE with a wire expected — Waiting / Received / Short, "Mark
+  received…" (amount, date) saves the deal's own Total wire received and
+  Wire date received (PATCH, logged), so the tracker and this page are the
+  same data.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)

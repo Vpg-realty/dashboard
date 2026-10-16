@@ -111,7 +111,7 @@ export default function PayoutsView() {
               {l} <span className="ml-1 tabular-nums opacity-70">{k === 'paid' ? groups.paid.filter((x) => !x.sheet).length : groups[k].length}</span>
             </button>
           ))}
-          {tab === 'paid' && <label className="ml-auto flex items-center gap-2 text-[12.5px] text-white/80"><input type="checkbox" checked={sheet} onChange={(e) => setSheet(e.target.checked)} />Include ones settled in the sheet</label>}
+          {tab === 'paid' && <label className="ml-auto flex items-center gap-2 text-[12.5px] text-white/80"><input type="checkbox" checked={sheet} onChange={(e) => setSheet(e.target.checked)} />Include ones marked paid in the tracker</label>}
         </div>
         {canPick && picked.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-navy-50 border-b border-navy-100 text-[13.5px]">

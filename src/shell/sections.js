@@ -52,6 +52,7 @@ export const SECTIONS = [
     tabs: [
       { id: 'summary', label: 'Deal Summary', view: 'deals-summary', scroll: true },
       { id: 'payouts', label: 'Payouts', view: 'fin-payouts', scroll: true },
+      { id: 'wires', label: 'Wires In', view: 'fin-wires', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
       { id: 'overview', label: 'Overview', view: 'fin-overview', scroll: true },
     ],

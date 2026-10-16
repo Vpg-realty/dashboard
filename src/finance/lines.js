@@ -36,7 +36,9 @@ export function buildLines(deals, rules, rows = []) {
       const r = byKey.get(key);
       const amount = cents(p.amount);
       const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount };
-      if (!r) {
+      // "Commission paid" = Yes in the tracker settles every line not paid
+      // here (no row, or only approved).
+      if (!r || (r.status !== 'paid' && settledInSheet(d))) {
         out.push({ ...base, status: settledInSheet(d) ? 'paid' : 'owed', sheet: settledInSheet(d) });
         continue;
       }
@@ -60,6 +62,35 @@ export function buildLines(deals, rules, rows = []) {
     });
   }
   return out;
+}
+
+// Which tracker column each payout is (Commissions & profit).
+export const PART_FIELD = { acq: 'acqComm', dispo: 'dispoComm', manager: 'mgrComm', override: 'override', tc: 'tcComm' };
+const FIELD_PART = Object.fromEntries(Object.entries(PART_FIELD).map(([p, f]) => [f, p]));
+export const partOfField = (key) => FIELD_PART[key] || null;
+
+// Finance's state per deal, for the tracker (Luke, Oct 15: "i marked those as
+// paid in there, yet the deal tracker did not have that changed"):
+// dealId → { parts: {part: line}, paid, total }.
+export function payByDeal(lines) {
+  const out = new Map();
+  for (const l of lines) {
+    if (l.gone || !(l.amount > 0 || l.status !== 'owed')) continue;
+    const e = out.get(l.dealId) || { parts: {}, paid: 0, total: 0 };
+    e.parts[l.part] = l;
+    e.total += 1;
+    if (l.status === 'paid') e.paid += 1;
+    out.set(l.dealId, e);
+  }
+  return out;
+}
+const shortDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+// How a line reads next to its commission: { text, tone }.
+export function payText(l) {
+  if (!l) return null;
+  if (l.status === 'paid') return l.sheet ? { text: 'Paid', tone: 'green' } : { text: `Paid ${l.paidOn ? shortDay(l.paidOn) : ''}${l.method ? ` · ${METHODS[l.method] || l.method}` : ''}`.trim(), tone: 'green' };
+  if (l.status === 'approved') return l.changed ? { text: 'Changed — approve again', tone: 'red' } : { text: 'Approved · to pay', tone: 'blue' };
+  return { text: 'To approve', tone: 'amber' };
 }
 
 // What a line is worth to pay / what was paid.

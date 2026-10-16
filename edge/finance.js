@@ -50,7 +50,7 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     approve: (l) => (l.status === 'owed' || (l.status === 'approved' && l.changed) ? (l.amount > 0 ? null : 'nothing is owed on it') : 'it is not waiting for approval'),
     unapprove: (l) => (l.status === 'approved' ? null : 'it is not approved'),
     pay: (l) => (l.status !== 'approved' ? 'approve it first' : l.changed ? 'its commission changed since it was approved — approve it again' : null),
-    unpay: (l) => (l.status === 'paid' && !l.sheet ? null : l.sheet ? 'it was settled in the sheet' : 'it is not paid'),
+    unpay: (l) => (l.status === 'paid' && !l.sheet ? null : l.sheet ? 'it was marked paid in the deal tracker — set Commission paid to No there' : 'it is not paid'),
   }[action];
   for (const l of picked) {
     const w = why(l);
@@ -81,7 +81,9 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     if (!deal) continue;
     const mine = all.lines.filter((l) => l.dealId === id && !l.gone);
     const allPaid = mine.length > 0 && mine.every((l) => l.status === 'paid' || (action === 'pay' && pickedKeys.has(l.key)));
-    const want = action === 'pay' && allPaid ? 'YES' : action === 'unpay' ? 'NO' : null;
+    // Paid in full → Yes; partly paid or a payment undone → No (Luke, Oct 15:
+    // the tracker follows Finance; the panel shows which parts are paid).
+    const want = action === 'pay' ? (allPaid ? 'YES' : 'NO') : action === 'unpay' ? 'NO' : null;
     const cur = String(deal.commPaid || '').toUpperCase() || null;
     if (!want || cur === want) continue;
     st.push({ commPaid: { id, from: deal.commPaid ?? null, to: want } });

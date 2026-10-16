@@ -19,6 +19,7 @@ import SummaryView from '../deals/SummaryView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
 import PayoutsView from '../finance/PayoutsView.jsx';
+import WiresView from '../finance/WiresView.jsx';
 import StatementsView from '../finance/StatementsView.jsx';
 import FinanceOverview from '../finance/OverviewView.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
@@ -48,7 +49,7 @@ import ZipRules from '../zips/RulesHealth.jsx';
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
-  'fin-payouts': PayoutsView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
+  'fin-payouts': PayoutsView, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,

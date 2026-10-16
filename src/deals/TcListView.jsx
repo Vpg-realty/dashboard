@@ -7,7 +7,7 @@
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
 import { useEffect, useMemo, useState } from 'react';
-import { useDeals } from './store.js';
+import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
 import { buildTcCards, TC_FLAGS } from './tcList.js';
 import { PageHead, Loading, NeedChips, StatusChip } from './ui.jsx';
@@ -26,6 +26,42 @@ const FLAG_CHIP = {
 };
 const FLAG_TEXT = { ip: 'IP ending', past: 'Past COE', closing: 'Closing soon', emd: 'EM receipt to chase' };
 const FOLD_KEY = 'vpg.tc.open';
+const up = (x) => String(x ?? '').trim().toUpperCase();
+
+// Ticks that are really deal fields (Luke, Oct 15: "any edit anywhere should
+// automatically populate the deal sheet"): EM placed asks who placed it and
+// saves EMD paid by (+ EMD sent on today when empty); Buyer EM receipt saves
+// EMD paid by Buyer (VPG + Buyer when VPG had placed it); Title opened with
+// no title agency on file asks for it and saves it. The item then reads
+// "done — from the deal".
+function LinkAsk({ kind, d, onDone }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const save = async (fields, tick) => {
+    setBusy(true); setErr(null);
+    try { await saveDeal(d.id, { fields }, d.updatedAt); onDone(tick); } catch (e) { setErr(e.message); setBusy(false); }
+  };
+  const opt = 'h-7 rounded-md border border-zinc-200 bg-white px-2 text-[12.5px] font-medium text-navy-800 hover:bg-navy-50 disabled:opacity-50';
+  const sent = d.emdSent ? {} : { emdSent: laToday() };
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-lg bg-navy-50 px-2 py-1.5">
+      {kind === 'em' && <>
+        <span className="text-[12px] text-zinc-600">Who placed it? (saved on the deal)</span>
+        <button type="button" disabled={busy} className={opt} onClick={() => save({ emdPaidBy: 'VPG', ...sent })}>VPG</button>
+        <button type="button" disabled={busy} className={opt} onClick={() => save({ emdPaidBy: 'BUYER', ...sent })}>Buyer</button>
+        <button type="button" disabled={busy} className={opt} onClick={() => save({ emdPaidBy: 'VPG + BUYER', ...sent })}>VPG + Buyer</button>
+      </>}
+      {kind === 'title' && <>
+        <input autoFocus value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) save({ title: text.trim() }, true); }} placeholder="Title agency (saved on the deal)"
+          className="h-7 w-56 rounded-md border border-zinc-200 bg-white px-2 text-[12.5px]" />
+        <button type="button" disabled={busy || !text.trim()} className={opt} onClick={() => save({ title: text.trim() }, true)}>Save</button>
+      </>}
+      <button type="button" disabled={busy} onClick={() => onDone(false)} className="text-[12px] text-zinc-500 hover:underline">Cancel</button>
+      {err && <span className="text-[12px] text-red-700">{err}</span>}
+    </div>
+  );
+}
 
 function useTc() {
   const [st, setSt] = useState(null);
@@ -64,6 +100,18 @@ function AddTask({ onAdd }) {
 
 function Card({ c, open, onFold, onOpen, post, busy, today }) {
   const d = c.deal;
+  const [ask, setAsk] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const tick = async (it, v) => {
+    if (v && it.id === 'em' && !it.auto) { setAsk('em'); return; }
+    if (v && it.id === 'title' && !d.title) { setAsk('title'); return; }
+    if (v && it.id === 'buyerem' && !it.auto) {
+      setSaving(true);
+      try { await saveDeal(d.id, { fields: { emdPaidBy: /VPG/.test(up(d.emdPaidBy)) ? 'VPG + BUYER' : 'BUYER' } }, d.updatedAt); } catch (e) { window.alert(e.message); } finally { setSaving(false); }
+      return;
+    }
+    post({ action: 'check', dealId: d.id, item: it.id, done: v });
+  };
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
       {/* The property is the header. */}
@@ -98,12 +146,13 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
               <ul className="flex flex-col gap-1.5">
                 {g.items.map((it) => (
                   <li key={it.id} className="flex items-start gap-2 text-[13px]">
-                    <Check on={!!it.done} auto={it.auto} disabled={!g.active || busy} label={`${d.address}: ${it.label}`} onChange={(v) => post({ action: 'check', dealId: d.id, item: it.id, done: v })} />
+                    <Check on={!!it.done} auto={it.auto} disabled={!g.active || busy || saving} label={`${d.address}: ${it.label}`} onChange={(v) => tick(it, v)} />
                     <span className="min-w-0">
                       <span className={it.done || it.auto ? 'text-zinc-400 line-through decoration-zinc-300' : 'text-zinc-800'}>{it.label}</span>
                       <span className="block text-[11.5px] text-zinc-400">
                         {it.auto ? 'done — from the deal' : it.done ? `${it.done.done_by} · ${when(it.done.done_at)}` : it.dueOn ? `${it.dueOn < today ? 'was due' : it.dueOn === today ? 'due' : 'due'} ${shortDate(it.dueOn)}` : ''}
                       </span>
+                      {ask === it.id && <LinkAsk kind={it.id} d={d} onDone={(alsoTick) => { setAsk(null); if (alsoTick) post({ action: 'check', dealId: d.id, item: it.id, done: true }); }} />}
                     </span>
                   </li>
                 ))}
