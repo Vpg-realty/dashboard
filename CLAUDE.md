@@ -1799,8 +1799,10 @@ Under `src/views/`:
     each person individually to see the CRM scores"): the CRM · Speed column
     is `CrmDots` — five small grade chips (Pipe / Notes / Msg / Dispo / F/U,
     green 2 / amber 1 / red 0, "A" automatic, hover for what the check found)
-    that managers grade straight from the row, the points, and speed under
-    them. **Speed grade box** (Luke, Oct 16: "add speed as a CRM grading box
+    that managers grade straight from the row and the points; from Oct 12 a
+    sixth Speed chip sits in the same evenly spaced row (Luke, Oct 16: no
+    separator, no speed line under the chips; the pod total shows CRM out of
+    12 with one bar). **Speed grade box** (Luke, Oct 16: "add speed as a CRM grading box
     … 40-team standard is 1, team standard and great is 2. lower is 0"): a
     sixth chip after the five CRM items in the row, the expanded row and CRM
     Review — `speedGrade` (scorecard-lib): 2 at 75%+, 1 at 40%+

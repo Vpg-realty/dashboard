@@ -98,22 +98,23 @@ function Num({ v, t, frac = 1, money, children, title }) {
 // CRM · speed: CRM points (out of 10, or of what's graded so far: est.) and
 // the share of agent texts answered within 15 min. The bar is split: left
 // half CRM, right half speed (full at the 75% standard), each in its colour.
-function CrmSpeed({ pts, of, est, ok, total, speedInScore = true }) {
+// From Oct 12 speed is inside CRM (`inCrm`): just the CRM points and one bar.
+function CrmSpeed({ pts, of, est, ok, total, speedInScore = true, inCrm = false }) {
   const crmR = of ? pts / of : null;
   const sp = total ? ok / total : null;
   const crmC = crmR == null ? null : crmR >= 0.875 ? '#059669' : crmR >= 0.5 ? '#d97706' : '#e11d48';
   const spC = total == null ? null : sp == null || sp >= SPEED_T ? '#059669' : sp >= SPEED_T * 0.75 ? '#d97706' : '#e11d48';
   const speedText = total == null ? (speedInScore ? 'speed not checked' : 'speed —') :!total ? 'no agent texts' : `speed ${Math.round(sp * 100)}%`;
   return (
-    <div className="min-w-0 flex flex-col gap-1.5" title={`CRM: ${of ? `${pts} of ${of} points${est ? ' (not every item graded yet)' : ''}` : 'not graded yet'} · Speed: ${total == null ? 'no messaging check has run yet' : total ? `${ok} of ${total} agent texts answered within 15 min (target ${Math.round(SPEED_T * 100)}%)` : 'no agent texts in business hours'}${speedInScore ? '' : ' · speed not in the score before Oct 12'}`}>
+    <div className="min-w-0 flex flex-col gap-1.5" title={`CRM: ${of ? `${pts} of ${of} points${est ? ' (not every item graded yet)' : ''}` : 'not graded yet'}${inCrm ? ' (speed included)' : ''} · Speed: ${total == null ? 'no messaging check has run yet' : total ? `${ok} of ${total} agent texts answered within 15 min (target ${Math.round(SPEED_T * 100)}%)` : 'no agent texts in business hours'}${speedInScore ? '' : ' · speed not in the score before Oct 12'}`}>
       <span className="leading-none whitespace-nowrap truncate">
         <span className={`text-[20px] font-bold tabular-nums ${of ?'text-zinc-900' : 'text-zinc-300'}`}>{of ? pts : '–'}</span>
         <span className="text-[13px] font-medium text-zinc-500">/{of || 10}{est && of ? ' est.' : ''}</span>
-        <span className={`text-[13px] font-medium ${total == null ? 'text-zinc-400 italic' : 'text-zinc-600'}`}> · {speedText}</span>
+        {!inCrm && <span className={`text-[13px] font-medium ${total == null ? 'text-zinc-400 italic' : 'text-zinc-600'}`}> · {speedText}</span>}
       </span>
       <span className="flex gap-[3px] h-2">
         <span className="relative flex-1 rounded-full bg-[#eee8dc] overflow-hidden">{crmR != null && <span className="absolute inset-y-0 left-0" style={{ width: `${crmR * 100}%`, background: crmC }} />}</span>
-        <span className="relative flex-1 rounded-full bg-[#eee8dc] overflow-hidden">{total != null && <span className="absolute inset-y-0 left-0" style={{ width: `${sp == null ? 100 : Math.min(1, sp / SPEED_T) * 100}%`, background: spC }} />}</span>
+        {!inCrm && <span className="relative flex-1 rounded-full bg-[#eee8dc] overflow-hidden">{total != null && <span className="absolute inset-y-0 left-0" style={{ width: `${sp == null ? 100 : Math.min(1, sp / SPEED_T) * 100}%`, background: spC }} />}</span>}
       </span>
     </div>
   );
@@ -123,16 +124,15 @@ function CrmSpeed({ pts, of, est, ok, total, speedInScore = true }) {
 // to click into each person individually to see the CRM scores"): a small
 // chip per item — green 2, amber 1, red 0, grey not graded, "A" = automatic —
 // with its short name under it; managers pick a grade from the chip's list
-// without opening the row. Speed sits on the line under them.
+// without opening the row. Speed is the sixth box (Luke, Oct 16: no separate
+// speed line under them — it's counted in here).
 const DOT_LABEL = { pipeline: 'Pipe', notes: 'Notes', messaging: 'Msg', dispo: 'Dispo', followups: 'F/U' };
-function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
+function CrmDots({ row, canEdit, onCrm }) {
   const { id, crm, manual, auto, n, s } = row;
   // Points over every item that counts (six with speed from Oct 12).
   const grades = s?.crmGrades || crm || [];
   const pts = grades.reduce((a, v) => a + (v ?? 0), 0);
   const graded = grades.filter((v) => v != null).length;
-  const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
-  const spC = n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700';
   return (
     <div className="min-w-0 flex flex-col gap-1">
       <div className="flex items-start gap-1">
@@ -162,7 +162,7 @@ function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
             </span>
           );
         })}
-        <span className="flex flex-col items-center w-[2.35rem] ml-1 pl-1 border-l border-tan-200">
+        <span className="flex flex-col items-center w-[2.35rem]">
           <span title={speedWhy(n)} className={`relative w-8 h-8 rounded-md flex items-center justify-center text-[15px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
             {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
             {n.speedTotal != null && <span className="absolute -top-0.5 right-0.5 text-[8.5px] font-bold opacity-80">A</span>}
@@ -171,7 +171,6 @@ function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
         </span>
         <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap" title={s?.speedInCrm ? 'CRM points: the six items, speed included' : 'CRM points: the five items (speed not in the score this week)'}>{graded ? `${pts}/${2 * graded}` : '–'}</span>
       </div>
-      <span className={`text-[12.5px] font-medium ${spC}`}>{n.speedTotal == null ? (speedInScore ? 'speed not checked' : 'speed —') : !n.speedTotal ? 'no agent texts' : `speed ${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
     </div>
   );
 }
@@ -243,7 +242,7 @@ function CrmChips({ row, canEdit, onCrm }) {
         );
       })}
       {n && (
-        <div className="flex flex-col items-center gap-1 w-[4.6rem] pl-2 border-l border-tan-200">
+        <div className="flex flex-col items-center gap-1 w-[4.6rem]">
           <span title={speedWhy(n)} className={`relative w-12 h-11 rounded-lg flex items-center justify-center text-[20px] font-bold cursor-default ${chip(sg)}`}>
             {sg ?? '–'}
             {n.speedTotal != null && <span className="absolute top-0.5 right-1 text-[10px] font-bold opacity-80">A</span>}
@@ -328,7 +327,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
         <Num v={n.offersW} t={T.offersPerWeek} frac={frac} />
         <Num v={n.oppsW} t={T.oppsOpenedPerWeek} frac={frac} />
         <Num v={n.projected} t={s.projectedPace} money title={`Projected $ month to date (closed + Assigned with a COE this month) vs $6,250 × week ${wom} of the month`} />
-        <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} speedInScore={s.speedInCrm || s.weights.speed > 0} />
+        <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} />
         <span className={`justify-self-start rounded-full px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap ${tone.bg} ${tone.text}`} title={move.why}>{move.text}</span>
         <span className={`text-zinc-400 text-[14px] transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▸</span>
       </div>
@@ -414,7 +413,7 @@ function PodTotal({ g, frac }) {
       <Num v={sum('offersW')} t={T.offersPerWeek * n} frac={frac} />
       <Num v={sum('oppsW')} t={T.oppsOpenedPerWeek * n} frac={frac} />
       <Num v={sum('projected')} t={projT} money />
-      <CrmSpeed pts={crm10 == null ? 0 : Math.round(crm10 * 10) / 10} of={crm10 == null ? 0 : crmOf} ok={sum('speedOk')} total={total} speedInScore={g.rows[0].s.speedInCrm || g.rows[0].s.weights.speed > 0} />
+      <CrmSpeed pts={crm10 == null ? 0 : Math.round(crm10 * 10) / 10} of={crm10 == null ? 0 : crmOf} ok={sum('speedOk')} total={total} speedInScore={g.rows[0].s.speedInCrm || g.rows[0].s.weights.speed > 0} inCrm={!!g.rows[0].s.speedInCrm} />
       <span className="text-[13px] text-zinc-500">CRM = average of the graded reps</span>
       <span />
     </div>
