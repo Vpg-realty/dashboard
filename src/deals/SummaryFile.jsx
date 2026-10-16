@@ -81,7 +81,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
             </div>
             <button type="button" onClick={close} aria-label="Close" className="ml-auto w-9 h-9 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 text-xl leading-none">×</button>
           </div>
-          <div className="mt-3 inline-flex rounded-xl bg-white/95 px-2 py-1.5 text-zinc-800"><PeriodBar deals={deals} defaultKey="y:2026" /></div>
+          <div className="mt-3 inline-flex"><PeriodBar deals={deals} defaultKey="y:2026" /></div>
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 grid gap-4 content-start">

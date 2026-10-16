@@ -1030,7 +1030,9 @@ the server strips them (`forTc`) and refuses edits to them.
   Same on Active (both lists and Needs info).
 - **Period picker** (`PeriodBar.jsx`, Luke Oct 16: "not clear enough. i
   got stuck on march … easy way to go back and forth between FY and month"):
-  a Year / Quarter / Month / All / Custom switch (switching keeps the time —
+  a Year / Quarter / Month / All / Custom switch — the Pipeline "Viewing"
+  style (dark track, picked one raised in tan; no white tray on the navy
+  bands) — (switching keeps the time —
   March → Q1 → 2026; a period that holds today goes to today's month /
   quarter), ‹ › to step, and the period's name opens a jump picker (a year
   with ‹ › and its months / quarters + "All of <year>", or the years).

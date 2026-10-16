@@ -252,7 +252,7 @@ export default function SummaryView() {
   return (
     <div className="max-w-[1720px] mx-auto">
       <FinanceHead eyebrow="Deal Summary" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
-        right={<div className="rounded-xl bg-white/95 px-2 py-1.5 text-zinc-800"><PeriodBar deals={s.deals} defaultKey="y:2026" /></div>} />
+        right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <Rail view={view} counts={counts} />
         <div className="min-w-0">

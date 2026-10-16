@@ -49,10 +49,12 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
   const arrow = 'w-7 h-8 grid place-items-center rounded-md text-[16px] text-navy-800 hover:bg-tan-100';
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span role="group" aria-label="Period kind" className="inline-flex gap-0.5 rounded-lg bg-tan-100/80 p-[3px]">
+      {/* The same switch as Pipeline's "Viewing" (Luke, Oct 16 — option 1):
+          a dark track, the picked one raised in tan. */}
+      <span role="group" aria-label="Period kind" className="inline-flex gap-0.5 rounded-lg bg-navy-800 p-[3px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
         {KINDS.map(([k, l]) => (
           <button key={k} type="button" aria-pressed={kind === k} onClick={() => kind !== k && switchKind(k)}
-            className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold ${kind === k ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 hover:bg-white'}`}>{l}</button>
+            className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold ${kind === k ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{l}</button>
         ))}
       </span>
       {(kind === 'y' || kind === 'q' || kind === 'm') && (
@@ -81,7 +83,7 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
           <option value="yoy">vs same period last year</option>
         </select>
       )}
-      {compare && <span className="text-xs text-zinc-500">Comparing with {compare.label}</span>}
+      {compare && <span className="text-xs opacity-70">Comparing with {compare.label}</span>}
     </div>
   );
 }
@@ -101,7 +103,7 @@ function JumpPicker({ kind, period, years }) {
     return () => { document.removeEventListener('mousedown', away); window.removeEventListener('keydown', esc); };
   }, [open]);
   const go = (p) => { setQuery({ p }); setOpen(false); };
-  const cell = (on) => `h-8 rounded-md text-[13px] font-semibold ${on ? 'bg-navy-700 text-white' : 'text-navy-800 hover:bg-tan-100'}`;
+  const cell = (on) => `h-8 rounded-md text-[13px] font-semibold ${on ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.25)]' : 'text-navy-800 hover:bg-tan-100'}`;
   return (
     <span ref={box} className="relative">
       <button type="button" aria-expanded={open} onClick={() => { setYear(+period.from.slice(0, 4)); setOpen(!open); }}
