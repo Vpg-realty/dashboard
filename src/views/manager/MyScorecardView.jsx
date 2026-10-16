@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
 import { REPS, ghlOppUrl, ghlConvUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
-import { CRM_ITEMS, autoCrm, SPEED_WEIGHTS } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import { linkProps } from '../../shell/router.js';
 import RepView from './RepView.jsx';
@@ -90,7 +90,7 @@ function SpeedKpi({ ok, total }) {
   const cls = { good: ['border-emerald-200 bg-emerald-50', 'text-emerald-700', '#059669'], close: ['border-amber-200 bg-amber-50', 'text-amber-700', '#d97706'], bad: ['border-red-200 bg-red-50', 'text-red-700', '#dc2626'] }[tone] || ['border-zinc-200 bg-zinc-50', 'text-zinc-500', '#a1a1aa'];
   const word = tone == null ? '' : r == null ? 'No agent texts' : tone === 'good' ? 'On target' : tone === 'close' ? 'Near target' : 'Below target';
   return (
-    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${cls[0]}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · worth ${SPEED_WEIGHTS.speed} points`}>
+    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${cls[0]}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · one of your six CRM items: 2 at ${Math.round(SPEED_TARGET * 100)}%+, 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+`}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-medium text-zinc-600 whitespace-nowrap">Answered ≤ {ANSWER_WITHIN_MIN} min</span>
         <span className={`ml-auto text-[11.5px] font-semibold ${cls[1]}`}>{word}</span>
@@ -162,12 +162,12 @@ function FixList({ pairs, monday, crm, manual, m }) {
     const bad = byManager ? [] : d?.bad || [];
     rows.push({ key: it.key, label: it.label, help: it.help, g, bad, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
   });
-  // Speed to response is its own part of the score: below the standard, the
-  // texts behind it are listed here too.
+  // Speed is the sixth CRM item (Luke, Oct 16): below the standard, the texts
+  // behind it are listed here too.
   if (m.speedTotal && m.speedOk / m.speedTotal < SPEED_TARGET) {
     const bad = slowTexts(pairs);
     const r = m.speedOk / m.speedTotal;
-    rows.push({ key: 'speed', label: `Answer agent texts within ${ANSWER_WITHIN_MIN} minutes`, help: '', g: r >= SPEED_TARGET * 0.75 ? 1 : 0, bad, total: Math.max(bad.length, m.speedTotal - m.speedOk), note: `${m.speedOk} of ${m.speedTotal} answered in time (${Math.round(r * 100)}%, target ${Math.round(SPEED_TARGET * 100)}%)` });
+    rows.push({ key: 'speed', label: `Answer agent texts within ${ANSWER_WITHIN_MIN} minutes`, help: '', g: speedGrade(m.speedOk, m.speedTotal), bad, total: Math.max(bad.length, m.speedTotal - m.speedOk), note: `${m.speedOk} of ${m.speedTotal} answered in time (${Math.round(r * 100)}%, target ${Math.round(SPEED_TARGET * 100)}%)` });
   }
   const badge = (g) => (g == null ? 'bg-zinc-200 text-zinc-500' : g === 1 ? 'bg-amber-500 text-white' : 'bg-red-600 text-white');
   return (
@@ -176,7 +176,7 @@ function FixList({ pairs, monday, crm, manual, m }) {
       <div className="p-5 flex flex-col gap-2.5">
         {rows.map(({ key, label, help, g, bad, total, note }) => (
           <div key={key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
-            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{key === 'speed' ? '!' : g ?? '–'}</span>
+            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-zinc-900">{label} <span className="font-normal text-zinc-500">· {note}</span></div>
               {bad.length > 0 ? <BadList bad={bad} total={total} /> : <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}

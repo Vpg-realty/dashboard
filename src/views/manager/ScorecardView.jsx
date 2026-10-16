@@ -29,7 +29,7 @@ import { ScoreHelp } from './Score.jsx';
 import useMonthLog from './useMonthLog.js';
 import { addedContractsInRange } from './monthReview.js';
 import { T, metrics, teamMetrics, repPairs, scoreTone, paceTone, scoreParts, mostPointsLeft, rangeMetrics, addMetrics, STEPS, rate, pct, biggestLeak } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET } from '../../../scripts/scorecard-lib.mjs';
+import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET, speedGrade, SPEED_GRADE_ONE, speedInCrm } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import { weekSeries, avgOf, crmTenths } from './trends.js';
 import TrendsView from './TrendsView.jsx';
@@ -40,9 +40,14 @@ const k = (v) => { const x = (v || 0) / 1000; return `$${x >= 100 || Number.isIn
 const signed = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0');
 const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-400' : v === 2 ? 'bg-emerald-500 text-white' : v === 1 ? 'bg-amber-400 text-amber-950' : 'bg-rose-600 text-white');
 const SPEED_T = MESSAGING_SPEED_TARGET;
+// The Speed grade box (Luke, Oct 16), automatic only: speedGrade in
+// scorecard-lib. Its hover says how it was reached.
+const speedWhy = (n) => (n.speedTotal == null ? 'Speed: no messaging check has run yet'
+  : !n.speedTotal ? 'Speed: no agent texts in business hours — 2'
+    : `Speed: ${n.speedOk} of ${n.speedTotal} agent texts answered within 15 min (${Math.round((n.speedOk / n.speedTotal) * 100)}%)\n2 at ${Math.round(SPEED_T * 100)}%+ (team standard), 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+, 0 below\nGraded automatically — the sixth CRM item (CRM out of 12).`);
 
 // Columns: rep · score · contracts · offers · opps · projected $ · CRM · speed · next move · chevron.
-const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 15.5rem 11rem 1.25rem' };
+const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 18.5rem 11rem 1.25rem' };
 const HEAD = 'text-[15px] font-bold text-navy-700 leading-tight';
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
@@ -100,7 +105,7 @@ function CrmSpeed({ pts, of, est, ok, total, speedInScore = true }) {
   const spC = total == null ? null : sp == null || sp >= SPEED_T ? '#059669' : sp >= SPEED_T * 0.75 ? '#d97706' : '#e11d48';
   const speedText = total == null ? (speedInScore ? 'speed not checked' : 'speed —') :!total ? 'no agent texts' : `speed ${Math.round(sp * 100)}%`;
   return (
-    <div className="min-w-0 flex flex-col gap-1.5" title={`CRM: ${of ? `${pts} of ${of} points${est ? ` (${of / 2} of 5 items graded)` : ''}` : 'not graded yet'} · Speed: ${total == null ? 'no messaging check has run yet' : total ? `${ok} of ${total} agent texts answered within 15 min (target ${Math.round(SPEED_T * 100)}%)` : 'no agent texts in business hours'}${speedInScore ? '' : ' · speed not in the score before Oct 12'}`}>
+    <div className="min-w-0 flex flex-col gap-1.5" title={`CRM: ${of ? `${pts} of ${of} points${est ? ' (not every item graded yet)' : ''}` : 'not graded yet'} · Speed: ${total == null ? 'no messaging check has run yet' : total ? `${ok} of ${total} agent texts answered within 15 min (target ${Math.round(SPEED_T * 100)}%)` : 'no agent texts in business hours'}${speedInScore ? '' : ' · speed not in the score before Oct 12'}`}>
       <span className="leading-none whitespace-nowrap truncate">
         <span className={`text-[20px] font-bold tabular-nums ${of ?'text-zinc-900' : 'text-zinc-300'}`}>{of ? pts : '–'}</span>
         <span className="text-[13px] font-medium text-zinc-500">/{of || 10}{est && of ? ' est.' : ''}</span>
@@ -121,9 +126,11 @@ function CrmSpeed({ pts, of, est, ok, total, speedInScore = true }) {
 // without opening the row. Speed sits on the line under them.
 const DOT_LABEL = { pipeline: 'Pipe', notes: 'Notes', messaging: 'Msg', dispo: 'Dispo', followups: 'F/U' };
 function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
-  const { id, crm, manual, auto, n } = row;
-  const pts = (crm || []).reduce((a, v) => a + (v ?? 0), 0);
-  const graded = (crm || []).filter((v) => v != null).length;
+  const { id, crm, manual, auto, n, s } = row;
+  // Points over every item that counts (six with speed from Oct 12).
+  const grades = s?.crmGrades || crm || [];
+  const pts = grades.reduce((a, v) => a + (v ?? 0), 0);
+  const graded = grades.filter((v) => v != null).length;
   const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
   const spC = n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700';
   return (
@@ -155,7 +162,14 @@ function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
             </span>
           );
         })}
-        <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap">{graded ? `${pts}/${2 * graded}` : '–'}</span>
+        <span className="flex flex-col items-center w-[2.35rem] ml-1 pl-1 border-l border-tan-200">
+          <span title={speedWhy(n)} className={`relative w-8 h-8 rounded-md flex items-center justify-center text-[15px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
+            {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
+            {n.speedTotal != null && <span className="absolute -top-0.5 right-0.5 text-[8.5px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="mt-0.5 text-[10.5px] leading-none text-zinc-500">Speed</span>
+        </span>
+        <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap" title={s?.speedInCrm ? 'CRM points: the six items, speed included' : 'CRM points: the five items (speed not in the score this week)'}>{graded ? `${pts}/${2 * graded}` : '–'}</span>
       </div>
       <span className={`text-[12.5px] font-medium ${spC}`}>{n.speedTotal == null ? (speedInScore ? 'speed not checked' : 'speed —') : !n.speedTotal ? 'no agent texts' : `speed ${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
     </div>
@@ -176,8 +190,9 @@ function nextMove(n, crm, wom, week) {
   else if (part.key === 'speed') text = 'Answer agents faster';
   else {
     // CRM: name the lowest-graded item.
-    const i = (crm || []).reduce((b, v, j) => (v != null && v < 2 && (b < 0 || v < crm[b]) ? j : b), -1);
-    text = i >= 0 ? `Fix ${CRM_ITEMS[i].short}` : 'Clean up the CRM';
+    const g = speedInCrm(week) ? [...Array.from({ length: 5 }, (_, j) => crm?.[j] ?? null), speedGrade(n.speedOk, n.speedTotal)] : crm || [];
+    const i = g.reduce((b, v, j) => (v != null && v < 2 && (b < 0 || v < g[b]) ? j : b), -1);
+    text = i === 5 ? 'Answer agents faster' : i >= 0 ? `Fix ${CRM_ITEMS[i].short}` : 'Clean up the CRM';
   }
   return { text, why: `${part.label}: worth up to ${gain} more points this week` };
 }
@@ -188,7 +203,8 @@ const NoteIcon = ({ note }) => (
 
 // The five CRM chips with the grade dropdowns, as before.
 function CrmChips({ row, canEdit, onCrm }) {
-  const { id, crm, manual, auto } = row;
+  const { id, crm, manual, auto, n } = row;
+  const sg = n ? speedGrade(n.speedOk, n.speedTotal) : null;
   return (
     <div className="flex gap-2">
       {CRM_ITEMS.map((it, i) => {
@@ -226,6 +242,15 @@ function CrmChips({ row, canEdit, onCrm }) {
           </div>
         );
       })}
+      {n && (
+        <div className="flex flex-col items-center gap-1 w-[4.6rem] pl-2 border-l border-tan-200">
+          <span title={speedWhy(n)} className={`relative w-12 h-11 rounded-lg flex items-center justify-center text-[20px] font-bold cursor-default ${chip(sg)}`}>
+            {sg ?? '–'}
+            {n.speedTotal != null && <span className="absolute top-0.5 right-1 text-[10px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="text-[12px] leading-tight text-center text-zinc-600">Speed</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -273,7 +298,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
   const { id, n, crm, manual, auto, note, s, prev } = row;
   const rep = repOf(id);
   const tone = scoreTone(s.score);
-  const crmPts = s.crmKnown ? crm.reduce((a, v) => a + (v ?? 0), 0) : 0;
+  const crmPts = s.crmHave;
   const move = nextMove(n, crm, wom, week);
   const cancels = (n.cancelsW || 0) + (n.cancelsM || 0) > 0;
   return (
@@ -293,7 +318,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
           <button onClick={(e) => { e.stopPropagation(); onPickRep?.(id); }} className="text-[17px] font-semibold text-zinc-900 truncate hover:text-navy-700 hover:underline underline-offset-2 text-left" title={`Open ${rep.name}'s page`}>{first(id)}</button>
           {showNotes && note && <NoteIcon note={note} />}
         </span>
-        <span className={`justify-self-start inline-flex flex-col items-start rounded-[10px] px-3 py-1.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of 5 CRM items graded${s.weights.speed && !s.speedKnown ? ', speed not checked yet' : ''} (graded parts scaled to 100)` : ratingOf(s.score)}>
+        <span className={`justify-self-start inline-flex flex-col items-start rounded-[10px] px-3 py-1.5 ${tone.bg} ${tone.text}`} title={s.estimate ? `Estimate: ${s.crmKnown} of ${s.crmItems} CRM items graded${s.weights.speed && !s.speedKnown ? ', speed not checked yet' : ''} (graded parts scaled to 100)` : ratingOf(s.score)}>
           <span className="text-[22px] font-bold leading-[1.1] tabular-nums">{s.score}{s.estimate && <span className="text-[11px] font-semibold ml-1">est.</span>}</span>
           <span className="text-[12px] font-semibold whitespace-nowrap">{tone.label}{prev != null ? ` ${signed(s.score - prev)}` : ''}</span>
         </span>
@@ -303,7 +328,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
         <Num v={n.offersW} t={T.offersPerWeek} frac={frac} />
         <Num v={n.oppsW} t={T.oppsOpenedPerWeek} frac={frac} />
         <Num v={n.projected} t={s.projectedPace} money title={`Projected $ month to date (closed + Assigned with a COE this month) vs $6,250 × week ${wom} of the month`} />
-        <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} speedInScore={s.weights.speed > 0} />
+        <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} speedInScore={s.speedInCrm || s.weights.speed > 0} />
         <span className={`justify-self-start rounded-full px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap ${tone.bg} ${tone.text}`} title={move.why}>{move.text}</span>
         <span className={`text-zinc-400 text-[14px] transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▸</span>
       </div>
@@ -353,7 +378,7 @@ function TableHead() {
       <span className={HEAD}>Offers</span>
       <span className={HEAD}>Opps</span>
       <span className={HEAD}>Projected $</span>
-      <span className={HEAD}>CRM <span className="font-medium text-zinc-500 text-[12.5px]">(5 items)</span> · Speed</span>
+      <span className={HEAD}>CRM <span className="font-medium text-zinc-500 text-[12.5px]">(6 items, speed incl.)</span></span>
       <span className={HEAD}>Next move</span>
       <span />
     </div>
@@ -370,7 +395,8 @@ function PodTotal({ g, frac }) {
   const score = Math.round(avgOf(g.rows.map((r) => r.s.score)));
   const tone = scoreTone(score);
   const projT = g.rows.reduce((a, r) => a + r.s.projectedPace, 0);
-  const crm10 = avgOf(g.rows.map((r) => crmTenths(r.crm)).filter((v) => v != null));
+  const crmOf = 2 * (g.rows[0].s.crmItems || 5);
+  const crm10 = avgOf(g.rows.map((r) => crmTenths(r.s.crmGrades || r.crm, crmOf)).filter((v) => v != null));
   const total = g.rows.some((r) => r.n.speedTotal != null) ? sum('speedTotal') : null;
   const cw = sum('cancelsW');
   return (
@@ -388,7 +414,7 @@ function PodTotal({ g, frac }) {
       <Num v={sum('offersW')} t={T.offersPerWeek * n} frac={frac} />
       <Num v={sum('oppsW')} t={T.oppsOpenedPerWeek * n} frac={frac} />
       <Num v={sum('projected')} t={projT} money />
-      <CrmSpeed pts={crm10 == null ? 0 : Math.round(crm10 * 10) / 10} of={crm10 == null ? 0 : 10} ok={sum('speedOk')} total={total} speedInScore={g.rows[0].s.weights.speed > 0} />
+      <CrmSpeed pts={crm10 == null ? 0 : Math.round(crm10 * 10) / 10} of={crm10 == null ? 0 : crmOf} ok={sum('speedOk')} total={total} speedInScore={g.rows[0].s.speedInCrm || g.rows[0].s.weights.speed > 0} />
       <span className="text-[13px] text-zinc-500">CRM = average of the graded reps</span>
       <span />
     </div>
@@ -521,7 +547,6 @@ function RepDrawer({ id, ids, onPick, onClose, onFullPage }) {
 function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, onToggle }) {
   const { id, crm, manual, auto, note, n, s } = row;
   const rep = repOf(id);
-  const pts = (crm || []).reduce((a, v) => a + (v ?? 0), 0);
   const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
   return (
     <div className={`border-b border-[#f0ebe1] ${open ? 'bg-tan-50/60' : ''}`}>
@@ -560,8 +585,17 @@ function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, on
             </span>
           );
         })}
-        <span className="pt-1 text-[18px] font-bold tabular-nums text-navy-800">{s.crmKnown ? `${pts}` : '–'}<span className="text-[12.5px] font-medium text-zinc-500">/{2 * (s.crmKnown || 5)}</span></span>
-        <span className={`pt-1.5 text-[13px] font-semibold ${n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no texts' : `${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
+        <span className="flex items-start gap-2 min-w-0" title={speedWhy(n)}>
+          <span className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
+            {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
+            {n.speedTotal != null && <span className="absolute top-0 right-1 text-[9px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="min-w-0 text-[12.5px] leading-snug">
+            <span className={`block font-semibold ${n.speedTotal == null ? 'text-zinc-400' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_GRADE_ONE ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no agent texts' : `${Math.round(sp * 100)}% answered`}</span>
+            {!!n.speedTotal && <span className="block text-zinc-500">{n.speedOk} of {n.speedTotal} texts</span>}
+          </span>
+        </span>
+        <span className="pt-1 text-[18px] font-bold tabular-nums text-navy-800">{s.crmKnown ? `${s.crmHave}` : '–'}<span className="text-[12.5px] font-medium text-zinc-500">/{2 * (s.crmKnown || s.crmItems)}</span></span>
         {showNotes && (
           <span onClick={(e) => e.stopPropagation()}>
             {canEdit ? (
@@ -575,14 +609,14 @@ function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, on
     </div>
   );
 }
-const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(5,minmax(8.5rem,1fr)) 4.5rem 7.5rem minmax(12rem,1.4fr)' };
+const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(6,minmax(8.5rem,1fr)) 4.5rem minmax(12rem,1.4fr)' };
 function CrmReviewHead({ showNotes }) {
   return (
     <div className="grid gap-x-3 items-end px-5 py-2.5 bg-[#eef2f7] border-y border-[#d5deea]" style={CGRID}>
       <span className={HEAD}>Rep</span>
       {CRM_ITEMS.map((it) => <span key={it.key} className={HEAD} title={it.help}>{it.short}</span>)}
-      <span className={HEAD}>CRM</span>
       <span className={HEAD}>Speed</span>
+      <span className={HEAD}>CRM</span>
       {showNotes && <span className={HEAD}>Note</span>}
     </div>
   );
@@ -780,7 +814,7 @@ export default function ScorecardView({ onPickRep, mode }) {
         </div>}
         {crmMode && (
           <div className="rounded-xl bg-navy-50 border border-navy-100 px-5 py-3 text-[13.5px] text-navy-800">
-            Every rep's five CRM items on one screen. <b>A</b> = graded automatically from GHL; click a chip to set a grade (or put it back to Automatic), write the week's note on the right, then <b>Save</b>. Click a row to see the deals and texts behind each grade; click a name for the rep's page.
+            Every rep's six CRM items (the five checklist items + Speed, out of 12) on one screen. <b>A</b> = graded automatically from GHL; click a chip to set a grade (or put it back to Automatic), write the week's note on the right, then <b>Save</b>. Click a row to see the deals and texts behind each grade; click a name for the rep's page.
           </div>
         )}
 
@@ -805,14 +839,14 @@ export default function ScorecardView({ onPickRep, mode }) {
             pod leads, and no pod"); by score, one ranked card. */}
         {!sc.loaded && <div className="text-[14px] text-zinc-400 px-1">Loading scorecards…</div>}
         {byScore ? (ranked.length > 0 && (
-          <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm">
+          <section className="rounded-2xl bg-white border border-tan-200 overflow-x-auto shadow-sm">
             {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
             {ranked.map((r, i) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} rank={i + 1} {...rowProps(r)} />))}
           </section>
         )) : shownGroups.map((g) => {
           const c = POD_COLORS[g.podId] || NEUTRAL;
           return (
-            <section key={g.title} className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm" style={{ boxShadow: `inset 0 4px 0 ${c.line}` }}>
+            <section key={g.title} className="rounded-2xl bg-white border border-tan-200 overflow-x-auto shadow-sm" style={{ boxShadow: `inset 0 4px 0 ${c.line}` }}>
               <div className={`flex items-baseline gap-3 px-6 pt-4 pb-3 ${c.band}`}>
                 <h3 className={`text-[19px] font-bold ${c.text}`}>{g.podName}</h3>
                 {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
@@ -831,8 +865,8 @@ export default function ScorecardView({ onPickRep, mode }) {
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">
           <span><b className="text-navy-700">Each number</b> is this week against the weekly target. The bar turns green when the rep is at or ahead of where they should be by now{isLive ? ' (the navy tick)' : ''}, amber when close (75%+ of it), red when further behind. Projected $ is the month so far (closed + Assigned with a COE this month) against $6,250 × week {wom} of the month.</span>
-          <span><b className="text-navy-700">Score</b> out of 100 — {Object.entries(weightsFor(week)).filter(([, w]) => w).map(([key, w]) => `${key === 'crm' ? 'CRM' : key} ${w}`).join(', ')}; no contract caps it at 89. Strong 90+, Watch 75–89, Behind under 75 (worth a 1-on-1). The change is against the last finished week. “est.” means not every part is graded yet, so the graded parts are scaled up to 100.</span>
-          <span><b className="text-navy-700">CRM · Speed</b>: CRM points out of 10 (five items, 0–2 each; A = graded automatically from GHL, a manager’s pick wins) and the share of agent texts answered within 15 minutes (standard {Math.round(SPEED_T * 100)}%). <b className="text-navy-700">Next move</b> is the part of the score with the most points left. Click a row to see the CRM checklist{showNotes ? ', set grades and write a note' : ''}; click a name for the rep’s page.</span>
+          <span><b className="text-navy-700">Score</b> out of 100 — {Object.entries(weightsFor(week)).filter(([, w]) => w).map(([key, w]) => `${key === 'crm' ? `CRM${speedInCrm(week) ? ' (six items, speed included)' : ''}` : key} ${w}`).join(', ')}; no contract caps it at 89. Strong 90+, Watch 75–89, Behind under 75 (worth a 1-on-1). The change is against the last finished week. “est.” means not every part is graded yet, so the graded parts are scaled up to 100.</span>
+          <span><b className="text-navy-700">CRM</b>: {speedInCrm(week) ? <>points out of 12 — six items, 0–2 each, the last one Speed (agent texts answered within 15 minutes: 2 at {Math.round(SPEED_T * 100)}%+, 1 at {Math.round(SPEED_GRADE_ONE * 100)}%+)</> : <>points out of 10 — five items, 0–2 each</>}; A = graded automatically from GHL, a manager’s pick wins. <b className="text-navy-700">Next move</b> is the part of the score with the most points left. Click a row to see the CRM checklist{showNotes ? ', set grades and write a note' : ''}; click a name for the rep’s page.</span>
           <span><b className="text-navy-700">Where they leak</b>: green = at or above the team rate, amber = up to 20% below it, red = more than 20% below; the ring marks the biggest leak (only when 20%+ below the team).</span>
         </div>
       </div>
