@@ -85,8 +85,8 @@ export const SECRET_KEYS = FIELDS.filter((f) => f.secret).map((f) => f.key);
 export const CALC_KEYS = FIELDS.filter((f) => f.calc).map((f) => f.key);
 
 export const GROUPS = [
-  ['contract', 'Contract'], ['title', 'Title'], ['emd', 'EMD'], ['dd', 'Due diligence'],
-  ['dispo', 'Dispositions'], ['money', 'Financials'], ['pay', 'Commissions & profit'], ['notes', 'Notes & links'],
+  ['contract', 'Contract'], ['title', 'Title'], ['emd', 'EMD'], ['dd', 'Due Diligence'],
+  ['dispo', 'Dispositions'], ['money', 'Financials'], ['pay', 'Commissions & Profit'], ['notes', 'Notes & Links'],
 ];
 
 // "No data" (Luke, Oct 14): empty, null or a dash. A 0 is data.

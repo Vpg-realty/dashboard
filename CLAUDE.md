@@ -506,6 +506,17 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the V mark on Home. Status colours (red / amber / green) and rep colours
   stay as they were; the TV board is unchanged. The company font
   (Montserrat) isn't used — Luke: harder to read.
+- **Proper case for titles** (Luke, Oct 16: "chart titles or headers to be
+  proper case throughout the whole site"): `src/shell/titleCase.js`
+  (`titleCase` — small words a / an / and / & / as / at / by / for / in / of /
+  on / or / per / the / to / vs stay lower unless first; words with a capital
+  or starting with a digit / symbol are left as they are) is applied by every
+  shared header — PanelHead / Panel (app and TV), FinanceHead, Settings'
+  Frame, ManagerFrame, Home's Card groups, Active's fold bars, the deals page
+  title, the Pipeline column titles and the Calendar headline; one-off
+  headings are written in proper case, as are the deal groups (`GROUPS`,
+  All deals' bands). Write new titles in proper case; labels, pills and
+  uppercase eyebrows are untouched.
 - **Card headers** (Luke, Oct 14: "blue headers for the charts …
   uniform"; Oct 15: "easy to miss … match the dark blue … brand focused …
   across the entire site"): `src/shell/Panel.jsx` (`Panel`, `PanelHead`) — a

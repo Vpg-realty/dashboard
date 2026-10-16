@@ -101,7 +101,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
 
           <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-tan-100">
-              <h3 className="text-[15px] font-semibold text-navy-800 mr-2">Deals counted</h3>
+              <h3 className="text-[15px] font-semibold text-navy-800 mr-2">Deals Counted</h3>
               {FILTERS.map(([k, l]) => (
                 <button key={k} type="button" onClick={() => setQuery({ fs: k === 'all' ? null : k })} aria-pressed={fs === k}
                   className={`h-7 px-2.5 rounded-full text-[12.5px] font-medium ring-1 ring-inset ${fs === k ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:ring-navy-300'}`}>

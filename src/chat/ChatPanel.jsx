@@ -76,7 +76,7 @@ function Panel({ page, onClose }) {
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400"><Spark />Ask Claude · {isRep ? 'only you see this' : 'owners only'}</div>
-              <h2 className="mt-1 text-[19px] font-semibold">{isRep ? 'Your zips' : page === 'zips' ? 'Territory & zip questions' : 'Territory questions'}</h2>
+              <h2 className="mt-1 text-[19px] font-semibold">{isRep ? 'Your Zips' : page === 'zips' ? 'Territory & Zip Questions' : 'Territory Questions'}</h2>
               <div className="text-[12.5px] text-navy-100 mt-0.5">{isRep ? 'Look up your zips and what’s available in your states. To get or release zips, use the buttons on My zips.' : 'One shared conversation for Luke and Jack. Answers come from today’s dashboard data and live zip holds.'}</div>
             </div>
             <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
@@ -175,7 +175,7 @@ function Preview({ name, onClose }) {
         <header className="shrink-0 bg-navy-700 text-white px-5 py-4 flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400"><Spark />Ask Claude · only they see this</div>
-            <h2 className="mt-1 text-[19px] font-semibold">Their zips</h2>
+            <h2 className="mt-1 text-[19px] font-semibold">Their Zips</h2>
           </div>
           <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
         </header>

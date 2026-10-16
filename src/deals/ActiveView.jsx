@@ -30,6 +30,7 @@ import { nextStep, assigned, hasAssignPrice, daysBetween, TONES, LEGEND, dueTone
 import { needsInfo, CATEGORIES } from './required.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
+import { titleCase } from '../shell/titleCase.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
@@ -76,7 +77,7 @@ function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-700 borde
     <button type="button" onClick={() => folds.toggle(id)} aria-expanded={open}
       className={`w-full flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2.5 text-left hover:brightness-110 ${open ? 'border-b' : ''} ${className}`}>
       <span className="grid place-items-center w-6 h-6 rounded-md text-current/80"><Chevron open={open} /></span>
-      <span className="text-[14.5px] font-semibold">{title}</span>
+      <span className="text-[14.5px] font-semibold">{titleCase(title)}</span>
       {count != null && <span className="rounded-md bg-white/15 ring-1 ring-inset ring-white/25 px-1.5 text-[12px] font-semibold tabular-nums">{count}</span>}
       {sub && <span className="text-[12.5px] opacity-75 font-normal">{sub}</span>}
       <span className="ml-auto text-[12px] opacity-75 font-normal">{open ? 'Hide' : 'Show'}</span>
@@ -128,7 +129,7 @@ function Section({ id, rows, cols, sub, onOpen, empty, folds }) {
   const sec = SECTION[id];
   return (
     <section id={`sec-${id}`} className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4">
-      <FoldHead id={id} folds={folds} count={rows.length} sub={sub} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: sec.band }} />{sec.title}</span>} />
+      <FoldHead id={id} folds={folds} count={rows.length} sub={sub} title={<span className="inline-flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-white" style={{ background: sec.band }} />{titleCase(sec.title)}</span>} />
       {folds.is(id) ? null : rows.length === 0 ? <div className="px-5 py-6 text-zinc-500">{empty}</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">

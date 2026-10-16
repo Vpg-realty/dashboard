@@ -24,6 +24,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { PANEL_HEAD } from '../shell/panelStyle.js';
 import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
+import { titleCase } from '../shell/titleCase.js';
 
 const TABS = [['deals', 'By deal'], ['tc', 'TC monthly'], ['paid', 'Paid'], ['coming', 'Coming due']];
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -278,7 +279,7 @@ export default function PayoutsView() {
           {[['To approve', 'Closed deals with commissions waiting for Luke or Jack', toApprove], ['Approved — ready to pay', 'Mark each deal paid once the money has gone out', readyToPay]].map(([title, sub, list]) => (
             <section key={title}>
               <div className="flex items-baseline gap-2 mb-2">
-                <h2 className="text-[16px] font-semibold text-navy-800">{title}</h2>
+                <h2 className="text-[16px] font-semibold text-navy-800">{titleCase(title)}</h2>
                 <span className="text-[13px] text-zinc-500">{list.length ? `${n(list.length, 'deal')} · ${money(sum(list.flatMap((d) => d.lines.filter((l) => l.status !== 'paid'))))}` : ''} — {sub}</span>
               </div>
               {list.length ? <div className="grid gap-3">{list.map((d) => <DealCard key={d.dealId} deal={d} lines={d.lines} onOpen={open} run={run} pay={pay} busy={busy} />)}</div>

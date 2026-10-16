@@ -26,6 +26,7 @@ import { EmdPill } from '../deals/pills.jsx';
 import { nextStep, dueTone } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
 import Icon from './icons.jsx';
+import { titleCase } from './titleCase.js';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
 const KEY_LABEL = { ipEnd: 'IP end', coe: 'COE' };
@@ -298,7 +299,7 @@ export default function HomeView({ me }) {
 
   const group = (title, dot, list) => list.length > 0 && (
     <div key={title}>
-      <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{title}<span className="text-zinc-400">{list.length}</span></div>
+      <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{titleCase(title)}<span className="text-zinc-400">{list.length}</span></div>
       {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} onOpen={openGhl} tracked={trackedOf(d)} />)}
     </div>
   );

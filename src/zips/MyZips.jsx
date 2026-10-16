@@ -138,7 +138,7 @@ export default function MyZips() {
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Get zips</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Get Zips</h1>
         <div className="text-zinc-500 text-[13px]">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Ask for zips to pull agent data from. Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</div>
       </div>
 

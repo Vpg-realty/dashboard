@@ -1,6 +1,7 @@
 // Small pieces shared by the Finance pages.
 import { METHODS } from './lines.js';
 import { money, shortDate } from '../deals/format.js';
+import { titleCase } from '../shell/titleCase.js';
 
 const PILL = {
   owed: 'bg-amber-50 text-amber-800 ring-amber-200',
@@ -61,7 +62,7 @@ export function FinanceHead({ eyebrow, title, sub, right }) {
     <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Finance · {eyebrow}</div>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{title}</h1>
+        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{titleCase(title)}</h1>
         {sub && <p className="mt-1 text-[13.5px] text-white/75 max-w-[760px]">{sub}</p>}
       </div>
       {right && <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>}
