@@ -34,7 +34,7 @@
 // property address, and must still be createable on a later run at least
 // SETTLE_MS after it was first seen (`seen`, kept in settings ghl_sync).
 // Nothing is ever written to GHL.
-import { zillowUrl, isOpen, STAGE_STATUS } from '../src/deals/math.js';
+import { zillowUrl, isOpen, STAGE_STATUS, addrKey, addrKeys } from '../src/deals/math.js';
 
 export const SYNC_FIELDS = ['stage', 'coe', 'ipEnd'];
 // GHL stage → the tracker's deal status (Luke, Oct 14): math.js STAGE_STATUS.
@@ -45,10 +45,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 const azDate = (ms) => (ms ? new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/Phoenix' }) : null);
 
-export function addrKey(a) {
-  const m = /^\s*(\d+[a-z]?)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i.exec(String(a || ''));
-  return m ? `${m[1]} ${m[2]}`.toLowerCase() : null;
-}
+export { addrKey };
 
 const baseline = (g) => ({ stage: g.stage, coe: g.coe || null, ipEnd: g.ipEnd || null });
 
@@ -116,18 +113,37 @@ export function planSync({ deals, links, feed, names, since, seen = {}, now = Da
   const linkedDeals = new Set(links.map((l) => l.deal_id));
   const dealById = new Map(deals.map((d) => [d.id, d]));
   const byAddr = new Map();
+  // A tracker deal under every house number in its address ("1509 & 1511").
   for (const d of deals) {
-    const k = addrKey(d.address);
-    if (!k) continue;
-    if (!byAddr.has(k)) byAddr.set(k, []);
-    byAddr.get(k).push(d);
+    for (const k of addrKeys(d.address)) {
+      if (!byAddr.has(k)) byAddr.set(k, []);
+      byAddr.get(k).push(d);
+    }
   }
+  // Not linked yet: an existing tracker deal at this address (not already
+  // linked to a live GHL deal) — prefer a pending one, then the newest.
+  const open = (d) => (isOpen(d) ? 0 : 1);
+  const matchFor = (g) => (byAddr.get(addrKey(g.address)) || []).filter((d) => !linkedDeals.has(d.id))
+    .sort((a, b) => open(a) - open(b) || String(b.accepted || '').localeCompare(String(a.accepted || '')))[0];
   const ops = [];
   for (const g of feed) {
     const link = byGhl.get(g.id);
     if (link) {
       const d = dealById.get(link.deal_id);
-      if (!d) continue; // deleted in the tracker — leave it alone
+      if (!d) {
+        // Its tracker deal was deleted (Luke, Oct 16 — Geer St: the GHL
+        // sync's copy was deleted and the link stayed on it, so the deal kept
+        // for real never got the stage). Re-point the link at a live deal at
+        // the same address; with none, leave it (deleted on purpose).
+        const match = matchFor(g);
+        if (match) {
+          linkedDeals.add(match.id);
+          const next = structuredClone(match);
+          const changes = applyGhl(next, g); // only the stage mirror, like a link
+          ops.push({ type: 'relink', ghlId: g.id, dealId: match.id, fromDealId: link.deal_id, g, last: baseline(g), changes });
+        }
+        continue;
+      }
       const next = structuredClone(d);
       const changes = applyGhl(next, g, link.last);
       const last = baseline(g);
@@ -135,12 +151,7 @@ export function planSync({ deals, links, feed, names, since, seen = {}, now = Da
       if (changes.length || moved) ops.push({ type: 'update', ghlId: g.id, dealId: d.id, g, prev: link.last, last, changes });
       continue;
     }
-    // Not linked yet: an existing tracker deal at this address (not already
-    // linked to another GHL deal) — prefer a pending one, then the newest.
-    const cands = (byAddr.get(addrKey(g.address)) || []).filter((d) => !linkedDeals.has(d.id));
-    const open = (d) => (isOpen(d) ? 0 : 1);
-    cands.sort((a, b) => open(a) - open(b) || String(b.accepted || '').localeCompare(String(a.accepted || '')));
-    const match = cands[0];
+    const match = matchFor(g);
     if (match) {
       linkedDeals.add(match.id);
       const next = structuredClone(match);

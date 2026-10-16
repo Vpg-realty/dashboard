@@ -690,7 +690,10 @@ the server strips them (`forTc`) and refuses edits to them.
   DD ending / expired without a buyer, set COE, closing ≤ 7 days, on track;
   tiles filter) plus **"In GoHighLevel, not in the tracker yet"**: GHL deals
   under contract or later with no tracker deal at the same address
-  (`addrKey`: house number + first street word), "Add to tracker" opens a
+  (`addrKey`: house number + first street word; `addrKeys` gives every
+  house number of "1509 & 1511 E Geer St" / "1509-1511" — Luke, Oct 16: such a
+  deal matched nothing and GHL's "1511 E Geer Street" was added twice — and a
+  tracker deal is matched under all of them), "Add to tracker" opens a
   new deal filled from GHL (address, rep, state, COE, contract date = when
   it went under contract, DD days from IP end). **All deals**: period
   picker, by COE or contract date, search, status / rep / state filters,
@@ -739,7 +742,10 @@ the server strips them (`forTc`) and refuses edits to them.
   `ghl_sync`) — Oct 14: an agent lead with no address was dragged into
   Assigned for minutes by mistake and became a tracker deal; it was
   removed and its opp excluded. Once a
-  deal exists or is linked, the sync **never changes it again** — COE, DD
+  deal exists or is linked, the sync **never changes it again** (a link
+  whose tracker deal was deleted is re-pointed at a live deal at the same
+  address — op `relink`, logged "*linked"; with none it's left alone — Luke,
+  Oct 16, Geer St) — COE, DD
   and every other field stay as people left them; the read-only
   `ghlStage` mirror follows GHL (and the `deal_ghl.last` baseline moves).
   One exception, the **deal status** (Luke, Oct 14: "GHL stage should take

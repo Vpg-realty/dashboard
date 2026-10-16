@@ -10,10 +10,11 @@
 //      US Census geocoder (free, no key), trying once more without the unit
 //      number; not found → geo 'miss' (shown in the page's "not on the map").
 import { fileURLToPath } from 'node:url';
+import { addrKey } from '../src/deals/math.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const GEO_PER_RUN = 60;
-export const addrKey = (a) => { const m = /^\s*(\d+[a-z]?)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i.exec(String(a || '')); return m ? `${m[1]} ${m[2]}`.toLowerCase() : null; };
+export { addrKey };
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? x : null);
 
 // The tracker's closed deals → rows to add / update / remove.

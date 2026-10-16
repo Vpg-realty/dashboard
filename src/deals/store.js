@@ -3,7 +3,7 @@
 // Shared by the Deals tabs and the deal side panel.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { compute, STAGE_STATUS, isOpen, addrKey } from './math.js';
+import { compute, STAGE_STATUS, isOpen, addrKey, addrKeys } from './math.js';
 import { PAIRS } from '../data/source.js';
 import { REPS, MARKETS } from '../data/config.js';
 
@@ -61,7 +61,9 @@ export const dealHistory = (id) => call(`deals/${id}`);
 
 // --- GHL link -------------------------------------------------------------------
 // addrKey (math.js): the house number + first street word.
-export { addrKey };
+export { addrKey, addrKeys };
+// A tracker deal at GHL's address `k` (any of the deal's house numbers).
+export const sameAddr = (d, k) => !!k && addrKeys(d?.address).includes(k);
 
 // Tracker deals that are finished (closed / cancelled) by address, where no
 // open tracker deal shares it — key → status. Reps don't receive finished
@@ -69,9 +71,9 @@ export { addrKey };
 // cancelled in the tracker but still Dispo active in GHL kept showing as
 // late on Home.
 export function endedByAddr(s) {
-  const open = new Set(s.raw.filter(isOpen).map((d) => addrKey(d.address)));
+  const open = new Set(s.raw.filter(isOpen).flatMap((d) => addrKeys(d.address)));
   const out = new Map();
-  for (const d of s.raw) { const k = addrKey(d.address); if (k && !isOpen(d) && !open.has(k)) out.set(k, d.status); }
+  for (const d of s.raw) for (const k of addrKeys(d.address)) if (!isOpen(d) && !open.has(k)) out.set(k, d.status);
   for (const e of s.ended || []) if (e.key && !open.has(e.key)) out.set(e.key, e.status);
   return out;
 }
@@ -97,8 +99,7 @@ export function ghlDeals() {
 export function trackerByAddr(deals) {
   const out = new Map();
   for (const t of deals || []) {
-    const k = addrKey(t.address);
-    if (k && (!out.has(k) || (isOpen(t) && !isOpen(out.get(k))))) out.set(k, t);
+    for (const k of addrKeys(t.address)) if (!out.has(k) || (isOpen(t) && !isOpen(out.get(k)))) out.set(k, t);
   }
   return out;
 }

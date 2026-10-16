@@ -345,7 +345,18 @@ export function forTc(deal) {
 // A tracker deal and a GHL opportunity are the same property when the house
 // number and the first word of the street match ("408 Lynchester Ct" =
 // "408 Lynchester Dr. Raleigh"). Pure, so the server uses it too.
+// Every house number + first street word in an address (Luke, Oct 16: the
+// sheet's "1509 & 1511 E Geer St" matched nothing, so GHL's "1511 E Geer
+// Street" looked missing and was added twice): "1509 & 1511 E Geer St" →
+// ["1509 geer", "1511 geer"]; also "1509-1511", "1509, 1511", "1509 and 1511".
+// A tracker deal is indexed under all of them; addrKey = the first.
+const ADDR = /^\s*(\d+[a-z]?)((?:\s*(?:&|and|,|\/|-)\s*\d+[a-z]?)*)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i;
+export function addrKeys(a) {
+  const m = ADDR.exec(String(a || ''));
+  if (!m) return [];
+  const street = m[3].toLowerCase();
+  return [...new Set([m[1], ...(m[2].match(/\d+[a-z]?/gi) || [])].map((n) => `${n.toLowerCase()} ${street}`))];
+}
 export function addrKey(a) {
-  const m = /^\s*(\d+[a-z]?)\s+(?:[nsew]\.?\s+)?([a-z0-9]+)/i.exec(String(a || ''));
-  return m ? `${m[1]} ${m[2]}`.toLowerCase() : null;
+  return addrKeys(a)[0] || null;
 }
