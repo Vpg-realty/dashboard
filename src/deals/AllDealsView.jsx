@@ -47,6 +47,7 @@ const GROUP_LABEL = { contract: 'Contract info', title: 'Title', emd: 'EMD', dd:
 // How a value reads in the table (Luke, Oct 14: proper case throughout;
 // dropdown values worth scanning as pills, people as their coloured chip).
 // Empty or a dash reads "—" (no data); an entered 0 reads $0.00 (Luke, Oct 14).
+const linkLabel = (u) => (/zillow/i.test(u) ? 'Zillow' : /dropbox/i.test(u) ? 'Dropbox' : u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]);
 const NONE = <span className="text-zinc-300">—</span>;
 const cell = (f, v, editable, d) => {
   if (isBlank(v)) return f.calc ? '' : NONE;
@@ -61,9 +62,9 @@ const cell = (f, v, editable, d) => {
   if (f.key === 'links') {
     const urls = String(v).match(/https?:\/\/\S+/g) || [];
     if (!urls.length) return String(v).split('\n')[0];
-    return <span className="inline-flex flex-wrap gap-x-2">{urls.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-navy-700 underline underline-offset-2 hover:text-navy-900">{/zillow/i.test(u) ? 'Zillow' : /dropbox/i.test(u) ? 'Dropbox' : (u.replace(/^https?:\/\/(www\.)?/, '').split('/')[0])} ↗</a>)}</span>;
+    return <span className="inline-flex gap-x-2 whitespace-nowrap">{urls.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-navy-700 underline underline-offset-2 hover:text-navy-900">{linkLabel(u)} ↗</a>)}</span>;
   }
-  if (f.key === 'notes') return <span className="line-clamp-2" title={String(v)}>{String(v)}</span>;
+  if (f.key === 'notes') return <span title={String(v)}>{String(v).split('\n')[0]}</span>;
   if (f.key === 'emdPaidBy') return <span className="inline-flex items-center gap-1"><EmdPill deal={d} />{editable && <span className="text-[9px] opacity-50">▾</span>}</span>;
   if (PILL_KEYS.has(f.key)) return <ValuePill k={f.key} v={v} caret={editable} />;
   if (f.key === 'acq' || f.key === 'dispoMember') return <Person name={v} full />;
@@ -75,10 +76,10 @@ const isNum = (f) => f.type === 'money' || f.type === 'percent' || f.type === 'n
 const CENTER = new Set(['date', 'list', 'number', 'percent']);
 // Column widths follow their contents (Luke, Oct 16: "some name boxes or
 // items are being cut off … no unused blank space"): no fixed widths, cells
-// don't truncate; long free text (titles, buyer, notes, links) gets a column
-// of WRAP_MIN–WRAP_MAX px and wraps beyond that instead of stretching the sheet.
+// don't truncate — except long free text (titles, buyer, notes, links): one
+// line, at most WRAP_MAX px, "…" past that with the full text on hover, so
+// every row keeps the sheet's one-line height (Luke, Oct 16).
 const WRAP = (f) => f.type === 'longtext' || ['title', 'buyer', 'notes', 'links'].includes(f.key);
-const WRAP_MIN = 210;
 const WRAP_MAX = 320;
 
 function GhlStage({ d, live }) {
@@ -161,6 +162,25 @@ export default function AllDealsView() {
   const { rows, stale, resort } = useFrozenOrder(sorted, frozenKey, { byId });
 
   const rawById = useMemo(() => new Map(s.raw.map((d) => [d.id, d])), [s.raw]);
+  // Width of each long-text column = its longest first line (measured), up
+  // to WRAP_MAX — enough for most, "…" past that.
+  const wrapW = useMemo(() => {
+    const ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+    if (!ctx) return {};
+    ctx.font = '12.5px Arial, Helvetica, sans-serif';
+    const out = {};
+    for (const f of FIELDS.filter(WRAP)) {
+      let w = 0;
+      for (const d of rows) {
+        const v = d[f.key];
+        if (isBlank(v)) continue;
+        const t = f.key === 'links' ? (String(v).match(/https?:\/\/\S+/g) || [String(v)]).map((u) => `${linkLabel(u)} ↗`).join('   ') : String(v).split('\n')[0];
+        w = Math.max(w, ctx.measureText(t).width);
+      }
+      out[f.key] = Math.min(WRAP_MAX, Math.ceil(w * 1.08) + 40);
+    }
+    return out;
+  }, [rows]);
   // Needs info on (Luke, Oct 16: "it should scroll to the box where info is
   // needed"): bring the first red-outlined cell into view — the sheet is
   // wide, so it's usually off to the right (past the sticky address column).
@@ -323,8 +343,8 @@ export default function AllDealsView() {
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} data-need={missing ? '' : undefined} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
-                          className={`px-2.5 py-[5px] ${WRAP(f) ? 'whitespace-normal break-words' : 'whitespace-nowrap'} ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
-                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, ...(WRAP(f) ? { minWidth: WRAP_MIN, maxWidth: WRAP_MAX, width: WRAP_MIN } : {}) }}>
+                          className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
+                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, ...(WRAP(f) ? { maxWidth: WRAP_MAX, minWidth: wrapW[f.key] || undefined } : {}) }}>
                           {f.key === 'address' ? (
                             <span className="flex items-center gap-1.5 min-w-0">
                               <span className={`shrink-0 w-2 h-2 rounded-full ${TONES[step.tone].dot}`} title={step.text} />
@@ -336,8 +356,8 @@ export default function AllDealsView() {
                               )}
                             </span>
                           ) : editable ? (
-                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} fit={WRAP(f) ? 'wrap' : true}>{shown}</EditableCell>
-                          ) : <span className="block">{shown}</span>}
+                            <EditableCell deal={d} raw={raw} f={f} lists={s.lists} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} fit={WRAP(f) ? false : true}>{shown}</EditableCell>
+                          ) : <span className={`block ${WRAP(f) ? 'truncate' : ''}`} title={WRAP(f) && !isBlank(d[f.key]) ? String(d[f.key]) : undefined}>{shown}</span>}
                         </td>
                       );
                     })}

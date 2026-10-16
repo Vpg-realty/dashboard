@@ -685,9 +685,11 @@ the server strips them (`forTc`) and refuses edits to them.
   bands + coloured headers sticky, address column sticky, dense Arial-like
   rows, a totals row. **Columns fit their contents** (Luke, Oct 16: "some
   name boxes … cut off … no unused blank space"): no fixed widths, nothing
-  truncated; title agency / buyer / notes / links get 210–320px and wrap
-  beyond that (`WRAP`), links show as short "Zillow ↗" labels, notes two
-  lines with the whole note on hover. **Every cell is editable in place**
+  truncated, every row one line (Luke, Oct 16: keep the original
+  heights). Title agency / buyer / notes / links (`WRAP`) are as wide as
+  their longest first line (measured, `wrapW`) up to 320px, "…" past that
+  with the full text on hover — on the Oct 16 data only 11 notes go past it;
+  links show as short "Zillow ↗" labels. **Every cell is editable in place**
   (`EditableCell.jsx`: dropdowns save on pick, text / numbers / dates on
   Enter or click-away, Esc cancels, buyer / title use the same past-entries
   picker; one field per save — except the moves in `edits.js` — logged,
