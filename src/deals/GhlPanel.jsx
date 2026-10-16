@@ -3,6 +3,8 @@
 import StageChip from '../shell/StageChip.jsx';
 import { money, shortDate, primaryCls } from './format.js';
 import { CoeChip } from './ui.jsx';
+import MismatchList from './Mismatch.jsx';
+import { mismatchRow } from './mismatchRow.js';
 
 export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) {
   const facts = [
@@ -37,11 +39,7 @@ export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) 
           </div>
           {ended ? (
             // Luke, Oct 16 (10869 Waltman): finished in the tracker, still open in GHL.
-            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3.5 text-violet-950">
-              <div className="text-[12px] font-bold uppercase tracking-wide text-violet-800">Doesn't match the tracker</div>
-              <div className="mt-0.5 font-semibold">{ended === 'CANCELLED' ? 'Cancelled in the deal tracker' : 'Closed in the deal tracker'}</div>
-              <div className="mt-1 text-[14px]">GHL still has it in {g.stage === 'under_contract' ? 'Under contract' : g.stage === 'assigned' ? 'Assigned' : 'Dispo active'}. Move it to {ended === 'CANCELLED' ? 'Lost / Abandoned' : 'Closed'} in GoHighLevel so it stops showing as an active deal.</div>
-            </div>
+            <MismatchList rows={[mismatchRow({ key: 'status', tracker: ended, stage: g.stage })]} />
           ) : (
           <div className="rounded-xl border border-tan-200 bg-white px-4 py-3.5 text-zinc-600">
             {loading ? 'Looking for this deal in the tracker…' : <>Not in the deal tracker yet — deals are added automatically when they reach <span className="font-medium text-zinc-800">Dispo active</span> in GHL.</>}

@@ -121,7 +121,7 @@ export function ghlMismatches(d, g) {
   const out = [];
   const want = g ? STAGE_STATUS[g.stage] : ghlStatus(d);
   const have = String(d?.status ?? '').trim().toUpperCase();
-  if (want && have && want !== have) out.push({ key: 'status', tracker: have, ghl: want });
+  if (want && have && want !== have) out.push({ key: 'status', tracker: have, ghl: want, stage: g ? g.stage : d.ghlStage });
   if (g && DAY.test(g.coe || '') && DAY.test(d?.coe || '') && g.coe !== d.coe) out.push({ key: 'coe', tracker: d.coe, ghl: g.coe });
   if (g && DAY.test(g.ipEnd || '') && DAY.test(d?.ddEnd || '') && g.ipEnd !== d.ddEnd) out.push({ key: 'ipEnd', tracker: d.ddEnd, ghl: g.ipEnd });
   return out;
