@@ -83,8 +83,18 @@ html, body, #root {
 .vpg-sweep-b { animation: vpg-sweep-b 700ms cubic-bezier(.2,.8,.2,1) 180ms both; }
 .vpg-rise { animation: vpg-rise 600ms cubic-bezier(.2,.8,.2,1) both; }
 .vpg-pop { animation: vpg-pop 450ms cubic-bezier(.2,.8,.2,1) both; }
+/* TC List "Close out deal?" (Luke, Oct 16): the card fades, the prompt
+   springs in and its check mark draws itself. */
+@keyframes tc-spring { 0% { transform: translateY(18px) scale(0.85); opacity: 0; } 60% { transform: translateY(-4px) scale(1.03); opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes tc-draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+@keyframes tc-halo { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); } 100% { box-shadow: 0 0 0 18px rgba(22,163,74,0); } }
+@keyframes tc-fade { from { opacity: 0; } to { opacity: 1; } }
+.tc-spring { animation: tc-spring 520ms cubic-bezier(.2,.9,.25,1.2) both; }
+.tc-draw { stroke-dasharray: 30; animation: tc-draw 450ms ease-out 300ms both; }
+.tc-halo { animation: tc-halo 1.4s ease-out 350ms 2; }
+.tc-fade { animation: tc-fade 300ms ease-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .vpg-sweep-a, .vpg-sweep-b, .vpg-rise, .vpg-pop { animation: none; }
+  .vpg-sweep-a, .vpg-sweep-b, .vpg-rise, .vpg-pop, .tc-spring, .tc-draw, .tc-halo, .tc-fade { animation: none; }
 }
 
 /* Team pages inside the app (Luke, Oct 14: "restyle the Team pages" to

@@ -764,6 +764,19 @@ the server strips them (`forTc`) and refuses edits to them.
   empty); Buyer EM receipt saves EMD paid by Buyer (VPG + Buyer when VPG
   had); Title opened with no title agency asks for it and saves it — they
   then read "done — from the deal".
+  **Post Close & close-out** (Luke, Oct 16): a closed deal ticks every New
+  contract / Assigned / COE item by itself ("done — deal closed") and
+  unlocks a fourth group, **Post Close**: HUD statement received, Wire
+  received (ticked from the deal's wire date — Wires In), EM returned
+  (ticking it saves the deal's EMD returned = Yes; ticked by itself, "VPG
+  never placed EM — nothing to return", when EMD paid by isn't VPG / VPG +
+  Buyer). Closed deals stay on the list (COE from `POST_CLOSE_FROM`
+  2026-10-01) until closed out. When every box and task is ticked the card
+  fades and a "Close out deal?" card springs in (index.css `tc-*`): Yes
+  stores the `closeout` tick (tc_checks) and takes it off the list — a
+  "Closed out · N" fold at the bottom lists them with Reopen; No keeps it
+  (remembered per device, `vpg.tc.keep`) with a green "Close out deal"
+  button in its banner.
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,

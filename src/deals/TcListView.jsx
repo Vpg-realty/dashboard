@@ -2,14 +2,18 @@
 // the property as the header (status and flags only — Luke: the COE / EMD /
 // "x/y done" corner was confusing; click the address for the deal panel) with
 // its "Due today" actions, and a fold-down checklist by stage — New
-// contract, Assigned, COE (tcList.js CHECKLIST) — plus tasks added to the
-// deal ("Add a task for Aiza"). Ticks and tasks: D1 via /api/tc, with who
+// contract, Assigned, COE, Post Close (tcList.js CHECKLIST) — plus tasks
+// added to the deal ("Add a task for Aiza"). A closed deal with every box
+// ticked fades and asks "Close out deal?" (Luke, Oct 16): Yes takes it off
+// the list (Closed out, at the bottom, can reopen it); No keeps it, with a
+// "Close out deal" button on the card (the No is remembered per device,
+// `vpg.tc.keep`). Ticks and tasks: D1 via /api/tc, with who
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
-import { buildTcCards, TC_FLAGS } from './tcList.js';
+import { buildTcCards, TC_FLAGS, CLOSE_OUT, vpgPlacedEm } from './tcList.js';
 import { PageHead, Loading, NeedChips, StatusChip } from './ui.jsx';
 import { Person } from './people.jsx';
 import { LABEL } from './fieldLib.js';
@@ -28,6 +32,7 @@ const FLAG_TEXT = { ip: 'IP ending', past: 'Past COE', closing: 'Closing soon', 
 // Cards are open by default (Luke, Oct 15: the checklist was easy to miss);
 // the ones folded are remembered per device.
 const FOLD_KEY = 'vpg.tc.closed';
+const KEEP_KEY = 'vpg.tc.keep';
 const up = (x) => String(x ?? '').trim().toUpperCase();
 
 // Ticks that are really deal fields (Luke, Oct 15: "any edit anywhere should
@@ -100,7 +105,7 @@ function AddTask({ onAdd }) {
   );
 }
 
-function Card({ c, open, onFold, onOpen, post, busy, today }) {
+function Card({ c, open, onFold, onOpen, post, busy, today, kept, onKeep }) {
   const d = c.deal;
   const [ask, setAsk] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -112,10 +117,41 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
       try { await saveDeal(d.id, { fields: { emdPaidBy: /VPG/.test(up(d.emdPaidBy)) ? 'VPG + BUYER' : 'BUYER' } }, d.updatedAt); } catch (e) { window.alert(e.message); } finally { setSaving(false); }
       return;
     }
+    // EM returned is the deal's own "EMD returned?" (when VPG placed EM).
+    if (v && it.id === 'emret' && vpgPlacedEm(d)) {
+      setSaving(true);
+      try { await saveDeal(d.id, { fields: { emdReturned: 'YES' } }, d.updatedAt); } catch (e) { window.alert(e.message); } finally { setSaving(false); }
+      return;
+    }
     post({ action: 'check', dealId: d.id, item: it.id, done: v });
   };
+  const closeOut = (v) => post({ action: 'check', dealId: d.id, item: CLOSE_OUT, done: v });
+  // The prompt shows once every box is ticked, until Yes (off the list) or No.
+  const asking = c.ready && !c.out && !kept;
   return (
-    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
+    <section className={`relative rounded-xl border bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] ${c.out ? 'border-zinc-200 opacity-70' : c.ready ? 'border-emerald-300' : 'border-tan-200'}`}>
+      {asking && (
+        <div className="absolute inset-0 z-10 grid place-items-center bg-white/55 backdrop-blur-[1.5px] tc-fade" role="dialog" aria-label={`Close out ${d.address}?`}>
+          <div className="tc-spring w-[min(420px,92%)] rounded-2xl bg-white shadow-[0_20px_50px_rgba(27,56,95,0.28)] ring-1 ring-navy-100 overflow-hidden text-center">
+            <div className="bg-navy-700 px-6 pt-6 pb-5 text-white">
+              <span className="tc-halo mx-auto grid place-items-center w-14 h-14 rounded-full bg-emerald-500">
+                <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path className="tc-draw" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              </span>
+              <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Every box is ticked</div>
+              <div className="mt-1 text-[22px] font-semibold tracking-tight">Close out deal?</div>
+              <div className="mt-1 text-[13px] text-white/75 truncate">{d.address}</div>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-[13px] text-zinc-600">Yes takes it off the TC List — you can still find it under Closed out at the bottom.</p>
+              <div className="mt-4 flex justify-center gap-2">
+                <button type="button" disabled={busy} onClick={() => onKeep(true)} className="h-9 px-5 rounded-lg border border-zinc-200 bg-white font-medium text-zinc-700 hover:bg-zinc-50">No, keep it</button>
+                <button type="button" disabled={busy} onClick={() => closeOut(true)} className="h-9 px-5 rounded-lg bg-emerald-600 font-semibold text-white hover:bg-emerald-700 shadow-sm">Yes, close it out</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className={asking ? 'grayscale opacity-40 pointer-events-none select-none' : ''} aria-hidden={asking || undefined}>
       {/* The property is the header. */}
       {/* The whole banner folds / opens the card (Luke, Oct 15). */}
       <div onClick={onFold} title={open ? 'Click to fold' : 'Click to open the checklist'} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-navy-700 text-white cursor-pointer select-none hover:bg-navy-800">
@@ -125,7 +161,13 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
         <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(d.id); }} title="Open the deal" className="font-semibold text-[14.5px] text-left hover:underline underline-offset-2">{d.address}</button>
         <StatusChip status={d.status} />
         {[...c.flags].filter((f) => FLAG_TEXT[f]).map((f) => <span key={f} className={`rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset ${FLAG_CHIP[f]}`}>{FLAG_TEXT[f]}</span>)}
-        <span className="ml-auto text-[12px] text-white/60">{open ? 'Hide checklist ▴' : 'Show checklist ▾'}</span>
+        {c.ready && !c.out && <span className="rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold bg-emerald-500 text-white">All done ✓</span>}
+        {c.out && <span className="rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold bg-white/15 text-white">Closed out</span>}
+        <span className="ml-auto flex items-center gap-3">
+          {c.ready && !c.out && <button type="button" disabled={busy} onClick={(e) => { e.stopPropagation(); closeOut(true); }} className="h-7 px-2.5 rounded-md bg-emerald-500 hover:bg-emerald-600 text-[12.5px] font-semibold text-white">Close out deal</button>}
+          {c.out && <button type="button" disabled={busy} onClick={(e) => { e.stopPropagation(); closeOut(false); onKeep(true); }} className="h-7 px-2.5 rounded-md bg-white/15 hover:bg-white/25 text-[12.5px] font-semibold text-white">Reopen</button>}
+          {!c.out && <span className="text-[12px] text-white/60">{open ? 'Hide checklist ▴' : 'Show checklist ▾'}</span>}
+        </span>
       </div>
       <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-tan-100 text-[12.5px] text-zinc-600">
         <span className="inline-flex items-center gap-1.5"><Person name={d.acq} />{d.dispoMember && <><span className="text-zinc-300">→</span><Person name={d.dispoMember} /></>}</span>
@@ -143,10 +185,10 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
         ) : <div className="text-[13.5px] text-[#15803D] font-medium">✓ Nothing due today</div>}
       </div>
       {open && (
-        <div className="px-4 py-3 grid gap-4 md:grid-cols-3">
+        <div className="px-4 py-3 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {c.groups.map((g) => (
-            <div key={g.id} className={g.active ? '' : 'opacity-50'}>
-              <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">{g.label}{!g.active && <span className="ml-1.5 font-normal text-zinc-500">— {g.wait}</span>}</div>
+            <div key={g.id} className={`${g.active ? '' : 'opacity-50'} ${g.post ? `rounded-lg -m-1.5 p-1.5 ${g.active ? 'bg-tan-50 ring-1 ring-tan-200' : ''}` : ''}`}>
+              <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">{g.post && (g.active ? '🔓 ' : '🔒 ')}{g.label}{!g.active && <span className="ml-1.5 font-normal text-zinc-500">— {g.wait}</span>}</div>
               <ul className="flex flex-col gap-1.5">
                 {g.items.map((it) => (
                   <li key={it.id} className="flex items-start gap-2 text-[13px]">
@@ -154,7 +196,7 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
                     <span className="min-w-0">
                       <span className={it.done || it.auto ? 'text-zinc-400 line-through decoration-zinc-300' : 'text-zinc-800'}>{it.label}</span>
                       <span className="block text-[11.5px] text-zinc-400">
-                        {it.auto ? 'done — from the deal' : it.done ? `${it.done.done_by} · ${when(it.done.done_at)}` : it.dueOn ? `${it.dueOn < today ? 'was due' : it.dueOn === today ? 'due' : 'due'} ${shortDate(it.dueOn)}` : ''}
+                        {it.auto ? it.why : it.done ? `${it.done.done_by} · ${when(it.done.done_at)}` : it.dueOn ? `${it.dueOn < today ? 'was due' : it.dueOn === today ? 'due' : 'due'} ${shortDate(it.dueOn)}` : ''}
                       </span>
                       {ask === it.id && <LinkAsk kind={it.id} d={d} onDone={(alsoTick) => { setAsk(null); if (alsoTick) post({ action: 'check', dealId: d.id, item: it.id, done: true }); }} />}
                     </span>
@@ -163,7 +205,7 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
               </ul>
             </div>
           ))}
-          <div className="md:col-span-3 border-t border-tan-100 pt-3">
+          <div className="md:col-span-2 xl:col-span-4 border-t border-tan-100 pt-3">
             <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">Tasks for this deal</div>
             {c.tasks.length === 0 && <div className="text-[12.5px] text-zinc-400">No extra tasks yet.</div>}
             <ul className="flex flex-col gap-1.5">
@@ -182,6 +224,7 @@ function Card({ c, open, onFold, onOpen, post, busy, today }) {
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -192,14 +235,19 @@ export default function TcListView() {
   const { st, err, post } = useTc();
   const [busy, setBusy] = useState(false);
   const [folded, setFolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } });
+  const [kept, setKept] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem(KEEP_KEY) || '[]')); } catch { return new Set(); } });
+  const [showOut, setShowOut] = useState(false);
   const { query } = useLocation();
   const only = TC_FLAGS.some((f) => f.id === query.get('only')) ? query.get('only') : null;
   const today = laToday();
-  const cards = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
+  const all = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
+  const cards = all.filter((c) => !c.out);
+  const outCards = all.filter((c) => c.out);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
   const fold = (id) => setFolded((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
   const run = async (body) => { setBusy(true); try { return await post(body); } finally { setBusy(false); } };
+  const keep = (id) => setKept((u) => { const n = new Set(u); n.add(id); try { localStorage.setItem(KEEP_KEY, JSON.stringify([...n])); } catch { /* private mode */ } return n; });
   const shown = only ? cards.filter((c) => c.flags.has(only)) : cards;
   const count = (id) => cards.filter((c) => c.flags.has(id)).length;
   const allOpen = shown.length > 0 && shown.every((c) => !folded.has(c.deal.id));
@@ -230,10 +278,16 @@ export default function TcListView() {
       </div>
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className="flex flex-col gap-3">
-        {shown.map((c) => <Card key={c.deal.id} c={c} open={!folded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} />)}
+        {shown.map((c) => <Card key={c.deal.id} c={c} open={!folded.has(c.deal.id)} onFold={() => fold(c.deal.id)} onOpen={open} post={run} busy={busy} today={today} kept={kept.has(c.deal.id)} onKeep={() => keep(c.deal.id)} />)}
         {shown.length === 0 && <div className="py-10 text-center text-zinc-500">Nothing here right now.</div>}
       </div>
-      <p className="mt-4 text-[12px] text-zinc-500">The checklists: New contract (from the contract date; EM placed by its due date), Assigned (once the deal is assigned; the buyer's EM receipt is chased while the EMD is empty or VPG only), COE (72 hours, 24 hours, closing day, the day after). Items the deal's own fields already show are ticked “from the deal”. Items that were due before the list started (Oct 15) aren't put in Due today.</p>
+      {outCards.length > 0 && (
+        <div className="mt-5">
+          <button type="button" onClick={() => setShowOut((v) => !v)} className="text-[13px] font-medium text-navy-700 hover:underline">{showOut ? '▾' : '▸'} Closed out · {outCards.length}</button>
+          {showOut && <div className="mt-2 flex flex-col gap-3">{outCards.map((c) => <Card key={c.deal.id} c={c} open={false} onFold={() => {}} onOpen={open} post={run} busy={busy} today={today} kept onKeep={() => keep(c.deal.id)} />)}</div>}
+        </div>
+      )}
+      <p className="mt-4 text-[12px] text-zinc-500">The checklists: New contract (from the contract date; EM placed by its due date), Assigned (once the deal is assigned; the buyer's EM receipt is chased while the EMD is empty or VPG only), COE (72 hours, 24 hours, closing day, the day after), Post Close (unlocks when the deal is closed: HUD statement, wire received, EM returned — ticked by itself when VPG never placed EM). A closed deal ticks the first three by itself; once every box is ticked it asks to be closed out. Items the deal's own fields already show are ticked “from the deal”. Items that were due before the list started (Oct 15) aren't put in Due today.</p>
       {panel}
     </div>
   );

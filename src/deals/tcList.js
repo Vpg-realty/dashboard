@@ -4,8 +4,12 @@
 // that has today's action item for the deal … allow us to add an item at the
 // bottom that would be assigning Aiza specific tasks per deal").
 //
-// One card per deal (open deals, plus closed ones until the day after COE
-// for the recording check-in). Each card: the deal's flags, "Due today" (what
+// One card per deal: open deals, plus closed ones (COE from POST_CLOSE_FROM)
+// until they're closed out (Luke, Oct 16: once a deal is closed its New
+// contract / Assigned / COE items tick themselves, Post Close unlocks — HUD
+// statement, wire received, EM returned — and when every box is ticked the
+// card asks "Close out deal?"; yes takes it off the list, stored as the
+// `closeout` tick). Each card: the deal's flags, "Due today" (what
 // to do today), and a checklist by stage — CHECKLIST below is the one place
 // the items live. Ticks and added tasks are stored in D1 (tc_checks,
 // tc_tasks — functions/api/tc).
@@ -19,6 +23,13 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 // "Due today" (so the deals already under way don't arrive with weeks of
 // back-dated items); they still show, unticked, in the checklist.
 export const TC_START = '2026-10-15';
+// Closed deals from this COE on get the Post Close checklist (October's
+// closings onward); older ones aren't on the list.
+export const POST_CLOSE_FROM = '2026-10-01';
+export const isClosedDeal = (d) => up(d?.status) === 'COMPLETE';
+// VPG put up earnest money (EMD paid by VPG or VPG + Buyer) — only then is
+// there EM to get back after closing.
+export const vpgPlacedEm = (d) => /VPG/.test(up(d.emdPaidBy));
 const up = (x) => String(x ?? '').trim().toUpperCase();
 const addDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 export const isAssignedDeal = (d) => up(d.status) === 'ASSIGNED' || up(d.status) === 'COMPLETE' || (typeof d.vpgAssign === 'number' && d.vpgAssign > 0);
@@ -57,8 +68,19 @@ export const CHECKLIST = [
       { id: 'record', label: 'Closing day 2 — recording check-in', due: (d) => addDays(d.coe, 1) },
     ],
   },
+  {
+    id: 'post', label: 'Post Close', when: isClosedDeal, wait: 'unlocks when the deal is closed', post: true,
+    items: [
+      { id: 'hud', label: 'HUD statement received', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 1) : null) },
+      { id: 'wirein', label: 'Wire received', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 1) : null), auto: (d) => ISO.test(d.wireDate || ''), why: () => 'done — wire date on the deal' },
+      { id: 'emret', label: 'EM returned', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 3) : null),
+        auto: (d) => !vpgPlacedEm(d) || up(d.emdReturned) === 'YES',
+        why: (d) => (!vpgPlacedEm(d) ? 'VPG never placed EM — nothing to return' : 'done — EMD returned on the deal') },
+    ],
+  },
 ];
-export const ITEM_IDS = new Set(CHECKLIST.flatMap((g) => g.items.map((i) => i.id)));
+export const CLOSE_OUT = 'closeout';
+export const ITEM_IDS = new Set([...CHECKLIST.flatMap((g) => g.items.map((i) => i.id)), CLOSE_OUT]);
 
 // The filters on top (and what a card is flagged with).
 export const TC_FLAGS = [
@@ -77,8 +99,9 @@ export function buildTcCards(deals, { checks = [], tasks = [] } = {}, today, now
   const tick = new Map(checks.map((c) => [`${c.deal_id}:${c.item}`, c]));
   const cards = [];
   for (const d of deals) {
-    const closedRecently = up(d.status) === 'COMPLETE' && ISO.test(d.coe || '') && d.coe >= addDays(today, -2);
-    if (!isOpen(d) && !closedRecently) continue;
+    const closed = isClosedDeal(d);
+    if (!isOpen(d) && !(closed && ISO.test(d.coe || '') && d.coe >= POST_CLOSE_FROM)) continue;
+    const out = tick.get(`${d.id}:${CLOSE_OUT}`) || null;
     const due = [];
     const flags = new Set();
     const toCoe = ISO.test(d.coe || '') ? daysBetween(today, d.coe) : null;
@@ -90,7 +113,10 @@ export function buildTcCards(deals, { checks = [], tasks = [] } = {}, today, now
     const groups = CHECKLIST.map((g) => {
       const active = g.when(d);
       const items = g.items.map((it) => {
-        const auto = active && it.auto ? it.auto(d) : false;
+        // A closed deal ticks everything before Post Close by itself.
+        const byClose = active && closed && !g.post;
+        const auto = byClose || (active && it.auto ? it.auto(d) : false);
+        const why = !auto ? null : byClose ? 'done — deal closed' : it.why ? it.why(d) : 'done — from the deal';
         const done = tick.get(`${d.id}:${it.id}`) || null;
         const dueOn = active ? it.due(d, today) : null;
         const open = active && !done && !auto;
@@ -101,7 +127,7 @@ export function buildTcCards(deals, { checks = [], tasks = [] } = {}, today, now
           const lateBy = daysBetween(dueOn, today);
           due.push({ text: it.label, late: lateBy > 0, lateBy, kind: g.id });
         }
-        return { ...it, active, auto, done, dueOn };
+        return { ...it, active, auto, why, done, dueOn };
       });
       return { ...g, active, items };
     });
@@ -113,7 +139,10 @@ export function buildTcCards(deals, { checks = [], tasks = [] } = {}, today, now
     if (missing.length) flags.add('info');
     if (due.length) flags.add('due');
     due.sort((a, b) => (b.late - a.late) || ((b.lateBy || 0) - (a.lateBy || 0)));
-    cards.push({ deal: d, groups, tasks: mine, due, flags, missing, left: left + mine.filter((t) => !t.done_at).length, total: total + mine.length });
+    // Every box ticked on a closed deal → ready to close out.
+    const ready = closed && left === 0 && mine.every((t) => t.done_at);
+    if (out) { flags.clear(); due.length = 0; }
+    cards.push({ deal: d, groups, tasks: mine, due, flags, missing, left: left + mine.filter((t) => !t.done_at).length, total: total + mine.length, ready, out });
   }
   // Late / due work first, then the soonest COE.
   const rank = (c) => (c.flags.has('ip') || c.flags.has('past') ? 0 : c.due.some((x) => x.late) ? 1 : c.due.length ? 2 : 3);
