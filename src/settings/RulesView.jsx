@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { readSetting, changeRule } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute, RULE_STATUSES } from '../deals/math.js';
-import { toTimelines, entryAt, applyChange, TRACKER_START } from '../deals/rules.js';
+import { toTimelines, entryAt, applyChange, TRACKER_START, rulesAt } from '../deals/rules.js';
 import { laToday } from '../utils/historyRange.js';
 import { money } from '../deals/format.js';
 import { Section, Field, Pct, Money, inputCls } from './ui.jsx';
@@ -36,10 +36,13 @@ const SECTIONS = [
     { net: true },
     { key: 'dispoAfterAcq', label: 'Dispo paid after the acq. commission', hint: "For these acq. managers the dispo commission is taken from what's left after theirs.", type: 'names' },
   ] },
-  { title: 'Manager commission', sub: 'Paid to one manager on the deals of the reps listed.', rules: [
+  { title: 'Manager commission', sub: 'Paid to one manager on the deals of the reps listed — on the acquisition side unless "Paid on" says otherwise.', rules: [
     { key: 'manager.name', label: 'Manager', type: 'person' },
     { key: 'manager.rate', label: 'Rate', hint: 'of the commission base', type: 'pct' },
     { key: 'manager.reps', label: 'On deals by', type: 'reps' },
+    // Luke, Oct 16: the manager is paid when a listed rep acquired the deal,
+    // never off the dispo side — editable here.
+    { key: 'manager.side', label: 'Paid on', hint: 'which side of the deal a listed rep must be on', type: 'side' },
   ] },
   { title: 'Pod override', sub: 'Paid to the pod lead on closed deals by the reps who report to them (Dropdown lists › Reports to).', rules: [
     { key: 'override.name', label: 'Pod lead', type: 'person' },
@@ -58,7 +61,9 @@ const SECTIONS = [
 const DEF = Object.fromEntries(SECTIONS.flatMap((s) => s.rules.filter((d) => d.key).map((d) => [d.key, { ...d, group: s.title }])));
 const defOf = (key) => (key.startsWith(NET) ? { key, label: key.slice(NET.length), hint: 'paid on net assignment instead of the commission base', type: 'pct', net: true, group: 'Paid on net assignment' } : DEF[key] || { key, label: key, type: 'json', group: 'Other' });
 
+const SIDES = [['acq', 'Acquisitions only — nothing from the dispo side'], ['both', 'Acquisitions and dispositions']];
 function show(type, v) {
+  if (type === 'side') return SIDES.find(([k]) => k === (v || 'acq'))[1];
   if (v === null || v === undefined) return <span className="text-zinc-400">not set</span>;
   if (type === 'pct') return `${Math.round(v * 1000) / 10}%`;
   if (type === 'money') return money(v);
@@ -66,7 +71,7 @@ function show(type, v) {
   if (type === 'statuses') return v.length ? RULE_STATUSES.filter(([k]) => v.includes(k)).map(([, l]) => l).join(', ') : <span className="text-zinc-400">never</span>;
   if (type === 'status') return STATUSES.find(([k]) => k === v)?.[1] || v;
   if (type === 'date') return v ? day(v) : <span className="text-zinc-400">any date</span>;
-  if (type === 'reps') return v.length ? v.map((x) => (x.coeBefore ? `${x.rep} (COE before ${day(x.coeBefore, false)})` : x.rep)).join(', ') : <span className="text-zinc-400">nobody</span>;
+  if (type === 'reps') return v.length ? v.map((x) => `${x.rep}${x.coeFrom ? ` (from ${day(x.coeFrom, false)})` : ''}${x.coeBefore ? ` (COE before ${day(x.coeBefore, false)})` : ''}`).join(', ') : <span className="text-zinc-400">nobody</span>;
   if (type === 'json') return JSON.stringify(v);
   return String(v);
 }
@@ -97,15 +102,21 @@ function Statuses({ value, onChange }) {
     </div>
   );
 }
+// Each rep with the date their deals start paying the manager (Luke, Oct
+// 16: "when the rep started and when their deals start to pay anthony").
+// Empty = every deal. An older end date (`coeBefore`) shows with a Clear.
 function Reps({ value, onChange, people }) {
+  const set = (i, patch) => { const r = [...value]; const x = { ...r[i], ...patch }; Object.keys(x).forEach((k) => (x[k] == null || x[k] === '') && delete x[k]); r[i] = x; onChange(r); };
   return (
     <div className="flex flex-col gap-2">
       {value.map((x, i) => (
         <div key={x.rep} className="flex flex-wrap items-center gap-2 text-[13.5px]">
-          <span className="w-44">{x.rep}</span>
-          <span className="text-zinc-500">only when COE is before</span>
-          <input type="date" value={x.coeBefore || ''} onChange={(e) => { const r = [...value]; r[i] = { rep: x.rep, ...(e.target.value ? { coeBefore: e.target.value } : {}) }; onChange(r); }} className="h-8 rounded-md border border-zinc-200 px-2" />
-          <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-red-600 hover:underline">remove</button>
+          <span className="w-44 font-medium text-navy-800">{x.rep}</span>
+          <span className="text-zinc-500">pays from deals closing on</span>
+          <input type="date" value={x.coeFrom || ''} onChange={(e) => set(i, { coeFrom: e.target.value || null })} className="h-8 rounded-md border border-zinc-200 px-2" />
+          {x.coeFrom ? <button type="button" onClick={() => set(i, { coeFrom: null })} className="text-zinc-500 hover:underline">clear</button> : <span className="text-[12px] text-zinc-400">empty = every deal</span>}
+          {x.coeBefore && <span className="text-[12px] text-amber-800">old end date {x.coeBefore} <button type="button" onClick={() => set(i, { coeBefore: null })} className="underline">clear</button></span>}
+          <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="ml-auto text-red-600 hover:underline">remove</button>
         </div>
       ))}
       <select value="" onChange={(e) => e.target.value && onChange([...value, { rep: e.target.value }])} className="h-8 w-48 rounded-md border border-zinc-200 bg-white px-2 text-[13px]">
@@ -122,6 +133,7 @@ function ValueInput({ def, value, onChange, people }) {
   if (t === 'names') return <Names value={value || []} onChange={onChange} people={people} />;
   if (t === 'statuses') return <Statuses value={value || []} onChange={onChange} />;
   if (t === 'reps') return <Reps value={value || []} onChange={onChange} people={people} />;
+  if (t === 'side') return <div className="flex flex-col gap-1.5 text-[13.5px]">{SIDES.map(([k, l]) => <label key={k} className="flex items-center gap-2"><input type="radio" checked={(value || 'acq') === k} onChange={() => onChange(k)} />{l}</label>)}</div>;
   if (t === 'date') return <input type="date" value={value || ''} onChange={(e) => onChange(e.target.value || null)} className={`${inputCls} w-48`} />;
   if (t === 'status') return <select value={value || 'COMPLETE'} onChange={(e) => onChange(e.target.value)} className={`${inputCls} w-48`}>{STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>;
   if (t === 'person') {
@@ -131,7 +143,7 @@ function ValueInput({ def, value, onChange, people }) {
   return <span className="text-zinc-500 text-[13px]">Not editable here.</span>;
 }
 
-const defaultValue = (def) => ({ pct: 0.5, money: 0, names: [], statuses: [], reps: [], person: '', date: null, status: 'COMPLETE' })[def.type] ?? null;
+const defaultValue = (def) => ({ pct: 0.5, money: 0, names: [], statuses: [], reps: [], person: '', date: null, status: 'COMPLETE', side: 'acq' })[def.type] ?? null;
 
 function Editor({ def, t, today, current, people, impactOf, onSave, onCancel }) {
   const [value, setValue] = useState(() => structuredClone(current ?? defaultValue(def)));
@@ -212,7 +224,7 @@ function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, im
   const coming = tl.filter((e) => e.from > today);
   const isOpen = open === def.key;
   return (
-    <div className="py-3 border-b border-tan-100 last:border-0">
+    <div id={`rule-${def.key}`} className="py-3 border-b border-tan-100 last:border-0 scroll-mt-24">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <div className="w-64 min-w-0">
           <div className="text-[13.5px] font-medium text-navy-800">{def.label}</div>
@@ -230,6 +242,61 @@ function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, im
       </div>
       {editing === def.key && <Editor def={def} t={t} today={today} current={cur?.value ?? null} people={people} impactOf={impactOf} onSave={onSave} onCancel={() => setEditing(null)} />}
       {isOpen && <History def={def} tl={tl} today={today} onRemove={(e) => onRemove(def, e)} />}
+    </div>
+  );
+}
+
+
+// Commission by person (Luke, Oct 16: "where is a specific section to adjust
+// commission per rep?"): everyone the rules name, with what they're paid
+// today on each side of a deal; each Edit opens the rule it comes from.
+function ByPerson({ t, today, lists, onEdit }) {
+  const r = rulesAt(t, today);
+  const pct = (x) => `${Math.round((x || 0) * 1000) / 10}%`;
+  const none = (r.noCommission || []).map((x) => x.toLowerCase());
+  const m = r.manager || {}; const o = r.override || {};
+  const mgrReps = (m.reps || []).filter((x) => !x.coeBefore || x.coeBefore > today);
+  const fromTxt = (x) => (x.coeFrom ? ` (from ${day(x.coeFrom, false)})` : '');
+  const reportsTo = lists?.reportsTo || {};
+  const acqTeam = lists?.acqTeam || []; const dispo = lists?.dispoMembers || [];
+  const people = [...new Set([...acqTeam, ...dispo, m.name, o.name, r.tcName].filter(Boolean))].sort();
+  const btn = (key, label = 'Edit') => <button type="button" onClick={() => onEdit(key)} className="ml-1.5 text-[12px] font-medium text-navy-700 hover:underline">{label}</button>;
+  const cell = (txt, key, extra) => <div className="text-[13px] leading-snug">{txt}{key && btn(key)}{extra}</div>;
+  const dash = <span className="text-zinc-300">—</span>;
+  return (
+    <div className="overflow-x-auto -mx-5">
+      <table className="w-full text-left">
+        <thead className="text-[12px] text-zinc-500 bg-tan-50/70">
+          <tr>{['Person', 'Acquisition side', 'Dispo side', 'Manager / pod lead', 'Reports to'].map((h, i) => <th key={h} className={`${i ? '' : 'pl-5'} px-3 py-2 font-medium whitespace-nowrap`}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {people.map((p) => {
+            const owner = none.includes(p.toLowerCase());
+            const net = r.acqOfNet?.[p];
+            const acq = !acqTeam.includes(p) ? dash
+              : owner ? cell('None (no commission)', 'noCommission')
+                : net != null ? cell(`${pct(net)} of net assignment`, `${NET}${p}`)
+                  : cell(<>{pct(r.acqRate)} of the commission base <span className="text-zinc-400">(standard rate)</span></>, 'acqRate', btn(`${NET}${p}`, 'Pay on net instead'));
+            const dsp = !dispo.includes(p) ? dash : owner ? cell('None (no commission)', 'noCommission') : cell(`${pct(r.dispoRate)} of the commission base`, 'dispoRate');
+            const roles = [];
+            if (p === m.name) roles.push(cell(<><b className="font-semibold">Manager</b>: {pct(m.rate)} on {m.side === 'both' ? 'deals' : 'acquisitions'} by {mgrReps.length ? mgrReps.map((x) => `${x.rep.split(' ')[0]}${fromTxt(x)}`).join(', ') : 'nobody right now'}</>, 'manager.reps'));
+            if (p === o.name) roles.push(cell(<><b className="font-semibold">Pod lead</b>: {pct(o.rate)} of net on closed deals by the reps who report to them</>, 'override.rate'));
+            if (p === r.tcName) roles.push(cell(<><b className="font-semibold">TC</b>: {money(r.tcComm)} per deal</>, 'tcComm'));
+            const lead = reportsTo[p];
+            const mgrOf = mgrReps.some((x) => x.rep === p) ? m.name : null;
+            return (
+              <tr key={p} className="border-t border-tan-100 align-top">
+                <td className="pl-5 px-3 py-2.5 text-[13.5px] font-semibold text-navy-800 whitespace-nowrap">{p}</td>
+                <td className="px-3 py-2.5">{acq}</td>
+                <td className="px-3 py-2.5">{dsp}</td>
+                <td className="px-3 py-2.5">{roles.length ? <div className="flex flex-col gap-1">{roles}</div> : dash}</td>
+                <td className="px-3 py-2.5 text-[13px]">{lead || mgrOf ? <>{lead || mgrOf}{mgrOf && <span className="text-zinc-500"> · pays {mgrOf.split(' ')[0]} {pct(m.rate)} on their acquisitions</span>}{lead && lead === o.name && <span className="text-zinc-500"> · pays {lead.split(' ')[0]} {pct(o.rate)} of net when closed</span>}</> : dash}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="px-5 pt-3 text-[12px] text-zinc-500">Reports to is set in Settings › Dropdown Lists › Reports to (the pod columns). A standard rate change applies to everyone on it; "Pay on net instead" gives one person their own rate.</p>
     </div>
   );
 }
@@ -290,6 +357,9 @@ export default function RulesView() {
         <p className="text-zinc-500 mt-0.5 max-w-3xl">The rates behind the deal tracker's commission columns (same as the old sheet's formulas). Each rule has its own start date: <b className="font-medium text-zinc-700">Edit</b> asks for the new value and the date it takes effect. Deals use the rules in effect on their COE (cancelled deals: their contract date), so deals that closed before a change keep what they had. Deals with numbers typed by hand keep them.{meta?.updatedBy && <> Last changed by {meta.updatedBy} on {new Date(meta.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.</>}</p>
         {msg && <p className={`mt-2 text-[13px] ${msg.error ? 'text-red-700' : 'text-emerald-700'}`}>{msg.text}</p>}
       </div>
+      <Section title="Commission by person" sub="What each person is paid today — Edit opens the rule it comes from below.">
+        <ByPerson t={t} today={today} lists={s.lists} onEdit={(key) => { setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); }} />
+      </Section>
       {SECTIONS.map((sec) => (
         <Section key={sec.title} title={sec.title} sub={sec.sub}>
           <div className="-my-3">

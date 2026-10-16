@@ -105,10 +105,10 @@ function Overview({ data, then, owner, compareLabel }) {
         </div>
       )}
       {data.months && (
-        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals · click a month to open it" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
+        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals by closing date (COE) · click a month to open it" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
           <div className="px-5 pt-4 pb-3 grid grid-cols-12 gap-2 items-end h-[190px]">
             {data.months.map((m, i) => (
-              <button key={m.key} type="button" onClick={() => setQuery({ p: `m:${m.key}` })} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
+              <button key={m.key} type="button" onClick={() => setQuery({ p: `m:${m.key}`, by: null })} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
                 <span className="text-[11.5px] tabular-nums text-zinc-600 group-hover:text-navy-800">{m.net ? compact(m.net) : ''}</span>
                 <span className="w-full max-w-[56px] rounded-t-md bg-navy-600 group-hover:bg-navy-800" style={{ height: `${Math.max(m.net ? 4 : 0, (m.net / maxNet) * 120)}px` }} />
                 <span className="w-full border-t border-tan-200 pt-1 text-center text-[12px] text-zinc-500">{MONTH[i].slice(0, 3)}</span>
@@ -183,7 +183,7 @@ function Months({ data, owner }) {
   const maxNet = Math.max(1, ...data.months.map((m) => m.net));
   const rows = [...data.months, { key: 'total', name: 'Total', total: true, ...data.yearTotal }];
   return (
-    <Card title={`Month by month · ${data.year}`} sub="click a month to open it">
+    <Card title={`Month by month · ${data.year}`} sub="by closing date (COE) · click a month to open it">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[14px]">
           <thead className="text-[12px] text-zinc-500 bg-tan-50/60">
@@ -195,7 +195,7 @@ function Months({ data, owner }) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} onClick={r.total ? undefined : () => setQuery({ p: `m:${r.key}`, view: null })} className={`border-t border-tan-100 ${r.total ? 'font-semibold bg-tan-50/70' : 'hover:bg-tan-50 cursor-pointer'}`}>
+              <tr key={r.key} onClick={r.total ? undefined : () => setQuery({ p: `m:${r.key}`, view: null, by: null })} className={`border-t border-tan-100 ${r.total ? 'font-semibold bg-tan-50/70' : 'hover:bg-tan-50 cursor-pointer'}`}>
                 <td className={`pl-5 px-3 py-2.5 ${r.contracts || r.total ? 'text-navy-900 font-medium' : 'text-zinc-400'}`}>{r.name}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{r.contracts}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{dim(r.closed)}</td>
@@ -236,8 +236,11 @@ export default function SummaryView() {
     const prevGroups = prevList ? Object.fromEntries(Object.keys(KINDS).map((k) => [k, new Map(groupStats(prevList, k).map((r) => [r.key, r]))])) : null;
     return {
       now: stats(list), then: prevList ? stats(prevList) : null, groups, prevGroups, year,
-      months: inYear ? MONTH.map((name, i) => { const mk = `${year}-${String(i + 1).padStart(2, '0')}`; return { key: mk, name, ...stats(s.deals.filter((d) => String(d[by] || '').startsWith(mk))) }; }) : null,
-      yearTotal: inYear ? stats(s.deals.filter((d) => String(d[by] || '').startsWith(year))) : null,
+      // Month by month always goes by the closing date (COE) — Luke, Oct 16:
+      // "net assignment by month should be calculated based on the close
+      // date", whatever date the rest of the page is set to.
+      months: inYear ? MONTH.map((name, i) => { const mk = `${year}-${String(i + 1).padStart(2, '0')}`; return { key: mk, name, ...stats(s.deals.filter((d) => String(d.coe || '').startsWith(mk))) }; }) : null,
+      yearTotal: inYear ? stats(s.deals.filter((d) => String(d.coe || '').startsWith(year))) : null,
     };
   }, [s.deals, period, by, compare]);
 

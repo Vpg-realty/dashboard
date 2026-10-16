@@ -502,7 +502,26 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `settings.deal_rules.change` with the old value), with identical
   results for every deal. `checkRules` checks the shape and the rule set in
   effect on every start date; `rulesFor` gives the TC only the TC-fee
-  timelines.
+  timelines. **Commission by person** (Luke, Oct 16: "where is a specific
+  section to adjust commission per rep?"): the first card on the page —
+  everyone the rules or lists name, with what they're paid today on the
+  acquisition side (standard rate / % of net / none), the dispo side, as
+  manager / pod lead / TC, and who they report to; each Edit opens and
+  scrolls to the rule it comes from ("Pay on net instead" starts a
+  per-person rate). **Manager paid on** (`manager.side`, Luke Oct 16: "if
+  spencer acqs a deal, commission is paid to anthony. if he dispos a deal,
+  no commission is paid to anthony off of the dispo side … editable in
+  settings"): 'acq' (default, nothing stored = acquisitions only — what the
+  formula always did) or 'both' (also deals a listed rep dispositioned;
+  once per deal); checked by edge/settings.js. A rep's date on the manager's list is
+  when their deals **start** paying the manager (`coeFrom`, "pays from
+  deals closing on", empty = every deal — Luke, Oct 16: "the calendar …
+  should be when the rep started"); older entries' end dates (`coeBefore`)
+  still read that way and show with a Clear. Oct 16: on Luke's request the
+  manager list was set to Axel, Spencer, Cayden with no dates from Oct 15
+  (the Oct 15 / Aug 1 entries with end dates removed — they had made his
+  later saves look like they did nothing); every closed deal computes as
+  before (checked).
   **Dropdown Lists** — `settings.deal_lists` and Reports to. Reports to
   (Luke, Oct 14) is laid out as columns: each pod lead on top of a column
   with their reps under it (Move… menu, ×), "+ Add a rep" per column, a "No
@@ -1094,7 +1113,9 @@ the approval records who).
   Gross, Net assignment, Net profit, Avg net / closed, Margin; the last
   three owners only). **Close rate = closed ÷ (closed + cancelled)** —
   open deals aren't in it (summaryStats `decided`; also the territory
-  pages' close rate).
+  pages' close rate). Net by month and Month by month always go by the closing
+  date (COE), whatever the page's date-by is (Luke, Oct 16; checked: May
+  2026 = 14 closings, $288,788 net).
 - **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
   **Payouts** (Oct 15 rework, `?tab=` deals | tc | paid | coming, person
   filter `?who=`, search): **By deal** — a card per closed deal with
