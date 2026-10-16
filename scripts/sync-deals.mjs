@@ -24,7 +24,7 @@ export async function runSync({ query, feed, names, now = new Date() }) {
   const links = (await one('SELECT ghl_id, deal_id, last FROM deal_ghl')).map((l) => ({ ...l, last: l.last ? JSON.parse(l.last) : null }));
   const ops = planSync({ deals, links, feed, names, since, seen: prevStatus.seen || {}, now: now.getTime() });
   const iso = now.toISOString();
-  const counts = { created: 0, linked: 0, updated: 0 };
+  const counts = { created: 0, linked: 0, updated: 0, relinked: 0 };
   const log = (id, field, from, to) => query('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, iso, null, BY, field, JSON.stringify(from), JSON.stringify(to)]);
   const saveLink = (op, dealId) => query(
     `INSERT INTO deal_ghl (ghl_id, deal_id, location, last, linked_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
@@ -55,6 +55,12 @@ export async function runSync({ query, feed, names, now = new Date() }) {
       await log(id, '*created', null, `${op.data.address} (from GHL, ${op.data.ghlStage})`);
       await saveLink(op, id);
       counts.created++;
+    } else if (op.type === 'relink') {
+      // The link's deal was deleted: move the link to the live deal at that address.
+      await query('UPDATE deal_ghl SET deal_id = ?, last = ?, updated_at = ? WHERE ghl_id = ?', [op.dealId, JSON.stringify(op.last), iso, op.ghlId]);
+      await log(op.dealId, '*linked', null, `GoHighLevel opportunity (was on deleted ${op.fromDealId})`);
+      await change(op.dealId, op);
+      counts.relinked++;
     } else {
       const changed = await change(op.dealId, op);
       await saveLink(op, op.dealId);

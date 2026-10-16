@@ -1,7 +1,7 @@
 // GET  /api/deals → { deals, lists, rules, me } (owners + the TC; see edge/deals.js)
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
-import { zillowUrl, addrKey } from '../../../src/deals/math.js';
+import { zillowUrl, addrKeys } from '../../../src/deals/math.js';
 import { canSeeDeals, canEditDeals, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes } from '../../../edge/deals.js';
 
 export async function onRequestGet(context) {
@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
     // Finished deals a rep doesn't receive: only their address key and
     // status, so Home / Pipeline don't nag about a deal the tracker closed
     // or cancelled while GHL still shows it active.
-    ended: all.filter((d) => !canSeeDeal(user, d)).map((d) => ({ key: addrKey(d.address), status: d.status })).filter((e) => e.key),
+    ended: all.filter((d) => !canSeeDeal(user, d)).flatMap((d) => addrKeys(d.address).map((key) => ({ key, status: d.status }))),
     deals: all.filter((d) => canSeeDeal(user, d)).map((d) => ({ ...shape(d, user), ghlSub: links.get(d.id) || null, cancelAt: cancels.get(d.id) || null })),
     lists: await getSetting(db, 'deal_lists', {}),
     rules: rulesFor(rules, user),

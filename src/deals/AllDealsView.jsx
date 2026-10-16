@@ -22,7 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl } from './math.js';
 import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
-import { useDeals, ghlDeals, addrKey, GHL_STAGE } from './store.js';
+import { useDeals, ghlDeals, addrKeys, GHL_STAGE } from './store.js';
 import EditableCell from './EditableCell.jsx';
 import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
 import { PageHead, Loading, Search, ResortBar } from './ui.jsx';
@@ -319,7 +319,7 @@ export default function AllDealsView() {
                     {cols.map((f) => {
                       const st = cellStyle(d, f, today);
                       const missing = need.has(f.key);
-                      const content = f.key === 'ghlStage' ? <GhlStage d={d} live={ghl.get(addrKey(d.address))} />
+                      const content = f.key === 'ghlStage' ? <GhlStage d={d} live={addrKeys(d.address).map((k) => ghl.get(k)).find(Boolean)} />
                         : NEEDS_BUYER.has(f.key) && noBuyer(d) ? <span className="opacity-60 text-[11px]">no buyer yet</span>
                           : null;
                       // Bookkeeping is locked until the COE date (Luke, Oct 14).

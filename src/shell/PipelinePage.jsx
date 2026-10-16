@@ -19,7 +19,7 @@ import { REPS, MARKETS, SUBACCOUNTS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery, navigate } from './router.js';
-import { useDeals, loadDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
+import { useDeals, loadDeals, addrKey, addrKeys, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { endTimeOf, fmtTime, ddEndMs } from '../deals/ddTime.js';
 import { isOpen } from '../deals/math.js';
 import { stageKey } from './stages.js';
@@ -83,7 +83,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   // Addresses where this person is the dispo member on the tracker.
   const dispoAddr = useMemo(() => {
     if (!rep) return new Set();
-    return new Set(s.raw.filter((d) => norm(d.dispoMember) === norm(rep.name)).map((d) => addrKey(d.address)));
+    return new Set(s.raw.filter((d) => norm(d.dispoMember) === norm(rep.name)).flatMap((d) => addrKeys(d.address)));
   }, [s.raw, rep]);
   // COE / IP end from the tracker when it has the deal (GHL's custom fields
   // aren't updated when the date changes on the site).
@@ -108,7 +108,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   const keep = (d, p) => !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const needle = q.trim().toLowerCase();
   const ghlAddr = new Set(PAIRS.flatMap((p) => (p.deals || []).map((d) => addrKey(d.address || d.name))));
-  const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !ghlAddr.has(addrKey(t.address))).map(trackerOnly)
+  const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !addrKeys(t.address).some((k) => ghlAddr.has(k))).map(trackerOnly)
     .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? pod.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);

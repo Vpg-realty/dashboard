@@ -16,7 +16,7 @@
 import StageChip from '../shell/StageChip.jsx';
 import { PILL_TONE } from './values.js';
 import { useMemo, useState } from 'react';
-import { useDeals, ghlDeals, addrKey, fieldsFromGhl } from './store.js';
+import { useDeals, ghlDeals, addrKey, addrKeys, fieldsFromGhl } from './store.js';
 import { PageHead, Loading, Search, StepPill, SyncNote, ResortBar, NeedChips } from './ui.jsx';
 import { money, compact, shortDate, stateCode, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
@@ -235,7 +235,7 @@ export default function ActiveView() {
     const coeKey = (d) => (ISO.test(d.coe || '') ? d.coe : '9999');
     const ordered = [...shown].sort((a, b) => (isAsg(b) - isAsg(a)) || (coeKey(a) < coeKey(b) ? -1 : coeKey(a) > coeKey(b) ? 1 : 0));
     const asg = actives.filter(isAsg);
-    const have = new Set(s.deals.map((d) => addrKey(d.address)));
+    const have = new Set(s.deals.flatMap((d) => addrKeys(d.address)));
     const miss = [...ghlDeals().values()].filter((g) => g.stage !== 'closed' && !have.has(addrKey(g.address || g.name)));
     return {
       shownCount: shown.length,
