@@ -132,7 +132,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   const seg = (v, label) => {
     const on = v === 'all' ? !who && raw === 'all' : v === 'pod' ? podOnly : raw === 'me' && !!who;
     return <button key={v} type="button" onClick={() => setQuery({ who: v === dflt ? null : v, st: null })} aria-pressed={on}
-      className={`h-8 px-3 rounded-md text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.25)] ${on ? 'bg-white text-navy-900' : 'bg-tan-500 text-navy-900 hover:bg-tan-400'}`}>{label}</button>;
+      className={`h-7 px-3 rounded-md text-[13px] font-semibold ${on ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{label}</button>;
   };
   const chip = (id, label, n) => (
     <button key={id || 'all'} type="button" onClick={() => setQuery({ st: id })} aria-pressed={st === id}
@@ -151,30 +151,40 @@ export default function PipelinePage({ mode = 'deals' }) {
         </div>
         {/* The person filter (Luke, Oct 14): Mine, My pod, Full team, then a person. */}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {mineId && seg('me', 'Mine')}
-          {pod && seg('pod', 'My pod')}
-          {(!scoped || teamOpps) && seg('all', 'Full team')}
+          {/* In the band, not the state row, so the columns below sit at the
+              same height on both tabs (Luke, Oct 16). */}
+          {isOpps && oppScope && (
+            <label className="relative">
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search name or address…"
+                className="h-8 w-60 rounded-md bg-white/10 text-white placeholder:text-white/50 ring-1 ring-inset ring-white/25 pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-tan-400" />
+              <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5 top-1.5 !text-white/60 hover:!text-white hover:!bg-white/10" />
+            </label>
+          )}
+          {/* Option 1 of the Oct 16 round (Luke: "a white box doesn't say
+              selected"): one dark switch, the choice that's on raised in tan;
+              the person picker beside it turns tan once someone is picked. */}
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-tan-400">Viewing</span>
+          {(mineId || pod || !scoped || teamOpps) && (
+            <span role="group" aria-label="Whose deals" className="inline-flex gap-0.5 rounded-lg bg-black/30 p-[3px]">
+              {mineId && seg('me', 'Mine')}
+              {pod && seg('pod', 'My pod')}
+              {(!scoped || teamOpps) && seg('all', 'Full team')}
+            </span>
+          )}
           {canPick && (
             <select aria-label="Pick a person" value={picked || ''} onChange={(e) => setQuery({ who: e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'), st: null })}
-              className={`h-8 rounded-md px-2 text-[13px] font-semibold text-navy-900 shadow-[0_1px_2px_rgba(0,0,0,0.25)] ${picked ? 'bg-white' : 'bg-tan-500'}`}>
-              <option value="">Pick a person…</option>
-              {pickable.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              className={`h-[34px] rounded-lg px-2 text-[13px] font-semibold ${picked ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'bg-transparent text-white ring-1 ring-inset ring-white/35 hover:bg-white/10'}`}>
+              <option value="" className="text-navy-900">Pick a person…</option>
+              {pickable.map((r) => <option key={r.id} value={r.id} className="text-navy-900">{r.name}</option>)}
             </select>
           )}
         </div>
       </div>
-      {(states.length > 1 || isOpps) && (!scoped || oppScope) && (
+      {states.length > 1 && (!scoped || oppScope) && (
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           <span className="text-[12.5px] text-zinc-500 mr-1">State</span>
           {chip(null, 'All states')}
           {states.map((m) => chip(m.id, MARKET_NAME[m.id] || m.id, counts[m.id]))}
-          {isOpps && (
-            <label className="relative ml-auto">
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search name or address…"
-                className="h-8 w-64 rounded-lg border border-zinc-200 bg-white pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-navy-100" />
-              <ClearX value={q} onClear={() => setQ('')} />
-            </label>
-          )}
         </div>
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>
