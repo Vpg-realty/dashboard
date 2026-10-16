@@ -28,7 +28,13 @@ export const SECTIONS = [
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
     // Full team / Mine / pick-a-person filter; deals open their details.
     id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: PEOPLE,
-    tabs: [{ id: 'all', label: 'Pipeline', view: 'team-pipeline', phone: { h: 2600 } }],
+    // Luke, Oct 16 (Pipeline A): Contracted deals / Opportunities / Calendar as
+    // tabs along the top, like Finance (the old ?view=opps links still work).
+    tabs: [
+      { id: 'all', label: 'Contracted Deals', view: 'team-pipeline', phone: { h: 2600 } },
+      { id: 'opportunities', label: 'Opportunities', view: 'team-pipeline-opps', phone: { h: 2600 } },
+      { id: 'calendar', label: 'Calendar', view: 'team-pipeline-cal', scroll: true },
+    ],
   },
   {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza

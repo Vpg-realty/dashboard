@@ -41,7 +41,7 @@ import RulesView from '../settings/RulesView.jsx';
 import ListsView from '../settings/ListsView.jsx';
 import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
-import PipelinePage from './PipelinePage.jsx';
+import PipelinePage, { PipelineOpps, PipelineCalendar } from './PipelinePage.jsx';
 import UserMenu from './UserMenu.jsx';
 import AskClaude from '../chat/ChatPanel.jsx';
 import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
@@ -55,7 +55,7 @@ const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
   'fin-payouts': PayoutsView, suggestions: SuggestionsView, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
-  'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage,
+  'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView, 'settings-pods': PodsView, 'settings-alerts': AlertsView, 'settings-tc': TcPayView,

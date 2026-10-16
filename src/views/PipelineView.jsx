@@ -1,4 +1,4 @@
-import { Fragment, createContext, useContext, useEffect, useRef } from 'react';
+import { Fragment, createContext, useContext, useEffect, useRef, useState } from 'react';
 import { REPS, MARKETS, ghlOppUrl } from '../data/config.js';
 import { STAGES } from '../shell/stages.js';
 import { PAIRS } from '../data/source.js';
@@ -71,7 +71,11 @@ const daysFrom = (today, date) => (date ? daysInclusive(today, date) - 1 : null)
 // `dates(deal)` swaps in the tracker's COE / IP end (withTrackerDates).
 const PipeCtx = createContext({});
 
-export default function PipelineView({ keep, onOpen, still, dates, opps } = {}) {
+// `brand` (the app's Pipeline page, Luke Oct 16 — Pipeline A): slim stage
+// titles on one line and two-line white cards; `calendar` shows the deals on
+// their key date instead of the columns (PipelineCalendar). The TV passes
+// neither and keeps its look.
+export default function PipelineView({ keep, onOpen, still, dates, opps, brand, calendar } = {}) {
   const today = laToday();
   const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
   const marketById = Object.fromEntries(MARKETS.map((m) => [m.id, m]));
@@ -97,6 +101,26 @@ export default function PipelineView({ keep, onOpen, still, dates, opps } = {}) 
   // named in a note so blank fields aren't mistaken for "no date set".
   const fieldIssues = PAIRS.filter((p) => !p._unconfigured && (p.dealFieldsError || p.dealFieldsMissing?.length));
 
+  if (calendar) return <PipeCtx.Provider value={{ onOpen, still }}><CalendarBoard deals={deals} today={today} /></PipeCtx.Provider>;
+  if (brand) {
+    return (
+      <PipeCtx.Provider value={{ onOpen, still }}>
+        <div className="flex flex-col gap-2.5 h-full min-h-0">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0 ${opps ? 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_1fr]' : 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_0.8fr]'}`}>
+            <BrandDue deals={deals} today={today} />
+            {opps && OPP_COLUMNS.map((col) => <BrandOppColumn key={col.stage} col={col} opps={opps.filter((o) => o.stage === col.stage)} repById={repById} marketById={marketById} />)}
+            {!opps && COLUMNS.map((col) => <BrandColumn key={col.stage} col={col} deals={sortDeals(deals.filter((d) => d.stage === col.stage), col.stage)} today={today} />)}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500 shrink-0">
+            {opps ? <span>Longest in the stage first · <b className="text-amber-700">amber</b> 14+ days · <b className="text-red-700">red</b> 30+ days · opens in GoHighLevel</span> : <>
+              <Key className={LATE} label="Late" /><Key className="border-red-700 bg-red-600" label="Today" /><Key className="border-red-300 bg-red-100" label="Tomorrow" /><Key className="border-yellow-300 bg-yellow-100" label="2 days" /><Key className="border-sky-300 bg-sky-100" label="3 days" />
+              <span>Coloured date = the one the stage runs on (IP end for Under contract and Dispo, COE for Assigned)</span>
+            </>}
+          </div>
+        </div>
+      </PipeCtx.Provider>
+    );
+  }
   return (
     <PipeCtx.Provider value={{ onOpen, still }}>
     <div className="flex flex-col gap-3 h-full min-h-0">
@@ -386,4 +410,232 @@ function AutoScroll({ className, children }) {
     return () => clearInterval(timer);
   }, [still]);
   return <div ref={ref} className={`flex-1 min-h-0 overflow-y-auto ${className}`}>{children}</div>;
+}
+
+// ---- Pipeline A, the app's page (Luke, Oct 16: "tiles in pipeline are
+// pretty bulky … the original pipeline had the address on one line, 2 lines
+// total … the titles of the pipeline stage tiles are bulky … not have so
+// much text all over the place"). One-line stage titles, two-line cards.
+const initials = (name) => String(name || '?').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+function Avatar({ rep }) {
+  return <span className="grid place-items-center w-[18px] h-[18px] rounded-full text-[8.5px] font-bold text-white shrink-0" style={{ background: rep?.color || '#a1a1aa' }}>{initials(rep?.name)}</span>;
+}
+
+// One line: dot + stage name in its colour, then the count, $ and late flag.
+function BrandHead({ color, title, count, money, chips }) {
+  return (
+    <div className="flex items-center gap-2 px-3 h-10 border-b border-tan-100 shrink-0" style={{ boxShadow: `inset 0 3px 0 ${color}` }}>
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+      <h3 className="text-[12.5px] font-bold uppercase tracking-[0.08em] truncate" style={{ color }}>{title}</h3>
+      <span className="text-[13px] font-semibold text-navy-800 tabular-nums">{count}</span>
+      {money > 0 && <span className="text-[12px] font-semibold text-emerald-700 tabular-nums">{formatCurrency(money)}</span>}
+      <span className="ml-auto flex items-center gap-1">{chips}</span>
+    </div>
+  );
+}
+const smallChip = (cls, text) => <span className={`rounded px-1.5 py-[1px] text-[11px] font-bold whitespace-nowrap ${cls}`}>{text}</span>;
+
+function BrandColumn({ col, deals, today }) {
+  const closed = col.stage === 'closed';
+  const total = deals.reduce((a, d) => a + d.value, 0);
+  const late = deals.filter((d) => d.late).length;
+  const soon = deals.filter((d) => d.keyDays === 0).length;
+  const title = closed ? `Closed · ${MONTHS_LONG[+today.slice(5, 7) - 1].slice(0, 3)}` : col.title;
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white flex flex-col min-h-0 overflow-hidden">
+      <BrandHead color={col.color} title={title} count={deals.length} money={total}
+        chips={<>{late > 0 && smallChip('bg-[#4c0519] text-white', `${late} late`)}{soon > 0 && smallChip('bg-red-600 text-white', `${soon} today`)}</>} />
+      <AutoScroll className="p-1.5 flex flex-col gap-1">
+        {deals.length === 0 && <div className="text-[13px] text-zinc-400 text-center py-6">Nothing here</div>}
+        {deals.map((d) => <BrandCard key={d.id} deal={d} closed={closed} />)}
+      </AutoScroll>
+    </section>
+  );
+}
+
+// Two lines (Luke, Oct 16): address + value; rep · state + IP and COE.
+function BrandCard({ deal, closed }) {
+  const { onOpen } = useContext(PipeCtx);
+  const key = KEY_DATE[deal.stage];
+  return (
+    <div onClick={onOpen ? () => onOpen(deal) : undefined}
+      className={`rounded-md border px-2.5 py-1.5 shrink-0 ${deal.late ? 'border-[#4c0519]/30 bg-[#4c0519]/[0.04]' : 'border-tan-100 bg-white'} ${onOpen ? 'cursor-pointer hover:border-navy-200 hover:shadow-sm' : ''}`}
+      style={{ borderLeft: `3px solid ${deal.rep?.color || '#a1a1aa'}` }}>
+      <div className="flex items-baseline gap-2 min-w-0">
+        <span className="text-[13.5px] font-semibold text-zinc-900 truncate flex-1 min-w-0" title={deal.address}>{deal.address || 'No address'}</span>
+        {deal.value > 0 && <span className="text-[13px] font-bold text-emerald-700 tabular-nums shrink-0">{formatCurrency(deal.value)}</span>}
+      </div>
+      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+        <Avatar rep={deal.rep} />
+        <span className="text-[12px] text-zinc-500 whitespace-nowrap shrink-0">{deal.rep?.name?.split(' ')[0] || '—'} · {deal.market?.id || deal.market?.name || '—'}</span>
+        <span className="ml-auto flex gap-1 min-w-0 overflow-hidden justify-end">
+          {closed ? <span className="text-[11.5px] font-semibold text-emerald-700">✓ Closed {deal.stageSince ? shortDate(new Date(deal.stageSince).toISOString().slice(0, 10)) : ''}</span> : <>
+            <SlimDate label="IP" date={deal.ipEnd} daysOut={deal.ipDays} isKey={key === 'ip'} />
+            <SlimDate label="COE" date={deal.coe} daysOut={deal.coeDays} isKey={key === 'coe'} />
+          </>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// IP and COE with their dates, both always shown (Luke, Oct 16: "i liked how
+// we had ip and coe with dates originally"): the stage's key date in its
+// deadline colour, the other one grey.
+function SlimDate({ label, date, daysOut, isKey }) {
+  let box = 'border-tan-100 bg-tan-50 text-zinc-400';
+  let rel = null;
+  if (isKey && date) {
+    if (daysOut < 0) { box = LATE; rel = `${-daysOut}d`; } else { const t = deadlineTone(daysOut); box = t.box; rel = daysOut <= 3 ? t.rel : null; }
+  }
+  return (
+    <span title={rel && daysOut < 0 ? `${label} ${shortDate(date)} — ${-daysOut} days late` : `${label} ${date ? shortDate(date) : '—'}`} className={`rounded border px-1 py-px text-[11px] leading-none whitespace-nowrap tabular-nums ${isKey ? 'shrink-0' : 'min-w-0 overflow-hidden text-ellipsis'} ${box}`}>
+      <span className="font-semibold opacity-80">{label}</span> <span className="font-bold">{date ? shortDate(date) : '—'}</span>{rel && <span className="font-bold"> · {rel}</span>}
+    </span>
+  );
+}
+
+function BrandDue({ deals, today }) {
+  const open = deals.filter((d) => d.stage !== 'closed');
+  const days = [0, 1, 2, 3].map((n) => ({ n, label: n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : dayName(addDays(today, n)), list: open.filter((d) => d.keyDays === n).sort((a, b) => b.value - a.value) }));
+  const total = days.reduce((a, d) => a + d.list.length, 0);
+  const late = open.filter((d) => d.late).length;
+  return (
+    <section className="rounded-xl bg-navy-700 text-white flex flex-col min-h-0 overflow-hidden shadow-sm">
+      <div className="flex items-center gap-2 px-3 h-10 border-b border-white/10 shrink-0">
+        <h3 className="text-[12.5px] font-bold uppercase tracking-[0.08em]">Due this week</h3>
+        <span className="text-[13px] font-semibold tabular-nums text-tan-400">{total}</span>
+      </div>
+      <AutoScroll className="p-1.5 flex flex-col gap-1">
+        {days.map(({ n, label, list }) => (
+          <Fragment key={n}>
+            <div className="px-1.5 pt-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-tan-400 flex justify-between"><span>{label}</span>{list.length > 0 && <span className="tabular-nums">{list.length}</span>}</div>
+            {list.length === 0 && <div className="px-1.5 text-[12px] text-white/45">{n === 0 ? '✓ Nothing due today' : 'Nothing due'}</div>}
+            {list.map((d) => <BrandDueCard key={d.id} deal={d} />)}
+          </Fragment>
+        ))}
+      </AutoScroll>
+      {late > 0 && <div className="shrink-0 m-1.5 mt-0 rounded-md px-2.5 py-1.5 text-[12.5px] font-bold" style={{ background: LATE_BG }}>{late} late · at the top of each column</div>}
+    </section>
+  );
+}
+function BrandDueCard({ deal }) {
+  const { onOpen } = useContext(PipeCtx);
+  const what = KEY_DATE[deal.stage] === 'coe' ? 'COE' : 'IP end';
+  return (
+    <div onClick={onOpen ? () => onOpen(deal) : undefined} className={`rounded-md bg-white/[0.08] px-2.5 py-1.5 shrink-0 ${onOpen ? 'cursor-pointer hover:bg-white/[0.14]' : ''}`} style={{ borderLeft: `3px solid ${deal.rep?.color || '#a1a1aa'}` }}>
+      <div className="text-[13px] font-semibold truncate" title={deal.address}>{deal.address || 'No address'}</div>
+      <div className="text-[11.5px] text-white/65 truncate">{deal.rep?.name?.split(' ')[0] || '—'} · {what} · {STAGE_TITLE[deal.stage]}</div>
+    </div>
+  );
+}
+
+function BrandOppColumn({ col, opps, repById, marketById }) {
+  const { onOpen } = useContext(PipeCtx);
+  void onOpen;
+  const list = [...opps].sort((a, b) => (b.days ?? -1) - (a.days ?? -1));
+  const total = list.reduce((a, o) => a + (o.value || 0), 0);
+  const stale = list.filter((o) => o.days >= 14).length;
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white flex flex-col min-h-0 overflow-hidden">
+      <BrandHead color={col.color} title={col.title} count={list.length} money={total} chips={stale > 0 && smallChip('bg-amber-100 text-amber-900', `${stale} 14d+`)} />
+      <AutoScroll className="p-1.5 flex flex-col gap-1">
+        {list.length === 0 && <div className="text-[13px] text-zinc-400 text-center py-6">Nothing here</div>}
+        {list.map((o) => {
+          const rep = repById[o.repId];
+          const url = ghlOppUrl(`${o.repId}|${o.marketId}`, o.id);
+          const tone = o.days >= 30 ? 'border-red-300 bg-red-50 text-red-800' : o.days >= 14 ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-tan-100 bg-tan-50 text-zinc-500';
+          const Tag = url ? 'a' : 'div';
+          return (
+            <Tag key={o.id} {...(url ? { href: url, target: '_blank', rel: 'noreferrer', title: 'Open in GoHighLevel' } : {})}
+              className={`block rounded-md border border-tan-100 bg-white px-2.5 py-1.5 shrink-0 ${url ? 'hover:border-navy-200 hover:shadow-sm' : ''}`} style={{ borderLeft: `3px solid ${rep?.color || '#a1a1aa'}` }}>
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className="text-[13.5px] font-semibold text-zinc-900 truncate flex-1 min-w-0">{o.address || 'No name'}</span>
+                {o.value > 0 && <span className="text-[13px] font-bold text-emerald-700 tabular-nums shrink-0">{formatCurrency(o.value)}</span>}
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                <Avatar rep={rep} />
+                <span className="text-[12px] text-zinc-500 truncate min-w-0">{rep?.name?.split(' ')[0] || '—'} · {marketById[o.marketId]?.id || o.marketId}</span>
+                {o.days != null && <span className={`ml-auto shrink-0 rounded border px-1 py-px text-[11px] font-semibold leading-none ${tone}`}>{o.days === 0 ? 'today' : `${o.days}d in stage`}</span>}
+              </div>
+            </Tag>
+          );
+        })}
+      </AutoScroll>
+    </section>
+  );
+}
+
+// ---- Calendar (Luke, Oct 16: "i like the calendar as well … a separate tab"):
+// two weeks at a time (?w= weeks from this one), a row per open stage, a
+// column per day plus "Late"; each deal sits on its key date as a small chip.
+const CAL_STAGES = COLUMNS.filter((c) => c.stage !== 'closed');
+function CalendarBoard({ deals, today }) {
+  const [w, setW] = useState(0);
+  const monday = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + w * 7);
+  const days = Array.from({ length: 14 }, (_, i) => addDays(monday, i));
+  const open = deals.filter((d) => d.stage !== 'closed');
+  const keyDate = (d) => (KEY_DATE[d.stage] === 'coe' ? d.coe : d.ipEnd);
+  const lateOf = (stage) => open.filter((d) => d.stage === stage && d.late);
+  const on = (stage, day) => open.filter((d) => d.stage === stage && keyDate(d) === day).sort((a, b) => b.value - a.value);
+  const range = `${shortDate(days[0])} – ${shortDate(days[13])}`;
+  const btn = 'h-8 px-3 rounded-md text-[13px] font-semibold text-navy-900 bg-tan-500 hover:bg-tan-400 shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className={btn} onClick={() => setW(w - 1)}>← Earlier</button>
+        <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{range}</span>
+        <button type="button" className={btn} onClick={() => setW(w + 1)}>Later →</button>
+        {w !== 0 && <button type="button" onClick={() => setW(0)} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this week</button>}
+        <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-500">
+          {CAL_STAGES.map((c) => <span key={c.stage} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />{c.title} · {KEY_DATE[c.stage] === 'coe' ? 'COE' : 'IP end'}</span>)}
+        </span>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-tan-200 bg-white">
+        <table className="w-full min-w-[1100px] border-collapse table-fixed">
+          <colgroup><col style={{ width: 132 }} /><col style={{ width: 120 }} />{days.map((d) => <col key={d} />)}</colgroup>
+          <thead>
+            <tr className="text-[11.5px]">
+              <th className="bg-tan-50 text-left px-3 py-2 font-bold uppercase tracking-[0.1em] text-tan-700 border-b border-tan-200">Stage</th>
+              <th className="bg-[#4c0519] text-white px-2 py-2 font-bold border-b border-tan-200">Late</th>
+              {days.map((d, i) => {
+                const isToday = d === today;
+                const wknd = i % 7 >= 5;
+                return <th key={d} className={`px-1 py-2 font-semibold border-b border-l border-tan-200 ${isToday ? 'bg-navy-700 text-white' : wknd ? 'bg-tan-50 text-zinc-400' : 'bg-tan-50 text-navy-800'} ${i === 7 ? 'border-l-2 border-l-tan-400' : ''}`}>{WEEKDAY[new Date(`${d}T12:00:00Z`).getUTCDay()]} {+d.slice(8)}</th>;
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {CAL_STAGES.map((c) => (
+              <tr key={c.stage} className="align-top">
+                <td className="px-3 py-2 border-b border-tan-100" style={{ boxShadow: `inset 3px 0 0 ${c.color}` }}>
+                  <div className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: c.color }}>{c.title}</div>
+                  <div className="text-[11.5px] text-zinc-500">{open.filter((d) => d.stage === c.stage).length} open</div>
+                </td>
+                <td className="p-1 border-b border-tan-100 bg-[#4c0519]/[0.04]"><div className="flex flex-col gap-1">{lateOf(c.stage).map((d) => <CalChip key={d.id} deal={d} late />)}</div></td>
+                {days.map((d, i) => (
+                  <td key={d} className={`p-1 border-b border-l border-tan-100 ${d === today ? 'bg-navy-50/60' : i % 7 >= 5 ? 'bg-tan-50/50' : ''} ${i === 7 ? 'border-l-2 border-l-tan-300' : ''}`}>
+                    <div className="flex flex-col gap-1">{on(c.stage, d).map((x) => <CalChip key={x.id} deal={x} />)}</div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+function CalChip({ deal, late }) {
+  const { onOpen } = useContext(PipeCtx);
+  const street = String(deal.address || 'No address').split(',')[0];
+  const t = late ? null : deadlineTone(deal.keyDays);
+  return (
+    <button type="button" onClick={onOpen ? () => onOpen(deal) : undefined} title={`${deal.address} · ${deal.rep?.name || ''}${deal.value ? ` · ${formatCurrency(deal.value)}` : ''}`}
+      className={`w-full text-left rounded border px-1.5 py-1 text-[11.5px] leading-tight hover:shadow-sm ${late ? LATE : t.rel && deal.keyDays <= 3 ? t.box : 'border-tan-200 bg-white text-zinc-800'}`}
+      style={{ borderLeft: `3px solid ${deal.rep?.color || '#a1a1aa'}` }}>
+      <span className="block font-semibold truncate">{street}</span>
+      <span className="block opacity-75 truncate">{deal.rep?.name?.split(' ')[0] || '—'}{late ? ` · ${-deal.keyDays}d` : ''}{deal.value > 0 ? ` · ${formatCurrency(deal.value)}` : ''}</span>
+    </button>
+  );
 }

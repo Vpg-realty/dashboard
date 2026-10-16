@@ -263,14 +263,26 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   before the title: Mine, Full team, then Pick a person (it was easy to miss
   on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
-  **Two views** (Luke, Oct 15): **Contracted deals** (`?view` unset — the
-  four stages from Under Contract, Full team allowed) and **Opportunities**
-  (`?view=opps` — New Lead, Review, Offer Submitted, Negotiation; one person
+  **Three top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
+  — the four stages from Under Contract, Full team allowed), **Calendar**
+  (`/pipeline/calendar`, `CalendarBoard`: two weeks from Monday, Earlier /
+  Later, a row per open stage, a Late column, each deal on its key date) and
+  **Opportunities** (`/pipeline/opportunities`; old `?view=opps` links
+  redirect — New Lead, Review, Offer Submitted, Negotiation; one person
   only: reps their own, owners / managers / TC pick a person; Oct 16 (Luke):
   owners and the TC also get Full team, managers only their pod — "My pod"
   `?who=pod` (`scopeReps`) and a person picker limited to the pod — the
   filtering is in the browser, opps.json itself is the same team file);
   Due This Week stays on the left in both (that person's contracted deals).
+  **Pipeline A look** (Luke, Oct 16 — picked from the proposals page, then
+  "tiles … bulky … address on one line, 2 lines total" and "titles … not so
+  much text"): a navy band (Pipeline · scope, a one-line headline, the
+  person filter as tan buttons), no stage-summary boxes; PipelineView's
+  `brand` prop draws one-line column titles (dot, stage, count, $, late /
+  today chips) and two-line cards (address + value; avatar, rep · state, IP
+  and COE chips — the key date in its deadline colour, "Nd" on maroon when
+  late, the other date grey and the first to shrink). The TV board passes no
+  `brand` / `calendar` and is unchanged.
   A **State** chip row (`?st=`, the person's states with counts) filters
   both; Opportunities add a name / address search. Opportunity cards show
   days in the stage (amber 14+, red 30+), longest first, and open the GHL
