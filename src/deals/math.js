@@ -110,6 +110,22 @@ export const ghlStatus = (d) => LABEL_STATUS[String(d?.ghlStage ?? '').trim().to
 // The status a person set differs from what GHL's stage says (shown as a
 // "GHL: <stage>" hint on the status cell).
 export const statusDiffersFromGhl = (d) => { const g = ghlStatus(d); return !!g && g !== String(d?.status ?? '').trim().toUpperCase(); };
+// Every way the tracker and GHL disagree on a deal (Luke, Oct 16: "if
+// something is out of sorts with the tracker … the top was in purple and
+// said it didn't match. this should be a note for every property"): the
+// status vs GHL's stage, the COE, and the IP end vs DD end. `g` = the live
+// GHL deal (store.js ghlDeals) when there is one; else the `ghlStage` mirror.
+// → [{ key: 'status' | 'coe' | 'ipEnd', tracker, ghl }]
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+export function ghlMismatches(d, g) {
+  const out = [];
+  const want = g ? STAGE_STATUS[g.stage] : ghlStatus(d);
+  const have = String(d?.status ?? '').trim().toUpperCase();
+  if (want && have && want !== have) out.push({ key: 'status', tracker: have, ghl: want });
+  if (g && DAY.test(g.coe || '') && DAY.test(d?.coe || '') && g.coe !== d.coe) out.push({ key: 'coe', tracker: d.coe, ghl: g.coe });
+  if (g && DAY.test(g.ipEnd || '') && DAY.test(d?.ddEnd || '') && g.ipEnd !== d.ddEnd) out.push({ key: 'ipEnd', tracker: d.ddEnd, ghl: g.ipEnd });
+  return out;
+}
 
 // Bookkeeping (Luke, Oct 14): wire date / received, EMD returned and
 // commission paid sit in Financials / Commissions & profit, locked until the

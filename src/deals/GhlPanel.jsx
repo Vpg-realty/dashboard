@@ -37,8 +37,9 @@ export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) 
           </div>
           {ended ? (
             // Luke, Oct 16 (10869 Waltman): finished in the tracker, still open in GHL.
-            <div className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] px-4 py-3.5 text-[#7A271A]">
-              <div className="font-semibold">{ended === 'CANCELLED' ? 'Cancelled in the deal tracker' : 'Closed in the deal tracker'}</div>
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3.5 text-violet-950">
+              <div className="text-[12px] font-bold uppercase tracking-wide text-violet-800">Doesn't match the tracker</div>
+              <div className="mt-0.5 font-semibold">{ended === 'CANCELLED' ? 'Cancelled in the deal tracker' : 'Closed in the deal tracker'}</div>
               <div className="mt-1 text-[14px]">GHL still has it in {g.stage === 'under_contract' ? 'Under contract' : g.stage === 'assigned' ? 'Assigned' : 'Dispo active'}. Move it to {ended === 'CANCELLED' ? 'Lost / Abandoned' : 'Closed'} in GoHighLevel so it stops showing as an active deal.</div>
             </div>
           ) : (

@@ -292,6 +292,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   and the GHL panel says "Cancelled / Closed in the deal tracker — move it
   to Lost / Closed in GoHighLevel". `addrKey` now lives in math.js (the
   server uses it). The TV board still reads GHL only.
+- **"Doesn't match the tracker"** (Luke, Oct 16: "the top was in purple and
+  said it didn't match. this should be a note for every property"): the deal
+  panel's purple In GoHighLevel note lists every disagreement —
+  `ghlMismatches` (math.js): status vs GHL's stage (STAGE_STATUS; with "move
+  it to Lost / Closed in GHL" when the tracker finished it), COE ("use
+  GHL's"), IP end vs DD end — shown also when only the `ghlStage` mirror is
+  known. The GHL panel's finished-in-the-tracker note uses the same purple.
 - **Deals open in place** (Luke, Oct 14): a deal clicked on Home (Needs
   attention, Wins) or on Pipeline opens the deal panel via
   `useGhlDealOpener` (src/deals): the tracker deal at the same address
