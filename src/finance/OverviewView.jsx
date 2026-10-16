@@ -5,9 +5,9 @@
 // later; the numbers can still change).
 import { useMemo } from 'react';
 import { useFinance } from './store.js';
-import { MoneyTile } from './ui.jsx';
+import { MoneyTile, FinanceHead } from './ui.jsx';
 import { sum } from './lines.js';
-import { PageHead, Loading } from '../deals/ui.jsx';
+import { Loading } from '../deals/ui.jsx';
 import { money } from '../deals/format.js';
 import PeriodBar from '../deals/PeriodBar.jsx';
 import { usePeriod, inPeriod } from '../deals/period.js';
@@ -25,7 +25,7 @@ function Table({ rows, cols, total }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-[13.5px]">
-        <thead className="text-[11px] uppercase tracking-wide font-bold" style={{ background: '#EEF2F6', color: '#6B7280' }}>
+        <thead className="text-[12px] font-semibold text-navy-700 bg-navy-50/70">
           <tr>{cols.map((c, i) => <th key={c.label} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2 whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
@@ -74,13 +74,13 @@ export default function OverviewView() {
   const fCols = cols.filter((c) => !['Paid out', 'Still owed'].includes(c.label)).map((c) => (c.label === 'Month' ? { ...c, label: 'Closing' } : c.label === 'Closed deals' ? { ...c, label: 'Deals' } : c));
   return (
     <div className="max-w-[1400px] mx-auto">
-      <PageHead title="Finance overview" sub="Closed deals by closing date: what came in, what was paid out in commissions, and what's left." right={<PeriodBar deals={f.deals} defaultKey={`y:${laToday().slice(0, 4)}`} showCompare={false} showBy={false} />} />
+      <FinanceHead eyebrow="Overview" title="Money in and out" sub="Closed deals by closing date: what came in, what was paid out in commissions, and what's left." right={<PeriodBar deals={f.deals} defaultKey={`y:${laToday().slice(0, 4)}`} showCompare={false} showBy={false} />} />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
         <MoneyTile label="Net revenue" value={money(t.net)} sub={`${t.deals} closed deal${t.deals === 1 ? '' : 's'} · ${period.label}`} />
-        <MoneyTile label="Commissions" value={money(t.comm)} sub={`${pct(t.comm, t.net)} of net revenue`} />
-        <MoneyTile label="Net profit" value={money(t.profit)} sub={`${pct(t.profit, t.net)} margin`} tone={t.profit < 0 ? 'text-red-700' : 'text-[#15803D]'} />
-        <MoneyTile label="Paid out" value={money(t.paid)} sub="commissions paid" />
-        <MoneyTile label="Still owed" value={money(t.owed)} sub="approved or to approve" tone={t.owed ? 'text-[#B54708]' : 'text-zinc-400'} />
+        <MoneyTile label="Commissions" accent="violet" value={money(t.comm)} sub={`${pct(t.comm, t.net)} of net revenue`} />
+        <MoneyTile label="Net profit" accent="green" value={money(t.profit)} sub={`${pct(t.profit, t.net)} margin`} tone={t.profit < 0 ? 'text-red-700' : 'text-[#15803D]'} />
+        <MoneyTile label="Paid out" accent="sky" value={money(t.paid)} sub="commissions paid" />
+        <MoneyTile label="Still owed" accent="amber" value={money(t.owed)} sub="approved or to approve" tone={t.owed ? 'text-[#B54708]' : 'text-zinc-400'} />
       </div>
       <section className="mt-4 rounded-xl border border-tan-200 bg-white overflow-hidden">
         <PanelHead title="By month" sub={period.label} />

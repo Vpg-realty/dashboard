@@ -21,6 +21,15 @@ const up = (x) => String(x ?? '').trim().toUpperCase();
 const cents = (n) => Math.round(Number(n) * 100) / 100;
 export const isClosed = (d) => up(d.status) === 'COMPLETE';
 export const settledInSheet = (d) => ['YES', 'NA', 'N/A'].includes(up(d.commPaid));
+// The TC is paid once a month for the month's closings (Luke, Oct 15: "TC
+// fees get paid at the end of the month based on total deals for the month —
+// almost like a property bonus"), so the TC line is its own category and the
+// deal's "Commission paid" covers only acq / dispo / manager / override.
+// Closings before TC_MONTHLY_FROM were settled the old way (the sheet's
+// Commission paid covered them).
+export const TC_MONTHLY_FROM = '2026-10-01';
+export const isTcLine = (l) => l.part === 'tc';
+const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || String(d.coe || '') < TC_MONTHLY_FROM);
 export const lineKey = (dealId, part) => `${dealId}:${part}`;
 
 // deals: computed (math.js compute); rows: fin_payouts rows.
@@ -38,8 +47,8 @@ export function buildLines(deals, rules, rows = []) {
       const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount };
       // "Commission paid" = Yes in the tracker settles every line not paid
       // here (no row, or only approved).
-      if (!r || (r.status !== 'paid' && settledInSheet(d))) {
-        out.push({ ...base, status: settledInSheet(d) ? 'paid' : 'owed', sheet: settledInSheet(d) });
+      if (!r || (r.status !== 'paid' && settles(d, p.part))) {
+        out.push({ ...base, status: settles(d, p.part) ? 'paid' : 'owed', sheet: settles(d, p.part) });
         continue;
       }
       out.push({
@@ -78,8 +87,8 @@ export function payByDeal(lines) {
     if (l.gone || !(l.amount > 0 || l.status !== 'owed')) continue;
     const e = out.get(l.dealId) || { parts: {}, paid: 0, total: 0 };
     e.parts[l.part] = l;
-    e.total += 1;
-    if (l.status === 'paid') e.paid += 1;
+    // "N of M paid" is what Commission paid covers — not the monthly TC fee.
+    if (!isTcLine(l)) { e.total += 1; if (l.status === 'paid') e.paid += 1; }
     out.set(l.dealId, e);
   }
   return out;
@@ -91,6 +100,21 @@ export function payText(l) {
   if (l.status === 'paid') return l.sheet ? { text: 'Paid', tone: 'green' } : { text: `Paid ${l.paidOn ? shortDay(l.paidOn) : ''}${l.method ? ` · ${METHODS[l.method] || l.method}` : ''}`.trim(), tone: 'green' };
   if (l.status === 'approved') return l.changed ? { text: 'Changed — approve again', tone: 'red' } : { text: 'Approved · to pay', tone: 'blue' };
   return { text: 'To approve', tone: 'amber' };
+}
+
+// The TC's months: every TC line by its deal's COE month, newest first →
+// [{ month, lines, total, status: owed | approved | paid | mixed, changed }].
+export function tcMonths(lines) {
+  const by = new Map();
+  for (const l of lines) {
+    if (!isTcLine(l) || l.gone || l.sheet) continue;
+    const m = String(l.coe || '').slice(0, 7) || 'none';
+    by.set(m, [...(by.get(m) || []), l]);
+  }
+  return [...by.entries()].map(([month, ls]) => {
+    const st = new Set(ls.map((l) => l.status));
+    return { month, lines: ls, total: sum(ls), status: st.size === 1 ? [...st][0] : 'mixed', changed: ls.some((l) => l.changed) };
+  }).sort((a, b) => b.month.localeCompare(a.month));
 }
 
 // What a line is worth to pay / what was paid.

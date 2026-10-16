@@ -6,7 +6,7 @@
 // are all paid gets "Commission paid" = Yes in the tracker (logged in its
 // history as Finance) — undoing a payment sets it back to No.
 import { compute } from '../src/deals/math.js';
-import { buildLines, lineKey, METHODS } from '../src/finance/lines.js';
+import { buildLines, lineKey, METHODS, isTcLine } from '../src/finance/lines.js';
 import { rowToDeal, getSetting } from './deals.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,13 +73,14 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     }
   }
 
-  // "Commission paid" on the deal follows its lines.
-  const touched = [...new Set(picked.map((l) => l.dealId))];
+  // "Commission paid" on the deal follows its acq / dispo / manager /
+  // override lines — the TC is paid monthly, on its own (lines.js isTcLine).
+  const touched = [...new Set(picked.filter((l) => !isTcLine(l)).map((l) => l.dealId))];
   const pickedKeys = new Set(keys);
   for (const id of touched) {
     const deal = all.deals.find((d) => d.id === id);
     if (!deal) continue;
-    const mine = all.lines.filter((l) => l.dealId === id && !l.gone);
+    const mine = all.lines.filter((l) => l.dealId === id && !l.gone && !isTcLine(l));
     const allPaid = mine.length > 0 && mine.every((l) => l.status === 'paid' || (action === 'pay' && pickedKeys.has(l.key)));
     // Paid in full → Yes; partly paid or a payment undone → No (Luke, Oct 15:
     // the tracker follows Finance; the panel shows which parts are paid).
