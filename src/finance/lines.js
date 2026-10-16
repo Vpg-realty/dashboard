@@ -29,25 +29,33 @@ export const settledInSheet = (d) => ['YES', 'NA', 'N/A'].includes(up(d.commPaid
 // Commission paid covered them).
 export const TC_MONTHLY_FROM = '2026-10-01';
 export const isTcLine = (l) => l.part === 'tc';
-// Luke, Oct 16: the TC is paid on every deal that hits Dispo Active — not at
-// closing — so from October a deal's TC line is due in the month it reached
-// Dispo Active, whatever happens to it after (the rules decide the amount,
-// cancelled deals included). When it got there: the GHL sync's logged move
-// into Dispo Active / Assigned / Closed, or the day the sync created it
-// (`dispoAt`, from the server, edge/deals.js dispoTimes); else the contract
-// date. A deal still Under Contract in GHL hasn't reached it yet. Deals that
-// reached it before October keep the old way: a line once closed, by COE,
-// settled by the sheet's Commission paid for closings before October.
+// Luke, Oct 16: the TC's monthly bonus counts the deals that had a defined
+// finish in the month — closed or cancelled (after reaching Dispo Active) —
+// whenever they opened: a deal opened in October and closed or cancelled in
+// November counts toward November. Finish date: closed = COE; cancelled =
+// when the tracker's status went to Cancelled (`cancelAt`, from the server,
+// edge/deals.js cancelTimes), else its COE (no later than the day it entered
+// the tracker), else its contract date. Open
+// deals aren't counted yet (they show in Coming due). A deal still Under
+// Contract in GHL when it was cancelled never reached Dispo Active. Closings
+// before October keep the old way (settled by the sheet's Commission paid).
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const azDay = (iso) => new Date(Date.parse(iso) - 7 * 3600e3).toISOString().slice(0, 10);
 const PRE_DISPO = /under contract|new lead|review|offer|negotiat/i;
 export const reachedDispo = (d) => !PRE_DISPO.test(String(d.ghlStage || ''));
-export function dispoDate(d) {
-  if (d.dispoAt && !Number.isNaN(Date.parse(d.dispoAt))) return azDay(d.dispoAt);
+const isCancelled = (d) => up(d.status) === 'CANCELLED';
+export function finishDate(d) {
+  if (isClosed(d)) return ISO.test(d.coe || '') ? d.coe : null;
+  if (!isCancelled(d)) return null;
+  if (d.cancelAt && !Number.isNaN(Date.parse(d.cancelAt))) return azDay(d.cancelAt);
+  // No logged cancel (cancelled before it reached the tracker, e.g. the
+  // sheet import): its COE, but never later than the day it came in.
+  const inDay = d.createdAt && !Number.isNaN(Date.parse(d.createdAt)) ? azDay(d.createdAt) : null;
+  if (ISO.test(d.coe || '')) return inDay && inDay < d.coe ? inDay : d.coe;
   return ISO.test(d.accepted || '') ? d.accepted : null;
 }
-export const tcOnDispo = (d) => reachedDispo(d) && (dispoDate(d) || '') >= TC_MONTHLY_FROM;
-const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || (!tcOnDispo(d) && String(d.coe || '') < TC_MONTHLY_FROM));
+export const tcOnFinish = (d) => (isClosed(d) || (isCancelled(d) && reachedDispo(d))) && (finishDate(d) || '') >= TC_MONTHLY_FROM;
+const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || (!tcOnFinish(d) && String(d.coe || '') < TC_MONTHLY_FROM));
 export const lineKey = (dealId, part) => `${dealId}:${part}`;
 
 // deals: computed (math.js compute); rows: fin_payouts rows.
@@ -57,8 +65,8 @@ export function buildLines(deals, rules, rows = []) {
   const seen = new Set();
   for (const d of deals) {
     const closed = isClosed(d);
-    const onDispo = tcOnDispo(d);
-    if (!closed && !onDispo) continue;
+    const tcMonthly = tcOnFinish(d);
+    if (!closed && !tcMonthly) continue;
     for (const p of payouts(d, rules)) {
       if (!closed && p.part !== 'tc') continue;
       const key = lineKey(d.id, p.part);
@@ -66,10 +74,10 @@ export function buildLines(deals, rules, rows = []) {
       const r = byKey.get(key);
       const amount = cents(p.amount);
       const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount };
-      // The TC's month: when the deal reached Dispo Active (from October), else its COE.
+      // The TC's month: the month the deal closed or was cancelled.
       if (p.part === 'tc') {
-        Object.assign(base, { dealStatus: d.status, dispoOn: onDispo ? dispoDate(d) : null });
-        base.month = onDispo ? base.dispoOn.slice(0, 7) : String(d.coe || '').slice(0, 7) || 'none';
+        Object.assign(base, { dealStatus: d.status, finishOn: finishDate(d) });
+        base.month = String(base.finishOn || '').slice(0, 7) || 'none';
       }
       // "Commission paid" = Yes in the tracker settles every line not paid
       // here (no row, or only approved).
@@ -154,5 +162,5 @@ export const partLabel = (p) => PARTS[p] || p;
 export function upcoming(deals, rules) {
   return deals
     .filter((d) => (up(d.status) === 'PENDING' || up(d.status) === 'ASSIGNED') && isAssigned(d) && typeof d.vpgAssign === 'number' && d.vpgAssign > 0)
-    .flatMap((d) => payouts(d, rules).filter((p) => !(p.part === 'tc' && tcOnDispo(d))).map((p) => ({ key: lineKey(d.id, p.part), dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount: cents(p.amount) })));
+    .flatMap((d) => payouts(d, rules).map((p) => ({ key: lineKey(d.id, p.part), dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount: cents(p.amount) })));
 }

@@ -2,7 +2,7 @@
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
 import { zillowUrl } from '../../../src/deals/math.js';
-import { canSeeDeals, canEditDeals, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, dispoTimes } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes } from '../../../edge/deals.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -13,10 +13,10 @@ export async function onRequestGet(context) {
   const rules = await getSetting(db, 'deal_rules', {});
   // Which GHL sub-account each linked deal is in (Luke, Oct 14).
   const links = await ghlLinks(db).catch(() => new Map());
-  // When it reached Dispo Active — the TC's pay month (src/finance/lines.js).
-  const dispo = await dispoTimes(db).catch(() => new Map());
+  // When cancelled deals were cancelled — the TC's bonus month (src/finance/lines.js).
+  const cancels = await cancelTimes(db).catch(() => new Map());
   return json({
-    deals: rows.results.map(rowToDeal).filter((d) => canSeeDeal(user, d)).map((d) => ({ ...shape(d, user), ghlSub: links.get(d.id) || null, dispoAt: dispo.get(d.id) || null })),
+    deals: rows.results.map(rowToDeal).filter((d) => canSeeDeal(user, d)).map((d) => ({ ...shape(d, user), ghlSub: links.get(d.id) || null, cancelAt: cancels.get(d.id) || null })),
     lists: await getSetting(db, 'deal_lists', {}),
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',
