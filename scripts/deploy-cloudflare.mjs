@@ -104,7 +104,7 @@ async function main() {
   // function call each (well inside the free 100k a day).
   fs.writeFileSync(path.join(out, '_routes.json'), JSON.stringify({
     version: 1,
-    include: ['/api/*', '/data.json', '/history.json', '/opp-state.json', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
+    include: ['/api/*', '/data.json', '/history.json', '/opp-state.json', '/opps.json', '/data-mgr.json', '/scorecards.json', '/messaging-review.json', '/month-log.json'],
     exclude: [],
   }));
   try { await syncClaudeKey(creds); } catch (err) { console.warn(`[cloudflare] Claude key not synced: ${err.message}`); }

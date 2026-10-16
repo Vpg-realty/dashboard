@@ -1,5 +1,5 @@
 import { Fragment, createContext, useContext, useEffect, useRef } from 'react';
-import { REPS, MARKETS } from '../data/config.js';
+import { REPS, MARKETS, ghlOppUrl } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
@@ -26,6 +26,16 @@ const COLUMNS = [
   { stage: 'dispo', title: 'Dispo Active', color: '#d97706' },
   { stage: 'assigned', title: 'Assigned', color: '#7c3aed' },
   { stage: 'closed', title: 'Closed', color: '#059669' },
+];
+
+// The Opportunities view (Luke, Oct 15: the stages before Under Contract, in
+// their own tab on the app's Pipeline page; Due This Week stays): `opps`
+// replaces the four stage columns with these.
+const OPP_COLUMNS = [
+  { stage: 'new_lead', title: 'New Lead', color: '#0284c7' },
+  { stage: 'review', title: 'Review', color: '#475569' },
+  { stage: 'offer_submitted', title: 'Offer Submitted', color: '#0d9488' },
+  { stage: 'negotiation', title: 'Negotiation', color: '#d97706' },
 ];
 
 // The date each open stage is run off (Luke, Oct 8).
@@ -59,7 +69,7 @@ const daysFrom = (today, date) => (date ? daysInclusive(today, date) - 1 : null)
 // `dates(deal)` swaps in the tracker's COE / IP end (withTrackerDates).
 const PipeCtx = createContext({});
 
-export default function PipelineView({ keep, onOpen, still, dates } = {}) {
+export default function PipelineView({ keep, onOpen, still, dates, opps } = {}) {
   const today = laToday();
   const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
   const marketById = Object.fromEntries(MARKETS.map((m) => [m.id, m]));
@@ -88,9 +98,10 @@ export default function PipelineView({ keep, onOpen, still, dates } = {}) {
   return (
     <PipeCtx.Provider value={{ onOpen, still }}>
     <div className="flex flex-col gap-3 h-full min-h-0">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[0.9fr_1fr_1fr_1fr_0.72fr] gap-3 flex-1 min-h-0">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0 ${opps ? 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_1fr]' : 'xl:grid-cols-[0.9fr_1fr_1fr_1fr_0.72fr]'}`}>
         <DueNowColumn deals={deals} today={today} />
-        {COLUMNS.map((col) => (
+        {opps && OPP_COLUMNS.map((col) => <OppColumn key={col.stage} col={col} opps={opps.filter((o) => o.stage === col.stage)} repById={repById} marketById={marketById} />)}
+        {!opps && COLUMNS.map((col) => (
           <StageColumn
             key={col.stage}
             col={col}
@@ -99,6 +110,9 @@ export default function PipelineView({ keep, onOpen, still, dates } = {}) {
           />
         ))}
       </div>
+      {opps ? (
+        <div className="text-xs text-zinc-600 shrink-0">Due This Week = their contracted deals · opportunity columns: longest in the stage first; <span className="font-semibold text-amber-700">amber</span> 14+ days, <span className="font-semibold text-red-700">red</span> 30+ days in the stage · click a card to open it in GoHighLevel</div>
+      ) : (
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-zinc-600 shrink-0">
         <Key className={LATE} label="Late" />
         <Key className="border-red-700 bg-red-600" label="Day of" />
@@ -115,6 +129,7 @@ export default function PipelineView({ keep, onOpen, still, dates } = {}) {
           </span>
         )}
       </div>
+      )}
     </div>
     </PipeCtx.Provider>
   );
@@ -259,6 +274,50 @@ function DealCard({ deal, closed }) {
         )}
       </div>
     </div>
+  );
+}
+
+// An opportunity column: longest in the stage first.
+function OppColumn({ col, opps, repById, marketById }) {
+  // `days` in the stage comes with the opps (src/data/oppsStore.js).
+  const list = [...opps].sort((a, b) => (b.days ?? -1) - (a.days ?? -1));
+  const total = list.reduce((a, o) => a + (o.value || 0), 0);
+  const stale = list.filter((o) => o.days >= 14).length;
+  return (
+    <section className="rounded-xl border border-zinc-300 bg-white flex flex-col min-h-0 overflow-hidden">
+      <div className="px-4 pt-2.5 pb-2 border-b border-zinc-200 shrink-0" style={{ borderTop: `5px solid ${col.color}` }}>
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-xl font-bold text-zinc-900 truncate">{col.title}</h3>
+          <span className="text-3xl font-extrabold tabular-nums leading-none" style={{ color: col.color }}>{list.length}</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1 min-h-[1.5rem] text-sm">
+          {total > 0 && <span className="font-bold text-emerald-700 tabular-nums">{formatCurrency(total)}</span>}
+          {stale > 0 && <span className="rounded-full bg-amber-100 text-amber-900 text-xs font-bold px-2 py-0.5">{stale} 14d+ in stage</span>}
+        </div>
+      </div>
+      <AutoScroll className="p-2 flex flex-col gap-1.5">
+        {list.length === 0 && <div className="text-sm text-zinc-400 text-center py-6">Nothing in this stage</div>}
+        {list.map((o) => {
+          const rep = repById[o.repId];
+          const url = ghlOppUrl(`${o.repId}|${o.marketId}`, o.id);
+          const tone = o.days >= 30 ? 'border-red-300 bg-red-50 text-red-800' : o.days >= 14 ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-zinc-200 bg-white text-zinc-500';
+          const Tag = url ? 'a' : 'div';
+          return (
+            <Tag key={o.id} {...(url ? { href: url, target: '_blank', rel: 'noreferrer', title: 'Open in GoHighLevel' } : {})}
+              className={`block rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-2 shrink-0 ${url ? 'hover:border-navy-200 hover:bg-white' : ''}`} style={{ borderLeft: `4px solid ${rep?.color || '#a1a1aa'}` }}>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[15px] font-bold text-zinc-900 leading-snug truncate">{o.address || 'No name'}</span>
+                {o.value > 0 && <span className="text-[15px] font-extrabold text-emerald-700 tabular-nums shrink-0">{formatCurrency(o.value)}</span>}
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <span className="truncate text-[13px] text-zinc-600">{rep?.name?.split(' ')[0] || '—'} · {marketById[o.marketId]?.name || o.marketId}</span>
+                {o.days != null && <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[12px] font-semibold leading-none ${tone}`}>{o.days === 0 ? 'today' : `${o.days}d in stage`}</span>}
+              </div>
+            </Tag>
+          );
+        })}
+      </AutoScroll>
+    </section>
   );
 }
 

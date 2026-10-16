@@ -14,6 +14,19 @@ const PUB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'pu
 export const MANAGER_FIELDS = ['crm', 'messaging', 'calls', 'callsError'];
 
 const file = path.join(PUB, 'data.json');
+// The Pipeline's Opportunities tab (stages before Under Contract, Luke Oct
+// 15) goes to its own file, opps.json, so the TV's 30-second data.json poll
+// stays small; same login rule as data.json (functions/_middleware.js).
+if (fs.existsSync(file)) {
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (Array.isArray(data.pairs) && data.pairs.some((p) => 'opps' in p)) {
+    const opps = { generatedAt: data.generatedAt, pairs: data.pairs.map((p) => ({ repId: p.repId, marketId: p.marketId, opps: p.opps || [] })) };
+    data.pairs = data.pairs.map(({ opps: _drop, ...p }) => p);
+    fs.writeFileSync(path.join(PUB, 'opps.json'), JSON.stringify(opps));
+    fs.writeFileSync(file, JSON.stringify(data));
+    console.log(`[split] opportunities moved to opps.json (${opps.pairs.reduce((a, p) => a + p.opps.length, 0)} opps)`);
+  }
+}
 if (fs.existsSync(file)) {
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   const has = (p) => MANAGER_FIELDS.some((k) => k in p);
