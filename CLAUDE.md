@@ -275,8 +275,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   **Pipeline A look** (Luke, Oct 16 — picked from the proposals page, then
   "tiles … bulky … address on one line, 2 lines total" and "titles … not so
   much text"): a navy band (Pipeline · scope, a one-line headline, the
-  person filter — managers get My pod on Contracted deals too (Luke, Oct
-  16); option 1: "Viewing" + one dark switch with
+  person filter — managers get My pod on Contracted deals too and pick
+  only people in their pod (Luke, Oct 16); option 1: "Viewing" + one dark switch with
   the selected choice raised in tan, the person picker outlined until
   someone is picked, then tan; the Opportunities search sits in the band so
   both tabs' columns line up — five equal columns on both), no
@@ -308,7 +308,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   (`CalendarBoard`): who sees what (Luke, Oct 16) — reps only their own
   deals (no Full team), managers Mine / My pod / a rep of their pod, owners
   and the TC Full team or anyone (`scoped` in PipelinePage, as on
-  Opportunities); state filter, two weeks from Monday
+  Opportunities); state filter, **Two weeks / Month** (Luke, Oct 16: "month
+  view options for future months … click into a specific date it pulls up
+  the day"; `?cal=month&m=YYYY-MM`): Month is a Monday-first grid with up to
+  four chips per date (+N more) and key dates late from before the grid
+  listed above it; a click on a date (or a day heading in Two weeks) opens
+  `DayPanel` (`?day=`) on the right — every IP end (with its time) and
+  closing that day, a row opens the deal. Two weeks: two weeks from Monday
   (Earlier / Later), a row per open stage, a Late column. Each deal shows its
   **IP end** (Under contract / Dispo, with the tracker's end time and zone —
   `withIpTime`, "5p ET") and its **COE**; the stage's key date is coloured by

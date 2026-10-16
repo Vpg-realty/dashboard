@@ -59,10 +59,10 @@ export default function PipelinePage({ mode = 'deals' }) {
   // manager their own, their pod or one of its reps; a rep only their own.
   const scoped = isOpps || view === 'cal';
   const teamOpps = me?.role === 'owner' || me?.role === 'tc';
-  // A manager gets "My pod" on every tab (Contracted deals too — Luke, Oct 16);
-  // only Opportunities and the Calendar limit them to it.
+  // A manager gets "My pod" on every tab and picks only people in their pod
+  // (Luke, Oct 16); Opportunities and the Calendar also leave out Full team.
   const pod = me?.role === 'manager' ? scopeReps(me) : null;
-  const pickable = scoped && pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
+  const pickable = pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
   // Luke, Oct 14: "Mine" is the default for anyone with a rep (reps and
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).

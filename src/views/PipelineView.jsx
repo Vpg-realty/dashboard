@@ -1,6 +1,7 @@
 import { Fragment, createContext, useContext, useEffect, useRef, useState } from 'react';
 import { REPS, MARKETS, ghlOppUrl } from '../data/config.js';
 import { STAGES } from '../shell/stages.js';
+import { useLocation, setQuery } from '../shell/router.js';
 import { PAIRS } from '../data/source.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
@@ -582,19 +583,13 @@ function BrandOppColumn({ col, opps, repById, marketById }) {
 // a row per open stage, a column per day plus "Late"; each deal's IP end (with
 // its time) and COE as small chips.
 const CAL_STAGES = COLUMNS.filter((c) => c.stage !== 'closed');
-function CalendarBoard({ deals, today }) {
-  const [w, setW] = useState(0);
-  const monday = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + w * 7);
-  const days = Array.from({ length: 14 }, (_, i) => addDays(monday, i));
-  const open = deals.filter((d) => d.stage !== 'closed');
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
-  // Every date a deal has (Luke, Oct 16: "add inspection period dates and
-  // times"): its IP end (Under contract / Dispo — with the time from the
-  // tracker) and its COE. The stage's key date is coloured by how close it
-  // is; the other one is a plain reference chip. A key date already passed
-  // (an IP end whose time has gone by today too) sits in Late.
-  const events = open.flatMap((d) => {
+// Every date a deal has (Luke, Oct 16: "add inspection period dates and
+// times"): its IP end (Under contract / Dispo — with the time from the
+// tracker) and its COE. The stage's key date is coloured by how close it is;
+// the other one is a plain reference chip. A key date already passed (an IP
+// end whose time has gone by today too) is late.
+function calEvents(deals, now) {
+  return deals.filter((d) => d.stage !== 'closed').flatMap((d) => {
     const out = [];
     if (d.ipEnd && d.stage !== 'assigned') {
       const late = d.ipDays < 0 || (d.ipDays === 0 && d.ipMs && d.ipMs < now);
@@ -603,22 +598,66 @@ function CalendarBoard({ deals, today }) {
     if (d.coe) out.push({ deal: d, kind: 'coe', date: d.coe, key: d.stage === 'assigned', late: d.stage === 'assigned' && d.coeDays < 0, days: d.coeDays, sort: Date.parse(`${d.coe}T23:59:30Z`) });
     return out;
   });
-  const lateOf = (stage) => events.filter((e) => e.deal.stage === stage && e.late).sort((a, b) => a.sort - b.sort);
-  const on = (stage, day) => events.filter((e) => e.deal.stage === stage && e.date === day && !e.late).sort((a, b) => a.sort - b.sort);
-  const range = `${shortDate(days[0])} – ${shortDate(days[13])}`;
+}
+const STAGE_ORDER = { under_contract: 0, dispo: 1, assigned: 2 };
+const byTime = (a, b) => a.sort - b.sort || STAGE_ORDER[a.deal.stage] - STAGE_ORDER[b.deal.stage];
+const monthOf = (iso) => iso.slice(0, 7);
+const addMonths = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+const monthName = (ym) => `${MONTHS_LONG[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+const dayLong = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+// Two views (Luke, Oct 16: "add month view options for future months. then
+// if they click into a specific date it pulls up the day"): Two weeks (rows
+// by stage, a Late column) and Month (a month grid, any month ahead or back).
+// Clicking a day — a day heading in Two weeks, a date in Month — opens that
+// day's list on the right. All in the link: ?cal=month&m=2026-11&day=2026-11-04.
+function CalendarBoard({ deals, today }) {
+  const { query } = useLocation();
+  const mode = query.get('cal') === 'month' ? 'month' : 'weeks';
+  const [w, setW] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
+  const events = calEvents(deals, now);
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(query.get('day') || '') ? query.get('day') : null;
+  const openDay = (d) => setQuery({ day: d });
   const btn = 'h-8 px-3 rounded-md text-[13px] font-semibold text-navy-900 bg-tan-500 hover:bg-tan-400 shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
+  const modeBtn = (m, label) => (
+    <button type="button" aria-pressed={mode === m} onClick={() => setQuery({ cal: m === 'month' ? 'month' : null, m: null })}
+      className={`h-7 px-3 rounded-md text-[13px] font-semibold ${mode === m ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 hover:bg-tan-100'}`}>{label}</button>
+  );
+  const legend = (
+    <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-500">
+      <span className="inline-flex items-center gap-1.5"><span className="rounded bg-navy-700 text-white px-1 text-[10px] font-bold">IP</span>inspection period ends</span>
+      <span className="inline-flex items-center gap-1.5"><span className="rounded bg-emerald-700 text-white px-1 text-[10px] font-bold">COE</span>closing</span>
+      <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-white" />not the date the stage runs on</span>
+    </span>
+  );
+  const toggle = <span role="group" aria-label="Calendar view" className="inline-flex gap-0.5 rounded-lg bg-white ring-1 ring-tan-200 p-[3px]">{modeBtn('weeks', 'Two weeks')}{modeBtn('month', 'Month')}</span>;
   return (
     <div className="flex flex-col gap-3">
+      {mode === 'month'
+        ? <MonthGrid events={events} today={today} ym={/^\d{4}-\d{2}$/.test(query.get('m') || '') ? query.get('m') : monthOf(today)} toggle={toggle} legend={legend} btn={btn} openDay={openDay} />
+        : <TwoWeeks events={events} deals={deals} today={today} w={w} setW={setW} toggle={toggle} legend={legend} btn={btn} openDay={openDay} />}
+      {day && <DayPanel day={day} today={today} events={events.filter((e) => e.date === day).sort(byTime)} onClose={() => setQuery({ day: null })} />}
+    </div>
+  );
+}
+
+function TwoWeeks({ events, deals, today, w, setW, toggle, legend, btn, openDay }) {
+  const monday = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + w * 7);
+  const days = Array.from({ length: 14 }, (_, i) => addDays(monday, i));
+  const open = deals.filter((d) => d.stage !== 'closed');
+  const lateOf = (stage) => events.filter((e) => e.deal.stage === stage && e.late).sort(byTime);
+  const on = (stage, day) => events.filter((e) => e.deal.stage === stage && e.date === day && !e.late).sort(byTime);
+  return (
+    <>
       <div className="flex flex-wrap items-center gap-2">
+        {toggle}
         <button type="button" className={btn} onClick={() => setW(w - 1)}>← Earlier</button>
-        <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{range}</span>
+        <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{shortDate(days[0])} – {shortDate(days[13])}</span>
         <button type="button" className={btn} onClick={() => setW(w + 1)}>Later →</button>
         {w !== 0 && <button type="button" onClick={() => setW(0)} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this week</button>}
-        <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-500">
-          <span className="inline-flex items-center gap-1.5"><span className="rounded bg-navy-700 text-white px-1 text-[10px] font-bold">IP</span>inspection period ends (time from the tracker)</span>
-          <span className="inline-flex items-center gap-1.5"><span className="rounded bg-emerald-700 text-white px-1 text-[10px] font-bold">COE</span>closing</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-white" />not the date the stage runs on</span>
-        </span>
+        {legend}
       </div>
       <div className="overflow-x-auto rounded-xl border border-tan-200 bg-white">
         <table className="w-full min-w-[1100px] border-collapse table-fixed">
@@ -630,7 +669,11 @@ function CalendarBoard({ deals, today }) {
               {days.map((d, i) => {
                 const isToday = d === today;
                 const wknd = i % 7 >= 5;
-                return <th key={d} className={`px-1 py-2 font-semibold border-b border-l border-tan-200 ${isToday ? 'bg-navy-700 text-white' : wknd ? 'bg-tan-50 text-zinc-400' : 'bg-tan-50 text-navy-800'} ${i === 7 ? 'border-l-2 border-l-tan-400' : ''}`}>{WEEKDAY[new Date(`${d}T12:00:00Z`).getUTCDay()]} {+d.slice(8)}</th>;
+                return (
+                  <th key={d} className={`p-0 font-semibold border-b border-l border-tan-200 ${isToday ? 'bg-navy-700 text-white' : wknd ? 'bg-tan-50 text-zinc-400' : 'bg-tan-50 text-navy-800'} ${i === 7 ? 'border-l-2 border-l-tan-400' : ''}`}>
+                    <button type="button" onClick={() => openDay(d)} title="Open this day" className="w-full px-1 py-2 hover:underline">{WEEKDAY[new Date(`${d}T12:00:00Z`).getUTCDay()]} {+d.slice(8)}</button>
+                  </th>
+                );
               })}
             </tr>
           </thead>
@@ -653,6 +696,135 @@ function CalendarBoard({ deals, today }) {
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
+
+// Month: Monday-first grid; each date shows its IP ends and closings (up to
+// four, then "+N more"); a click on the date opens the day. Key dates already
+// late from earlier months are listed above the grid.
+const MONTH_SHOW = 4;
+function MonthGrid({ events, today, ym, toggle, legend, btn, openDay }) {
+  const first = `${ym}-01`;
+  const start = addDays(first, -((new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7));
+  const nextFirst = `${addMonths(ym, 1)}-01`;
+  const weeks = Math.ceil(daysInclusive(start, addDays(nextFirst, -1)) / 7);
+  const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
+  const overdue = events.filter((e) => e.late && e.date < start).sort(byTime);
+  const inMonth = events.filter((e) => e.date >= start && e.date <= days[days.length - 1]);
+  const count = (pred) => inMonth.filter((e) => monthOf(e.date) === ym && pred(e)).length;
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {toggle}
+        <button type="button" className={btn} onClick={() => setQuery({ m: addMonths(ym, -1) })}>← {MONTHS_LONG[+addMonths(ym, -1).slice(5, 7) - 1].slice(0, 3)}</button>
+        <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{monthName(ym)}</span>
+        <button type="button" className={btn} onClick={() => setQuery({ m: addMonths(ym, 1) })}>{MONTHS_LONG[+addMonths(ym, 1).slice(5, 7) - 1].slice(0, 3)} →</button>
+        {ym !== monthOf(today) && <button type="button" onClick={() => setQuery({ m: null })} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this month</button>}
+        <span className="text-[12.5px] text-zinc-500 tabular-nums">{count((e) => e.kind === 'ip')} IP ends · {count((e) => e.kind === 'coe')} closings</span>
+        {legend}
+      </div>
+      {overdue.length > 0 && (
+        <div className="rounded-xl bg-[#4c0519]/[0.05] ring-1 ring-[#4c0519]/20 p-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[12px] font-bold text-[#4c0519] px-1">{overdue.length} late from before this view</span>
+          {overdue.map((e) => <span key={e.deal.id + e.kind} className="w-44"><CalChip ev={e} /></span>)}
+        </div>
+      )}
+      <div className="rounded-xl border border-tan-200 bg-white overflow-hidden">
+        <div className="grid grid-cols-7 bg-tan-50 border-b border-tan-200 text-[11.5px] font-bold uppercase tracking-[0.1em] text-tan-700">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <div key={d} className="px-2 py-2">{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((d, i) => {
+            const list = inMonth.filter((e) => e.date === d).sort(byTime);
+            const out = monthOf(d) !== ym;
+            const isToday = d === today;
+            return (
+              <div key={d} onClick={() => openDay(d)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') openDay(d); }}
+                className={`min-h-[118px] p-1.5 flex flex-col gap-1 cursor-pointer border-tan-100 ${i % 7 ? 'border-l' : ''} ${i >= 7 ? 'border-t' : ''} ${out ? 'bg-tan-50/60' : i % 7 >= 5 ? 'bg-tan-50/30' : ''} hover:bg-navy-50/50`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[12.5px] font-bold tabular-nums ${isToday ? 'bg-navy-700 text-white rounded-full w-6 h-6 grid place-items-center' : out ? 'text-zinc-300' : 'text-navy-800'}`}>{+d.slice(8)}</span>
+                  {list.length > 0 && <span className="text-[10.5px] text-zinc-400 tabular-nums">{list.length}</span>}
+                </div>
+                {list.slice(0, MONTH_SHOW).map((e) => <MonthChip key={e.deal.id + e.kind} ev={e} dim={out} />)}
+                {list.length > MONTH_SHOW && <span className="text-[11.5px] font-semibold text-navy-700 px-1">+{list.length - MONTH_SHOW} more</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+function MonthChip({ ev, dim }) {
+  const { deal, kind, key, late, days } = ev;
+  const t = !late && key ? deadlineTone(days) : null;
+  const tone = late ? LATE : t && days <= 3 ? t.box : key ? 'border-tan-200 bg-white text-zinc-800' : 'border-dashed border-zinc-300 bg-white text-zinc-500';
+  return (
+    <span className={`flex items-center gap-1 rounded border px-1 py-0.5 text-[11px] leading-tight min-w-0 ${tone} ${dim ? 'opacity-50' : ''}`} style={{ borderLeft: `3px solid ${STAGES[deal.stage]?.color || '#a1a1aa'}` }}>
+      <span className={`shrink-0 rounded px-1 text-[9.5px] font-bold text-white ${kind === 'ip' ? 'bg-navy-700' : 'bg-emerald-700'}`}>{kind === 'ip' ? 'IP' : 'COE'}</span>
+      <span className="font-semibold truncate">{String(deal.address || 'No address').split(',')[0]}</span>
+    </span>
+  );
+}
+
+// The day (opened from either view): every IP end and closing that date, in
+// time order, with the stage, person, time and value; a row opens the deal.
+function DayPanel({ day, today, events, onClose }) {
+  const { onOpen } = useContext(PipeCtx);
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onClose]);
+  const rel = daysFrom(today, day);
+  const when = rel === 0 ? 'Today' : rel === 1 ? 'Tomorrow' : rel === -1 ? 'Yesterday' : rel > 0 ? `In ${rel} days` : `${-rel} days ago`;
+  const ips = events.filter((e) => e.kind === 'ip');
+  const coes = events.filter((e) => e.kind === 'coe');
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-navy-900/30" />
+      <aside role="dialog" aria-label={dayLong(day)} onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-[460px] h-full bg-tan-50 shadow-2xl flex flex-col">
+        <div className="bg-navy-700 text-white px-5 py-4 flex items-start gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{when}</div>
+            <h2 className="text-[20px] font-semibold tracking-tight">{dayLong(day)}</h2>
+            <p className="text-[12.5px] text-white/70">{ips.length} IP end{ips.length === 1 ? '' : 's'} · {coes.length} closing{coes.length === 1 ? '' : 's'}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="ml-auto w-8 h-8 rounded-full grid place-items-center text-[20px] text-white/80 hover:bg-white/10">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          {events.length === 0 && <div className="rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px] text-center py-10">Nothing on this day.</div>}
+          {[['Inspection periods ending', ips], ['Closings', coes]].map(([title, list]) => list.length > 0 && (
+            <section key={title} className="flex flex-col gap-2">
+              <h3 className="text-[11.5px] font-bold uppercase tracking-[0.12em] text-tan-700">{title}</h3>
+              {list.map((e) => {
+                const d = e.deal;
+                const stage = STAGES[d.stage];
+                return (
+                  <button key={d.id + e.kind} type="button" onClick={onOpen ? () => onOpen(d) : undefined}
+                    className={`text-left rounded-xl border bg-white px-3 py-2.5 hover:shadow-sm hover:border-navy-200 ${e.late ? 'border-[#4c0519]/40' : 'border-tan-200'}`}
+                    style={{ borderLeft: `4px solid ${stage?.color || '#a1a1aa'}` }}>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[14px] font-semibold text-zinc-900 min-w-0 flex-1">{d.address || 'No address'}</span>
+                      {d.value > 0 && <span className="text-[13px] font-bold text-emerald-700 tabular-nums">{formatCurrency(d.value)}</span>}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-zinc-500">
+                      <span className="rounded-full px-2 py-px text-[11px] font-semibold text-white" style={{ background: stage?.color }}>{stage?.label}</span>
+                      <span>{d.rep?.name || '—'}{d.market?.id ? ` · ${d.market.id}` : ''}</span>
+                      {e.kind === 'ip' && <span className="font-semibold text-navy-800">{d.ipTime ? `ends ${d.ipTime}` : 'no end time on file'}</span>}
+                      {e.late && <span className="rounded-full bg-[#4c0519] text-white px-2 py-px text-[11px] font-bold">late</span>}
+                      {!e.key && <span className="text-zinc-400">(the stage runs on {KEY_DATE[d.stage] === 'coe' ? 'COE' : 'IP end'})</span>}
+                      {d.fromTracker && <span className="text-violet-700">tracker only — not in GHL</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </section>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }
