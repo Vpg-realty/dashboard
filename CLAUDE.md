@@ -513,7 +513,15 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   no commission is paid to anthony off of the dispo side … editable in
   settings"): 'acq' (default, nothing stored = acquisitions only — what the
   formula always did) or 'both' (also deals a listed rep dispositioned;
-  once per deal); checked by edge/settings.js.
+  once per deal); checked by edge/settings.js. A rep's date on the manager's list is
+  when their deals **start** paying the manager (`coeFrom`, "pays from
+  deals closing on", empty = every deal — Luke, Oct 16: "the calendar …
+  should be when the rep started"); older entries' end dates (`coeBefore`)
+  still read that way and show with a Clear. Oct 16: on Luke's request the
+  manager list was set to Axel, Spencer, Cayden with no dates from Oct 15
+  (the Oct 15 / Aug 1 entries with end dates removed — they had made his
+  later saves look like they did nothing); every closed deal computes as
+  before (checked).
   **Dropdown Lists** — `settings.deal_lists` and Reports to. Reports to
   (Luke, Oct 14) is laid out as columns: each pod lead on top of a column
   with their reps under it (Move… menu, ×), "+ Add a rep" per column, a "No

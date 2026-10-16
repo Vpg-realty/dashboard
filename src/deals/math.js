@@ -264,7 +264,13 @@ export function compute(deal, rules, lists) {
   // anthony. if he dispos a deal, no commission is paid to anthony off of the
   // dispo side"); rule `manager.side` 'both' also pays on deals a listed rep
   // dispositioned. Once per deal either way.
-  const listed = (who) => (m.reps || []).find((x) => is(x.rep, who) && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore)));
+  // A rep's date is when their deals start paying the manager (`coeFrom`,
+  // Luke, Oct 16: "the calendar … should be when the rep started and when
+  // their deals start to pay anthony"); older entries used an end date
+  // (`coeBefore`) and still read that way.
+  const listed = (who) => (m.reps || []).find((x) => is(x.rep, who)
+    && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore))
+    && (!x.coeFrom || (isDate(d.coe) && d.coe >= x.coeFrom)));
   const mgrRep = listed(d.acq) || (m.side === 'both' && d.dispoMember ? listed(d.dispoMember) : null);
   set('mgrComm', mgrRep && !waiting ? num(d.commBase) * num(m.rate) : 0);
   const o = r.override || {};

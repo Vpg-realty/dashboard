@@ -71,7 +71,7 @@ function show(type, v) {
   if (type === 'statuses') return v.length ? RULE_STATUSES.filter(([k]) => v.includes(k)).map(([, l]) => l).join(', ') : <span className="text-zinc-400">never</span>;
   if (type === 'status') return STATUSES.find(([k]) => k === v)?.[1] || v;
   if (type === 'date') return v ? day(v) : <span className="text-zinc-400">any date</span>;
-  if (type === 'reps') return v.length ? v.map((x) => (x.coeBefore ? `${x.rep} (COE before ${day(x.coeBefore, false)})` : x.rep)).join(', ') : <span className="text-zinc-400">nobody</span>;
+  if (type === 'reps') return v.length ? v.map((x) => `${x.rep}${x.coeFrom ? ` (from ${day(x.coeFrom, false)})` : ''}${x.coeBefore ? ` (COE before ${day(x.coeBefore, false)})` : ''}`).join(', ') : <span className="text-zinc-400">nobody</span>;
   if (type === 'json') return JSON.stringify(v);
   return String(v);
 }
@@ -102,15 +102,21 @@ function Statuses({ value, onChange }) {
     </div>
   );
 }
+// Each rep with the date their deals start paying the manager (Luke, Oct
+// 16: "when the rep started and when their deals start to pay anthony").
+// Empty = every deal. An older end date (`coeBefore`) shows with a Clear.
 function Reps({ value, onChange, people }) {
+  const set = (i, patch) => { const r = [...value]; const x = { ...r[i], ...patch }; Object.keys(x).forEach((k) => (x[k] == null || x[k] === '') && delete x[k]); r[i] = x; onChange(r); };
   return (
     <div className="flex flex-col gap-2">
       {value.map((x, i) => (
         <div key={x.rep} className="flex flex-wrap items-center gap-2 text-[13.5px]">
-          <span className="w-44">{x.rep}</span>
-          <span className="text-zinc-500">only when COE is before</span>
-          <input type="date" value={x.coeBefore || ''} onChange={(e) => { const r = [...value]; r[i] = { rep: x.rep, ...(e.target.value ? { coeBefore: e.target.value } : {}) }; onChange(r); }} className="h-8 rounded-md border border-zinc-200 px-2" />
-          <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="text-red-600 hover:underline">remove</button>
+          <span className="w-44 font-medium text-navy-800">{x.rep}</span>
+          <span className="text-zinc-500">pays from deals closing on</span>
+          <input type="date" value={x.coeFrom || ''} onChange={(e) => set(i, { coeFrom: e.target.value || null })} className="h-8 rounded-md border border-zinc-200 px-2" />
+          {x.coeFrom ? <button type="button" onClick={() => set(i, { coeFrom: null })} className="text-zinc-500 hover:underline">clear</button> : <span className="text-[12px] text-zinc-400">empty = every deal</span>}
+          {x.coeBefore && <span className="text-[12px] text-amber-800">old end date {x.coeBefore} <button type="button" onClick={() => set(i, { coeBefore: null })} className="underline">clear</button></span>}
+          <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="ml-auto text-red-600 hover:underline">remove</button>
         </div>
       ))}
       <select value="" onChange={(e) => e.target.value && onChange([...value, { rep: e.target.value }])} className="h-8 w-48 rounded-md border border-zinc-200 bg-white px-2 text-[13px]">
@@ -250,6 +256,7 @@ function ByPerson({ t, today, lists, onEdit }) {
   const none = (r.noCommission || []).map((x) => x.toLowerCase());
   const m = r.manager || {}; const o = r.override || {};
   const mgrReps = (m.reps || []).filter((x) => !x.coeBefore || x.coeBefore > today);
+  const fromTxt = (x) => (x.coeFrom ? ` (from ${day(x.coeFrom, false)})` : '');
   const reportsTo = lists?.reportsTo || {};
   const acqTeam = lists?.acqTeam || []; const dispo = lists?.dispoMembers || [];
   const people = [...new Set([...acqTeam, ...dispo, m.name, o.name, r.tcName].filter(Boolean))].sort();
@@ -272,7 +279,7 @@ function ByPerson({ t, today, lists, onEdit }) {
                   : cell(<>{pct(r.acqRate)} of the commission base <span className="text-zinc-400">(standard rate)</span></>, 'acqRate', btn(`${NET}${p}`, 'Pay on net instead'));
             const dsp = !dispo.includes(p) ? dash : owner ? cell('None (no commission)', 'noCommission') : cell(`${pct(r.dispoRate)} of the commission base`, 'dispoRate');
             const roles = [];
-            if (p === m.name) roles.push(cell(<><b className="font-semibold">Manager</b>: {pct(m.rate)} on {m.side === 'both' ? 'deals' : 'acquisitions'} by {mgrReps.length ? mgrReps.map((x) => x.rep.split(' ')[0]).join(', ') : 'nobody right now'}</>, 'manager.reps'));
+            if (p === m.name) roles.push(cell(<><b className="font-semibold">Manager</b>: {pct(m.rate)} on {m.side === 'both' ? 'deals' : 'acquisitions'} by {mgrReps.length ? mgrReps.map((x) => `${x.rep.split(' ')[0]}${fromTxt(x)}`).join(', ') : 'nobody right now'}</>, 'manager.reps'));
             if (p === o.name) roles.push(cell(<><b className="font-semibold">Pod lead</b>: {pct(o.rate)} of net on closed deals by the reps who report to them</>, 'override.rate'));
             if (p === r.tcName) roles.push(cell(<><b className="font-semibold">TC</b>: {money(r.tcComm)} per deal</>, 'tcComm'));
             const lead = reportsTo[p];
