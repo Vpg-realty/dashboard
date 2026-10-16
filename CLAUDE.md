@@ -378,7 +378,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   — no more separate buttons at the top and bottom. Clicking your name
   (bottom left; the avatar top right on a phone) opens `UserMenu.jsx`:
   name, email and **Log out** (`/cdn-cgi/access/logout`, ends the Access
-  session).
+  session). Anthony's profile button (and its menu header) is pink polka
+  dots — Luke, Oct 16: "only him" (`FLAIR` by rep_id in UserMenu.jsx).
 - **My scorecard** (Luke, Oct 14: reps see their own scorecard; team
   average line yes, manager notes no, no other rep's scores or team rates):
   sidebar section for team + managers, a scrolling page
