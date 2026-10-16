@@ -16,6 +16,10 @@ import MyScorecardView, { MyBreakdownView } from '../views/manager/MyScorecardVi
 import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
+import SettingsFrame from '../settings/Frame.jsx';
+import PodsView from '../settings/PodsView.jsx';
+import AlertsView from '../settings/AlertsView.jsx';
+import TcPayView from '../settings/TcPayView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
 import PayoutsView from '../finance/PayoutsView.jsx';
@@ -54,7 +58,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
-  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView,
+  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView, 'settings-pods': PodsView, 'settings-alerts': AlertsView, 'settings-tc': TcPayView,
   'mgr-team': TeamHub, 'mgr-crm': CrmReviewHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -221,7 +225,7 @@ export default function AppShell({ me }) {
           </div>
         </header>
 
-        {section.tabs && (
+        {section.tabs && !section.rail && (
           <div className="shrink-0 flex gap-1 px-3 md:px-4 border-b border-zinc-100 overflow-x-auto">
             {section.tabs.map((t) => {
               const on = t.id === tab.id;
@@ -245,7 +249,7 @@ export default function AppShell({ me }) {
         {section.id === 'board' && <AlertStrip />}
 
         <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : tab?.scroll ? 'overflow-y-auto px-4 md:px-6 py-5 pb-24 md:pb-8' : 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4'}`}>
-          {section.id === 'home' ? <HomeView me={me} /> : tab?.scroll ? <View /> : (
+          {section.id === 'home' ? <HomeView me={me} /> : section.rail && tab ? <SettingsFrame section={section} tab={tab}><View /></SettingsFrame> : tab?.scroll ? <View /> : (
             <div className={`h-(--ph) min-w-(--pw) md:h-full md:min-w-0 ${section.id === 'team' || section.id === 'me' ? 'app-team' : ''}`} style={{ '--ph': `${tab?.phone?.h || 900}px`, '--pw': `${tab?.phone?.w || 0}px` }}>
               <View repId={rep} onPickRep={pickRep} onBack={() => pickRep(null)} />
             </div>

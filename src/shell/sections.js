@@ -126,11 +126,16 @@ export const SECTIONS = [
     tabs: [{ id: 'all', label: 'Suggestions', view: 'suggestions', scroll: true }],
   },
   {
-    id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin',
+    // Settings layout A (Luke, Oct 16): a left rail grouped by what you're
+    // deciding (src/settings/Frame.jsx) instead of tabs along the top.
+    id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin', rail: true,
     tabs: [
-      { id: 'people', label: 'People', view: 'settings-people', scroll: true },
-      { id: 'commissions', label: 'Commission Rules', view: 'settings-rules', scroll: true },
-      { id: 'lists', label: 'Dropdown Lists', view: 'settings-lists', scroll: true },
+      { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
+      { id: 'pods', label: 'Pods', view: 'settings-pods', scroll: true, group: 'Team', sub: 'Leads and their reps', title: 'Pods and pod leads', blurb: 'Who reports to whom, and what each lead is paid on their reps’ deals.' },
+      { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'By person, then rules', title: 'Who gets paid what', blurb: 'Every rate with its start date. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
+      { id: 'tc', label: 'TC Pay', view: 'settings-tc', scroll: true, group: 'Money', sub: 'Fee and commission', title: 'Transaction coordinator pay', blurb: 'The TC fee taken off each deal and the TC’s commission per deal, with when each applies.' },
+      { id: 'lists', label: 'Dropdown Lists', view: 'settings-lists', scroll: true, group: 'Tracker', sub: 'States, deal types, EMD', title: 'Dropdown lists', blurb: 'The choices in the deal tracker’s dropdowns. Removing a choice doesn’t change deals that already use it.' },
+      { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Alerts', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
     ],
   },
 ];

@@ -10,6 +10,7 @@
 // value today, since when, any change still to come and its own history.
 // Before saving, shows which deals the change moves.
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, navigate } from '../shell/router.js';
 import { readSetting, changeRule } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute, RULE_STATUSES } from '../deals/math.js';
@@ -301,15 +302,25 @@ function ByPerson({ t, today, lists, onEdit }) {
   );
 }
 
-export default function RulesView() {
+// Settings layout A (Luke, Oct 16) shows the rules on three pages:
+// Commissions (acq / dispo, by person, changes by date), Pods (manager and
+// pod override) and TC pay. `only` = the section titles a page shows.
+// `?edit=<rule key>` opens that rule's editor (Commission by person's Edit
+// links to a rule on another page).
+const PAGE_OF = (key) => (key.startsWith('manager.') || key.startsWith('override.') ? 'pods' : key.startsWith('tc') ? 'tc' : 'commissions');
+export default function RulesView({ only = ['Acquisition and dispo'], byPerson = true, changesList = true }) {
   const s = useDeals();
+  const { query } = useLocation();
   const [t, setT] = useState(null);
   const [meta, setMeta] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(() => query.get('edit'));
   const [open, setOpen] = useState(null);
   const today = laToday();
   useEffect(() => { readSetting('deal-rules').then((x) => { setT(toTimelines(x.value)); setMeta(x); }).catch((e) => setMsg({ error: true, text: e.message })); }, []);
+  // Arrived with ?edit= — bring that rule into view once the rules are in.
+  const loaded = !!t;
+  useEffect(() => { if (loaded && editing) setTimeout(() => document.getElementById(`rule-${editing}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const people = useMemo(() => [...new Set([...(s.lists?.acqTeam || []), ...(s.lists?.dispoMembers || [])])].sort(), [s.lists]);
 
   // What a change does to the deals on file (pending deals with no buyer yet
@@ -351,16 +362,22 @@ export default function RulesView() {
   const byDate = changes.reduce((m, c) => { (m[c.from] ||= []).push(c); return m; }, {});
 
   return (
-    <div className="max-w-[1100px] flex flex-col gap-5">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Commission rules</h1>
-        <p className="text-zinc-500 mt-0.5 max-w-3xl">The rates behind the deal tracker's commission columns (same as the old sheet's formulas). Each rule has its own start date: <b className="font-medium text-zinc-700">Edit</b> asks for the new value and the date it takes effect. Deals use the rules in effect on their COE (cancelled deals: their contract date), so deals that closed before a change keep what they had. Deals with numbers typed by hand keep them.{meta?.updatedBy && <> Last changed by {meta.updatedBy} on {new Date(meta.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.</>}</p>
-        {msg && <p className={`mt-2 text-[13px] ${msg.error ? 'text-red-700' : 'text-emerald-700'}`}>{msg.text}</p>}
-      </div>
-      <Section title="Commission by person" sub="What each person is paid today — Edit opens the rule it comes from below.">
-        <ByPerson t={t} today={today} lists={s.lists} onEdit={(key) => { setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50); }} />
-      </Section>
-      {SECTIONS.map((sec) => (
+    <div className="flex flex-col gap-5">
+      {(meta?.updatedBy || msg) && (
+        <div className="text-[13px]">
+          {meta?.updatedBy && <span className="text-zinc-500">Rules last changed by {meta.updatedBy} on {new Date(meta.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. </span>}
+          {msg && <span className={msg.error ? 'text-red-700' : 'text-emerald-700'}>{msg.text}</span>}
+        </div>
+      )}
+      {byPerson && (
+        <Section title="Commission by person" sub="What each person is paid today. Edit opens the rule it comes from.">
+          <ByPerson t={t} today={today} lists={s.lists} onEdit={(key) => {
+            if (PAGE_OF(key) !== 'commissions') { navigate(`/settings/${PAGE_OF(key)}?edit=${encodeURIComponent(key)}`); return; }
+            setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+          }} />
+        </Section>
+      )}
+      {SECTIONS.filter((sec) => only.includes(sec.title)).map((sec) => (
         <Section key={sec.title} title={sec.title} sub={sec.sub}>
           <div className="-my-3">
             {sec.rules.map((def) => {
@@ -385,7 +402,7 @@ export default function RulesView() {
           </div>
         </Section>
       ))}
-      <Section title="Changes by start date" sub="Every dated change on one list, so changes meant to start together share a date.">
+      {changesList && <Section title="Changes by start date" sub="Every dated change on one list, so changes meant to start together share a date.">
         {!changes.length ? <p className="text-zinc-500 text-[13px]">No changes yet — every rule is as it was when the tracker began.</p> : (
           <div className="flex flex-col gap-3">
             {Object.entries(byDate).map(([d, cs]) => (
@@ -401,7 +418,7 @@ export default function RulesView() {
             ))}
           </div>
         )}
-      </Section>
+      </Section>}
     </div>
   );
 }

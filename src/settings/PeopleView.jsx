@@ -19,7 +19,7 @@ const ROLE_HELP = {
 
 // The sidebar's Team Chat button (Luke, Oct 15: the team's Discord). Stored
 // in D1 settings `team_chat` (not the public repo); empty hides the button.
-function TeamChat() {
+export function TeamChat() {
   const [url, setUrl] = useState('');
   const [saved, setSaved] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -123,10 +123,6 @@ export default function PeopleView() {
   };
   return (
     <div className="max-w-[1200px] flex flex-col gap-5">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">People</h1>
-        <p className="text-zinc-500 mt-0.5">Who can use the dashboard and what each person sees. Changes apply the next time they load a page.</p>
-      </div>
       <Section title={`Everyone · ${users.length}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">
@@ -149,7 +145,6 @@ export default function PeopleView() {
         </div>
         {addErr && <div className="mt-2 text-red-700 text-[13px]">{addErr}</div>}
       </Section>
-      <TeamChat />
       <Section title="What each role sees">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13.5px]">
           {ROLES.map((r) => <div key={r}><dt className="font-semibold text-navy-700">{ROLE_LABEL[r]}</dt><dd className="text-zinc-600">{ROLE_HELP[r]}</dd></div>)}
