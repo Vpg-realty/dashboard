@@ -113,6 +113,20 @@ function Card({ c, open, onFold, onOpen, post, busy, today, kept, onKeep }) {
   const d = c.deal;
   const [ask, setAsk] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Section bar (Luke, Oct 16: the deal panel's navy bar, picked one in tan):
+  // All, each checklist group, Tasks. Opens on the group being worked on.
+  const [pick, setPick] = useState(null);
+  const left = (g) => g.items.filter((it) => !it.done && !it.auto).length;
+  const lateIn = (g) => g.active && g.items.some((it) => !it.done && !it.auto && it.dueOn && it.dueOn <= today);
+  const working = c.groups.find((g) => g.active && left(g) > 0);
+  const sec = pick || (working ? working.id : 'all');
+  const tasksLeft = c.tasks.filter((t) => !t.done_at).length;
+  const tabs = [
+    { id: 'all', label: 'All' },
+    ...c.groups.map((g) => ({ id: g.id, label: g.label, n: `${g.items.length - left(g)}/${g.items.length}`, dot: lateIn(g), dim: !g.active })),
+    { id: 'tasks', label: 'Tasks', n: c.tasks.length ? `${c.tasks.length - tasksLeft}/${c.tasks.length}` : null, dot: c.tasks.some((t) => !t.done_at && t.due && t.due <= today) },
+  ];
+  const one = sec !== 'all';
   const tick = async (it, v) => {
     if (v && it.id === 'em' && !it.auto) { setAsk('em'); return; }
     if (v && it.id === 'title' && !d.title) { setAsk('title'); return; }
@@ -189,11 +203,23 @@ function Card({ c, open, onFold, onOpen, post, busy, today, kept, onKeep }) {
         ) : <div className="text-[13.5px] text-[#15803D] font-medium">✓ Nothing due today</div>}
       </div>
       {open && (
-        <div className="px-4 py-3 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {c.groups.map((g) => (
+        <nav className="flex flex-wrap gap-x-0.5 gap-y-1 bg-navy-700 px-3 py-1.5" aria-label="Checklist sections">
+          {tabs.map((t) => (
+            <button key={t.id} type="button" onClick={() => setPick(t.id)} aria-pressed={sec === t.id}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${sec === t.id ? 'bg-tan-500 text-navy-900 shadow' : `${t.dim ? 'text-white/45' : 'text-white/80'} hover:text-white hover:bg-white/10`}`}>
+              {t.label}
+              {t.n && <span className={`text-[11px] font-medium tabular-nums ${sec === t.id ? 'text-navy-900/70' : 'text-white/50'}`}>{t.n}</span>}
+              {t.dot && <span className="w-1.5 h-1.5 rounded-full bg-[#F04438] ring-1 ring-white/70" title="Something is due" />}
+            </button>
+          ))}
+        </nav>
+      )}
+      {open && (
+        <div className={`px-4 py-3 grid gap-4 ${one ? '' : 'md:grid-cols-2 xl:grid-cols-4'}`}>
+          {c.groups.filter((g) => sec === 'all' || sec === g.id).map((g) => (
             <div key={g.id} className={`${g.active ? '' : 'opacity-50'} ${g.post ? `rounded-lg -m-1.5 p-1.5 ${g.active ? 'bg-tan-50 ring-1 ring-tan-200' : ''}` : ''}`}>
               <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">{g.post && (g.active ? '🔓 ' : '🔒 ')}{g.label}{!g.active && <span className="ml-1.5 font-normal text-zinc-500">— {g.wait}</span>}</div>
-              <ul className="flex flex-col gap-1.5">
+              <ul className={one ? 'grid gap-x-6 gap-y-1.5 md:grid-cols-2' : 'flex flex-col gap-1.5'}>
                 {g.items.map((it) => (
                   <li key={it.id} className="flex items-start gap-2 text-[13px]">
                     <Check on={!!it.done} auto={it.auto} disabled={!g.active || busy || saving} label={`${d.address}: ${it.label}`} onChange={(v) => tick(it, v)} />
@@ -209,7 +235,7 @@ function Card({ c, open, onFold, onOpen, post, busy, today, kept, onKeep }) {
               </ul>
             </div>
           ))}
-          <div className="md:col-span-2 xl:col-span-4 border-t border-tan-100 pt-3">
+          {(sec === 'all' || sec === 'tasks') && <div className={one ? '' : 'md:col-span-2 xl:col-span-4 border-t border-tan-100 pt-3'}>
             <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">Tasks for this deal</div>
             {c.tasks.length === 0 && <div className="text-[12.5px] text-zinc-400">No extra tasks yet.</div>}
             <ul className="flex flex-col gap-1.5">
@@ -225,7 +251,7 @@ function Card({ c, open, onFold, onOpen, post, busy, today, kept, onKeep }) {
               ))}
             </ul>
             <AddTask onAdd={(text, due) => post({ action: 'add', dealId: d.id, text, due })} />
-          </div>
+          </div>}
         </div>
       )}
       </div>

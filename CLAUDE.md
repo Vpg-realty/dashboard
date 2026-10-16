@@ -930,6 +930,11 @@ the server strips them (`forTc`) and refuses edits to them.
   tile picked; "Re-sort now" when out of date; a closed-out card leaves at
   once), and Closed out is a green tile in the top row (`?only=out`) plus a
   full-width banner at the bottom.
+  **Section bar** (Luke, Oct 16 — the deal panel's bar): an open card's
+  checklist has a navy bar — All, each group with "done/total", Tasks — the
+  picked one raised in tan, a red dot where something is due; it opens on
+  the first active group with boxes left (else All) and shows one group at
+  a time.
   Under the checklist: **Tasks for this deal** + "Add a task for Aiza" (text,
   optional due date; tick, delete). Tiles = filters (`?only=due|ip|past|
   closing|emd|info`), cards sorted IP / past COE first, then late, due,
