@@ -206,14 +206,8 @@ export default function AppShell({ me }) {
             {tab ? <>{section.label} <span className="text-zinc-300">/</span> <span className="text-navy-700 font-semibold">{tab.label}</span></> : <span className="text-navy-700 font-semibold">{section.label}</span>}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {['owner', 'manager', 'tc'].includes(me.role) && section.id !== 'suggestions' && (
-              // Luke, Oct 15: the suggestion box, one click from any page (the
-              // page it came from goes with it).
-              <a {...linkProps(`/suggestions/all?new=1&from=${encodeURIComponent(path + (window.location.search || ''))}`)} title="Suggest a change to this page or anything else"
-                className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-lg border border-tan-200 bg-tan-50 font-medium text-navy-700 hover:bg-tan-100">
-                <Icon name="idea" size={14} /><span className="hidden lg:inline">Suggest a change</span>
-              </a>
-            )}
+            {/* The header's "Suggest a change" button was removed (Luke, Oct 16) —
+                the Suggestion Box in the sidebar is the way in. */}
             <ViewAsButton me={me} />
             {status?.lastSync && <span className="hidden sm:inline text-xs text-zinc-400" title={new Date(status.lastSync).toLocaleString()}>Updated {ago(status.lastSync)}</span>}
             {isManager && (

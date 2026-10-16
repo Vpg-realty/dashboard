@@ -243,8 +243,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
   so it's easy to find (`bottom: 'suggest'`, drawn by AppShell; roles owner /
   manager / tc), `/suggestions/all` (`src/suggestions/SuggestionsView.jsx`).
-  A "Suggest a change" button in the header (those roles, every page) opens
-  the form with the page it came from (`?new=1&from=<path>`); kind (Something
+  The header's "Suggest a change" button was removed Oct 16 (Luke) — the
+  sidebar entry is the way in; the form still takes `?new=1&from=<path>`; kind (Something
   is wrong / Change something / New idea), where (a sidebar section), title,
   details. Everyone in those roles sees and comments on every suggestion;
   owners set the status (New → Under review → Approved → Done, or Not now)
@@ -452,7 +452,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   tan number badge; classes in `src/shell/panelStyle.js`), the right slot on
   a small white tray so its controls keep their colours; the deal panel's
   numbered sections and Active's fold bars use the same band (Active's IP
-  ends bar dark red). Used by Home cards, Deals, My scorecard, Settings,
+  ends bar dark red). The corner boxes are beige (Luke, Oct 16: "the boxes in the
+  top right corner of each square should be in our other company color -
+  beige … throughout the site"): the header's right slot (`PANEL_TRAY`,
+  tan-100 with a tan ring, navy links) and the pace badges (`PACE_CHIP` —
+  On pace / Near pace / Behind on Home, My scorecard and the Rep tiles; the
+  card's tint still carries the pace colour). Home's Revenue card has its
+  pace badge inside the box, top right. The TV board keeps its own look. Used by Home cards, Deals, My scorecard, Settings,
   Territory and Zips. The TV board keeps its own look.
 - Team pages' header (`ManagerFrame.jsx`) is a plain title row now — the
   blue "Manager view" strip isn't needed inside the app. Team and My
