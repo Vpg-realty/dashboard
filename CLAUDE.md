@@ -1159,8 +1159,12 @@ the approval records who).
 - **Look** (Luke, Oct 15: "very bland and slightly confusing … match the
   style of the rest of the dashboard"): every Finance page opens with a navy
   band (`FinanceHead` in ui.jsx — eyebrow, title, what the page does,
-  controls on the right) and accent tiles (`MoneyTile` with a coloured top
-  bar: amber to approve, sky to pay, violet TC, green paid, tan coming due).
+  controls on the right) and brand tiles (`MoneyTile`, Luke Oct 16: "too
+  claude-like … more brand focused": white card, tan border, the label as a
+  tan eyebrow behind a status dot — amber to approve, sky to pay, violet TC,
+  green paid, tan coming due — the number in navy (red only for a negative /
+  short), a short tan rule, the V mark faint in the corner; the picked tab
+  turns brand navy).
 - **How the company is looking** (Luke, Oct 16; `CompanyOutlook.jsx`,
   `outlook.js`), on Payouts and Wires In: Closed + Lined up (open deals
   assigned with a price) = Projected net assignment − Projected payouts
