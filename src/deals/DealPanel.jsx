@@ -6,11 +6,11 @@
 import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
-import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen } from './math.js';
+import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
-import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
+import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer, statusLabel } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
@@ -180,6 +180,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
 
   if (!raw) return null;
   const g = ghlDeals().get(addrKey(merged.address));
+  const miss = ghlMismatches(merged, g);
   const warn = checks(merged);
   const step = nextStep(merged);
   const flagged = new Set(step.fields || []);
@@ -283,16 +284,28 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
             <div className="flex flex-col gap-4">
-              {g && (
+              {(g || miss.length > 0) && (
                 <Notice tone="violet">
-                  <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
-                  <div className="text-[12.5px] mt-0.5">
-                    IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
-                    {g.coe && ISO.test(merged.coe || '') && g.coe !== merged.coe && (
-                      <> · <span className="font-semibold">COE differs from the tracker</span>{' '}{!ro && <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's</button>}</>
-                    )}
+                  {g ? <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
+                    : <div className="font-medium">In GoHighLevel: <StageChip stage={merged.ghlStage} /></div>}
+                  {g && <div className="text-[12.5px] mt-0.5">IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
                     {g.coe && !ro && !ISO.test(merged.coe || '') && <> · <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's COE</button></>}
-                  </div>
+                  </div>}
+                  {/* What doesn't match the tracker (Luke, Oct 16). */}
+                  {miss.length > 0 && (
+                    <div className="mt-2 rounded-md bg-white/70 px-2.5 py-1.5 ring-1 ring-inset ring-violet-200">
+                      <div className="text-[12px] font-bold uppercase tracking-wide text-violet-800">Doesn't match the tracker</div>
+                      <ul className="mt-0.5 text-[13px]">
+                        {miss.map((m) => (
+                          <li key={m.key}>
+                            {m.key === 'status' ? <>Status: tracker <b>{statusLabel(m.tracker)}</b>, GHL <b>{statusLabel(m.ghl)}</b> ({m.ghl === 'CANCELLED' ? 'Lost' : g ? <StageChip stage={g.stage} /> : merged.ghlStage}){m.tracker === 'CANCELLED' || m.tracker === 'COMPLETE' ? ` — move it to ${m.tracker === 'CANCELLED' ? 'Lost / Abandoned' : 'Closed'} in GHL` : ''}</>
+                              : m.key === 'coe' ? <>COE: tracker <b>{shortDate(m.tracker)}</b>, GHL <b>{shortDate(m.ghl)}</b> {!ro && <button onClick={() => setField('coe', m.ghl)} className="underline">use GHL's</button>}</>
+                                : <>IP end: tracker DD end <b>{shortDate(m.tracker)}</b>, GHL <b>{shortDate(m.ghl)}</b></>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </Notice>
               )}
               {ip && (
