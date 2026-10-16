@@ -339,8 +339,30 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                     <span className={PANEL_NUM}>{gi + 1}</span>
                     <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
-                  <div className={`grid grid-cols-2 gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
+                  <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                      // Due diligence (Luke, Oct 16: "start and end on same line. time
+                      // somewhere else"): the dates as one line on top, then the days
+                      // and the end time with its zone side by side.
+                      if (f.key === 'ddEnd') {
+                        const tone = need.has('ddEnd') || need.has('ddStart') ? 'need' : !isNew && !ro && (flagged.has('ddEnd') || flagged.has('ddStart')) && step.tone !== 'green' ? 'check' : 'plain';
+                        const dt = (v) => (isBlank(v) ? <span className="text-zinc-300 font-normal">—</span> : shortDate(v));
+                        return (
+                          <div key="dd-dates" id="deal-f-ddEnd" className={`col-span-3 min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`}>
+                            <span id="deal-f-ddStart" className="flex items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
+                              Start → End
+                              {tone === 'need' ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>
+                                : tone === 'check' ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FEF0C7] text-[#B54708]">check this</span> : null}
+                              <span className="text-[10.5px] font-normal text-zinc-400">auto</span>
+                            </span>
+                            <div className={`flex flex-wrap items-baseline gap-x-2.5 tabular-nums text-[14.5px] font-semibold text-navy-900 ${ro ? '' : 'min-h-8 items-center'}`}>
+                              <span>{dt(merged.ddStart)}</span>
+                              <span className="text-tan-500 font-normal">→</span>
+                              <span>{dt(merged.ddEnd)}</span>
+                            </div>
+                          </div>
+                        );
+                      }
                       const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
@@ -353,9 +375,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       const check = !isNew && !ro && flagged.has(f.key) && step.tone !== 'green';
                       const tone = reprice ? (flash ? 'flash' : 'retrade') : need.has(f.key) ? 'need' : check ? 'check' : lossHigh ? 'alert' : 'plain';
                       return (
-                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') || f.key === 'ddEndTime' ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
-                            {f.key === 'ddEndTime' ? 'End time & time zone' : f.label}
+                            {f.key === 'ddEndTime' ? 'Ends at · time & time zone' : f.key === 'ddDays' ? 'Days' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
                             {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
                               : need.has(f.key) ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>
@@ -383,7 +405,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                 // fell to a row of its own and read as a separate field).
                                 <div className="flex gap-2">
                                   <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={ro} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
-                                  <div className="w-36 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
+                                  <div className="w-40 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
                                 </div>
                               ) : <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}

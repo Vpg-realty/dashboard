@@ -1127,7 +1127,10 @@ the server strips them (`forTc`) and refuses edits to them.
     src/shell/router.js, which also catches the browser's Back / Forward)
     or a reload / tab close (beforeunload) — asks first: "You have N unsaved
     changes" with **Save changes / Discard / Keep editing**.
-  - **DD end time and time zone** share one cell ("End time & time zone").
+  - **Due Diligence card** (Luke, Oct 16: "start and end on same line. time
+    somewhere else"): Start → End as one line on top (auto), then Days and
+    "Ends at · time & time zone" side by side.
+  - **DD end time and time zone** share one cell.
     The time is `src/deals/TimePicker.jsx` (Luke, Oct 15: the browser's own
     picker was boxy and its lists looped past 59): a button in the
     dropdowns' style opening hour 1–12 / minutes in 5s + :59 / AM–PM lists
