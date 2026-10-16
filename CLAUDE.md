@@ -1105,7 +1105,9 @@ the approval records who).
   Gross, Net assignment, Net profit, Avg net / closed, Margin; the last
   three owners only). **Close rate = closed ÷ (closed + cancelled)** —
   open deals aren't in it (summaryStats `decided`; also the territory
-  pages' close rate).
+  pages' close rate). Net by month and Month by month always go by the closing
+  date (COE), whatever the page's date-by is (Luke, Oct 16; checked: May
+  2026 = 14 closings, $288,788 net).
 - **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
   **Payouts** (Oct 15 rework, `?tab=` deals | tc | paid | coming, person
   filter `?who=`, search): **By deal** — a card per closed deal with
