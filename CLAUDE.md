@@ -275,7 +275,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   **Pipeline A look** (Luke, Oct 16 — picked from the proposals page, then
   "tiles … bulky … address on one line, 2 lines total" and "titles … not so
   much text"): a navy band (Pipeline · scope, a one-line headline, the
-  person filter as tan buttons), no stage-summary boxes; PipelineView's
+  person filter — Luke Oct 16, option 1: "Viewing" + one dark switch with
+  the selected choice raised in tan, the person picker outlined until
+  someone is picked, then tan; the Opportunities search sits in the band so
+  both tabs' columns line up — five equal columns on both), no
+  stage-summary boxes; PipelineView's
   `brand` prop draws the column titles as option A of the Oct 16 round
   (Luke: "late badge at the top right corner … value to the bottom right
   corner in green"): a navy band with a stage-colour line along its bottom,
