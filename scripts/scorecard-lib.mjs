@@ -148,7 +148,10 @@ export function autoCrm(pairs, monday, limit = 12) {
     if (!have.length) continue;
     const total = have.reduce((a, c) => a + c.total, 0);
     const bad = have.reduce((a, c) => a + (c.badN ?? c.bad.length), 0);
-    detail[key] = { ok: total - bad, total, bad: have.flatMap((c) => c.bad).slice(0, limit), badN: bad };
+    // `sub` = the deal's sub-account ("<repId>|<marketId>"), so the page can
+    // link each one to its GHL opportunity (Luke, Oct 15).
+    const list = pairs.flatMap((p) => (p.crm?.[key]?.bad || []).map((b) => ({ ...b, sub: `${p.repId}|${p.marketId}` })));
+    detail[key] = { ok: total - bad, total, bad: list.slice(0, limit), badN: bad };
   }
   // Messaging (server/messaging.js + scripts/review-messaging.mjs): each
   // check a share of its team standard, capped at 1 — reply speed vs 75%
@@ -180,9 +183,9 @@ export function autoCrm(pairs, monday, limit = 12) {
 
   // Dispo: deals that went under contract this week.
   if (pairs.some((p) => p.crm)) {
-    const fresh = pairs.flatMap((p) => p.deals || []).filter((d) => d.startedAt >= start && d.startedAt < end && Array.isArray(d.missing));
+    const fresh = pairs.flatMap((p) => (p.deals || []).map((d) => ({ ...d, sub: `${p.repId}|${p.marketId}` }))).filter((d) => d.startedAt >= start && d.startedAt < end && Array.isArray(d.missing));
     const bad = fresh.filter((d) => d.missing.length);
-    detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, badN: bad.length, bad: bad.slice(0, limit).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}` })) };
+    detail.dispo = { ok: fresh.length - bad.length, total: fresh.length, badN: bad.length, bad: bad.slice(0, limit).map((d) => ({ id: d.id, addr: d.address, why: `missing ${d.missing.join(', ')}`, sub: d.sub })) };
   }
   const grades = CRM_ITEMS.map((it) => {
     const d = detail[it.key];
