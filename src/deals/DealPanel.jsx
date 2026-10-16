@@ -42,6 +42,42 @@ const TZ_FIELD = FIELDS.find((f) => f.key === 'ddEndTz');
 // yellow boxes are too large … needs to be cleaner"): needed / check this
 // are a thin coloured edge on the left and a small label, not a filled box,
 // and read-only viewers don't get "check this" (nothing for them to do).
+// Due diligence as a timeline (Luke, Oct 16: start and end on one line, the
+// time with the end): Starts —— N days —— Ends, the end time under the end.
+const dayParts = (iso) => {
+  if (!ISO.test(iso || '')) return null;
+  const dt = new Date(`${iso}T12:00:00`);
+  return { date: dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sub: `${dt.toLocaleDateString('en-US', { weekday: 'long' })}, ${dt.getFullYear()}` };
+};
+const DdEnd = ({ p, label, right, extra }) => (
+  <div className={`min-w-0 ${right ? 'text-right' : ''}`}>
+    <div className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-tan-600">{label}</div>
+    <div className="text-[18px] font-semibold text-navy-800 tabular-nums leading-tight">{p ? p.date : <span className="text-zinc-300">—</span>}</div>
+    <div className="text-[12px] text-zinc-500">{p ? p.sub : 'set the contract date and days'}</div>
+    {extra}
+  </div>
+);
+function DdTimeline({ d }) {
+  const a = dayParts(d.ddStart), b = dayParts(d.ddEnd);
+  const n = Number(d.ddDays);
+  const end = showEndTime(d);
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-1 py-1">
+      <DdEnd p={a} label="Starts" />
+      <div className="relative h-6 flex items-center justify-center">
+        <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-tan-400" />
+        <span className="absolute left-0 top-1/2 w-2 h-2 -translate-y-1/2 rounded-full bg-tan-500" />
+        <span className="absolute right-0 top-1/2 w-2 h-2 -translate-y-1/2 rounded-full bg-navy-700" />
+        <span className="relative rounded-full bg-white ring-1 ring-tan-400 px-2.5 py-0.5 text-[12px] font-semibold text-navy-700 whitespace-nowrap">{Number.isFinite(n) && n > 0 ? `${n} day${n === 1 ? '' : 's'}` : 'days not set'}</span>
+      </div>
+      <DdEnd p={b} label="Ends" right extra={<div className={`mt-0.5 text-[12.5px] font-semibold ${end ? 'text-navy-700' : 'text-zinc-400 font-normal'}`}>{end ? `at ${end}` : 'no end time set'}</div>} />
+    </div>
+  );
+}
+
+// Shorter names for the section jump bar so it fits on one line.
+const NAV_SHORT = { pay: 'Commissions', notes: 'Notes' };
+
 const BOX = 'rounded-lg p-2 ring-1 ring-inset';
 const BOX_TONE = {
   plain: 'ring-transparent',
@@ -140,6 +176,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   // that I have not saved changes"): what to do once the person picks Save /
   // Discard in the prompt; null = no prompt.
   const [leaving, setLeaving] = useState(null);
+  // Section jump bar under the key facts (Luke, Oct 16: "hard to scroll and
+  // find what we are looking for"): which section is at the top right now.
+  const bodyRef = useRef(null);
+  const [onSec, setOnSec] = useState(null);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
@@ -283,7 +323,22 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        {!isNew && tab === 'details' && (
+          <nav className="shrink-0 flex flex-wrap gap-x-0.5 gap-y-1 bg-navy-700 border-y border-navy-800 px-3 py-1.5" aria-label="Jump to a section">
+            {groups.map(([gid, glabel]) => {
+              const missing = FIELDS.some((f) => f.group === gid && need.has(f.key));
+              return (
+                <button key={gid} type="button" onClick={() => { const el = bodyRef.current?.querySelector(`#deal-g-${gid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(gid); } }}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${onSec === gid ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                  {ro && gid === 'notes' ? 'Zillow Link' : NAV_SHORT[gid] || glabel}
+                  {missing && <span className="w-1.5 h-1.5 rounded-full bg-[#F04438] ring-1 ring-white/70" title="Something is needed here" />}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
           {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
             <div className="flex flex-col gap-4">
               {(g || miss.length > 0) && (
@@ -334,13 +389,28 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                 </div>
               )}
               {groups.map(([gid, glabel], gi) => (
-                <section key={gid} className="rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)] overflow-hidden">
+                <section key={gid} id={`deal-g-${gid}`} data-sec={gid} className="scroll-mt-3 rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)] overflow-hidden">
                   <h3 className={`flex items-center gap-2.5 px-4 py-2.5 ${PANEL_HEAD}`}>
                     <span className={PANEL_NUM}>{gi + 1}</span>
                     <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
-                  <div className={`grid grid-cols-2 gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).map((f) => {
+                  <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                      // Due diligence (Luke, Oct 16: "start and end on same line. time
+                      // somewhere else"): the dates as one line on top, then the days
+                      // and the end time with its zone side by side.
+                      if (f.key === 'ddEnd') {
+                        const tone = need.has('ddEnd') || need.has('ddStart') ? 'need' : !isNew && !ro && (flagged.has('ddEnd') || flagged.has('ddStart')) && step.tone !== 'green' ? 'check' : 'plain';
+                        return (
+                          <div key="dd-dates" id="deal-f-ddEnd" className={`col-span-3 min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`}>
+                            <span id="deal-f-ddStart" className="sr-only">Due diligence dates</span>
+                            {tone !== 'plain' && <span className={`inline-block mb-1 rounded px-1 text-[10.5px] font-semibold ${tone === 'need' ? 'bg-[#FDECEA] text-[#B42318]' : 'bg-[#FEF0C7] text-[#B54708]'}`}>{tone === 'need' ? 'needed' : 'check this'}</span>}
+                            <DdTimeline d={merged} />
+                          </div>
+                        );
+                      }
+                      // Read-only: the timeline already says the days and the end time.
+                      if (ro && (f.key === 'ddDays' || f.key === 'ddEndTime')) return null;
                       const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
@@ -353,9 +423,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       const check = !isNew && !ro && flagged.has(f.key) && step.tone !== 'green';
                       const tone = reprice ? (flash ? 'flash' : 'retrade') : need.has(f.key) ? 'need' : check ? 'check' : lossHigh ? 'alert' : 'plain';
                       return (
-                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') || f.key === 'ddEndTime' ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
-                            {f.key === 'ddEndTime' ? 'End time & time zone' : f.label}
+                            {f.key === 'ddEndTime' ? 'End time & time zone' : f.key === 'ddDays' ? 'Length (days)' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
                             {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
                               : need.has(f.key) ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>
@@ -383,7 +453,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                 // fell to a row of its own and read as a separate field).
                                 <div className="flex gap-2">
                                   <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={ro} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
-                                  <div className="w-36 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
+                                  <div className="w-40 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
                                 </div>
                               ) : <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
