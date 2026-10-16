@@ -29,7 +29,7 @@ import { ScoreHelp } from './Score.jsx';
 import useMonthLog from './useMonthLog.js';
 import { addedContractsInRange } from './monthReview.js';
 import { T, metrics, teamMetrics, repPairs, scoreTone, paceTone, scoreParts, mostPointsLeft, rangeMetrics, addMetrics, STEPS, rate, pct, biggestLeak } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET } from '../../../scripts/scorecard-lib.mjs';
+import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import { weekSeries, avgOf, crmTenths } from './trends.js';
 import TrendsView from './TrendsView.jsx';
@@ -40,6 +40,11 @@ const k = (v) => { const x = (v || 0) / 1000; return `$${x >= 100 || Number.isIn
 const signed = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0');
 const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-400' : v === 2 ? 'bg-emerald-500 text-white' : v === 1 ? 'bg-amber-400 text-amber-950' : 'bg-rose-600 text-white');
 const SPEED_T = MESSAGING_SPEED_TARGET;
+// The Speed grade box (Luke, Oct 16), automatic only: speedGrade in
+// scorecard-lib. Its hover says how it was reached.
+const speedWhy = (n) => (n.speedTotal == null ? 'Speed: no messaging check has run yet'
+  : !n.speedTotal ? 'Speed: no agent texts in business hours — 2'
+    : `Speed: ${n.speedOk} of ${n.speedTotal} agent texts answered within 15 min (${Math.round((n.speedOk / n.speedTotal) * 100)}%)\n2 at ${Math.round(SPEED_T * 100)}%+ (team standard), 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+, 0 below\nGraded automatically — the score's speed points are counted separately.`);
 
 // Columns: rep · score · contracts · offers · opps · projected $ · CRM · speed · next move · chevron.
 const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 15.5rem 11rem 1.25rem' };
@@ -155,7 +160,14 @@ function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
             </span>
           );
         })}
-        <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap">{graded ? `${pts}/${2 * graded}` : '–'}</span>
+        <span className="flex flex-col items-center w-[2.35rem] ml-1 pl-1 border-l border-tan-200">
+          <span title={speedWhy(n)} className={`relative w-8 h-8 rounded-md flex items-center justify-center text-[15px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
+            {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
+            {n.speedTotal != null && <span className="absolute -top-0.5 right-0.5 text-[8.5px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="mt-0.5 text-[10.5px] leading-none text-zinc-500">Speed</span>
+        </span>
+        <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap" title="CRM points (the five items)">{graded ? `${pts}/${2 * graded}` : '–'}</span>
       </div>
       <span className={`text-[12.5px] font-medium ${spC}`}>{n.speedTotal == null ? (speedInScore ? 'speed not checked' : 'speed —') : !n.speedTotal ? 'no agent texts' : `speed ${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
     </div>
@@ -188,7 +200,8 @@ const NoteIcon = ({ note }) => (
 
 // The five CRM chips with the grade dropdowns, as before.
 function CrmChips({ row, canEdit, onCrm }) {
-  const { id, crm, manual, auto } = row;
+  const { id, crm, manual, auto, n } = row;
+  const sg = n ? speedGrade(n.speedOk, n.speedTotal) : null;
   return (
     <div className="flex gap-2">
       {CRM_ITEMS.map((it, i) => {
@@ -226,6 +239,15 @@ function CrmChips({ row, canEdit, onCrm }) {
           </div>
         );
       })}
+      {n && (
+        <div className="flex flex-col items-center gap-1 w-[4.6rem] pl-2 border-l border-tan-200">
+          <span title={speedWhy(n)} className={`relative w-12 h-11 rounded-lg flex items-center justify-center text-[20px] font-bold cursor-default ${chip(sg)}`}>
+            {sg ?? '–'}
+            {n.speedTotal != null && <span className="absolute top-0.5 right-1 text-[10px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="text-[12px] leading-tight text-center text-zinc-600">Speed</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -561,7 +583,16 @@ function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, on
           );
         })}
         <span className="pt-1 text-[18px] font-bold tabular-nums text-navy-800">{s.crmKnown ? `${pts}` : '–'}<span className="text-[12.5px] font-medium text-zinc-500">/{2 * (s.crmKnown || 5)}</span></span>
-        <span className={`pt-1.5 text-[13px] font-semibold ${n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no texts' : `${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
+        <span className="flex items-start gap-2 min-w-0" title={speedWhy(n)}>
+          <span className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-bold ${chip(speedGrade(n.speedOk, n.speedTotal))}`}>
+            {speedGrade(n.speedOk, n.speedTotal) ?? '–'}
+            {n.speedTotal != null && <span className="absolute top-0 right-1 text-[9px] font-bold opacity-80">A</span>}
+          </span>
+          <span className="min-w-0 text-[12.5px] leading-snug">
+            <span className={`block font-semibold ${n.speedTotal == null ? 'text-zinc-400' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_GRADE_ONE ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no agent texts' : `${Math.round(sp * 100)}% answered`}</span>
+            {!!n.speedTotal && <span className="block text-zinc-500">{n.speedOk} of {n.speedTotal} texts</span>}
+          </span>
+        </span>
         {showNotes && (
           <span onClick={(e) => e.stopPropagation()}>
             {canEdit ? (
@@ -575,7 +606,7 @@ function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, on
     </div>
   );
 }
-const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(5,minmax(8.5rem,1fr)) 4.5rem 7.5rem minmax(12rem,1.4fr)' };
+const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(5,minmax(8.5rem,1fr)) 4.5rem minmax(8.5rem,1fr) minmax(12rem,1.4fr)' };
 function CrmReviewHead({ showNotes }) {
   return (
     <div className="grid gap-x-3 items-end px-5 py-2.5 bg-[#eef2f7] border-y border-[#d5deea]" style={CGRID}>

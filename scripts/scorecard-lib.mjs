@@ -114,6 +114,17 @@ export const ratingOf = (s) => (s >= 90 ? 'Strong Week' : s >= 75 ? 'Needs Atten
 // fields. 2 = all good, 1 = 60%+ good, 0 = below; nothing to check = 2.
 // Messaging (item 3) isn't automatic yet → null.
 export const MESSAGING_SPEED_TARGET = 0.75;
+// Speed as a grade box next to the five CRM items (Luke, Oct 16: "40-team
+// standard is 1, team standard and great is 2. lower is 0"): 2 at the 75%
+// standard or better, 1 from 40%, 0 below; no agent texts = 2; not checked
+// yet = null. Shown only — the score still uses speedShare for its points.
+export const SPEED_GRADE_ONE = 0.4;
+export function speedGrade(ok, total) {
+  if (total == null) return null;
+  if (!total) return 2;
+  const r = ok / total;
+  return r >= MESSAGING_SPEED_TARGET ? 2 : r >= SPEED_GRADE_ONE ? 1 : 0;
+}
 // Team standards for the three messaging checks (Luke, Oct 12: "based on the
 // successful reps, what should the team standard be"): set at what the top
 // reps reach in the first week of data, to be revisited once a few full

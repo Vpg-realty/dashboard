@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
-import { CRM_ITEMS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
@@ -112,6 +112,7 @@ function Numbers() {
       <Item title="Speed to response" color={partOf('speed').color}>
         <Row k="Counts">Agent texts that came in on weekdays, 8am–5pm Arizona, answered within {ANSWER_WITHIN_MIN} minutes by a text the rep typed or a call that connected. Auto-replies, plain acknowledgements and texts Claude judged as not needing an answer are left out (details on the Messaging tab).</Row>
         <Row k="Graded">Against the Texting Standard's {pct(SPEED_TARGET)} target: {pct(SPEED_TARGET)} or better = the full {partOf('speed').weight} points, 60% = {Math.round((0.6 / SPEED_TARGET) * partOf('speed').weight)}. No agent texts that week = full points.</Row>
+        <Row k="Grade box">Also shown as a Speed box beside the five CRM boxes: <b>2</b> at {pct(SPEED_TARGET)}+ (the team standard), <b>1</b> at {pct(SPEED_GRADE_ONE)}+, <b>0</b> below; no agent texts = 2. It's graded automatically and only shows the grade — the points come from the line above.</Row>
         <Row k="Updated">Every 3 hours.</Row>
       </Item>
       <Item title="Projected $" color={partOf('projected').color}>

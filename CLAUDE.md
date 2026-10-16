@@ -1800,7 +1800,13 @@ Under `src/views/`:
     is `CrmDots` — five small grade chips (Pipe / Notes / Msg / Dispo / F/U,
     green 2 / amber 1 / red 0, "A" automatic, hover for what the check found)
     that managers grade straight from the row, the points, and speed under
-    them. **Names open the rep in a side panel** (`RepDrawer`: RepView over
+    them. **Speed grade box** (Luke, Oct 16: "add speed as a CRM grading box
+    … 40-team standard is 1, team standard and great is 2. lower is 0"): a
+    sixth chip after the five CRM items in the row, the expanded row and CRM
+    Review — `speedGrade` (scorecard-lib): 2 at 75%+, 1 at 40%+
+    (`SPEED_GRADE_ONE`), 0 below, no agent texts = 2; automatic only ("A"),
+    shown only — the score's speed points still come from `speedShare`, and
+    CRM points stay the five items. **Names open the rep in a side panel** (`RepDrawer`: RepView over
     the scorecard, ← / → through the reps shown, Esc closes, "Full page"
     opens `?rep=` as before). **CRM Review** tab (`/team/crm`,
     `CrmReviewHub` → `ScorecardView mode="crm"`): every rep's five items as
