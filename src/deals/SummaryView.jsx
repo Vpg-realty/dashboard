@@ -18,7 +18,7 @@ import { FinanceHead } from '../finance/ui.jsx';
 import SummaryFile from './SummaryFile.jsx';
 import useDealPanel from './useDealPanel.jsx';
 import { stats, groupStats, KINDS, MONTH, titleCase, pctTxt } from './summaryStats.js';
-import { Delta, Stat, RateCell } from './summaryUi.jsx';
+import { Delta, RateCell, Band, BandStat } from './summaryUi.jsx';
 
 const VIEWS = [
   ['overview', 'Company overview', 'The period at a glance'],
@@ -78,20 +78,21 @@ function Overview({ data, then, owner, compareLabel }) {
   ));
   return (
     <div className="grid gap-4">
-      <div className={`grid grid-cols-2 ${owner ? 'xl:grid-cols-4' : 'xl:grid-cols-3'} gap-3`}>
-        <Stat big label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
-        <Stat big label="Closed" value={now.closed} now={now.closed} then={t('closed')} accent="green" tone="text-emerald-700" sub={`${pctTxt(now.closeRate)} close rate · ${now.cancelled} cancelled`} />
-        <Stat big label="Net assignment · closed" value={compact(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`${compact(now.gross)} gross`} />
-        {owner && <Stat big label="Net profit · closed" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney accent="tan" sub={`${pctTxt(now.margin)} margin`} />}
-      </div>
-      <div className={`grid grid-cols-2 lg:grid-cols-3 ${owner ? 'xl:grid-cols-6' : 'xl:grid-cols-4'} gap-3`}>
-        <Stat label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter accent="red" tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
-        <Stat label="Close rate" value={pctTxt(now.closeRate)} now={now.closeRate} then={t('closeRate')} pct sub="closed ÷ contracts" />
-        <Stat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
-        <Stat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-        {owner && <Stat label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" accent="tan" />}
-        {owner && <Stat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closing" accent="tan" />}
-      </div>
+      {/* Luke, Oct 16: top row the deal flow, second row the money — VPG colours. */}
+      <Band dark eyebrow="Deal flow" note={`${now.pending} still open — not in the close rate`} cols="lg:grid-cols-4">
+        <BandStat dark label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
+        <BandStat dark label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-300" sub="sold and closed" />
+        <BandStat dark label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
+        <BandStat dark feature label="Close rate" value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
+      </Band>
+      <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
+        <BandStat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
+        <BandStat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
+        <BandStat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
+        {owner && <BandStat feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
+        {owner && <BandStat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net profit per closing" />}
+        {owner && <BandStat label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}
+      </Band>
       {compareLabel && !then && <div className="text-zinc-500 text-[13.5px]">No deals on file for {compareLabel}, so there's nothing to compare with.</div>}
       {now.projCount > 0 && (
         <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-navy-900">

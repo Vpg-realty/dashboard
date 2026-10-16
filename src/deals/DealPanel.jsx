@@ -328,7 +328,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   <div className="text-xs font-semibold text-navy-700 mb-1.5">Commissions on this deal</div>
                   <div className="flex flex-wrap gap-x-5 gap-y-1">
                     {pay.map((p) => <span key={p.part}><span className="text-zinc-500">{p.who.split(' ')[0]} ({p.part})</span> <span className="font-semibold tabular-nums">{money(p.amount)}</span></span>)}
-                    <span className="ml-auto"><span className="text-zinc-500">Net profit</span> <span className="font-semibold tabular-nums">{money(merged.netProfit)}</span></span>
+                    <span className="ml-auto"><span className="text-zinc-500">Net profit</span> <span className="font-semibold tabular-nums">{noBuyer(merged) ? <span className="font-normal text-zinc-400">no buyer yet</span> : money(merged.netProfit)}</span></span>
                   </div>
                 </div>
               )}
