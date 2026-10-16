@@ -87,7 +87,7 @@ function Avatar({ name, size = 26 }) {
 // A personal background for one person (Luke, Oct 16: Anthony "likes pink
 // polkadots … the full background of his screen"): keyed by rep_id, so View
 // as Anthony shows it too. Cards stay white on top of it.
-const POLKA = { backgroundColor: '#fde2ef', backgroundImage: 'radial-gradient(#f472b6 18%, transparent 20%), radial-gradient(#f9a8d4 18%, transparent 20%)', backgroundSize: '28px 28px', backgroundPosition: '0 0, 14px 14px' };
+const POLKA = { backgroundColor: '#fde8f1', backgroundImage: 'radial-gradient(circle, #f472b6 9px, transparent 10px), radial-gradient(circle, #f9a8d4 9px, transparent 10px)', backgroundSize: '84px 84px', backgroundPosition: '0 0, 42px 42px' };
 const BACKDROP = { anthony: POLKA };
 
 function useStoredFlag(key, initial) {
