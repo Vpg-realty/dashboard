@@ -10,7 +10,7 @@ import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, books
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKey } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
-import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
+import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer, statusLabel } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
@@ -113,7 +113,7 @@ function History({ id }) {
           <div className="min-w-0">
             <div>
               <span className="font-medium">{e.by}</span>{' '}
-              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : (
+              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : (
                 <>changed <span className="font-medium">{LABEL[e.field.replace(/^fixed\./, '')] || e.field}</span>{e.field.startsWith('fixed.') && ' (typed number)'}: <span className="text-zinc-500 line-through decoration-zinc-300">{val(e.field, e.from)}</span> → {val(e.field, e.to)}</>
               )}
             </div>
@@ -296,7 +296,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   {/* What doesn't match the tracker (Luke, Oct 16). */}
                   {miss.length > 0 && (
                     <div className="mt-2.5">
-                      <MismatchList rows={miss.map((m) => ({ ...mismatchRow(m), extra: m.key === 'coe' && !ro ? <button type="button" onClick={() => setField('coe', m.ghl)} className="underline text-violet-800">or use GHL's date here</button> : null }))} />
+                      <MismatchList rows={miss.map((m) => ({ ...mismatchRow(m), extra: ro ? null : m.key === 'coe' ? <button type="button" onClick={() => setField('coe', m.ghl)} className="underline text-violet-800">or use GHL's date here</button>
+                        : m.key === 'status' && m.fix === 'tracker' ? <button type="button" onClick={() => setField('status', m.ghl)} className="mt-0.5 rounded-md bg-violet-700 text-white px-2.5 py-1 text-[12.5px] font-semibold hover:bg-violet-800">Set to {statusLabel(m.ghl)}</button> : null }))} />
                     </div>
                   )}
                 </Notice>
