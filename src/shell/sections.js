@@ -31,8 +31,10 @@ export const SECTIONS = [
     // Luke, Oct 16 (Pipeline A): Contracted deals / Opportunities as tabs
     // along the top, like Finance (the old ?view=opps links still work).
     tabs: [
-      { id: 'all', label: 'Contracted Deals', view: 'team-pipeline', phone: { h: 2600 } },
+      // Opportunities first (Luke, Oct 16: "switch opportunities and
+      // contracted deals tabs"), so /pipeline opens on it.
       { id: 'opportunities', label: 'Opportunities', view: 'team-pipeline-opps', phone: { h: 2600 } },
+      { id: 'all', label: 'Contracted Deals', view: 'team-pipeline', phone: { h: 2600 } },
     ],
   },
   {

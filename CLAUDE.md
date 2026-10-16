@@ -263,9 +263,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   before the title: Mine, Full team, then Pick a person (it was easy to miss
   on the far right). A person's deals = their GHL
   sub-accounts' deals + tracker deals where they're the dispo member.
-  **Two top tabs** (Luke, Oct 15–16): **Contracted Deals** (`/pipeline/all`
-  — the four stages from Under Contract, Full team allowed) and
-  **Opportunities** (`/pipeline/opportunities`; old `?view=opps` links
+  **Two top tabs** (Luke, Oct 15–16; Opportunities first since Oct 16, so
+  /pipeline opens on it — Home and ⌘K deal links go to /pipeline/all):
+  **Contracted Deals** (`/pipeline/all` — the four stages from Under
+  Contract, Full team allowed) and **Opportunities** (`/pipeline/opportunities`; old `?view=opps` links
   redirect — New Lead, Review, Offer Submitted, Negotiation; one person
   only: reps their own, owners / managers / TC pick a person; Oct 16 (Luke):
   owners and the TC also get Full team, managers only their pod — "My pod"
