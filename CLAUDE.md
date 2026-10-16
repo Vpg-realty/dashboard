@@ -266,7 +266,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   **Two views** (Luke, Oct 15): **Contracted deals** (`?view` unset — the
   four stages from Under Contract, Full team allowed) and **Opportunities**
   (`?view=opps` — New Lead, Review, Offer Submitted, Negotiation; one person
-  only: reps their own, owners / managers / TC pick a person, no Full team);
+  only: reps their own, owners / managers / TC pick a person; Oct 16 (Luke):
+  owners and the TC also get Full team, managers only their pod — "My pod"
+  `?who=pod` (`scopeReps`) and a person picker limited to the pod — the
+  filtering is in the browser, opps.json itself is the same team file);
   Due This Week stays on the left in both (that person's contracted deals).
   A **State** chip row (`?st=`, the person's states with counts) filters
   both; Opportunities add a name / address search. Opportunity cards show
@@ -1053,18 +1056,17 @@ the approval records who).
   and CSV). **Overview** (any period by COE: net revenue (net assignment),
   commissions, net profit, paid out, still owed — by month with a total —
   and a forecast of open assigned deals with a price by COE month).
-- **TC paid on Dispo Active** (Luke, Oct 16: "she is paid on every deal
-  that hits the stage dispo active"): from October a deal's TC line is due
-  in the month it reached Dispo Active, whatever happens after (open, closed
-  or cancelled — the rules' TC commission statuses decide the amount), and
-  it leaves Coming due. When: `dispoTimes` (edge/deals.js — the GHL sync's
-  first logged move from an earlier stage into Dispo active / Assigned /
-  Closed, else the day the sync created the deal) sent as `dispoAt` by GET
-  /api/deals and used by edge/finance.js; else the contract date
-  (`dispoDate` in lines.js). A deal still Under Contract in GHL isn't there
-  yet. Deals that got there before October keep the rule below (a line once
-  closed, by COE). TC monthly rows show each deal's status and Dispo Active
-  date.
+- **TC bonus = deals finished in the month** (Luke, Oct 16: "only deals
+  that had a defined finish in the month count towards her bonus" — a deal
+  opened in October and closed or cancelled in November counts toward
+  November): from October a deal's TC line is due in the month it closed
+  (COE) or was cancelled (after Dispo Active — a deal cancelled while still
+  Under Contract in GHL doesn't count). Cancel date: `cancelTimes`
+  (edge/deals.js — the last logged status change to Cancelled) sent as
+  `cancelAt` by GET /api/deals and used by edge/finance.js; with none, its
+  COE but never after the day it entered the tracker, else the contract
+  date (`finishDate` in lines.js). Open deals stay in Coming due. TC monthly
+  rows show each deal's status and finish date.
 - **TC paid monthly** (Luke, Oct 15: "if acq/dispo/managers are paid, it
   marks as paid across the sheet. TC fees get paid at the end of the month
   based on total deals for the month"): the TC line is its own category

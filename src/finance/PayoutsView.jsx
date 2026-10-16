@@ -154,7 +154,7 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
                     <tr key={l.key} className="border-t border-tan-50">
                       <td className="pl-12 pr-2 py-1.5"><button type="button" onClick={() => onOpen(l.dealId)} className="text-navy-800 hover:underline text-left">{l.address}</button></td>
                       <td className="px-2 py-1.5"><StatusChip status={l.dealStatus} /></td>
-                      <td className="px-2 py-1.5 whitespace-nowrap text-zinc-500">{l.dispoOn ? `Dispo Active ${shortDate(l.dispoOn)}` : `closed ${shortDate(l.coe)}`}</td>
+                      <td className="px-2 py-1.5 whitespace-nowrap text-zinc-500">{l.finishOn ? `${l.dealStatus === 'CANCELLED' ? 'cancelled' : 'closed'} ${shortDate(l.finishOn)}` : '—'}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{money(lineAmount(l))}</td>
                       <td className="px-2 pr-4 py-1.5"><StatusPill l={l} /></td>
                     </tr>
@@ -252,7 +252,7 @@ export default function PayoutsView() {
 
   return (
     <div className="max-w-[1500px] mx-auto">
-      <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC is paid once a month for every deal that reached Dispo Active that month." right={<>
+      <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC's monthly bonus counts every deal that closed or was cancelled (after Dispo Active) that month." right={<>
         <SearchSelect className="w-52" value={who} onChange={(v) => setQuery({ who: v || null })} placeholder="Everyone" options={f.people.map((p) => ({ value: p, label: p }))} />
         <Search value={q} onChange={setQ} placeholder="Search address or person…" />
       </>} />
@@ -289,7 +289,7 @@ export default function PayoutsView() {
       )}
       {tab === 'tc' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
-          <PanelHead title="TC monthly" sub={`the TC fee on every deal that reached Dispo Active in the month (closed, open or cancelled since), paid as one payment · from ${monthName(TC_MONTHLY_FROM.slice(0, 7))}`} />
+          <PanelHead title="TC monthly" sub={`the TC fee on every deal that closed or was cancelled in the month, whenever it opened — paid as one payment · from ${monthName(TC_MONTHLY_FROM.slice(0, 7))}`} />
           <TcMonths months={months} run={run} pay={pay} busy={busy} onOpen={open} today={today} />
         </section>
       )}
