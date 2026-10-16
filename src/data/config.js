@@ -69,7 +69,7 @@ export function ghlConvUrl(sub, convId) {
 export function ghlOppUrl(sub, oppId) {
   const loc = LOCATION_OF[sub];
   if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(oppId || ''))) return null;
-  return `https://app.gohighlevel.com/v2/location/${loc}/opportunities/list/${oppId}?tab=OpportunityDetails`;
+  return `https://app.gohighlevel.com/v2/location/${loc}/opportunities/${oppId}?tab=Opportunity+details`;
 }
 
 // Tier definitions — Luke uses literal "Tier 1/2/3/4" tags in GHL.

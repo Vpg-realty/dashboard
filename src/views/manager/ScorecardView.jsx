@@ -16,7 +16,8 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import RepView from './RepView.jsx';
 import { REPS, ghlOppUrl } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
@@ -41,7 +42,7 @@ const chip = (v) => (v == null ? 'bg-zinc-100 text-zinc-400' : v === 2 ? 'bg-eme
 const SPEED_T = MESSAGING_SPEED_TARGET;
 
 // Columns: rep · score · contracts · offers · opps · projected $ · CRM · speed · next move · chevron.
-const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10.5rem,1.2fr) minmax(11.5rem,1.35fr) 11.5rem 1.25rem' };
+const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 15.5rem 11rem 1.25rem' };
 const HEAD = 'text-[15px] font-bold text-navy-700 leading-tight';
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
@@ -109,6 +110,54 @@ function CrmSpeed({ pts, of, est, ok, total, speedInScore = true }) {
         <span className="relative flex-1 rounded-full bg-[#eee8dc] overflow-hidden">{crmR != null && <span className="absolute inset-y-0 left-0" style={{ width: `${crmR * 100}%`, background: crmC }} />}</span>
         <span className="relative flex-1 rounded-full bg-[#eee8dc] overflow-hidden">{total != null && <span className="absolute inset-y-0 left-0" style={{ width: `${sp == null ? 100 : Math.min(1, sp / SPEED_T) * 100}%`, background: spC }} />}</span>
       </span>
+    </div>
+  );
+}
+
+// The five CRM grades right in the row (Luke, Oct 16: "i do not like having
+// to click into each person individually to see the CRM scores"): a small
+// chip per item — green 2, amber 1, red 0, grey not graded, "A" = automatic —
+// with its short name under it; managers pick a grade from the chip's list
+// without opening the row. Speed sits on the line under them.
+const DOT_LABEL = { pipeline: 'Pipe', notes: 'Notes', messaging: 'Msg', dispo: 'Dispo', followups: 'F/U' };
+function CrmDots({ row, canEdit, onCrm, speedInScore = true }) {
+  const { id, crm, manual, auto, n } = row;
+  const pts = (crm || []).reduce((a, v) => a + (v ?? 0), 0);
+  const graded = (crm || []).filter((v) => v != null).length;
+  const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
+  const spC = n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700';
+  return (
+    <div className="min-w-0 flex flex-col gap-1">
+      <div className="flex items-start gap-1">
+        {CRM_ITEMS.map((it, i) => {
+          const val = crm?.[i] ?? null;
+          const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
+          const d = auto?.detail?.[it.key];
+          return (
+            <span key={it.key} className="flex flex-col items-center w-[2.35rem]">
+              <span onClick={(e) => e.stopPropagation()}
+                title={`${it.label}: ${val == null ? 'not graded' : val}${isAuto ? ' (automatic)' : manual?.[i] != null ? ' (set by a manager)' : ''}${d ? ` — ${autoLine(d)}` : ''}${d?.bad?.length ? `\n${d.bad.slice(0, 5).map((b) => `• ${b.addr} — ${b.why}`).join('\n')}` : ''}${canEdit ? '\nClick to pick a grade' : ''}`}
+                className={`relative w-8 h-8 rounded-md flex items-center justify-center text-[15px] font-bold ${chip(val)} ${canEdit ? 'hover:ring-2 hover:ring-navy-500 cursor-pointer' : ''}`}>
+                {val ?? '–'}
+                {isAuto && <span className="absolute -top-0.5 right-0.5 text-[8.5px] font-bold opacity-80">A</span>}
+                {canEdit && (
+                  <select aria-label={`${it.label} grade for ${first(id)}`} value={manual?.[i] == null ? 'auto' : String(manual[i])}
+                    onChange={(e) => onCrm(id, i, e.target.value === 'auto' ? null : Number(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <option value="auto">Automatic{auto?.grades?.[i] != null ? ` (${auto.grades[i]})` : ''}</option>
+                    <option value="2">2 — all good</option>
+                    <option value="1">1 — about 60%</option>
+                    <option value="0">0 — below 60%</option>
+                  </select>
+                )}
+              </span>
+              <span className="mt-0.5 text-[10.5px] leading-none text-zinc-500">{DOT_LABEL[it.key] || it.short}</span>
+            </span>
+          );
+        })}
+        <span className="ml-1 self-center text-[13px] font-semibold tabular-nums text-zinc-700 whitespace-nowrap">{graded ? `${pts}/${2 * graded}` : '–'}</span>
+      </div>
+      <span className={`text-[12.5px] font-medium ${spC}`}>{n.speedTotal == null ? (speedInScore ? 'speed not checked' : 'speed —') : !n.speedTotal ? 'no agent texts' : `speed ${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
     </div>
   );
 }
@@ -254,7 +303,7 @@ function Row({ row, rank, wom, week, frac, open, onToggle, canEdit, showNotes, o
         <Num v={n.offersW} t={T.offersPerWeek} frac={frac} />
         <Num v={n.oppsW} t={T.oppsOpenedPerWeek} frac={frac} />
         <Num v={n.projected} t={s.projectedPace} money title={`Projected $ month to date (closed + Assigned with a COE this month) vs $6,250 × week ${wom} of the month`} />
-        <CrmSpeed pts={crmPts} of={2 * s.crmKnown} est={s.crmKnown > 0 && s.crmKnown < 5} ok={n.speedOk} total={n.speedTotal} speedInScore={s.weights.speed > 0} />
+        <CrmDots row={row} canEdit={canEdit} onCrm={onCrm} speedInScore={s.weights.speed > 0} />
         <span className={`justify-self-start rounded-full px-3 py-1.5 text-[14px] font-semibold whitespace-nowrap ${tone.bg} ${tone.text}`} title={move.why}>{move.text}</span>
         <span className={`text-zinc-400 text-[14px] transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden>▸</span>
       </div>
@@ -304,7 +353,7 @@ function TableHead() {
       <span className={HEAD}>Offers</span>
       <span className={HEAD}>Opps</span>
       <span className={HEAD}>Projected $</span>
-      <span className={HEAD}>CRM · Speed</span>
+      <span className={HEAD}>CRM <span className="font-medium text-zinc-500 text-[12.5px]">(5 items)</span> · Speed</span>
       <span className={HEAD}>Next move</span>
       <span />
     </div>
@@ -425,13 +474,130 @@ export function LeakCard({ ids, week, isLive, onPickRep }) {
   );
 }
 
+// A rep's page in a panel over the scorecard (Luke, Oct 16: no leaving the
+// team view to look at one person): ← / → step through the reps shown, Esc
+// or the backdrop closes, "Full page" opens it as before.
+function RepDrawer({ id, ids, onPick, onClose, onFullPage }) {
+  const rep = repOf(id);
+  const i = ids.indexOf(id);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight' && i >= 0 && i < ids.length - 1) onPick(ids[i + 1]);
+      if (e.key === 'ArrowLeft' && i > 0) onPick(ids[i - 1]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [i, ids, onPick, onClose]);
+  const btn = 'h-8 px-3 rounded-lg text-[13px] font-semibold text-white/90 hover:bg-white/10 disabled:opacity-30';
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-navy-900/30" onClick={onClose} />
+      <section role="dialog" aria-label={`${rep.name}`} className="relative h-full w-[min(1500px,95vw)] bg-tan-50 shadow-2xl flex flex-col">
+        <header className="shrink-0 flex items-center gap-2 px-5 py-3 bg-navy-700 text-white">
+          <span className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[14px]" style={{ background: rep.color }}>{rep.name[0]}</span>
+          <span className="font-semibold text-[17px]">{rep.name}</span>
+          {ids.length > 1 && <span className="text-[12.5px] text-white/60 ml-1">{i + 1} of {ids.length}</span>}
+          <span className="ml-auto flex items-center gap-1">
+            <button className={btn} disabled={i <= 0} onClick={() => onPick(ids[i - 1])}>← Prev</button>
+            <button className={btn} disabled={i < 0 || i >= ids.length - 1} onClick={() => onPick(ids[i + 1])}>Next →</button>
+            <button className={btn} onClick={onFullPage}>Full page ↗</button>
+            <button onClick={onClose} className="text-white/70 hover:text-white text-2xl leading-none px-2" aria-label="Close">×</button>
+          </span>
+        </header>
+        <div className="flex-1 min-h-0 overflow-auto p-4">
+          <div className="app-team h-[1060px] min-w-[1100px]">
+            <RepView key={id} repId={id} onPickRep={(x) => (x === '__team' ? onClose() : onPick(x))} onBack={onClose} />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// CRM Review (Luke, Oct 16: one screen for Friday grading): every rep, the
+// five items as grade chips with what the checks found under each, CRM
+// points, speed and the week's note — click a row for the full list.
+function CrmReviewRow({ row, canEdit, showNotes, onCrm, onNote, onPeek, open, onToggle }) {
+  const { id, crm, manual, auto, note, n, s } = row;
+  const rep = repOf(id);
+  const pts = (crm || []).reduce((a, v) => a + (v ?? 0), 0);
+  const sp = n.speedTotal ? n.speedOk / n.speedTotal : null;
+  return (
+    <div className={`border-b border-[#f0ebe1] ${open ? 'bg-tan-50/60' : ''}`}>
+      <div className="grid gap-x-3 items-start px-5 py-3 cursor-pointer hover:bg-tan-50" style={CGRID} onClick={onToggle}>
+        <span className="flex items-center gap-2.5 min-w-0 pt-1">
+          <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-white text-[13px] font-bold" style={{ background: rep.color }}>{rep.name[0]}</span>
+          <button onClick={(e) => { e.stopPropagation(); onPeek(id); }} className="text-[16px] font-semibold text-zinc-900 truncate hover:text-navy-700 hover:underline underline-offset-2 text-left">{first(id)}</button>
+          {showNotes && note && <NoteIcon note={note} />}
+        </span>
+        {CRM_ITEMS.map((it, i) => {
+          const val = crm?.[i] ?? null;
+          const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
+          const d = auto?.detail?.[it.key];
+          const flagged = d ? (d.badN ?? (d.total != null ? d.total - d.ok : d.bad?.length || 0)) : null;
+          return (
+            <span key={it.key} className="flex items-start gap-2 min-w-0">
+              <span onClick={(e) => e.stopPropagation()} title={canEdit ? 'Pick a grade (or Automatic)' : undefined}
+                className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-bold ${chip(val)} ${canEdit ? 'hover:ring-2 hover:ring-navy-500 cursor-pointer' : ''}`}>
+                {val ?? '–'}
+                {isAuto && <span className="absolute top-0 right-1 text-[9px] font-bold opacity-80">A</span>}
+                {canEdit && (
+                  <select aria-label={`${it.label} grade for ${first(id)}`} value={manual?.[i] == null ? 'auto' : String(manual[i])}
+                    onChange={(e) => onCrm(id, i, e.target.value === 'auto' ? null : Number(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <option value="auto">Automatic{auto?.grades?.[i] != null ? ` (${auto.grades[i]})` : ''}</option>
+                    <option value="2">2 — all good</option>
+                    <option value="1">1 — about 60%</option>
+                    <option value="0">0 — below 60%</option>
+                  </select>
+                )}
+              </span>
+              <span className="min-w-0 text-[12.5px] leading-snug">
+                <span className={`block font-semibold ${!d ? 'text-zinc-400' : flagged ? 'text-rose-700' : 'text-emerald-700'}`}>{!d ? (it.key === 'messaging' ? 'not checked' : '—') : d.parts ? (d.share != null ? `${Math.round(d.share * 100)}% of standard` : 'waiting') : flagged ? `${flagged} flagged` : 'all OK'}</span>
+                {d && !d.parts && d.total != null && <span className="block text-zinc-500">{d.ok} of {d.total} OK</span>}
+                {manual?.[i] != null && <span className="block text-navy-600 font-semibold">manager: {manual[i]}</span>}
+              </span>
+            </span>
+          );
+        })}
+        <span className="pt-1 text-[18px] font-bold tabular-nums text-navy-800">{s.crmKnown ? `${pts}` : '–'}<span className="text-[12.5px] font-medium text-zinc-500">/{2 * (s.crmKnown || 5)}</span></span>
+        <span className={`pt-1.5 text-[13px] font-semibold ${n.speedTotal == null ? 'text-zinc-400 italic' : sp == null || sp >= SPEED_T ? 'text-emerald-700' : sp >= SPEED_T * 0.75 ? 'text-amber-700' : 'text-rose-700'}`}>{n.speedTotal == null ? 'not checked' : !n.speedTotal ? 'no texts' : `${Math.round(sp * 100)}% · ${n.speedOk}/${n.speedTotal}`}</span>
+        {showNotes && (
+          <span onClick={(e) => e.stopPropagation()}>
+            {canEdit ? (
+              <textarea key={note} defaultValue={note} rows={2} placeholder="Note for this week" onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
+                className="w-full text-[13px] leading-snug rounded-lg border border-tan-200 bg-white px-2 py-1.5 focus:outline-2 focus:outline-navy-500" />
+            ) : <span className="text-[13px] text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">—</span>}</span>}
+          </span>
+        )}
+      </div>
+      {open && <div className="px-5 pb-4"><div className="rounded-lg border border-tan-200 bg-white p-3"><Issues auto={auto} manual={manual} /></div></div>}
+    </div>
+  );
+}
+const CGRID = { gridTemplateColumns: 'minmax(9rem,1fr) repeat(5,minmax(8.5rem,1fr)) 4.5rem 7.5rem minmax(12rem,1.4fr)' };
+function CrmReviewHead({ showNotes }) {
+  return (
+    <div className="grid gap-x-3 items-end px-5 py-2.5 bg-[#eef2f7] border-y border-[#d5deea]" style={CGRID}>
+      <span className={HEAD}>Rep</span>
+      {CRM_ITEMS.map((it) => <span key={it.key} className={HEAD} title={it.help}>{it.short}</span>)}
+      <span className={HEAD}>CRM</span>
+      <span className={HEAD}>Speed</span>
+      {showNotes && <span className={HEAD}>Note</span>}
+    </div>
+  );
+}
+
 const FILTERS = [
   { id: 'all', label: 'Everyone' },
   ...PODS.map((p) => ({ id: p.id, label: p.title })),
   { id: 'behind', label: 'Needs a 1-on-1' },
 ];
 
-export default function ScorecardView({ onPickRep }) {
+// `mode` 'crm' = the CRM Review tab (Luke, Oct 16).
+export default function ScorecardView({ onPickRep, mode }) {
+  const crmMode = mode === 'crm';
+  const [peek, setPeek] = useState(null);
   const sc = useScorecards();
   const cur = currentWeek();
   const { query } = useLocation();
@@ -561,7 +727,9 @@ export default function ScorecardView({ onPickRep }) {
   ];
   const chipCls = (on) => `rounded-full px-4 py-2 text-[15px] font-semibold border transition-colors ${on ? 'bg-navy-700 border-navy-700 text-white' : 'bg-white border-[#d9cfbd] text-navy-700 hover:bg-tan-50'}`;
 
-  const rowProps = (r) => ({ row: r, wom, week, frac, open: open.has(r.id), onToggle: () => toggle(r.id), canEdit, showNotes, onCrm, onNote, onPickRep });
+  // Names open the rep's page in a side panel (Luke, Oct 16).
+  const rowProps = (r) => ({ row: r, wom, week, frac, open: open.has(r.id), onToggle: () => toggle(r.id), canEdit, showNotes, onCrm, onNote, onPickRep: setPeek });
+  const crmProps = (r) => ({ row: r, canEdit, showNotes, onCrm, onNote, onPeek: setPeek, open: open.has(r.id), onToggle: () => toggle(r.id) });
 
   return (
     <div className="h-full overflow-y-auto -mx-1 px-1">
@@ -569,7 +737,7 @@ export default function ScorecardView({ onPickRep }) {
         {/* 1 · Title, pickers, filters */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">MANAGEMENT · SCORECARD</span>
+            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">{crmMode ? 'MANAGEMENT · CRM REVIEW' : 'MANAGEMENT · SCORECARD'}</span>
             <h1 className="m-0 text-[30px] leading-tight font-bold text-navy-700">Week of {weekLabel} <span className="text-[19px] font-medium text-zinc-500">{subtitle}</span></h1>
             <span className="text-[13.5px] text-zinc-600">
               {reviewedBy ? <>Reviewed by <b className="text-navy-700">{reviewedBy}</b>{reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</> : 'Not reviewed yet'} · {graded} of {N} reps fully graded
@@ -589,8 +757,8 @@ export default function ScorecardView({ onPickRep }) {
           </span>
         </div>
 
-        {/* 2 · Team strip */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
+        {/* 2 · Team strip (not on CRM Review) */}
+        {!crmMode && <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
           <div className="flex flex-col gap-1 flex-1 min-w-[18rem]">
             <span className="text-[14px] font-semibold text-[#d9cfbd] tracking-[0.06em]">TEAM</span>
             <span className="text-[30px] font-bold leading-tight">
@@ -609,7 +777,12 @@ export default function ScorecardView({ onPickRep }) {
               <span className="text-[12.5px] text-[#d9cfbd]/90">{sub}</span>
             </div>
           ))}
-        </div>
+        </div>}
+        {crmMode && (
+          <div className="rounded-xl bg-navy-50 border border-navy-100 px-5 py-3 text-[13.5px] text-navy-800">
+            Every rep's five CRM items on one screen. <b>A</b> = graded automatically from GHL; click a chip to set a grade (or put it back to Automatic), write the week's note on the right, then <b>Save</b>. Click a row to see the deals and texts behind each grade; click a name for the rep's page.
+          </div>
+        )}
 
         {/* Save bar / view-only note (sticks while you scroll the table) */}
         {(canEdit && (dirty || error)) || !canEdit ? (
@@ -633,8 +806,8 @@ export default function ScorecardView({ onPickRep }) {
         {!sc.loaded && <div className="text-[14px] text-zinc-400 px-1">Loading scorecards…</div>}
         {byScore ? (ranked.length > 0 && (
           <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm">
-            <TableHead />
-            {ranked.map((r, i) => <Row key={r.id} rank={i + 1} {...rowProps(r)} />)}
+            {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
+            {ranked.map((r, i) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} rank={i + 1} {...rowProps(r)} />))}
           </section>
         )) : shownGroups.map((g) => {
           const c = POD_COLORS[g.podId] || NEUTRAL;
@@ -645,15 +818,15 @@ export default function ScorecardView({ onPickRep }) {
                 {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
                 <span className="text-[13px] text-zinc-500">· {g.rows.length} rep{g.rows.length === 1 ? '' : 's'}</span>
               </div>
-              <TableHead />
-              {g.rows.map((r) => <Row key={r.id} {...rowProps(r)} />)}
-              {g.total && <PodTotal g={g} frac={frac} />}
+              {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
+              {g.rows.map((r) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} {...rowProps(r)} />))}
+              {g.total && !crmMode && <PodTotal g={g} frac={frac} />}
             </section>
           );
         })}
         {sc.loaded && !shownIds.length && <div className="rounded-2xl bg-white border border-tan-200 text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
 
-        {/* 5 · Where they leak */}
+        {peek && <RepDrawer id={peek} ids={shownIds} onPick={setPeek} onClose={() => setPeek(null)} onFullPage={() => { const x = peek; setPeek(null); onPickRep?.(x); }} />}
 
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">
