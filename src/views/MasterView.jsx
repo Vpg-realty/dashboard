@@ -221,7 +221,7 @@ export default function MasterView() {
           <div className="text-[min(1.6rem,3vh)] font-extrabold leading-tight">Keep it moving ➜</div>
           <div className="text-xs text-white/60">next month & the quarter</div>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex-1 min-w-0 flex flex-col justify-center rounded-xl bg-white/10 ring-1 ring-white/15 px-4 py-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11px] uppercase tracking-[0.22em] text-[#d9cfbd] font-semibold">{nextName} · lined up</div>
             <span className={`text-sm font-extrabold px-3 py-0.5 rounded-full ${nextLinedSum >= goal ? 'bg-emerald-400 text-emerald-950' : 'bg-[#ad9b7a] text-[#0e1e34]'}`}>

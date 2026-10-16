@@ -1447,7 +1447,10 @@ Under `src/views/`:
   in the same week). The subtitle compares completed days only (Mon–
   yesterday vs the same days last week), since there's no intraday
   history to compare today fairly. That comparison is a big green ▲ / red ▼
-  badge in the panel header; the chart itself is plain (blue this week,
+  badge in the panel header — since Oct 16 (Luke) two boxes, **Yesterday**
+  (vs the same weekday last week) and **Week** (finished days vs the same
+  days last week; on a Monday last week vs the week before; days missing
+  from history on either side left out), each "▲ +N%" and "x vs y"; the chart itself is plain (blue this week,
   dashed grey last week, legend just those two — Luke, Oct 8). State cards
   at the bottom are sorted by today's outreach, busiest first, so the
   order shifts through the day (Luke, Oct 7). Never more than two rows
@@ -1500,7 +1503,8 @@ Under `src/views/`:
   the month and they slow down … showing them future dates is key"; then
   "more noticeable … its own box"): one navy box with a tan ring and a
   "Looking ahead · Keep it moving" label, along the bottom (TV and app) — next month's money already lined up
-  (Assigned deals with a COE next month, striped sky bar) against the month
+  (Assigned deals with a COE next month, striped sky bar, in a faint box like
+  the quarter boxes — Luke, Oct 16) against the month
   goal with "$X still to line up", how many in contract / dispo carry a
   next-month COE, and two quarter boxes (`QuarterBox`): Q contracts and Q
   revenue closed so far (earlier months from their last history.json
