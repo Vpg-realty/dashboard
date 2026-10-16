@@ -53,17 +53,21 @@ export default function PipelinePage({ mode = 'deals' }) {
   const [q, setQ] = useState('');
   const canPick = ['owner', 'manager', 'tc'].includes(me?.role);
   const mineId = me?.rep_id || null;
-  // Opportunities: owners / TC see everyone; a manager only their pod.
+  // Opportunities and the Calendar (Luke, Oct 16: "reps should only see deals
+  // that apply to them - no team view. pod leads/managers … their deals and
+  // their pods deals … owners see full team"): owners / TC see everyone; a
+  // manager their own, their pod or one of its reps; a rep only their own.
+  const scoped = isOpps || view === 'cal';
   const teamOpps = me?.role === 'owner' || me?.role === 'tc';
-  const pod = isOpps && me?.role === 'manager' ? scopeReps(me) : null;
+  const pod = scoped && me?.role === 'manager' ? scopeReps(me) : null;
   const pickable = pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
   // Luke, Oct 14: "Mine" is the default for anyone with a rep (reps and
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).
-  const dflt = mineId ? 'me' : isOpps && !teamOpps ? '' : 'all';
+  const dflt = mineId ? 'me' : scoped && !teamOpps ? '' : 'all';
   const asked = query.get('who') || dflt;
   const outside = !['all', 'me', 'pod'].includes(asked) && !(canPick && pickable.some((r) => r.id === asked));
-  const raw = (isOpps && asked === 'all' && !teamOpps) || (asked === 'pod' && !pod) || outside ? dflt : asked;
+  const raw = (scoped && asked === 'all' && !teamOpps) || (asked === 'pod' && !pod) || outside ? dflt : asked;
   const picked = !['all', 'me', 'pod'].includes(raw) && canPick && pickable.some((r) => r.id === raw) ? raw : null;
   const who = raw === 'me' ? mineId : picked;
   const podOnly = raw === 'pod' && !!pod;
@@ -106,6 +110,7 @@ export default function PipelinePage({ mode = 'deals' }) {
     .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? pod.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);
+  const calBlocked = view === 'cal' && !oppScope;
   const oppList = isOpps && oppScope
     ? opps.opps.filter((o) => inScope(o.repId) && (!st || o.marketId === st) && (!needle || String(o.address).toLowerCase().includes(needle)))
     : isOpps ? [] : null;
@@ -148,7 +153,7 @@ export default function PipelinePage({ mode = 'deals' }) {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {mineId && seg('me', 'Mine')}
           {pod && seg('pod', 'My pod')}
-          {(!isOpps || teamOpps) && seg('all', 'Full team')}
+          {(!scoped || teamOpps) && seg('all', 'Full team')}
           {canPick && (
             <select aria-label="Pick a person" value={picked || ''} onChange={(e) => setQuery({ who: e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'), st: null })}
               className={`h-8 rounded-md px-2 text-[13px] font-semibold text-navy-900 shadow-[0_1px_2px_rgba(0,0,0,0.25)] ${picked ? 'bg-white' : 'bg-tan-500'}`}>
@@ -158,7 +163,7 @@ export default function PipelinePage({ mode = 'deals' }) {
           )}
         </div>
       </div>
-      {(states.length > 1 || isOpps) && (!isOpps || oppScope) && (
+      {(states.length > 1 || isOpps) && (!scoped || oppScope) && (
         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           <span className="text-[12.5px] text-zinc-500 mr-1">State</span>
           {chip(null, 'All states')}
@@ -173,7 +178,9 @@ export default function PipelinePage({ mode = 'deals' }) {
         </div>
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>
-        {isOpps && !oppScope ? (
+        {calBlocked ? (
+          <div className="h-full min-h-[200px] grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Your calendar shows once your account is linked to your rep in Settings › People.</div>
+        ) : isOpps && !oppScope ? (
           <div className="h-full grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Pick a person to see their opportunities.</div>
         ) : isOpps && opps.status === 'error' ? (
           <div className="h-full grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px] text-center px-6">Opportunities show up after the next data refresh{opps.error ? ` (${opps.error})` : ''}.</div>

@@ -296,7 +296,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   own sidebar section `/calendar` (`solo: true` in sections.js = no tab bar,
   breadcrumb just "Calendar"; old /pipeline/calendar links redirect via
   `MOVED`), drawn by PipelinePage `mode="cal"` → PipelineView `calendar`
-  (`CalendarBoard`): same person / state filters, two weeks from Monday
+  (`CalendarBoard`): who sees what (Luke, Oct 16) — reps only their own
+  deals (no Full team), managers Mine / My pod / a rep of their pod, owners
+  and the TC Full team or anyone (`scoped` in PipelinePage, as on
+  Opportunities); state filter, two weeks from Monday
   (Earlier / Later), a row per open stage, a Late column. Each deal shows its
   **IP end** (Under contract / Dispo, with the tracker's end time and zone —
   `withIpTime`, "5p ET") and its **COE**; the stage's key date is coloured by
