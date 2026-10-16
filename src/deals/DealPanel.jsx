@@ -324,14 +324,14 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         )}
 
         {!isNew && tab === 'details' && (
-          <nav className="shrink-0 flex flex-wrap gap-x-0.5 gap-y-1 bg-white border-b border-tan-200 px-3 py-1.5" aria-label="Jump to a section">
+          <nav className="shrink-0 flex flex-wrap gap-x-0.5 gap-y-1 bg-navy-700 border-y border-navy-800 px-3 py-1.5" aria-label="Jump to a section">
             {groups.map(([gid, glabel]) => {
               const missing = FIELDS.some((f) => f.group === gid && need.has(f.key));
               return (
                 <button key={gid} type="button" onClick={() => { const el = bodyRef.current?.querySelector(`#deal-g-${gid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(gid); } }}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${onSec === gid ? 'bg-navy-700 text-white' : 'text-navy-700 hover:bg-tan-100'}`}>
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${onSec === gid ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                   {ro && gid === 'notes' ? 'Zillow Link' : NAV_SHORT[gid] || glabel}
-                  {missing && <span className="w-1.5 h-1.5 rounded-full bg-[#B42318]" title="Something is needed here" />}
+                  {missing && <span className="w-1.5 h-1.5 rounded-full bg-[#F04438] ring-1 ring-white/70" title="Something is needed here" />}
                 </button>
               );
             })}

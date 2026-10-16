@@ -1135,7 +1135,8 @@ the server strips them (`forTc`) and refuses edits to them.
   - **Section jump bar** (Luke, Oct 16: "hard to scroll and find what we are
     looking for"): under the key-facts numbers, frozen with them — one
     button per section (Commissions / Notes shortened), click scrolls the
-    panel to it, the section on screen is highlighted navy, a red dot marks
+    panel to it — a navy bar, the section on screen raised in tan (the
+    Finance / Viewing switch style), a red dot marks
     a section with needed fields.
   - **DD end time and time zone** share one cell.
     The time is `src/deals/TimePicker.jsx` (Luke, Oct 15: the browser's own
