@@ -47,7 +47,7 @@ const speedWhy = (n) => (n.speedTotal == null ? 'Speed: no messaging check has r
     : `Speed: ${n.speedOk} of ${n.speedTotal} agent texts answered within 15 min (${Math.round((n.speedOk / n.speedTotal) * 100)}%)\n2 at ${Math.round(SPEED_T * 100)}%+ (team standard), 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+, 0 below\nGraded automatically — the sixth CRM item (CRM out of 12).`);
 
 // Columns: rep · score · contracts · offers · opps · projected $ · CRM · speed · next move · chevron.
-const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 15.5rem 11rem 1.25rem' };
+const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 18.5rem 11rem 1.25rem' };
 const HEAD = 'text-[15px] font-bold text-navy-700 leading-tight';
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
@@ -839,14 +839,14 @@ export default function ScorecardView({ onPickRep, mode }) {
             pod leads, and no pod"); by score, one ranked card. */}
         {!sc.loaded && <div className="text-[14px] text-zinc-400 px-1">Loading scorecards…</div>}
         {byScore ? (ranked.length > 0 && (
-          <section className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm">
+          <section className="rounded-2xl bg-white border border-tan-200 overflow-x-auto shadow-sm">
             {crmMode ? <CrmReviewHead showNotes={showNotes} /> : <TableHead />}
             {ranked.map((r, i) => (crmMode ? <CrmReviewRow key={r.id} {...crmProps(r)} /> : <Row key={r.id} rank={i + 1} {...rowProps(r)} />))}
           </section>
         )) : shownGroups.map((g) => {
           const c = POD_COLORS[g.podId] || NEUTRAL;
           return (
-            <section key={g.title} className="rounded-2xl bg-white border border-tan-200 overflow-hidden shadow-sm" style={{ boxShadow: `inset 0 4px 0 ${c.line}` }}>
+            <section key={g.title} className="rounded-2xl bg-white border border-tan-200 overflow-x-auto shadow-sm" style={{ boxShadow: `inset 0 4px 0 ${c.line}` }}>
               <div className={`flex items-baseline gap-3 px-6 pt-4 pb-3 ${c.band}`}>
                 <h3 className={`text-[19px] font-bold ${c.text}`}>{g.podName}</h3>
                 {g.sub && <span className="text-[14px] text-zinc-600">{g.sub}</span>}
@@ -866,7 +866,7 @@ export default function ScorecardView({ onPickRep, mode }) {
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">
           <span><b className="text-navy-700">Each number</b> is this week against the weekly target. The bar turns green when the rep is at or ahead of where they should be by now{isLive ? ' (the navy tick)' : ''}, amber when close (75%+ of it), red when further behind. Projected $ is the month so far (closed + Assigned with a COE this month) against $6,250 × week {wom} of the month.</span>
           <span><b className="text-navy-700">Score</b> out of 100 — {Object.entries(weightsFor(week)).filter(([, w]) => w).map(([key, w]) => `${key === 'crm' ? `CRM${speedInCrm(week) ? ' (six items, speed included)' : ''}` : key} ${w}`).join(', ')}; no contract caps it at 89. Strong 90+, Watch 75–89, Behind under 75 (worth a 1-on-1). The change is against the last finished week. “est.” means not every part is graded yet, so the graded parts are scaled up to 100.</span>
-          <span><b className="text-navy-700">CRM · Speed</b>: CRM points out of 10 (five items, 0–2 each; A = graded automatically from GHL, a manager’s pick wins) and the share of agent texts answered within 15 minutes (standard {Math.round(SPEED_T * 100)}%). <b className="text-navy-700">Next move</b> is the part of the score with the most points left. Click a row to see the CRM checklist{showNotes ? ', set grades and write a note' : ''}; click a name for the rep’s page.</span>
+          <span><b className="text-navy-700">CRM</b>: {speedInCrm(week) ? <>points out of 12 — six items, 0–2 each, the last one Speed (agent texts answered within 15 minutes: 2 at {Math.round(SPEED_T * 100)}%+, 1 at {Math.round(SPEED_GRADE_ONE * 100)}%+)</> : <>points out of 10 — five items, 0–2 each</>}; A = graded automatically from GHL, a manager’s pick wins. <b className="text-navy-700">Next move</b> is the part of the score with the most points left. Click a row to see the CRM checklist{showNotes ? ', set grades and write a note' : ''}; click a name for the rep’s page.</span>
           <span><b className="text-navy-700">Where they leak</b>: green = at or above the team rate, amber = up to 20% below it, red = more than 20% below; the ring marks the biggest leak (only when 20%+ below the team).</span>
         </div>
       </div>
