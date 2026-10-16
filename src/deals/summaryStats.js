@@ -18,9 +18,13 @@ export function stats(list) {
   const priced = assigned.filter(hasAssignPrice);
   const gross = sumOf(closed, 'grossAssign');
   const profit = sumOf(closed, 'netProfit');
+  const cancelled = list.filter((d) => d.status === 'CANCELLED').length;
+  // Close rate = closed ÷ decided (closed + cancelled) — deals still open
+  // haven't sold or fallen through yet (Luke, Oct 16).
+  const decided = closed.length + cancelled;
   return {
-    contracts: list.length, closed: closed.length, cancelled: list.filter((d) => d.status === 'CANCELLED').length, pending: pending.length,
-    closeRate: list.length ? closed.length / list.length : 0,
+    contracts: list.length, closed: closed.length, cancelled, pending: pending.length,
+    decided, closeRate: decided ? closed.length / decided : 0,
     volume: sumOf(closed, 'finalAssign'), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
     avgNet: closed.length ? profit / closed.length : 0,
     acqComm: sumOf(closed, 'acqComm'), dispoComm: sumOf(closed, 'dispoComm'), mgrComm: sumOf(closed, 'mgrComm') + sumOf(closed, 'override'),

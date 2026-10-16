@@ -246,18 +246,24 @@ export function compute(deal, rules, lists) {
   set('commBase', cancelled ? 0 : num(d.netAssign) - num(d.tcFee));
 
   const noComm = (p) => (r.noCommission || []).some((n) => is(n, p));
+  // Commissions only once the deal is Assigned (status or a VPG price in) or
+  // Closed (Luke, Oct 16: "commission should not be calculated unless the
+  // stage is changed to assigned or closed" — "but TC would still count").
+  // An open deal with no buyer owes no acq / dispo / manager / override yet;
+  // the TC's follows its own rule. Cancelled deals are unchanged.
+  const waiting = !cancelled && !is(d.status, 'COMPLETE') && !isAssigned(d);
   const ofNet = Object.entries(r.acqOfNet || {}).find(([n]) => is(n, d.acq));
-  set('acqComm', cancelled || noComm(d.acq) ? 0 : ofNet ? num(d.netAssign) * ofNet[1] : num(d.commBase) * num(r.acqRate));
-  set('dispoComm', noComm(d.dispoMember) ? 0
+  set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : ofNet ? num(d.netAssign) * ofNet[1] : num(d.commBase) * num(r.acqRate));
+  set('dispoComm', waiting || noComm(d.dispoMember) ? 0
     : (r.dispoAfterAcq || []).some((n) => is(n, d.acq)) ? (num(d.netAssign) - num(d.acqComm) - num(d.tcFee)) * num(r.dispoRate)
       : !d.dispoMember ? 0 : num(d.commBase) * num(r.dispoRate));
 
   const m = r.manager || {};
   const mgrRep = (m.reps || []).find((x) => is(x.rep, d.acq) && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore)));
-  set('mgrComm', mgrRep ? num(d.commBase) * num(m.rate) : 0);
+  set('mgrComm', mgrRep && !waiting ? num(d.commBase) * num(m.rate) : 0);
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];
-  set('override', o.name && statusMatches(d, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
+  set('override', !waiting && o.name && statusMatches(d, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
   set('tcComm', statusIn(d, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);

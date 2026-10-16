@@ -80,8 +80,8 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
       else if (d.status === 'CANCELLED') t.cancelled += 1;
       else t.pending += 1;
     }
-    for (const st of byAbbr.values()) if (st.tracker) { st.tracker.closeRate = st.tracker.contracts ? st.tracker.closed / st.tracker.contracts : 0; st.tracker.avgNet = st.tracker.closed ? st.tracker.profit / st.tracker.closed : null; }
-    company = { ...tot, closeRate: tot.contracts ? tot.closed / tot.contracts : 0 };
+    for (const st of byAbbr.values()) if (st.tracker) { st.tracker.closeRate = st.tracker.closed + st.tracker.cancelled ? st.tracker.closed / (st.tracker.closed + st.tracker.cancelled) : 0; st.tracker.avgNet = st.tracker.closed ? st.tracker.profit / st.tracker.closed : null; }
+    company = { ...tot, closeRate: tot.closed + tot.cancelled ? tot.closed / (tot.closed + tot.cancelled) : 0 }; // closed ÷ decided (Luke, Oct 16)
   }
 
   // Flags
@@ -103,7 +103,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
     if (st.ghl.length && st.legal === 'High Risk') add('info', 'legal', `${st.state} is high-risk legally`, st.legalNote || 'License required, or agents are legally restricted — confirm with an attorney before campaigns.', { state: st.abbr });
     if (['Paused', 'Inactive'].includes(statusOf(st)) && st.ghl.length) add('med', 'paused', `${st.state} is ${statusOf(st).toLowerCase()} but still worked`, `${st.ghl.map(first).join(', ')} still ${st.ghl.length === 1 ? 'has a sub-account' : 'have sub-accounts'} there.`, { state: st.abbr });
     if (statusOf(st) === 'Active' && st.projected && st.ghl.length < st.projected) add('info', 'open', `${st.state} needs ${st.projected - st.ghl.length} more rep${st.projected - st.ghl.length === 1 ? '' : 's'}`, `Planned ${st.projected}, working today ${st.ghl.length}.${st.marketNote ? ` Sheet note: ${st.marketNote}` : ''}`, { state: st.abbr });
-    if (company && st.tracker && st.tracker.contracts >= 8 && st.tracker.pending * 2 < st.tracker.contracts && st.tracker.closeRate < company.closeRate * 0.6) add('med', 'close', `${st.state} closes few of its contracts`, `${st.tracker.closed} of ${st.tracker.contracts} closed this year (${Math.round(st.tracker.closeRate * 100)}% vs ${Math.round(company.closeRate * 100)}% company), ${st.tracker.cancelled} cancelled.`, { state: st.abbr });
+    if (company && st.tracker && st.tracker.contracts >= 8 && st.tracker.pending * 2 < st.tracker.contracts && st.tracker.closeRate < company.closeRate * 0.6) add('med', 'close', `${st.state} closes few of its contracts`, `${st.tracker.closed} closed, ${st.tracker.cancelled} cancelled this year (${Math.round(st.tracker.closeRate * 100)}% vs ${Math.round(company.closeRate * 100)}% company), ${st.tracker.cancelled} cancelled.`, { state: st.abbr });
   }
   const order = { high: 0, med: 1, info: 2 };
   flags.sort((a, b) => order[a.sev] - order[b.sev]);

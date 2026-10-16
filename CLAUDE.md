@@ -567,7 +567,12 @@ the server strips them (`forTc`) and refuses edits to them.
   dispo team on file, `legacyDispo`, so closed numbers don't move — checked:
   every closed / cancelled deal of the import computes exactly as before);
   then acq, dispo,
-  manager, override and TC commissions and profit as in the sheet. Rates
+  manager, override and TC commissions and profit as in the sheet. Acq, dispo,
+  manager and override commissions are 0 on an open deal until it's
+  Assigned (status, or a VPG assignment price in) — Luke, Oct 16: "commission
+  should not be calculated unless the stage is changed to assigned or
+  closed … TC would still count" (the TC's follows its own rule); closed
+  and cancelled deals compute exactly as before (checked on every deal). Rates
   and the names they depend on are in settings `deal_rules` only — never
   write them into the repo or this file (it's public).
 - **API** (`functions/api/deals/`): `GET /api/deals` → deals + lists +
@@ -1072,6 +1077,14 @@ the approval records who).
   period bar, their numbers vs the compare period, their rank by net, and
   every deal counted for them (status chips `?fs=`, CSV, a deal opens the
   deal panel on top); Esc / × closes.
+  Oct 16 (Luke: "lets clean this up … more vpg aligned"): the overview's
+  numbers are two bands (`Band` / `BandStat` in summaryUi.jsx) — **Deal
+  flow** on brand navy with the V mark (Contracts, Closed, Cancelled, Close
+  rate) and **Money · closed deals** on white with a tan rule (Sold volume,
+  Gross, Net assignment, Net profit, Avg net / closed, Margin; the last
+  three owners only). **Close rate = closed ÷ (closed + cancelled)** —
+  open deals aren't in it (summaryStats `decided`; also the territory
+  pages' close rate).
 - **Pages**: **Deal Summary** (the old Deals › Summary, moved here Oct 15),
   **Payouts** (Oct 15 rework, `?tab=` deals | tc | paid | coming, person
   filter `?who=`, search): **By deal** — a card per closed deal with
