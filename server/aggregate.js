@@ -184,11 +184,12 @@ export function aggregatePair({
   });
   // The deal tracker's GHL feed (scripts/sync-deals.mjs) — internal, moved to
   // .cache/ by build-snapshot.mjs before data.json is written.
+  const extraIds = Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields, TRACKER_FIELD_KEYS) : {};
   const trackerFeed = extractTrackerFeed({
     opportunities,
     stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
     fieldIds,
-    extraIds: Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields, TRACKER_FIELD_KEYS) : {},
+    extraIds,
     sinceMs: Date.now() - 60 * 86_400_000,
   });
   // Which custom fields couldn't be resolved for this sub-account, and why —
@@ -253,6 +254,9 @@ export function aggregatePair({
     _oppRanks: oppRanks,
     _lost: lostOpps,
     _tracker: trackerFeed,
+    // The custom field ids the site writes back to GHL (scripts/push-ghl.mjs,
+    // Luke Oct 18) — moved to .cache/ghl-fields.json like _tracker.
+    _ghlFields: { address: fieldIds.address || null, coe: fieldIds.coe || null, ipEnd: fieldIds.ipEnd || null, title: extraIds.title || null },
   };
 }
 

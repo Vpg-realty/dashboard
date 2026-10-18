@@ -187,13 +187,18 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
 // contract time (startedAt, kept by the sticky counts) and the sub-account.
 {
   const feed = [];
+  const fields = {};
   for (const p of snapshot.pairs) {
+    if (p._ghlFields) fields[`${p.repId}|${p.marketId}`] = p._ghlFields;
+    delete p._ghlFields;
     const started = new Map((p.deals || []).map((d) => [d.id, d.startedAt || null]));
     for (const g of p._tracker || []) feed.push({ ...g, repId: p.repId, marketId: p.marketId, startedAt: started.get(g.id) || null });
     delete p._tracker;
   }
   fs.mkdirSync(THREADS_DIR, { recursive: true });
   fs.writeFileSync(path.join(THREADS_DIR, 'ghl-tracker.json'), JSON.stringify({ generatedAt: Date.now(), feed }));
+  // Field ids per sub-account for the write-back to GHL (push-ghl.mjs).
+  fs.writeFileSync(path.join(THREADS_DIR, 'ghl-fields.json'), JSON.stringify({ generatedAt: Date.now(), fields }));
   console.log(`[snapshot] tracker feed: ${feed.length} GHL deals → .cache/ghl-tracker.json`);
 }
 

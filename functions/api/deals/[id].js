@@ -7,7 +7,7 @@
 //        deal.ghlSub = the GHL sub-account it's linked to ({ location, rep,
 //        market }) or null.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks, canManagerEdit, MANAGER_KEYS, ghlPushes } from '../../../edge/deals.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -19,7 +19,8 @@ async function load(context) {
   if (!ID.test(id || '')) return { res: json({ error: 'bad id' }, 400) };
   const row = await context.env.DB.prepare('SELECT * FROM deals WHERE id = ? AND deleted = 0').bind(id).first();
   if (!row || !canSeeDeal(user, rowToDeal(row))) return { res: json({ error: 'no such deal' }, 404) };
-  if (context.request.method !== 'GET' && !canEditDeals(user)) return { res: json({ error: 'read only' }, 403) };
+  const managerPatch = context.request.method === 'PATCH' && canManagerEdit(user);
+  if (context.request.method !== 'GET' && !canEditDeals(user) && !managerPatch) return { res: json({ error: 'read only' }, 403) };
   return { user, id, row };
 }
 
@@ -31,7 +32,9 @@ export async function onRequestGet(context) {
     .filter((e) => isOwner(user) || (isRepView(user) ? REP_LOG(e.field) : !SECRET_LOG(e.field)))
     .map((e) => ({ at: e.at, by: e.name, field: e.field, from: e.old == null ? null : JSON.parse(e.old), to: e.new == null ? null : JSON.parse(e.new) }));
   const links = await ghlLinks(context.env.DB, id).catch(() => new Map());
-  return json({ deal: { ...shape(rowToDeal(row), user), ghlSub: links.get(id) || null }, log: entries });
+  // Changes on their way to GHL (or refused), newest first — shown in the panel.
+  const pushes = await context.env.DB.prepare("SELECT field, value, by_name, at, status, error, done_at FROM ghl_push WHERE deal_id = ? AND (status <> 'done' OR done_at > ?) ORDER BY id DESC LIMIT 12").bind(id, new Date(Date.now() - 86_400_000).toISOString()).all().then((r) => r.results).catch(() => []);
+  return json({ deal: { ...shape(rowToDeal(row), user), ghlSub: links.get(id) || null }, log: entries, pushes });
 }
 
 export async function onRequestPatch(context) {
@@ -40,6 +43,10 @@ export async function onRequestPatch(context) {
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const db = context.env.DB;
+  if (!canEditDeals(user)) {
+    const bad = [...Object.keys(body?.fields || {}).filter((k) => !MANAGER_KEYS.includes(k)), ...Object.keys(body?.fixed || {})];
+    if (bad.length) return json({ error: 'Managers can change the COE, IP end and EMD amount only' }, 403);
+  }
   if (body?.base && body.base !== row.updated_at) {
     const touched = [...Object.keys(body.fields || {}), ...Object.keys(body.fixed || {}).map((k) => `fixed.${k}`)];
     const clash = await db.prepare(`SELECT name, field FROM deal_log WHERE deal_id = ? AND at > ? AND field IN (${touched.map(() => '?').join(',') || "''"})`)
@@ -52,8 +59,14 @@ export async function onRequestPatch(context) {
   if (out.error) return json({ error: out.error }, 400);
   if (!out.changes.length) return json({ deal: shape(rowToDeal(row), user) });
   const now = new Date().toISOString();
+  // Address, title / escrow, COE or IP end changed → queue them for GHL
+  // (every opportunity linked to this deal).
+  const pushes = ghlPushes(rowToDeal(row), out.deal);
+  const links = pushes.length ? (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results : [];
   await db.batch([
     db.prepare('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(dataOf(out.deal), now, user.name, id),
+    ...links.flatMap((l) => pushes.map((p) => db.prepare("INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')")
+      .bind(id, l.ghl_id, l.location, p.field, p.value, user.name, now))),
     ...out.changes.map(([field, from, to]) => db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .bind(id, now, user.email, user.name, field, JSON.stringify(from), JSON.stringify(to))),
   ]);

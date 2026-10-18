@@ -130,6 +130,33 @@ function LinkList({ value, address, onUse, small }) {
   );
 }
 
+// The site writes its changes to the address, title / escrow, COE and IP end
+// back to GHL (Luke, Oct 18; scripts/push-ghl.mjs, every refresh): what's on
+// its way, what went, and what GHL refused (with why).
+const PUSH_LABEL = { address: 'Address', title: 'Title / escrow', coe: 'COE', ipEnd: 'IP end' };
+function PushNote({ pushes, boxed }) {
+  if (!pushes?.length) return null;
+  const latest = new Map();
+  for (const p of pushes) if (!latest.has(p.field)) latest.set(p.field, p);
+  const rows = [...latest.values()];
+  if (!rows.length) return null;
+  const val = (p) => (p.field === 'coe' || p.field === 'ipEnd' ? shortDate(p.value) : String(p.value).split('\n')[0]);
+  const body = (
+    <ul className="mt-1.5 grid gap-0.5 text-[12.5px]">
+      {rows.map((p) => (
+        <li key={p.field} className="flex flex-wrap gap-x-1.5">
+          <b>{PUSH_LABEL[p.field] || p.field} → {val(p)}</b>
+          {p.status === 'done' ? <span className="text-emerald-700">✓ updated in GHL</span>
+            : p.error ? <span className="text-[#B42318]">not in GHL yet — {p.error}</span>
+              : <span className="text-zinc-600">goes to GHL at the next refresh (within ~15 min)</span>}
+          <span className="text-zinc-500">· {p.by_name}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  return boxed ? <div className="rounded-lg border border-violet-200 bg-violet-50 px-3.5 py-2.5 text-violet-900"><div className="font-medium">Changes sent to GoHighLevel</div>{body}</div> : body;
+}
+
 function History({ id }) {
   const [log, setLog] = useState(null);
   useEffect(() => { let on = true; dealHistory(id).then((r) => on && setLog(r.log)).catch((e) => on && setLog({ error: e.message })); return () => { on = false; }; }, [id]);
@@ -182,6 +209,13 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [onSec, setOnSec] = useState(null);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
+  // …except the few fields a manager may fix (Luke, Oct 18: COE, IP end via
+  // its DD days, EMD amount) — `editable` from the API.
+  const editable = new Set(s.editable || []);
+  const fro = (k) => ro && !editable.has(k);
+  // Changes on their way to GHL (functions/api/deals/[id] → scripts/push-ghl).
+  const [pushes, setPushes] = useState(null);
+  useEffect(() => { if (isNew || !id) return undefined; let on = true; dealHistory(id).then((r) => on && setPushes(r.pushes || [])).catch(() => {}); return () => { on = false; }; }, [id, isNew, base]);
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
 
   const merged = useMemo(() => {
@@ -289,7 +323,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           <svg viewBox="0 0 1000 1000" className="absolute -right-10 -top-16 w-60 h-60 opacity-[0.07] pointer-events-none" aria-hidden="true"><path d="M320 108 L653 686 L535 890 L203 314 Z" fill="#fff" /><path d="M514 308 H693 A104 104 0 0 1 783 464 L693 618 Z" fill="#ad9b7a" /></svg>
           <div className="flex items-start gap-3 relative">
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && ' · view only'}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && (editable.size ? ' · you can fix the COE, IP end and EMD' : ' · view only')}</div>
               <h2 className="mt-1 text-[22px] font-semibold tracking-tight break-words">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <StatusChip status={merged.status} />
@@ -355,8 +389,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                         : m.key === 'status' && m.fix === 'tracker' ? <button type="button" onClick={() => setField('status', m.ghl)} className="mt-0.5 rounded-md bg-violet-700 text-white px-2.5 py-1 text-[12.5px] font-semibold hover:bg-violet-800">Set to {statusLabel(m.ghl)}</button> : null }))} />
                     </div>
                   )}
+                  <PushNote pushes={pushes} />
                 </Notice>
               )}
+              {!(g || miss.length > 0) && <PushNote pushes={pushes} boxed />}
               {ip && (
                 <div className={`rounded-lg border px-3.5 py-2.5 ${ip.tone === 'red' ? 'border-[#F5C2BD] bg-[#FDF1F0] text-[#7A271A]' : 'border-[#F5D9A8] bg-[#FFF8E6] text-[#7A4A06]'}`}>
                   <div className="font-semibold">{ip.text}</div>
@@ -406,11 +442,22 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                             <span id="deal-f-ddStart" className="sr-only">Due diligence dates</span>
                             {tone !== 'plain' && <span className={`inline-block mb-1 rounded px-1 text-[10.5px] font-semibold ${tone === 'need' ? 'bg-[#FDECEA] text-[#B42318]' : 'bg-[#FEF0C7] text-[#B54708]'}`}>{tone === 'need' ? 'needed' : 'check this'}</span>}
                             <DdTimeline d={merged} />
+                            {!fro('ddDays') && (
+                              // Change the IP end by its date (Luke, Oct 18) — saved as the DD days from the contract date.
+                              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-tan-100 pt-2 text-[12.5px] text-zinc-600">
+                                <span className="font-medium">Change the IP end date</span>
+                                {ISO.test(merged.accepted || '') ? (
+                                  <input type="date" value={merged.ddEnd || ''} min={merged.accepted} onChange={(e) => { const v = e.target.value; if (ISO.test(v)) setField('ddDays', Math.round((Date.parse(v) - Date.parse(merged.accepted)) / 86_400_000)); }}
+                                    className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-navy-800" />
+                                ) : <span className="text-zinc-400">set the contract acceptance date first</span>}
+                                <span className="text-zinc-400">sets the DD days · sent to GHL on save</span>
+                              </div>
+                            )}
                           </div>
                         );
                       }
                       // Read-only: the timeline already says the days and the end time.
-                      if (ro && (f.key === 'ddDays' || f.key === 'ddEndTime')) return null;
+                      if (fro(f.key) && (f.key === 'ddDays' || f.key === 'ddEndTime')) return null;
                       const wide = (f.type === 'longtext' || f.key === 'address') && !PICK_FROM_PAST.has(f.key);
                       const isFixed = f.calc && (draft.fixed[f.key] !== undefined ? draft.fixed[f.key] !== 'formula' : raw.fixed && f.key in raw.fixed);
                       const changed = f.key in draft.fields || f.key in draft.fixed;
@@ -444,7 +491,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                             </div>
                           ) : f.key === 'links' && ro ? (
                             <LinkList value={value} address={merged.address} />
-                          ) : ro || locked ? (
+                          ) : fro(f.key) || locked ? (
                             <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'} tabular-nums`}>{text(value)}</div>
                           ) : (
                             <>
@@ -452,10 +499,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                 // End time and its time zone on one line (Luke, Oct 15: the zone
                                 // fell to a row of its own and read as a separate field).
                                 <div className="flex gap-2">
-                                  <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={ro} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
-                                  <div className="w-40 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={ro} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
+                                  <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
+                                  <div className="w-40 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={fro('ddEndTz')} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
                                 </div>
-                              ) : <Input f={f} lists={s.lists} disabled={ro} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
+                              ) : <Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
                               {f.key === 'commPaid' && fin && fin.total > 0 && <span className="block mt-1 text-[11.5px] text-zinc-500">Finance: {fin.paid} of {fin.total} commission{fin.total === 1 ? '' : 's'} paid — set automatically when a payout is marked paid in <a {...linkProps('/finance/payouts')} className="text-navy-700 underline">Finance</a>.</span>}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
@@ -477,7 +524,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           )}
         </div>
 
-        {(dirty || err) && !ro && tab === 'details' && (
+        {(dirty || err) && (!ro || editable.size > 0) && tab === 'details' && (
           <footer className="shrink-0 border-t border-tan-200 px-6 py-3 flex items-center gap-3 bg-white">
             {err ? <span className="text-red-700 text-[12.5px] flex-1">{err}</span> : <span className="text-zinc-500 flex-1">{isNew ? 'New deal — not saved yet' : `${nChanges} unsaved change${nChanges === 1 ? '' : 's'}`}</span>}
             {!isNew && <button onClick={() => { setDraft({ fields: {}, fixed: {} }); setErr(null); }} className={btnCls}>Discard</button>}
