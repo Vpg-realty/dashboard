@@ -296,11 +296,14 @@ export default function HomeView({ me }) {
   const soon = open.filter((d) => d.days >= 0 && d.days <= 1);
   const later = open.filter((d) => d.days > 1);
 
-  // This week's wins: new contracts (startedAt) and closings (stageSince), Mon → now.
+  // This week's wins: new contracts (startedAt) and closings (stageSince),
+  // Mon → now — the whole team's, for everyone whatever their role or pod
+  // (Luke, Oct 18).
+  const teamDeals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, rep: repById[p.repId], marketId: p.marketId })));
   const monday = (() => { const n = new Date(`${today}T12:00:00Z`); const dow = (n.getUTCDay() + 6) % 7; return Date.parse(`${today}T07:00:00Z`) - dow * DAY; })();
   const wins = [
-    ...deals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', at: d.startedAt })),
-    ...deals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', at: d.stageSince })),
+    ...teamDeals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', at: d.startedAt })),
+    ...teamDeals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', at: d.stageSince })),
   ].sort((a, b) => b.at - a.at);
 
   const m = metrics(pairs);
@@ -392,7 +395,7 @@ export default function HomeView({ me }) {
         </> : <RevenueCard m={m} n={n} />)}
         {(me?.role === 'owner' || me?.role === 'tc') && <TrackerCard />}
         <PipelineCard deals={deals} split={pod ? [{ label: 'Yours', deals: mineOf(deals) }, { label: pod.title, deals: podOf(deals) }] : null} />
-        {(pod ? [['Wins this week · yours', mineOf(wins)], [`Wins this week · ${pod.title}`, podOf(wins)]] : [['Wins this week', wins]]).map(([title, list]) => (
+        {[['Wins this week · whole team', wins]].map(([title, list]) => (
         <Card key={title} title={title}>
           {list.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>

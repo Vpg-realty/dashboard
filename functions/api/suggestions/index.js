@@ -1,11 +1,11 @@
 // GET  /api/suggestions → { suggestions, comments }
 // POST /api/suggestions { action: 'add', title, body?, kind, area, page? }
 //                       { action: 'comment', id, body }
-//                       { action: 'edit', id, title, body?, kind }   (author only)
+//                       { action: 'edit', id, title, body?, kind }   (author or owner)
 //                       { action: 'status', id, status, note? }       (owners)
-//                       { action: 'remove', id }                      (author only)
-//                       { action: 'commentEdit', id, cid, body }      (comment's author)
-//                       { action: 'commentRemove', id, cid }          (comment's author)
+//                       { action: 'remove', id }                      (author or owner)
+//                       { action: 'commentEdit', id, cid, body }      (comment's author or owner)
+//                       { action: 'commentRemove', id, cid }          (comment's author or owner)
 //   → { suggestions, comments }
 // Owners, managers and the TC (edge/suggestions.js); writes are logged in
 // edit_log and refused while viewing as someone.

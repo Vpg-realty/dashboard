@@ -3,7 +3,8 @@
 // system"). Logic for functions/api/suggestions; tables in edge/suggestions.sql.
 // Owners, managers and the TC read, suggest and comment; only owners change a
 // suggestion's status (with an optional answer). A suggestion or a comment
-// can be edited or removed only by whoever wrote it (Luke, Oct 18). Nothing is written while
+// can be edited or removed only by whoever wrote it, or by an owner (Luke,
+// Oct 18). Nothing is written while
 // viewing as someone (currentUser makes the role 'none').
 export const KINDS = { fix: 'Something is wrong', change: 'Change something', idea: 'New idea' };
 export const STATUSES = { new: 'New', review: 'Under review', approved: 'Approved', done: 'Done', declined: 'Not now' };
@@ -48,7 +49,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null, c
   }
   if (a === 'commentEdit' || a === 'commentRemove') {
     if (!CID.test(String(b.cid || '')) || !comment || comment.sid !== b.id) return { error: 'That comment is gone' };
-    if (comment.by_email !== user.email) return { error: 'Only whoever wrote the comment can change or remove it' };
+    if (comment.by_email !== user.email && user.role !== 'owner') return { error: 'Only whoever wrote the comment (or an owner) can change or remove it' };
     if (a === 'commentRemove') return { run: [['DELETE FROM suggestion_comments WHERE id = ?', [b.cid]]] };
     const body = clip(b.body, 2000);
     if (!body) return { error: 'Write a comment first' };
@@ -62,14 +63,14 @@ export function plan(b, user, now = new Date().toISOString(), existing = null, c
       [b.status, note, b.status === 'new' ? null : user.name, b.status === 'new' ? null : now, now, b.id]]] };
   }
   if (a === 'edit') {
-    if (existing.created_email !== user.email) return { error: 'Only whoever wrote it can change it' };
+    if (existing.created_email !== user.email && user.role !== 'owner') return { error: 'Only whoever wrote it (or an owner) can change it' };
     const title = clip(b.title, 140);
     if (!title) return { error: 'Give it a short title' };
     const kind = KINDS[b.kind] ? b.kind : existing.kind;
     return { run: [['UPDATE suggestions SET title = ?, body = ?, kind = ?, updated_at = ? WHERE id = ?', [title, clip(b.body, 4000) || null, kind, now, b.id]]] };
   }
   if (a === 'remove') {
-    if (existing.created_email !== user.email) return { error: 'Only whoever wrote it can remove it' };
+    if (existing.created_email !== user.email && user.role !== 'owner') return { error: 'Only whoever wrote it (or an owner) can remove it' };
     return { run: [['DELETE FROM suggestion_comments WHERE sid = ?', [b.id]], ['DELETE FROM suggestions WHERE id = ?', [b.id]]] };
   }
   return { error: 'Unknown action' };

@@ -224,7 +224,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   "differentiate everything" — for a pod lead every Home card is split into
   theirs and the pod's (reps only, never the lead): Needs attention · yours /
   · <Pod>, Revenue · yours / · <Pod>, Pipeline with Yours | <Pod> columns,
-  Wins · yours / · <Pod>, and This week by rep lists only the pod; the
+  and This week by rep lists only the pod; **Wins this week** is the whole
+  team's for everyone, whatever their role or pod (Luke, Oct 18); the
   Pipeline page's "My pod" is the pod's reps too — the lead's own deals are
   "Mine"), Needs
   attention (key date late or within 3 days — COE / IP end from the
@@ -256,9 +257,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   is wrong / Change something / New idea), where (a sidebar section), title,
   details. Everyone in those roles sees and comments on every suggestion;
   owners set the status (New → Under review → Approved → Done, or Not now)
-  with an answer. Only whoever wrote a suggestion or a comment can edit or
-  remove it (Luke, Oct 18 — owners no longer edit / remove others' posts;
-  actions edit / remove / commentEdit / commentRemove). Tiles
+  with an answer. Only whoever wrote a suggestion or a comment — or an owner —
+  can edit or remove it (Luke, Oct 18; actions edit / remove / commentEdit /
+  commentRemove). Tiles
   filter (`?show=`), search. D1 `suggestions` / `suggestion_comments`
   (`edge/suggestions.sql`, created Oct 15); API `functions/api/suggestions`
   (logic `edge/suggestions.js`), writes in `edit_log`, none while viewing as.

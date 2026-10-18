@@ -64,8 +64,7 @@ function NewForm({ from, onSaved, onCancel }) {
   );
 }
 
-// One comment; its writer can edit or remove it (Luke, Oct 18: only the
-// person who posted it).
+// One comment; its writer (or an owner) can edit or remove it (Luke, Oct 18).
 function Comment({ c, mine, busy, act }) {
   const [edit, setEdit] = useState(null);
   return (
@@ -151,7 +150,7 @@ function Card({ s, comments, me, onChange }) {
             <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">Comments</div>
             {comments.length === 0 && <div className="text-[12.5px] text-zinc-400 mb-2">No comments yet.</div>}
             <ul className="grid gap-2 mb-2">
-              {comments.map((c) => <Comment key={c.id} c={c} mine={canWrite && c.by_email === me?.email} busy={busy} act={act} />)}
+              {comments.map((c) => <Comment key={c.id} c={c} mine={canWrite && (c.by_email === me?.email || owner)} busy={busy} act={act} />)}
             </ul>
             {canWrite && (
               <div className="flex gap-2">
@@ -161,7 +160,7 @@ function Card({ s, comments, me, onChange }) {
               </div>
             )}
           </div>
-          {canWrite && mine && (
+          {canWrite && (mine || owner) && (
             <div className="flex justify-end gap-4">
               {!editing && <button type="button" disabled={busy} onClick={() => setEditing({ title: s.title, body: s.body || '' })} className="text-[12.5px] text-zinc-400 hover:text-navy-700">Edit</button>}
               <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) act({ action: 'remove' }); }} className="text-[12.5px] text-zinc-400 hover:text-red-700">Remove</button>
