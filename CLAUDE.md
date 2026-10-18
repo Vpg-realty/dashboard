@@ -220,7 +220,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the person's scope (owner / tc = everyone, manager = own rep + their pod
   from `PODS`, rep = themself; the TC sees pipeline counts instead — a pod
   lead gets two rows, **Your numbers** and **<Pod> · your reps**, Luke Oct
-  16: "separate it from his personal numbers, then his pods numbers"), Needs
+  16: "separate it from his personal numbers, then his pods numbers"; Oct 18:
+  "differentiate everything" — for a pod lead every Home card is split into
+  theirs and the pod's (reps only, never the lead): Needs attention · yours /
+  · <Pod>, Revenue · yours / · <Pod>, Pipeline with Yours | <Pod> columns,
+  Wins · yours / · <Pod>, and This week by rep lists only the pod; the
+  Pipeline page's "My pod" is the pod's reps too — the lead's own deals are
+  "Mine"), Needs
   attention (key date late or within 3 days — COE / IP end from the
   tracker deal at the same address when there is one, `withTrackerDates`
   in src/deals/store.js, else GHL's custom fields: Luke, Oct 15, a COE moved
@@ -1944,15 +1950,20 @@ Under `src/views/`:
       data.json's `pair.crm` for 55 min — the check reads each open deal's
       texts). Open deal = status open, New Lead … Assigned.
       1 Pipeline: past its key date (IP end for Under Contract / Dispo, COE
-      for Assigned) or untouched 14+ days (stage move, a person's note, a
-      rep text, a connected call). 2 Notes: a note by a person (has a
+      for Assigned), or — New Lead … Negotiation only — untouched: no
+      messaging with the agent (a text either way or a connected call) for
+      more than 5 days (Luke, Oct 18; was 14 days counting stage moves and
+      notes). Pipeline and Notes grade 2 at 90%+ of deals OK, 1 at 75%+
+      (`GRADE_CUTS`, Luke Oct 18); Dispo and Follow-ups stay 100% / 60%. 2 Notes: a note by a person (has a
       userId — workflow templates don't, unless a person filled the
       template in: `lastUpdatedBy`) since the deal opened (deals under
       a day old skipped); notes come from `/opportunities/search?getNotes`,
       and if the token can't read them the item is left out (`notesError`).
       4 Dispo: deals that went under contract this week (`startedAt`) with
       every opportunity field filled except "(If Applicable)" / "optional"
-      ones (`deal.missing`). 5 Follow-ups: this week (from Monday or when
+      ones (`deal.missing`). 5 Follow-ups (New Lead … Negotiation only — Under
+      Contract, Dispo, Assigned and Closed need none, Luke Oct 18; CRM_VERSION
+      4): this week (from Monday or when
       the deal opened) no gap over 3 business days (Mon–Fri, AZ) without a
       rep text (outbound with a userId) or a connected call, from
       `/conversations/messages/export?contactId` (21 days back, emails not

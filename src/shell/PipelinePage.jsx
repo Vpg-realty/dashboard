@@ -64,6 +64,9 @@ export default function PipelinePage({ mode = 'deals' }) {
   // (Luke, Oct 16); Opportunities and the Calendar also leave out Full team.
   const pod = me?.role === 'manager' ? scopeReps(me) : null;
   const pickable = pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
+  // "My pod" = the pod's reps, without the lead — the lead's own deals are
+  // "Mine" (Luke, Oct 18: pod and themselves always separate).
+  const podReps = pod ? pod.filter((id) => id !== me.rep_id) : null;
   // Luke, Oct 14: "Mine" is the default for anyone with a rep (reps and
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).
@@ -77,7 +80,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   const rep = REPS.find((r) => r.id === who);
 
   // States: the person's sub-accounts, or every state with a sub-account.
-  const stateIds = new Set(SUBACCOUNTS.filter((x) => (rep ? x.repId === rep.id : podOnly ? pod.includes(x.repId) : true)).map((x) => x.marketId));
+  const stateIds = new Set(SUBACCOUNTS.filter((x) => (rep ? x.repId === rep.id : podOnly ? podReps.includes(x.repId) : true)).map((x) => x.marketId));
   const states = MARKETS.filter((m) => stateIds.has(m.id));
   const st = states.some((m) => m.id === query.get('st')) ? query.get('st') : null;
 
@@ -103,14 +106,14 @@ export default function PipelinePage({ mode = 'deals' }) {
     window.addEventListener('focus', again);
     return () => { clearInterval(t); window.removeEventListener('focus', again); };
   }, [view]);
-  const inScope = (repId) => (rep ? repId === rep.id : podOnly ? pod.includes(repId) : true);
+  const inScope = (repId) => (rep ? repId === rep.id : podOnly ? podReps.includes(repId) : true);
   // Closed / cancelled in the tracker but still open in GHL: left out.
   const ended = endedByAddr(s);
   const keep = (d, p) => !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const needle = q.trim().toLowerCase();
   const ghlAddr = new Set(PAIRS.flatMap((p) => (p.deals || []).map((d) => addrKey(d.address || d.name))));
   const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !addrKeys(t.address).some((k) => ghlAddr.has(k))).map(trackerOnly)
-    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? pod.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
+    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? podReps.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);
   const calBlocked = view === 'cal' && !oppScope;
