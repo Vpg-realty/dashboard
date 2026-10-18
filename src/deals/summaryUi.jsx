@@ -13,17 +13,26 @@ export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
   return <span className={`inline-flex rounded px-1.5 py-px text-[12px] font-semibold whitespace-nowrap ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
 }
 
-// A number tile: coloured top bar, label, big number, then the change vs the
-// compare period (or a plain line under it).
+// A number tile in the brand style (Luke, Oct 18: "more brand focused and
+// similar to what we've been working on" — like Finance's MoneyTile): white
+// card, tan border, the label as a tan eyebrow behind a status dot, the big
+// number, a short tan rule, then the change vs the compare period (or a
+// plain line), the V mark faint in the corner.
 const ACCENT = { navy: '#1b385f', green: '#16A34A', red: '#DC2626', tan: '#AD9B7A', sky: '#0284C7', violet: '#7C3AED' };
 export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub, accent = 'navy', tone = 'text-navy-800', big }) {
   const fmtThen = then == null ? null : pct ? pctTxt(then) : isMoney ? compact(then) : then;
   return (
-    <div className="relative rounded-xl border border-tan-200 bg-white px-4 pt-4 pb-3.5 overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.05)] min-w-0">
-      <span className="absolute inset-x-0 top-0 h-1" style={{ background: ACCENT[accent] }} />
-      <div className="text-[13px] text-zinc-600 font-medium whitespace-nowrap truncate">{label}</div>
-      <div className={`mt-1.5 ${big ? 'text-[34px]' : 'text-[26px]'} leading-none font-semibold tracking-tight tabular-nums ${tone}`}>{value}</div>
-      <div className="mt-2 flex items-center gap-1.5 text-[12px] text-zinc-500 whitespace-nowrap min-h-[20px]">
+    <div className="relative rounded-2xl border border-tan-200 bg-white px-5 pt-4 pb-3.5 overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.05)] min-w-0">
+      <svg viewBox="0 0 600 781" aria-hidden="true" className="absolute -right-3 -bottom-8 h-28 pointer-events-none opacity-[0.06]">
+        <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#1b385f" />
+        <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
+      </svg>
+      <div className="relative flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-tan-700 whitespace-nowrap truncate">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ACCENT[accent] }} />{label}
+      </div>
+      <div className={`relative mt-2.5 ${big ? 'text-[34px]' : 'text-[30px]'} leading-none font-bold tracking-tight tabular-nums ${tone}`}>{value}</div>
+      <div className="relative mt-2 h-px w-10 bg-tan-300" />
+      <div className="relative mt-2 flex items-center gap-1.5 text-[12.5px] text-zinc-500 whitespace-nowrap min-h-[20px]">
         {then != null ? <><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></> : <span className="truncate">{sub || ' '}</span>}
       </div>
     </div>

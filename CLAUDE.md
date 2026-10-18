@@ -1270,7 +1270,10 @@ the approval records who).
   `?file=acq:<name>` / `dispo:` / `state:`): a side panel with the same
   period bar, their numbers vs the compare period, their rank by net, and
   every deal counted for them (status chips `?fs=`, CSV, a deal opens the
-  deal panel on top); Esc / × closes.
+  deal panel on top); Esc / × closes. Its number tiles (`Stat` in summaryUi.jsx) are in the
+  brand style like MoneyTile (Luke, Oct 18: tan eyebrow + status dot, big
+  number, tan rule, faint V mark); the panel body is a scroll box holding a
+  plain grid (a grid scroller squeezed the deals table — it couldn't scroll).
   Oct 16 (Luke: "lets clean this up … more vpg aligned"): the overview's
   numbers are two bands (`Band` / `BandStat` in summaryUi.jsx) — **Deal
   flow** on brand navy with the V mark (Contracts, Closed, Cancelled, Close

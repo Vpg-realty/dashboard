@@ -84,12 +84,16 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
           <div className="mt-3 inline-flex"><PeriodBar deals={deals} defaultKey="y:2026" /></div>
         </header>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 grid gap-4 content-start">
+        {/* The scroll box holds a plain grid (Luke, Oct 18: the deals list was
+            cut off — as a grid scroller its overflow-hidden table card was
+            squeezed to fit instead of scrolling). */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="px-6 py-5 grid gap-4">
           <div className={`grid grid-cols-2 ${owner ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
             <Stat label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
             <Stat label="Closed" value={now.closed} now={now.closed} then={t('closed')} accent="green" tone="text-emerald-700" sub={`${pctTxt(now.closeRate)} close rate`} />
             <Stat label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter accent="red" tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
-            <Stat label="Net assignment · closed" value={compact(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`${compact(now.gross)} gross`} />
+            <Stat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`closed deals · ${compact(now.gross)} gross`} />
             {owner && <Stat label={own[0]} value={compact(kind === 'state' ? now.profit : now[own[1]])} now={kind === 'state' ? now.profit : now[own[1]]} then={then ? (kind === 'state' ? then.profit : then[own[1]]) : null} isMoney accent="tan" sub="closed deals" />}
           </div>
           {compare && !then && <div className="text-[13px] text-zinc-500">Nothing on file for {label} in {compare.label} to compare with.</div>}
@@ -156,6 +160,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
               In {compare.label}: {then.contracts} contracts · {then.closed} closed · {compact(then.net)} net <Delta now={now.net} then={then.net} isMoney /> this period
             </div>
           )}
+        </div>
         </div>
       </aside>
     </div>
