@@ -64,12 +64,41 @@ function NewForm({ from, onSaved, onCancel }) {
   );
 }
 
+// One comment; its writer can edit or remove it (Luke, Oct 18: only the
+// person who posted it).
+function Comment({ c, mine, busy, act }) {
+  const [edit, setEdit] = useState(null);
+  return (
+    <li className="rounded-lg bg-tan-50 px-3 py-2">
+      <div className="flex items-center gap-2 text-[12px] text-zinc-500">
+        <span><b className="text-zinc-700">{c.by_name}</b> · {when(c.at)}</span>
+        {mine && edit == null && (
+          <span className="ml-auto flex gap-3">
+            <button type="button" disabled={busy} onClick={() => setEdit(c.body)} className="hover:text-navy-700">Edit</button>
+            <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove your comment?')) act({ action: 'commentRemove', cid: c.id }); }} className="hover:text-red-700">Remove</button>
+          </span>
+        )}
+      </div>
+      {edit == null ? <div className="text-[13.5px] text-zinc-800 whitespace-pre-line">{c.body}</div> : (
+        <div className="mt-1 grid gap-1.5">
+          <textarea autoFocus value={edit} onChange={(e) => setEdit(e.target.value)} rows={2} maxLength={2000} className={field} />
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setEdit(null)} className="text-[12.5px] text-zinc-500 hover:underline">Cancel</button>
+            <button type="button" disabled={busy || !edit.trim()} onClick={async () => { if (await act({ action: 'commentEdit', cid: c.id, body: edit })) setEdit(null); }} className={primaryCls}>Save</button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
 function Card({ s, comments, me, onChange }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [note, setNote] = useState(s.note || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [editing, setEditing] = useState(null);
   const owner = me?.role === 'owner' && !me.viewAs;
   const canWrite = !me?.viewAs;
   const mine = s.created_email === me?.email;
@@ -90,7 +119,16 @@ function Card({ s, comments, me, onChange }) {
       {s.note && !open && <div className="px-4 pb-3 -mt-1 text-[13px] text-zinc-600"><b className="text-navy-800">{s.decided_by || 'Owners'}:</b> {s.note}</div>}
       {open && (
         <div className="border-t border-tan-100 px-4 py-3 grid gap-3">
-          {s.body ? <p className="text-[14px] text-zinc-800 whitespace-pre-line">{s.body}</p> : <p className="text-[13px] text-zinc-400">No details.</p>}
+          {editing ? (
+            <div className="grid gap-2 rounded-lg bg-tan-50 p-3">
+              <input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} maxLength={140} className={field} />
+              <textarea value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={4} maxLength={4000} placeholder="Details" className={field} />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditing(null)} className="text-[12.5px] text-zinc-500 hover:underline">Cancel</button>
+                <button type="button" disabled={busy || !editing.title.trim()} onClick={async () => { if (await act({ action: 'edit', title: editing.title, body: editing.body, kind: s.kind })) setEditing(null); }} className={primaryCls}>Save</button>
+              </div>
+            </div>
+          ) : s.body ? <p className="text-[14px] text-zinc-800 whitespace-pre-line">{s.body}</p> : <p className="text-[13px] text-zinc-400">No details.</p>}
           {s.page && <a {...linkProps(s.page)} className="text-[12.5px] text-navy-700 hover:underline w-fit">Open the page it's about → {s.page}</a>}
           {(s.note || owner) && (
             <div className="rounded-lg bg-navy-50/70 ring-1 ring-inset ring-navy-100 p-3">
@@ -113,12 +151,7 @@ function Card({ s, comments, me, onChange }) {
             <div className="text-[12.5px] font-bold text-navy-800 mb-1.5">Comments</div>
             {comments.length === 0 && <div className="text-[12.5px] text-zinc-400 mb-2">No comments yet.</div>}
             <ul className="grid gap-2 mb-2">
-              {comments.map((c) => (
-                <li key={c.id} className="rounded-lg bg-tan-50 px-3 py-2">
-                  <div className="text-[12px] text-zinc-500"><b className="text-zinc-700">{c.by_name}</b> · {when(c.at)}</div>
-                  <div className="text-[13.5px] text-zinc-800 whitespace-pre-line">{c.body}</div>
-                </li>
-              ))}
+              {comments.map((c) => <Comment key={c.id} c={c} mine={canWrite && c.by_email === me?.email} busy={busy} act={act} />)}
             </ul>
             {canWrite && (
               <div className="flex gap-2">
@@ -128,8 +161,9 @@ function Card({ s, comments, me, onChange }) {
               </div>
             )}
           </div>
-          {canWrite && ((mine && s.status === 'new') || owner) && (
-            <div className="flex justify-end">
+          {canWrite && mine && (
+            <div className="flex justify-end gap-4">
+              {!editing && <button type="button" disabled={busy} onClick={() => setEditing({ title: s.title, body: s.body || '' })} className="text-[12.5px] text-zinc-400 hover:text-navy-700">Edit</button>}
               <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) act({ action: 'remove' }); }} className="text-[12.5px] text-zinc-400 hover:text-red-700">Remove</button>
             </div>
           )}
