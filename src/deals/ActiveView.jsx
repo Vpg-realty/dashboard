@@ -379,7 +379,7 @@ export default function ActiveView() {
       <div className="mt-3 flex flex-col gap-5">
         {ipSoon.length > 0 && (
           <section className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] overflow-hidden">
-            <FoldHead id="ip" folds={folds} count={ipSoon.length} className="bg-[#9F1D14] border-[#7A271A] text-white" title="IP ends within 48 hours — no buyer yet" sub="Find a buyer or cancel before the inspection period ends." />
+            <FoldHead id="ip" folds={folds} count={ipSoon.length} className="bg-[#9F1D14] border-[#7A271A] text-white" title="IP ends within 48 hours — not assigned yet" sub="Assign it (move it to Assigned) or cancel before the inspection period ends." />
             {!folds.is('ip') && <ul className="divide-y divide-[#F5C2BD]/60">
               {ipSoon.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 bg-white/60">
