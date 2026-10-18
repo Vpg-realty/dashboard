@@ -56,3 +56,23 @@ CREATE TABLE IF NOT EXISTS tc_tasks (
   done_at TEXT
 );
 CREATE INDEX IF NOT EXISTS tc_tasks_deal ON tc_tasks (deal_id);
+
+-- Changes made on the site to the four fields GHL shares with the tracker
+-- (Luke, Oct 18: property address, title / escrow, COE, IP end) wait here
+-- until scripts/push-ghl.mjs (every deploy, ~15 min) writes them to the
+-- linked GHL opportunity. status: pending | done | failed.
+CREATE TABLE IF NOT EXISTS ghl_push (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  deal_id TEXT NOT NULL,
+  ghl_id TEXT NOT NULL,
+  location TEXT NOT NULL,
+  field TEXT NOT NULL,
+  value TEXT,
+  by_name TEXT,
+  at TEXT NOT NULL,
+  status TEXT NOT NULL,
+  tries INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  done_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ghl_push_status ON ghl_push (status);

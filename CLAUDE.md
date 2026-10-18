@@ -642,6 +642,31 @@ the server strips them (`forTc`) and refuses edits to them.
   **All active / Only mine** switch (`?mine=1`; the API marks each deal
   `mine` when they're its acq. manager or dispo member — name from
   subaccounts.json via `rep_id`). Writes 403.
+- **Managers fix COE, IP end, EMD** (Luke, Oct 18: "if the ip or coe or em
+  amount is incorrect, they should be allowed to edit those and have it
+  reflect for everyone — including the deal sheet"): `MANAGER_KEYS` (coe,
+  ddDays, emd) in edge/deals.js — a manager's PATCH may change only those
+  (403 otherwise); GET /api/deals sends `editable`, and the deal panel opens
+  just those inputs for them (`fro`), plus "Change the IP end date" under the
+  DD timeline for anyone who can edit (sets the DD days from the contract
+  date).
+- **Site → GHL write-back** (Luke, Oct 18: "once a deal hits dispo active, all
+  info is fed into the site … no changes on GHL except for pipeline stage
+  status get pushed to the sheet … if something is changed by owners or
+  managers for those fields, they are pushed to GHL"): a saved change to the
+  property address, title / escrow, COE or IP end (`GHL_PUSH_FIELDS`,
+  `ghlPushes` — IP end = contract date + DD days) on a deal linked to GHL
+  (`deal_ghl`) is queued in D1 `ghl_push` (edge/deals.sql) by
+  functions/api/deals/[id]; `scripts/push-ghl.mjs` (chained after
+  sync-deals in `npm run snapshot`, never fails the deploy) writes the latest
+  value per field to the opportunity's custom field (PUT /opportunities/:id,
+  ids per sub-account from `.cache/ghl-fields.json`, written by
+  build-snapshot from the pair's internal `_ghlFields`). Any editor's change
+  goes (owners, managers, TC). A refused write (the PIT lacks
+  opportunities.write) stays queued and is retried for a day, the reason
+  shown in the deal panel (`PushNote`); settings `ghl_push` keeps the last
+  run. GHL's own later changes to these fields still never reach the site.
+  This is the dashboard's only write to GHL.
 - **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
   Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
   **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
@@ -2153,7 +2178,8 @@ that both can be deleted, and the secrets `GOOGLE_SERVICE_ACCOUNT_JSON` /
   Standard command: `gh pr merge <n> --squash --delete-branch`.
 - **Always `npm run build` locally before pushing** — Actions
   duration counts against everybody, so surface syntax errors first.
-- **Never test through GHL writes**. The dashboard is read-only. If
+- **Never test through GHL writes**. The dashboard only writes to GHL
+  through scripts/push-ghl.mjs (the four tracker fields, Oct 18). If
   you need to test aggregation, mock a pair in code.
 - **Playwright-verify visual changes** after deploy. MCP Playwright
   tools are available; screenshot

@@ -24,6 +24,23 @@ export const canEditDeals = (u) => u?.role === 'owner' || u?.role === 'tc';
 export const isRepView = (u) => (u?.role === 'team' || u?.role === 'manager') && !!u.rep_id;
 export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u);
 export const isOwner = (u) => u?.role === 'owner';
+// Managers fix a deal's COE, IP end (its DD days) and EMD amount (Luke, Oct
+// 18: "if the ip or coe or em amount is incorrect, they should be allowed to
+// edit those … reflect for everyone"); everything else stays read-only.
+export const MANAGER_KEYS = ['coe', 'ddDays', 'emd'];
+export const canManagerEdit = (u) => u?.role === 'manager' && !!u.rep_id;
+
+// The fields GHL shares with the tracker. A change made on the site is
+// written back to the linked GHL opportunity (Luke, Oct 18; queue table
+// ghl_push, sent by scripts/push-ghl.mjs) — GHL's own later changes to them
+// never come back (only the stage does, edge/dealSync.js).
+export const GHL_PUSH_FIELDS = ['address', 'title', 'coe', 'ipEnd'];
+const ipEndOf = (d) => (DATE.test(d?.accepted || '') && Number.isFinite(Number(d?.ddDays)) && d.ddDays !== '' && d.ddDays != null
+  ? new Date(Date.parse(`${d.accepted}T12:00:00Z`) + Number(d.ddDays) * 86_400_000).toISOString().slice(0, 10) : null);
+export function ghlPushes(before, after) {
+  const v = (d, f) => (f === 'ipEnd' ? ipEndOf(d) : d?.[f] ?? null);
+  return GHL_PUSH_FIELDS.map((f) => [f, v(before, f), v(after, f)]).filter(([, a, b]) => a !== b && b != null).map(([f, , b]) => ({ field: f, value: String(b) }));
+}
 const repName = (u) => roster.reps.find((r) => r.id === u?.rep_id)?.name || null;
 // May this person see this deal? Owners / the TC: all; reps: open ones
 // (Pending or Assigned — math.js isOpen).
