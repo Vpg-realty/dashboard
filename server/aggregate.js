@@ -8,7 +8,7 @@
 //   - 7-day daily breakdown of NEW conversations (Luke's "first outreach")
 
 import { STAGE_ALIASES } from './config.js';
-import { extractDeals, extractOpps, extractLost, extractTrackerFeed, resolveDealFieldIds, DEAL_FIELD_KEYS, TRACKER_FIELD_KEYS } from './deals.js';
+import { extractDeals, extractOpps, extractLost, extractAbandoned, extractTrackerFeed, resolveDealFieldIds, DEAL_FIELD_KEYS, TRACKER_FIELD_KEYS } from './deals.js';
 
 const startOfWeek = () => {
   const d = new Date();
@@ -182,6 +182,12 @@ export function aggregatePair({
     fieldIds,
     sinceMs: lmStart.getTime(),
   });
+  // Abandoned leads for Alerts' 30-day check-ins — internal, moved to .cache/.
+  const abandonedOpps = extractAbandoned({
+    opportunities,
+    stageOf: (o) => stageKey(stageById[o.pipelineStageId] || o.stage || ''),
+    fieldIds,
+  });
   // The deal tracker's GHL feed (scripts/sync-deals.mjs) — internal, moved to
   // .cache/ by build-snapshot.mjs before data.json is written.
   const extraIds = Array.isArray(oppCustomFields) ? resolveDealFieldIds(oppCustomFields, TRACKER_FIELD_KEYS) : {};
@@ -254,6 +260,7 @@ export function aggregatePair({
     _oppRanks: oppRanks,
     _lost: lostOpps,
     _tracker: trackerFeed,
+    _abandoned: abandonedOpps,
     // The custom field ids the site writes back to GHL (scripts/push-ghl.mjs,
     // Luke Oct 18) — moved to .cache/ghl-fields.json like _tracker.
     _ghlFields: { address: fieldIds.address || null, coe: fieldIds.coe || null, ipEnd: fieldIds.ipEnd || null, title: extraIds.title || null },

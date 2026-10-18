@@ -15,6 +15,7 @@ import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
+import { useAlerts } from '../alerts/store.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
@@ -259,6 +260,18 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
+// One line to Alerts when something new is waiting (Luke, Oct 18: Home keeps
+// "needs attention"; the tasks themselves live on Alerts, never twice).
+function AlertsLink() {
+  const { counts } = useAlerts();
+  if (!counts?.unseen) return null;
+  return (
+    <a {...linkProps('/alerts')} className="ml-2 align-middle inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-rose-700">
+      {counts.unseen} new alert{counts.unseen === 1 ? '' : 's'} →
+    </a>
+  );
+}
+
 export default function HomeView({ me }) {
   // Luke, Oct 14: a deal clicked on Home opens its details here (the deal
   // panel), not the board's Pipeline.
@@ -349,6 +362,7 @@ export default function HomeView({ me }) {
           <div className="text-navy-100 mt-1">
             {dateLabel}
             {open.length > 0 && <> · {late.length > 0 && <span className="text-red-200 font-semibold">{late.length} late</span>}{late.length > 0 && soon.length > 0 && ', '}{soon.length > 0 && <span>{soon.length} due today or tomorrow</span>}</>}
+            <AlertsLink />
             {scopeLabel && <span className="ml-2 text-xs rounded-md px-1.5 py-0.5 align-middle bg-tan-500/25 text-tan-100 ring-1 ring-tan-400/40">{scopeLabel}</span>}
           </div>
         </div>

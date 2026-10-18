@@ -77,6 +77,8 @@ const isAutoReply = (body) => /out of (the )?office|auto(matic|mated)?[- ]?(repl
 // A call that connected, either way (Luke, Oct 12: a call counts as an answer).
 const isConnectedCall = (m) => m && m.messageType === 'TYPE_CALL' && (m.meta?.call?.status === 'completed' || m.status === 'completed');
 
+const INBOUND_DAYS = 3;
+
 // Ends in a question (allowing trailing emoji / closing punctuation).
 export const endsInQuestion = (body) => /\?(?:[\s"')\].!]|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f)*$/u.test(String(body || '').trim());
 
@@ -102,6 +104,10 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
   const questions = { ok: 0, total: 0 };
   const compliance = { ok: 0, total: 0, bad: [] };
   const threads = [];
+  // Agents' texts from the last 3 days for Alerts' lead spotting
+  // (scripts/sync-alerts.mjs): each run of agent texts as one, with the few
+  // texts before it. Internal, like threads.
+  const inbound = [];
 
   for (const [conv, list] of byConv) {
     list.sort((a, b) => ts(a.dateAdded) - ts(b.dateAdded));
@@ -112,6 +118,18 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
       const inWeek = t >= weekStartMs;
       if (m.direction === 'inbound') {
         if (isStop(m.body) && stoppedAt == null) stoppedAt = t;
+        const nextIn = list[i + 1]?.direction === 'inbound';
+        if (!nextIn && now - t <= INBOUND_DAYS * 86400000 && inbound.length < 80) {
+          let s0 = i;
+          while (s0 > 0 && list[s0 - 1].direction === 'inbound') s0--;
+          const body = list.slice(s0, i + 1).map((x) => String(x.body || '').trim()).filter(Boolean).join('\n').slice(0, 600);
+          if (body && !isAck(body) && !isStop(body) && !isAutoReply(body)) {
+            inbound.push({
+              id: m.id, at: t, conv, contact: m.contactId || null, who: names[m.contactId] || null, body,
+              before: list.slice(Math.max(0, s0 - 4), s0).map((x) => ({ from: x.direction === 'inbound' ? 'agent' : isRep(x) ? 'rep' : 'automated', body: String(x.body || '').slice(0, 300) })),
+            });
+          }
+        }
         // Speed: an agent text that starts their turn, in business hours,
         // that calls for an answer.
         const prev = list[i - 1];
@@ -174,5 +192,5 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
       });
     }
   }
-  return { v: MESSAGING_VERSION, at: now, speed, questions, compliance, threads, misses };
+  return { v: MESSAGING_VERSION, at: now, speed, questions, compliance, threads, misses, inbound };
 }

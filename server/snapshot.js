@@ -239,10 +239,11 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
             const texts = await listTextsSince(locationId, token, wkStart - 2 * 86400000);
             const names = {};
             for (const o of opportunities || []) { const id = o.contactId || o.contact?.id; const n = o.contact?.name || o.contact?.contactName; if (id && n) names[id] = String(n).slice(0, 60); }
-            const { threads, misses, ...rules } = analyzeMessaging({ messages: texts, calls: Array.isArray(callMessages) ? callMessages : [], marketId, weekStartMs: wkStart, names });
+            const { threads, misses, inbound, ...rules } = analyzeMessaging({ messages: texts, calls: Array.isArray(callMessages) ? callMessages : [], marketId, weekStartMs: wkStart, names });
             pair.messaging = { ...rules, weekStart: wkStart, ...(prevMsg?.weekStart === wkStart && prevMsg.ai ? { ai: prevMsg.ai } : {}) };
             pair._msgThreads = threads;
             pair._msgMisses = misses;
+            pair._msgInbound = inbound;
           } catch (err) {
             pair.messaging = prevMsg?.weekStart === wkStart ? { ...prevMsg, error: String(err?.message || err).slice(0, 200) } : { error: String(err?.message || err).slice(0, 200), weekStart: wkStart };
           }

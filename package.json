@@ -8,7 +8,7 @@
     "build": "node scripts/split-private-data.mjs && vite build && node scripts/deploy-cloudflare.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "snapshot": "node scripts/cloudflare-handoff.mjs && node scripts/load-private-files.mjs && node scripts/build-snapshot.mjs && node scripts/sync-deals.mjs && node scripts/push-ghl.mjs && node scripts/closed-map.mjs && node scripts/discord-alerts.mjs && node scripts/review-messaging.mjs",
+    "snapshot": "node scripts/cloudflare-handoff.mjs && node scripts/load-private-files.mjs && node scripts/build-snapshot.mjs && node scripts/sync-deals.mjs && node scripts/push-ghl.mjs && node scripts/sync-alerts.mjs && node scripts/closed-map.mjs && node scripts/discord-alerts.mjs && node scripts/review-messaging.mjs",
     "append-history": "node scripts/append-history.mjs && node scripts/update-month-log.mjs && node scripts/update-scorecards.mjs",
     "month-log": "node scripts/update-month-log.mjs"
   },
