@@ -154,7 +154,13 @@ export function speedCounts(sp) {
 // its checks (each vs its standard) and needs MESSAGING_TWO for a 2.
 export const GRADE_ONE = 0.6;
 export const MESSAGING_TWO = 0.9;
-export const gradeShare = (ok, total) => (!total ? 2 : ok >= total ? 2 : ok / total >= GRADE_ONE ? 1 : 0);
+// Pipeline and Notes (Luke, Oct 18): 2 at 90%+ of deals OK, 1 at 75%+.
+export const GRADE_CUTS = { pipeline: [0.9, 0.75], notes: [0.9, 0.75] };
+export const gradeShare = (ok, total, cuts) => {
+  if (!total) return 2;
+  const [two, one] = cuts || [1, GRADE_ONE];
+  return ok / total >= two ? 2 : ok / total >= one ? 1 : 0;
+};
 // Monday 00:00 Arizona (UTC-7) of the week whose Monday is `monday`.
 export const weekStartMs = (monday) => Date.parse(`${monday}T07:00:00Z`);
 
@@ -213,7 +219,7 @@ export function autoCrm(pairs, monday, limit = 12) {
     const d = detail[it.key];
     if (!d) return null;
     if (it.key === 'messaging') return d.share == null ? null : d.share >= MESSAGING_TWO ? 2 : d.share >= GRADE_ONE ? 1 : 0;
-    return gradeShare(d.ok, d.total);
+    return gradeShare(d.ok, d.total, GRADE_CUTS[it.key]);
   });
   return grades.some((g) => g != null) ? { grades, detail } : null;
 }

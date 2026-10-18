@@ -4,8 +4,11 @@
 //
 //   1 Pipeline   — every open deal (New Lead … Assigned) is current: not past
 //                  its key date (IP end for Under Contract / Dispo, COE for
-//                  Assigned) and touched in the last 14 days (stage move, a
-//                  note, or a text / call from the rep).
+//                  Assigned), and a deal still before contract (New Lead …
+//                  Negotiation) isn't untouched — untouched = no messaging
+//                  between the rep and the agent (a text either way or a
+//                  connected call) for more than 5 days (Luke, Oct 18; it was
+//                  14 days and counted stage moves and notes).
 //   2 Notes      — every open deal has a note written by a person since the
 //                  deal was opened (a workflow template counts once a person
 //                  has filled it in).
@@ -13,9 +16,11 @@
 //                  opportunity field filled except the "(If Applicable)" /
 //                  optional ones (graded in scripts/scorecard-lib.mjs from
 //                  each deal's `missing` list).
-//   5 Follow-ups — this week, the agent on every open deal hears from the rep
-//                  at least every 3 business days (texts and calls through
-//                  GHL; counted from Monday or from when the deal opened).
+//   5 Follow-ups — this week, the agent on every deal still before contract
+//                  (New Lead … Negotiation) hears from the rep at least every
+//                  3 business days (texts and calls through GHL; counted from
+//                  Monday or from when the deal opened). Under Contract, Dispo
+//                  Active, Assigned and Closed need no follow-up (Luke, Oct 18).
 //
 // Published per pair as `crm` = { at, pipeline, notes, followups }, each
 // { total, badN, bad: [{ id, addr, why }] } (bad lists capped at 25), plus
@@ -30,13 +35,15 @@ import { isManualOutbound } from './messaging.js';
 const DAY = 86400000;
 // Bump when the checks change so the cached result (reused for 55 min) is
 // recomputed on the next deploy.
-export const CRM_VERSION = 3;
-export const STALE_DAYS = 14;
+export const CRM_VERSION = 4;
+export const STALE_DAYS = 5;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
-// Messages are read back this far: covers the 14-day staleness check and
+// Messages are read back this far: covers the staleness check and
 // the last touch before the week began.
 export const MESSAGE_LOOKBACK_DAYS = 21;
 const OPEN_RANKS = new Set([1, 2, 3, 4, 5, 6, 7]);
+// Stages that still need follow-ups and can go stale: New Lead … Negotiation.
+const FOLLOW_RANKS = new Set([1, 2, 3, 4]);
 
 const ts = (v) => (v ? new Date(v).getTime() || 0 : 0);
 const laDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date(ms));
@@ -124,9 +131,13 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     // 1 Pipeline
     out.pipeline.total++;
     const keyDate = key === 'assigned' ? toDateStr(customValue(o, fieldIds.coe)) : rank === 5 || rank === 6 ? toDateStr(customValue(o, fieldIds.ipEnd)) : null;
-    const lastTouch = Math.max(ts(o.lastStageChangeAt), created, ...notes.map((n) => n.at), ...touches);
+    const follow = FOLLOW_RANKS.has(rank);
+    // Untouched = no messaging either way (or connected call) for 5+ days;
+    // a deal opened since then isn't untouched yet. Only when the messages
+    // could be read.
+    const talk = messages ? Math.max(created, ...touches, ...(messages[o.contactId] || []).filter((m) => m.direction === 'inbound').map((m) => ts(m.dateAdded))) : 0;
     if (keyDate && keyDate < today) out.pipeline.bad.push({ id: o.id, addr, why: `${key === 'assigned' ? 'COE' : 'IP end'} passed ${keyDate.slice(5).replace('-', '/')}` });
-    else if (now - lastTouch > STALE_DAYS * DAY) out.pipeline.bad.push({ id: o.id, addr, why: `untouched ${Math.floor((now - lastTouch) / DAY)}d` });
+    else if (follow && messages && now - talk > STALE_DAYS * DAY) out.pipeline.bad.push({ id: o.id, addr, why: `no messaging with the agent in ${Math.floor((now - talk) / DAY)}d` });
 
     // 2 Notes — a day's grace for a deal opened today.
     if (now - created >= DAY) {
@@ -136,7 +147,7 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
 
     // 5 Follow-ups — this week (from Monday, or from when the deal was
     // opened) no stretch of more than 3 business days without a text or call.
-    if (out.followups) {
+    if (out.followups && follow) {
       out.followups.total++;
       const from = Math.max(weekStartMs, created);
       let prev = from;

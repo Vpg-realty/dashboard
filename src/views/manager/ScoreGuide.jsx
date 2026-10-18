@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
-import { CRM_ITEMS, PODS, GRADE_ONE, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, PODS, GRADE_ONE, GRADE_CUTS, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
@@ -130,10 +130,10 @@ function Numbers() {
 function Crm() {
   return (
     <>
-      <div className="text-sm text-zinc-700">Five items, each 0, 1 or 2, graded automatically from GHL. <b>2</b> = every deal OK, <b>1</b> = at least {pct(GRADE_ONE)} OK, <b>0</b> = below that; nothing to check = 2. A manager can override any grade on the Scorecard (chips marked <b>A</b> are automatic). "Open deal" = status open, from New Lead through Assigned. Click a rep's CRM total to see the exact deals behind each grade.</div>
+      <div className="text-sm text-zinc-700">Five items, each 0, 1 or 2, graded automatically from GHL. Pipeline and Notes: <b>2</b> = at least {pct(GRADE_CUTS.pipeline[0])} of deals OK, <b>1</b> = at least {pct(GRADE_CUTS.pipeline[1])}, <b>0</b> = below. Dispo and Follow-ups: <b>2</b> = every deal OK, <b>1</b> = at least {pct(GRADE_ONE)}. Nothing to check = 2. A manager can override any grade on the Scorecard (chips marked <b>A</b> are automatic). "Open deal" = status open, from New Lead through Assigned. Click a rep's CRM total to see the exact deals behind each grade.</div>
       <Item title={`1 · ${CRM_ITEMS[0].label}`}>
-        <Row k="Checks">No open deal past its key date (IP end for Under Contract and Dispo Active, COE for Assigned) and none untouched for {STALE_DAYS}+ days.</Row>
-        <Row k="Touched">A stage move, a note written by a person, a text from the rep or a call that connected.</Row>
+        <Row k="Checks">No open deal past its key date (IP end for Under Contract and Dispo Active, COE for Assigned), and no deal before contract (New Lead … Negotiation) untouched — no messaging with the agent for more than {STALE_DAYS} days.</Row>
+        <Row k="Touched">A text between the rep and the agent (either way) or a call that connected.</Row>
         <Row k="Updated">Every hour.</Row>
       </Item>
       <Item title={`2 · ${CRM_ITEMS[1].label}`}>
@@ -150,13 +150,13 @@ function Crm() {
         <Row k="Updated">Every hour.</Row>
       </Item>
       <Item title={`5 · ${CRM_ITEMS[4].label}`}>
-        <Row k="Checks">This week (from Monday, or from when the deal opened), the agent on every open deal never goes more than {FOLLOWUP_BUSINESS_DAYS} business days without a text from the rep or a call that connected. Weekends don't count.</Row>
+        <Row k="Checks">This week (from Monday, or from when the deal opened), the agent on every deal still before contract (New Lead … Negotiation) never goes more than {FOLLOWUP_BUSINESS_DAYS} business days without a text from the rep or a call that connected. Weekends don't count. Under Contract, Dispo Active, Assigned and Closed need no follow-up.</Row>
         <Row k="Data">Texts and calls through GHL with each deal's contact, last {MESSAGE_LOOKBACK_DAYS} days. Emails and personal phones aren't seen.</Row>
         <Row k="Updated">Every hour.</Row>
       </Item>
       <Settings items={[
-        ['Stale after', `${STALE_DAYS} days`], ['Follow-up gap allowed', `${FOLLOWUP_BUSINESS_DAYS} business days`],
-        ['Grade 1 from', pct(GRADE_ONE)], ['Grade 2 needs', '100% (every deal)'],
+        ['Untouched after', `${STALE_DAYS} days without messaging`], ['Follow-up gap allowed', `${FOLLOWUP_BUSINESS_DAYS} business days`],
+        ['Pipeline / Notes: 2 / 1 from', `${pct(GRADE_CUTS.pipeline[0])} / ${pct(GRADE_CUTS.pipeline[1])}`], ['Dispo / Follow-ups: 2 / 1 from', `100% / ${pct(GRADE_ONE)}`],
         ['Required dispo fields', 'all except "(If Applicable)"'], ['Notes grace for new deals', '1 day'],
       ]} />
     </>

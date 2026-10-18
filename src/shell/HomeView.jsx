@@ -89,13 +89,13 @@ const more = (to, text) => <a {...linkProps(to)} className="text-[13px] text-nav
 
 // Revenue this month for the scope: closed + Assigned with a COE this month
 // = projected, against the per-rep goal × people (same rule as Overview).
-function RevenueCard({ m, n }) {
+function RevenueCard({ m, n, title = 'Revenue · this month' }) {
   const goal = T.revenuePerRepMonth * n;
   const pace = paceFraction('month');
   const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
   const badge = paceBadge(goal ? m.projected / (goal * Math.max(pace, 0.05)) : null);
   return (
-    <Card title="Revenue · this month" tint={badge ? badge[2] : undefined} right={more('/board/overview', 'Overview')}>
+    <Card title={title} tint={badge ? badge[2] : undefined} right={more('/board/overview', 'Overview')}>
       {/* The pace badge sits in the box's own top right (Luke, Oct 16). */}
       <div className="flex items-baseline gap-2">
         <span className="text-[30px] leading-none font-semibold tracking-tight text-navy-800 tabular-nums">{formatCompactCurrency(m.projected)}</span>
@@ -116,7 +116,9 @@ function RevenueCard({ m, n }) {
 }
 
 const STAGE_ORDER = [['under_contract', 'Under contract', '#2563eb'], ['dispo', 'Dispo active', '#d97706'], ['assigned', 'Assigned', '#7c3aed'], ['closed', 'Closed this month', '#059669']];
-function PipelineCard({ deals }) {
+// `split` (pod leads): [{ label, deals }] — a count column per side.
+function PipelineCard({ deals, split }) {
+  if (split) return <PipelineSplit split={split} />;
   const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
   return (
     <Card title="Pipeline" right={more('/pipeline/all', 'Open')}>
@@ -132,6 +134,29 @@ function PipelineCard({ deals }) {
             </div>
           );
         })}
+      </div>
+    </Card>
+  );
+}
+
+// A pod lead's pipeline: their own deals and their pod's side by side
+// (Luke, Oct 18: "differentiate everything … themselves and pod").
+function PipelineSplit({ split }) {
+  const cell = (list) => {
+    const value = list.reduce((a, d) => a + (d.value || 0), 0);
+    return <span className="text-right text-[13px] tabular-nums whitespace-nowrap"><span className={`font-semibold ${list.length ? '' : 'text-zinc-300'}`}>{list.length}</span>{value ? <span className="text-zinc-500"> · {formatCompactCurrency(value)}</span> : ''}</span>;
+  };
+  return (
+    <Card title="Pipeline" right={more('/pipeline/all', 'Open')}>
+      <div className="grid grid-cols-[minmax(0,1fr)_96px_96px] items-center gap-x-3 gap-y-2.5">
+        <span />
+        {split.map((x) => <span key={x.label} className="text-right text-[11.5px] font-semibold uppercase tracking-wide text-navy-700">{x.label}</span>)}
+        {STAGE_ORDER.map(([k, label, color]) => (
+          <div key={k} className="contents">
+            <span className="flex items-center gap-2 text-[13px] text-zinc-600"><span className="w-2 h-2 rounded-full" style={{ background: color }} />{label}</span>
+            {split.map((x) => <span key={x.label}>{cell(x.deals.filter((d) => d.stage === k))}</span>)}
+          </div>
+        ))}
       </div>
     </Card>
   );
@@ -162,7 +187,7 @@ function TrackerCard() {
 }
 
 // Owners and managers: who is moving this week (contracts, then offers, opps).
-function Leaderboard({ reps }) {
+function Leaderboard({ reps, title = 'This week by rep' }) {
   const rows = reps.map((r) => {
     const m = metrics(PAIRS.filter((p) => p.repId === r.id));
     return { r, m };
@@ -174,7 +199,7 @@ function Leaderboard({ reps }) {
     return <span className={`inline-block min-w-[64px] rounded-md px-2 py-0.5 tabular-nums font-semibold ring-1 ring-inset ${b[1]}`}>{v}<span className="opacity-60 font-normal"> / {t}</span></span>;
   };
   return (
-    <Card title="This week by rep" right={more('/team/scorecard', 'Scorecard')} >
+    <Card title={title} right={more('/team/scorecard', 'Scorecard')} >
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[13.5px]">
           <thead className="text-[11.5px] uppercase tracking-wide text-zinc-500"><tr>
@@ -249,6 +274,10 @@ export default function HomeView({ me }) {
   // date alerts (the GHL panel says to update GHL).
   const ended = endedByAddr(tracker);
   const scope = scopeReps(me);
+  // A pod lead (Luke, Oct 16 / Oct 18): everything on Home split into their
+  // own (`mine`) and their pod's reps (`podIds`, without the lead).
+  const pod = me?.role === 'manager' && me.rep_id ? PODS.find((x) => x.lead === me.rep_id) : null;
+  const podIds = pod ? pod.reps : null;
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
   const today = laToday();
@@ -267,11 +296,14 @@ export default function HomeView({ me }) {
   const soon = open.filter((d) => d.days >= 0 && d.days <= 1);
   const later = open.filter((d) => d.days > 1);
 
-  // This week's wins: new contracts (startedAt) and closings (stageSince), Mon → now.
+  // This week's wins: new contracts (startedAt) and closings (stageSince),
+  // Mon → now — the whole team's, for everyone whatever their role or pod
+  // (Luke, Oct 18).
+  const teamDeals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, rep: repById[p.repId], marketId: p.marketId })));
   const monday = (() => { const n = new Date(`${today}T12:00:00Z`); const dow = (n.getUTCDay() + 6) % 7; return Date.parse(`${today}T07:00:00Z`) - dow * DAY; })();
   const wins = [
-    ...deals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', at: d.startedAt })),
-    ...deals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', at: d.stageSince })),
+    ...teamDeals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', at: d.startedAt })),
+    ...teamDeals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', at: d.stageSince })),
   ].sort((a, b) => b.at - a.at);
 
   const m = metrics(pairs);
@@ -283,18 +315,17 @@ export default function HomeView({ me }) {
   const stats = isTc
     ? [['Under contract', count('under_contract')], ['Dispo', count('dispo')], ['Assigned', count('assigned')], ['Closed this month', m.closedM]]
     : numbers(m, n);
-  // A pod lead sees their own numbers and their pod's separately (Luke,
-  // Oct 16: "separate it from his personal numbers, then his pods numbers …
-  // align with any pod lead"); the rest of Home still covers both.
-  const pod = me?.role === 'manager' && me.rep_id ? PODS.find((x) => x.lead === me.rep_id) : null;
+  const mineOf = (list) => list.filter((d) => d.rep?.id === me.rep_id);
+  const podOf = (list) => list.filter((d) => podIds.includes(d.rep?.id));
+  const podFirst = pod ? pod.reps.map((id) => repById[id]?.name.split(' ')[0]).filter(Boolean).join(', ') : '';
   const statRows = pod && !isTc ? [
     { title: 'Your numbers', sub: me?.name || null, list: numbers(metrics(PAIRS.filter((p) => p.repId === me.rep_id)), 1) },
-    { title: `${pod.title} · your reps`, sub: pod.reps.map((id) => repById[id]?.name.split(' ')[0]).filter(Boolean).join(', '), list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
+    { title: `${pod.title} · your reps`, sub: podFirst, list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
   ] : [{ title: null, list: stats }];
-  const scopeLabel = !scope ? 'Everyone' : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
+  const scopeLabel = !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
   const showMoney = !isTc;
   // Leaderboard: owners see every rep, a manager their pod.
-  const leaders = me?.role === 'owner' ? REPS : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;
+  const leaders = me?.role === 'owner' ? REPS : pod ? REPS.filter((r) => podIds.includes(r.id)) : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;
   const dateLabel = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', month: 'long', day: 'numeric' });
 
   const group = (title, dot, list) => list.length > 0 && (
@@ -339,27 +370,36 @@ export default function HomeView({ me }) {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
-        <Card title="Needs attention" right={more('/pipeline/all', 'Pipeline')}>
-          {open.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
-          ) : (
-            <div className="-mt-3">
-              {group('Late', '#b91c1c', late)}
-              {group('Today & tomorrow', '#ea580c', soon)}
-              {group('Next few days', '#a1a1aa', later)}
-            </div>
-          )}
-        </Card>
-        {leaders && <Leaderboard reps={leaders} />}
+        {(pod ? [['Needs attention · yours', mineOf], [`Needs attention · ${pod.title}`, podOf]] : [['Needs attention', (x) => x]]).map(([title, pick]) => {
+          const [l, s1, n1] = [pick(late), pick(soon), pick(later)];
+          return (
+            <Card key={title} title={title} right={more('/pipeline/all', 'Pipeline')}>
+              {l.length + s1.length + n1.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
+              ) : (
+                <div className="-mt-3">
+                  {group('Late', '#b91c1c', l)}
+                  {group('Today & tomorrow', '#ea580c', s1)}
+                  {group('Next few days', '#a1a1aa', n1)}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+        {leaders && <Leaderboard reps={leaders} title={pod ? `${pod.title} · this week by rep` : undefined} />}
         </div>
         <div className="flex flex-col gap-6 min-w-0">
-        {showMoney && <RevenueCard m={m} n={n} />}
+        {showMoney && (pod ? <>
+          <RevenueCard m={metrics(PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
+          <RevenueCard m={metrics(PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
+        </> : <RevenueCard m={m} n={n} />)}
         {(me?.role === 'owner' || me?.role === 'tc') && <TrackerCard />}
-        <PipelineCard deals={deals} />
-        <Card title="Wins this week">
-          {wins.length === 0 ? (
+        <PipelineCard deals={deals} split={pod ? [{ label: 'Yours', deals: mineOf(deals) }, { label: pod.title, deals: podOf(deals) }] : null} />
+        {[['Wins this week · whole team', wins]].map(([title, list]) => (
+        <Card key={title} title={title}>
+          {list.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>
-          ) : wins.slice(0, 8).map((w) => (
+          ) : list.slice(0, 8).map((w) => (
             <button type="button" onClick={() => openGhl(w)} key={`${w.id}${w.what}`} className="w-full text-left flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 hover:bg-tan-50 rounded-sm">
               <Avatar rep={w.rep} size={28} />
               <div className="min-w-0">
@@ -369,6 +409,7 @@ export default function HomeView({ me }) {
             </button>
           ))}
         </Card>
+        ))}
         </div>
       </div>
       {panel}
