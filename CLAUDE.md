@@ -247,6 +247,47 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   now), like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
+- **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
+  keeps "needs attention" with no duplication): sidebar section `alerts`
+  right under Home (`solo`, everyone but the TV; `src/alerts/`). One list of
+  what each person has to do: **tasks** added on the site (a pod lead can
+  hand one to their reps, owners to anyone), **GHL tasks** (each
+  sub-account's open tasks), **30-day check-ins** on Abandoned leads (Lost
+  needs none) and **leads Claude spotted** in agents' texts (an address sent
+  or "a deal is coming"), which alert the rep, their pod lead and the
+  owners; "Real lead" / "Not a lead" answers them and the last 30 answers go
+  to Claude as examples, so it learns what counts. A navy band (New / Due
+  today / Overdue / Leads tiles, Mine / Pod / Everyone switch + Pick a person
+  for pod leads / owners, `?who=`), a left rail (Today, Leads Spotted, Tasks,
+  Check-ins, Upcoming, Done — `?view=`), rows with tick, kind tag, late /
+  today chip and "Open in GHL ↗". **Red dot = option A**: a pulsing rose
+  count on the sidebar entry (and the phone bar) of open alerts that ring the
+  person's bell (their own, plus spotted leads of reps they oversee) created
+  since they last opened Alerts; with none new but some late, a quiet maroon
+  count. The browser tab gets "(N)" in its title and a red dot on the icon
+  (`tabBadge`). **Chime**: two soft notes (WebAudio) when the new count goes
+  up while the site is open; each person turns it on / off for themself
+  (account menu "Alert sound", or the page's Sound on / off — D1
+  `alert_seen.chime`). Polled every minute (`/api/alerts?count=1`). Opening
+  the page marks everything seen; what arrived since the last visit keeps a
+  NEW tag while the page is open. Home shows one "N new alerts →" chip in
+  its banner. D1 `alerts` / `alert_seen` (`edge/alerts.sql`), API
+  `functions/api/alerts` (logic `edge/alerts.js`; writes in edit_log, none
+  while viewing as). **Filled by `scripts/sync-alerts.mjs`** (chained after
+  push-ghl in `npm run snapshot`; never fails the deploy; settings
+  `alerts_sync` keeps the last run): GHL tasks via `POST /locations/:id/
+  tasks/search` (needs the key's **View Tasks** permission — a refused
+  sub-account is listed in `alerts_sync.taskErrors`; finished or deleted in
+  GHL → "Done in GHL"; ticking one on the site doesn't tick it in GHL);
+  check-ins from `_abandoned` (server/deals.js `extractAbandoned`, moved by
+  build-snapshot to `.cache/alerts-feed.json`), one per 30 days counted from
+  when Alerts started (`alerts_sync.since`, so the old backlog doesn't arrive
+  at once), closed when the lead leaves Abandoned or the next one comes;
+  leads from `_msgInbound` (server/messaging.js `inbound`: each run of agent
+  texts in the last 3 days, with the 4 texts before it — so they arrive with
+  the messaging check, every 3 hours), judged once each (settings
+  `lead_judged`, 10 days) by `claude-opus-5-5` (effort low, structured
+  output, ≤ 200 per run).
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
@@ -2184,7 +2225,8 @@ that both can be deleted, and the secrets `GOOGLE_SERVICE_ACCOUNT_JSON` /
 - **Always `npm run build` locally before pushing** — Actions
   duration counts against everybody, so surface syntax errors first.
 - **Never test through GHL writes**. The dashboard only writes to GHL
-  through scripts/push-ghl.mjs (the four tracker fields, Oct 18). If
+  through scripts/push-ghl.mjs (the four tracker fields, Oct 18); Alerts
+  only reads GHL tasks. If
   you need to test aggregation, mock a pair in code.
 - **Playwright-verify visual changes** after deploy. MCP Playwright
   tools are available; screenshot

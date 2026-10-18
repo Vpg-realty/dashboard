@@ -66,6 +66,11 @@ export function ghlConvUrl(sub, convId) {
   if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(convId || ''))) return null;
   return `https://app.gohighlevel.com/v2/location/${loc}/conversations/conversations/${convId}`;
 }
+export function ghlContactUrl(sub, contactId) {
+  const loc = LOCATION_OF[sub];
+  if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(contactId || ''))) return null;
+  return `https://app.gohighlevel.com/v2/location/${loc}/contacts/detail/${contactId}`;
+}
 export function ghlOppUrl(sub, oppId) {
   const loc = LOCATION_OF[sub];
   if (!loc || !/^[A-Za-z0-9]{8,40}$/.test(String(oppId || ''))) return null;

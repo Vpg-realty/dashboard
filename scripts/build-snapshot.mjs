@@ -199,6 +199,16 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
   fs.writeFileSync(path.join(THREADS_DIR, 'ghl-tracker.json'), JSON.stringify({ generatedAt: Date.now(), feed }));
   // Field ids per sub-account for the write-back to GHL (push-ghl.mjs).
   fs.writeFileSync(path.join(THREADS_DIR, 'ghl-fields.json'), JSON.stringify({ generatedAt: Date.now(), fields }));
+  // Alerts (scripts/sync-alerts.mjs): Abandoned leads for the 30-day
+  // check-ins and agents' recent texts for lead spotting. `inbound` is only
+  // there for sub-accounts whose messaging check ran this time (every 3 h).
+  const subs = {};
+  for (const p of snapshot.pairs) {
+    if (Array.isArray(p._abandoned)) subs[`${p.repId}|${p.marketId}`] = { abandoned: p._abandoned, inbound: p._msgInbound || null };
+    delete p._abandoned;
+    delete p._msgInbound;
+  }
+  fs.writeFileSync(path.join(THREADS_DIR, 'alerts-feed.json'), JSON.stringify({ generatedAt: Date.now(), subs }));
   console.log(`[snapshot] tracker feed: ${feed.length} GHL deals → .cache/ghl-tracker.json`);
 }
 

@@ -24,6 +24,8 @@ import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
 import PayoutsView from '../finance/PayoutsView.jsx';
 import SuggestionsView from '../suggestions/SuggestionsView.jsx';
+import AlertsPage from '../alerts/AlertsView.jsx';
+import { useAlerts, tabBadge } from '../alerts/store.js';
 import WiresView from '../finance/WiresView.jsx';
 import StatementsView from '../finance/StatementsView.jsx';
 import FinanceOverview from '../finance/OverviewView.jsx';
@@ -54,7 +56,7 @@ import ZipRules from '../zips/RulesHealth.jsx';
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
-  'fin-payouts': PayoutsView, suggestions: SuggestionsView, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
+  'fin-payouts': PayoutsView, suggestions: SuggestionsView, alerts: AlertsPage, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
@@ -84,6 +86,19 @@ function Avatar({ name, size = 26 }) {
   return <span className="rounded-full bg-navy-700 text-white ring-2 ring-tan-200 grid place-items-center font-semibold shrink-0" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>;
 }
 
+// Option A (Luke, Oct 18): a pulsing red count on the sidebar's Alerts entry.
+function AlertDot({ unseen, overdue, collapsed, phone }) {
+  if (!unseen && !overdue) return null;
+  const n = unseen || overdue;
+  const pos = collapsed || phone ? 'absolute -top-1 right-0' : 'ml-auto';
+  return (
+    <span title={unseen ? `${unseen} new` : `${overdue} overdue`}
+      className={`${pos} min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-bold text-white tabular-nums ${unseen ? 'bg-rose-600 alert-pulse' : 'bg-[#4c0519]'}`}>
+      {n > 99 ? '99+' : n}
+    </span>
+  );
+}
+
 function useStoredFlag(key, initial) {
   const [v, setV] = useState(() => { try { const s = localStorage.getItem(key); return s == null ? initial : s === '1'; } catch { return initial; } });
   const set = (x) => { setV(x); try { localStorage.setItem(key, x ? '1' : '0'); } catch { /* private mode */ } };
@@ -100,6 +115,11 @@ export default function AppShell({ me }) {
   const [refreshing, setRefreshing] = useState(false);
   const status = useDataStatus();
   const isManager = me.role === 'owner' || me.role === 'manager';
+  // Alerts' red dot (Luke, Oct 18): new since the person last opened Alerts;
+  // when there's nothing new but something is late, a quieter maroon count.
+  const { counts: alertCounts } = useAlerts();
+  const unseen = section.id === 'alerts' ? 0 : alertCounts?.unseen || 0;
+  const overdue = alertCounts?.overdue || 0;
 
   // Keep the address bar on the page actually shown (old or forbidden links).
   const canonical = hrefOf(section, tab);
@@ -115,7 +135,10 @@ export default function AppShell({ me }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => { document.title = `${tab ? tab.label : section.label} · Valley Property Group`; }, [section, tab]);
+  useEffect(() => {
+    document.title = `${unseen ? `(${unseen}) ` : ''}${tab ? tab.label : section.label} · Valley Property Group`;
+    tabBadge(unseen);
+  }, [section, tab, unseen]);
 
   const View = tab ? VIEWS[tab.view] : null;
   const rep = query.get('rep');
@@ -130,6 +153,7 @@ export default function AppShell({ me }) {
         {on && <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded-r bg-tan-500" />}
         <Icon name={s.icon} className={on ? 'text-navy-700' : 'text-tan-600/80'} />
         {!collapsed && s.label}
+        {s.id === 'alerts' && <AlertDot unseen={unseen} overdue={overdue} collapsed={collapsed} />}
       </a>
     );
   };
@@ -260,8 +284,9 @@ export default function AppShell({ me }) {
       {/* Phone bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-zinc-200 flex justify-around pt-2 pb-[max(env(safe-area-inset-bottom),12px)]">
         {sections.slice(0, 4).map((s) => (
-          <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} className={`flex flex-col items-center gap-1 text-[11px] font-medium ${s.id === section.id ? 'text-navy-700' : 'text-zinc-500'}`}>
+          <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} className={`relative flex flex-col items-center gap-1 text-[11px] font-medium ${s.id === section.id ? 'text-navy-700' : 'text-zinc-500'}`}>
             <Icon name={s.icon} size={20} />{s.label}
+            {s.id === 'alerts' && <AlertDot unseen={unseen} overdue={overdue} phone />}
           </a>
         ))}
         <button onClick={() => setPalette(true)} className="flex flex-col items-center gap-1 text-[11px] font-medium text-zinc-500"><Icon name="search" size={20} />Search</button>

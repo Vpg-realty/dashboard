@@ -24,6 +24,11 @@ const DESK = { w: 1300, h: 900 };
 
 export const SECTIONS = [
   { id: 'home', label: 'Home', icon: 'home', roles: PEOPLE },
+  // Luke, Oct 18: the main daily page — GHL tasks, site tasks, 30-day
+  // check-ins and leads Claude spotted (src/alerts). The sidebar shows a red
+  // count of what's new since the person last opened it.
+  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: PEOPLE, solo: true,
+    tabs: [{ id: 'all', label: 'Alerts', view: 'alerts', scroll: true }] },
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
     // Full team / Mine / pick-a-person filter; deals open their details.

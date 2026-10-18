@@ -148,6 +148,28 @@ export function extractLost({ opportunities, stageOf, fieldIds, sinceMs }) {
   return out;
 }
 
+// Abandoned leads for the 30-day check-ins on Alerts (Luke, Oct 18: "for
+// abandoned, it will be a task every 30 days" — Lost needs none). Every opp
+// Abandoned now (by stage or status) with when it got there. Internal —
+// build-snapshot moves it to .cache/alerts-feed.json for sync-alerts.mjs.
+export function extractAbandoned({ opportunities, stageOf, fieldIds, cap = 1500 }) {
+  const ts = (v) => (v ? new Date(v).getTime() : 0);
+  const out = [];
+  for (const o of opportunities || []) {
+    if (!o.id || !(stageOf(o) === 'abandoned' || o.status === 'abandoned')) continue;
+    const at = Math.max(ts(o.lastStatusChangeAt), ts(o.lastStageChangeAt)) || ts(o.updatedAt);
+    if (!at) continue;
+    out.push({
+      id: o.id,
+      at,
+      address: String(customValue(o, fieldIds.address) || o.name || '').replace(/\s*-\s*$/, '').trim().slice(0, 140),
+      contact: o.contactId || o.contact?.id || null,
+      who: String(o.contact?.name || o.contact?.contactName || '').slice(0, 60) || null,
+    });
+  }
+  return out.sort((a, b) => b.at - a.at).slice(0, cap);
+}
+
 // The deal tracker's feed (Luke, Oct 14: "automatically add properties every
 // time a property hits dispo active … if closed, it updates … if COE / IP
 // changes, it updates"). Every opportunity in Under Contract … Closed (closed
