@@ -48,7 +48,7 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
   if (toCoe != null && toCoe < 0) return { text: `Past COE by ${-toCoe}d — update status`, tone: 'red', fields: ['coe', 'status'] };
   // The IP ends within 48 h with no buyer (ddTime.js) — before the EMD
   // checks: it's the one with a clock on it.
-  const ip = asg ? null : ipEndAlert(d, now);
+  const ip = ipEndAlert(d, now);
   if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime'], ip };
   if (!emdIn(d)) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdPaidBy'] };
   if (String(d.emdPaidBy).toUpperCase() === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };

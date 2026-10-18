@@ -1122,8 +1122,10 @@ the server strips them (`forTc`) and refuses edits to them.
     midnight = 23:59 that day) and never rewritten in D1; text it can't
     read is shown as typed. Picking a time on such a deal keeps the zone
     the old text named. `ddEndMs` = the exact instant; **`ipEndAlert(deal,
-    now)`** (exported for Home) = a pending deal with no buyer and no
-    assignment price whose IP ends within 48 h → "IP ends in Nh — cancel
+    now)`** (exported for Home) = a deal still Pending in the tracker and not
+    Assigned / Closed in GHL (`ghlStage`) whose IP ends within 48 h — a buyer
+    or price typed in doesn't stop it, moving to Assigned does (Luke, Oct 18:
+    "alerts us if we have not assigned it yet"; the same rule as Discord's) → "IP ends in Nh — cancel
     soon if no buyer" (red ≤ 24 h, amber ≤ 48 h). Shown as the deal's next
     step (after Past COE, before the EMD checks), a red box in the deal
     panel and the list on top of Active. Discord gets "IP ends tomorrow /

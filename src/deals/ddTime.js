@@ -128,17 +128,19 @@ export function ddEndMs(d) {
 }
 
 export const IP_ALERT_HOURS = 48;
-const blank = (v) => v == null || (typeof v === 'string' && ['', '-', '—', '–'].includes(v.trim()));
 
-// The "cancel soon" alert (Luke, Oct 14): a pending deal with no buyer and no
-// assignment price whose IP ends within 48 hours. Returns { hours, at, text,
+// The "cancel soon" alert (Luke, Oct 14; Oct 18: "it alerts us if we have
+// not assigned it yet — meaning it has not been moved to the assigned
+// stage"): a deal still Pending in the tracker and not Assigned / Closed in
+// GHL whose IP ends within 48 hours — a buyer or price typed in doesn't stop
+// it, moving the deal to Assigned does (the same rule as Discord's alert). Returns { hours, at, text,
 // tone } or null. Home can use it as it is.
 // TODO(Luke): email / text the TC and the acq. manager — needs a sender
 // (none is set up yet); the alert is only shown in the app.
 // Only Pending deals: an Assigned one has a buyer lined up.
 export function ipEndAlert(d, now = Date.now()) {
   if (String(d?.status || '').toUpperCase() !== 'PENDING') return null;
-  if (!blank(d.buyer) || (typeof d.vpgAssign === 'number' && d.vpgAssign > 0)) return null;
+  if (/assigned|closed/i.test(String(d.ghlStage || ''))) return null;
   const at = ddEndMs(d);
   if (at == null) return null;
   const hours = (at - now) / 3_600_000;
