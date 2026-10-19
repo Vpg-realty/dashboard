@@ -20,7 +20,7 @@ import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
 import { PODS } from '../../scripts/scorecard-lib.mjs';
-import { paceFraction } from '../utils/pace.js';
+import { paceFraction, paceRatio, paceKey } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { nextStep } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
@@ -39,24 +39,15 @@ function Avatar({ rep, size = 20 }) {
   );
 }
 
-// On pace / Near pace / Behind: label, badge colours, the box's tint
-// (Luke, Oct 14: highlight boxes by pace across the site).
+// On pace / Near pace / Behind: label, badge colours, the box's tint (Luke,
+// Oct 14: highlight boxes by pace across the site) — the site's one rule,
+// utils/pace.js (Oct 19: 75% for near, the same red as the scorecards).
 function paceBadge(ratio) {
-  if (ratio == null) return null;
-  if (ratio >= 1) return ['On pace', 'bg-emerald-100 text-emerald-800 ring-emerald-300', 'bg-emerald-50', '#059669'];
-  if (ratio >= 0.7) return ['Near pace', 'bg-amber-100 text-amber-900 ring-amber-300', 'bg-amber-50', '#d97706'];
-  return ['Behind', 'bg-red-100 text-red-800 ring-red-300', 'bg-red-50', '#dc2626'];
-}
-
-// Value vs where they should be by now. Counts are judged against the same
-// whole number "Should be at" shows (Luke, Oct 19: Monday morning read "1 /
-// 45 · should be at 1 · Behind" — the badge used at least 5% of the week);
-// at or above it is On pace, and nothing due yet is On pace.
-function paceRatio(value, target, pace, { count = true } = {}) {
-  if (!target || pace == null) return null;
-  const want = target * pace;
-  if (count && value >= Math.round(want)) return 1;
-  return want > 0 ? value / want : 1;
+  const k = paceKey(ratio);
+  if (!k) return null;
+  if (k === 'on') return ['On pace', 'bg-emerald-100 text-emerald-800 ring-emerald-300', 'bg-emerald-50', '#059669'];
+  if (k === 'near') return ['Near pace', 'bg-amber-100 text-amber-900 ring-amber-300', 'bg-amber-50', '#d97706'];
+  return ['Behind', 'bg-rose-100 text-rose-800 ring-rose-300', 'bg-rose-50', '#e11d48'];
 }
 
 function Stat({ label, value, target, color, period }) {

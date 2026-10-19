@@ -40,7 +40,7 @@ const isAsg = assigned; // status Assigned, or a VPG assignment price is in (sta
 // The two lists, each marked with its colour dot (green = assigned, blue = needs a buyer).
 const SECTION = {
   assigned: { title: 'Assigned — headed to close', band: '#15803D' },
-  needs: { title: 'Needs a buyer — in due diligence', band: '#1D4ED8' },
+  needs: { title: 'Dispo Active — needs a buyer', band: '#1D4ED8' },
 };
 
 // An edited row stays where it was (useFrozenOrder) — a small tag says it
@@ -106,7 +106,7 @@ function FilterTile({ label, value, sub, dot, tone, active, activeText, onClick 
   );
 }
 const DOT = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]', green: 'bg-[#15803D]', navy: 'bg-navy-700' };
-const ONLY_LABEL = { asg: 'Assigned', buyer: 'Needs a buyer', emd: 'EMD at risk', past: 'Past COE', soon: 'Closing ≤ 7 days', need: 'Needs info' };
+const ONLY_LABEL = { asg: 'Assigned', buyer: 'Dispo Active', emd: 'EMD at risk', past: 'Past COE', soon: 'Closing ≤ 7 days', need: 'Needs info' };
 
 function Legend() {
   return (
@@ -356,14 +356,12 @@ export default function ActiveView() {
         <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
         {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
-      <div className={`grid grid-cols-2 sm:grid-cols-3 ${ed ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-2.5`}>
+      {/* Three tiles (Luke, Oct 19: "All / Assigned / Dispo Active"); EMD,
+          past COE, closing soon and Needs info stay as sections and next steps. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <FilterTile label="All active deals" value={tiles.active} active={!only} activeText="Showing all" onClick={() => setOnly(null)} sub="pending + assigned" />
         <FilterTile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={`${compact(tiles.assignedGross)} gross`} active={only === 'asg'} onClick={() => tog('asg')} />
-        <FilterTile label="Needs a buyer" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" sub="not yet assigned" active={only === 'buyer'} onClick={() => tog('buyer')} />
-        <FilterTile label="EMD at risk" value={tiles.emd} dot="red" tone="text-[#B42318]" sub="no payer yet / VPG only" active={only === 'emd'} onClick={() => tog('emd')} />
-        <FilterTile label="Past COE" value={tiles.past} dot="red" tone="text-[#B42318]" sub="COE date has passed" active={only === 'past'} onClick={() => tog('past')} />
-        <FilterTile label="Closing ≤ 7 days" value={tiles.soon} dot="amber" tone="text-[#B54708]" sub="check in with title" active={only === 'soon'} onClick={() => tog('soon')} />
-        {ed && <FilterTile label="Needs info" value={tiles.need} dot="red" tone="text-[#B42318]" sub="missing for its stage" active={only === 'need'} onClick={() => tog('need')} />}
+        <FilterTile label="Dispo Active" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" sub="needs a buyer" active={only === 'buyer'} onClick={() => tog('buyer')} />
       </div>
       {only && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
@@ -375,7 +373,7 @@ export default function ActiveView() {
           <button type="button" onClick={() => setOnly(null)} className="text-navy-700 font-medium hover:underline">Show all deals</button>
         </div>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-3"><Legend /><span className="ml-auto flex items-center gap-3"><button type="button" onClick={() => folds.set(folds.any ? [] : ['ip', 'need', 'assigned', 'needs', 'ghl'])} className="text-[12.5px] font-medium text-navy-700 hover:underline">{folds.any ? 'Expand all' : 'Collapse all'}</button><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
+      <div className="mt-4 flex flex-wrap items-center gap-3"><span className="ml-auto flex items-center gap-3"><button type="button" onClick={() => folds.set(folds.any ? [] : ['ip', 'need', 'assigned', 'needs', 'ghl'])} className="text-[12.5px] font-medium text-navy-700 hover:underline">{folds.any ? 'Expand all' : 'Collapse all'}</button><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span></div>
       <div className="mt-3 flex flex-col gap-5">
         {ipSoon.length > 0 && (
           <section className="rounded-xl border border-[#F5C2BD] bg-[#FDF1F0] overflow-hidden">
@@ -414,6 +412,8 @@ export default function ActiveView() {
           </section>
         )}
       </div>
+      {/* Keys sit at the page foot (Luke, Oct 19). */}
+      <div className="mt-6 pt-3 border-t border-tan-200"><Legend /></div>
       {panel}
     </div>
   );

@@ -72,12 +72,11 @@ export default function RulesHealth() {
     g.items.push(r);
   }
   const health = d.health || null;
-  const goState = (st) => navigate(`/territory/zip-mgmt?state=${encodeURIComponent(st)}`);
+  const goState = (st) => navigate(`/territory/holds?state=${encodeURIComponent(st)}`);
 
   return (
     <div className="max-w-[1400px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Rules & data health</h1>
         <div className="text-zinc-500 text-[13px]">How zips are handed out{health ? ', and what to fix when the data goes bad' : ''}. The numbers in navy can be changed{owner ? ' — click “Edit the numbers”' : ' by owners'}.</div>
       </div>
 

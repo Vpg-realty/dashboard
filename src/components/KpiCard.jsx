@@ -10,7 +10,7 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
   const paceTarget = target * frac;
   const s = kpiStatus(actual, paceTarget);
   const percent = pct(actual, target);
-  const badge = pace ? { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND PACE' }[s.status] : s.label;
+  const badge = pace ? { on: 'ON PACE', warn: 'NEAR PACE', behind: 'BEHIND' }[s.status] : s.label;
 
   return (
     <div className={`rounded-xl border ${s.border} ${s.bg} p-5 backdrop-blur-sm`}>

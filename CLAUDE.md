@@ -267,6 +267,30 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Stage are owners only (the tracker card may go later); Wins sits under
   Today; the banner no longer repeats late / due counts. With no right-hand
   cards (the TC) the left column takes the full width.
+- **Site map phase 2 (Oct 19, Luke)** — overrides older notes below where they
+  differ: **one pace rule** (`paceRatio` / `paceKey` / `PACE_NEAR` in
+  src/utils/pace.js, used by Home, the Team Scorecards cells, KpiCard / the
+  TV boxes): green at or above the whole number "should be at N by now",
+  amber at 75%+, red below; words On pace / Near pace / Behind (finished
+  periods Hit / Close / Missed). **Deals** is owners + TC only (reps and
+  managers see their deals on Pipeline / Calendar; the API still answers
+  them for Home's EMD pills). Active's tiles are All active / Assigned /
+  **Dispo Active** (`?only=asg|buyer`; older `?only=` links still filter);
+  every section stays. Keys / legends sit at the **page foot** (Active, All
+  Deals — no more Colour key pop-up — Calendar). Deals pages open with the
+  navy band (`PageHead` in deals/ui.jsx; a navy primary button turns tan on
+  it). **Pipeline**: search on every tab (Contracted Deals too, also the
+  Calendar), and "Viewing" is remembered across Contracted Deals /
+  Opportunities / Calendar for the browser tab (sessionStorage
+  `vpg.pipeline.who`). **Get Zips** is its own sidebar section (`/zips/mine`,
+  owner / team / manager / trainee, `solo`), the navy band on top and the
+  rules in an ⓘ drawer. **Territory** is owners only, laid out like Settings
+  (`rail: true`; src/settings/Frame.jsx serves any rail section): Map — Who
+  Works Where (`/territory/map`); Manage — Territory Sheet, Zips & Holds
+  (`/territory/holds`, was Zip Management), Reps × States, Rules & Data
+  Health (`/territory/health`). Old /territory/who, /zip-mgmt, /rules,
+  /zips (→ Get Zips) and /zips/all, /zips/rules links redirect via `MOVED`.
+  Ask Claude shows on Get Zips and Territory.
 - **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
   keeps "needs attention" with no duplication): sidebar section `alerts`
   right under Home (`solo`, everyone but the TV; `src/alerts/`). One list of
@@ -334,9 +358,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   alerts and the tracker's deals once per run (~0.3k rows) — about 30k reads
   a day.
   **Later Oct 19** (Luke): two badges side by side on the Alerts entry —
-  red = leads not completed (`counts.leads`), blue = everything else owed
+  purple = leads not completed (`counts.leads`), red = everything else owed
   today (`counts.tasks`); each stays until cleared (collapsed sidebar /
-  phone show one: red when there are leads). Real lead / Not a lead only
+  phone show one: purple when there are leads). Real lead / Not a lead only
   teaches Claude (the last 30 answers are examples) and stays on the alert
   (a second click clears it); **Complete** closes a lead, Reopen undoes it.
   Done keeps 24 hours (`KEEP_DONE_MS`), then drops off the list.

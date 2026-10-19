@@ -29,3 +29,21 @@ export function paceFraction(period, now = new Date()) {
 
 // Hour of day in Arizona (0–23).
 export const azHour = (now = new Date()) => parts(now).h;
+
+// One pace rule for the whole site (Luke, Oct 19): green when at or above
+// where they should be by now, amber at 75%+ of it, red below. Counts are
+// judged against the whole number "Should be at N by now" shows, so "1 of
+// 45 · should be at 1" is on pace and nothing due yet is on pace; money
+// (`count: false`) is judged on the exact figure. Words: On pace / Near
+// pace / Behind while a period runs, Hit / Close / Missed once it's over.
+export const PACE_NEAR = 0.75;
+export function paceRatio(value, target, frac = 1, { count = true } = {}) {
+  if (!target) return null;
+  const want = target * (frac ?? 1);
+  if (count && (value || 0) >= Math.round(want)) return 1;
+  return want > 0 ? (value || 0) / want : 1;
+}
+export const paceKey = (ratio) => (ratio == null ? null : ratio >= 1 ? 'on' : ratio >= PACE_NEAR ? 'near' : 'behind');
+export const paceWord = (key, finished = false) => (key == null ? null : finished
+  ? { on: 'Hit', near: 'Close', behind: 'Missed' }[key]
+  : { on: 'On pace', near: 'Near pace', behind: 'Behind' }[key]);

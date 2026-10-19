@@ -314,7 +314,7 @@ export default function AlertsView() {
             {data && view !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           <p className="mt-4 text-[12px] text-zinc-500">
-            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. Two counts sit on the Alerts entry: red for leads still to work and blue for tasks due today or late (and tasks with no date). Each stays until it’s cleared — Complete closes a lead, the tick closes a task — and finished ones stay under Done for 24 hours.
+            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. Two counts sit on the Alerts entry: purple for leads still to work and red for tasks due today or late (and tasks with no date). Each stays until it’s cleared — Complete closes a lead, the tick closes a task — and finished ones stay under Done for 24 hours.
           </p>
         </div>
       </div>

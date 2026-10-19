@@ -55,8 +55,9 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
     // sees everything except commission and profit — enforced server-side).
-    // Reps and managers (Oct 14): Active only, their own deals, read-only.
-    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
+    // Owners and the TC only since Oct 19 (Luke's site map; reps and managers
+    // had Active read-only from Oct 14 — their deals are on Pipeline / Calendar).
+    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
       { id: 'tc', label: 'TC List', view: 'deals-tc', scroll: true, roles: ['owner', 'tc'] },
@@ -80,26 +81,23 @@ export const SECTIONS = [
     ],
   },
   {
-    // Luke, Oct 14: Territory is the one place for areas, states and zips —
-    // for reps too ("Territories should be the go to spot for all things
-    // related to areas, states, zips for the reps"). Reps: Get zips, the
-    // sheet (read-only) and the rules. Management also: the map, reps ×
-    // states (with the team structure review) and zip management. The old
-    // Zip center section folded in here (its links redirect, see resolve).
-    id: 'territory', label: 'Territory', icon: 'map', roles: [...PEOPLE, 'trainee'],
+    // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
+    // managers, trainees and owners request zips here; the rules open from
+    // an ⓘ on the page.
+    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee'], solo: true,
+    tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
+  },
+  {
+    // Territory (Oct 14: areas, states and zips in one place) is owners only
+    // since Oct 19 (Luke's site map), laid out like Settings: a left rail with
+    // the Map and the Manage pages (src/settings/Frame.jsx).
+    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner'], rail: true,
     tabs: [
-      // Owners request zips too, and see the tabs in the same order as
-      // everyone (Luke, Oct 15: "keep the same order … so Jack and I can
-      // easily switch to other views").
-      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager', 'trainee'] },
-      // Managers, owners and the TC (Luke, Oct 15: "i was wrong, this should
-      // be managers, owner, tc view only"); its Needs review panel owners only.
-      { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      // Managers, owners and the TC (Luke, Oct 15).
-      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true, roles: PEOPLE },
+      { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
+      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true, group: 'Manage', sub: 'States, counties, zips', title: 'Territory sheet' },
+      { id: 'holds', label: 'Zips & Holds', view: 'zips-all', scroll: true, group: 'Manage', sub: 'Who holds what, request log', title: 'Zips and holds' },
+      { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, group: 'Manage', sub: 'Team structure review', title: 'Reps × states' },
+      { id: 'health', label: 'Rules & Data Health', view: 'zips-rules', scroll: true, group: 'Manage', sub: 'Zip rules, what to fix', title: 'Zip rules and data health' },
     ],
   },
   {
@@ -177,7 +175,14 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 // Pipeline tab before the Pipeline section replaced it (both Oct 14). A
 // `tabs` map moves the whole section; a 'section/tab' key moves one page.
 const MOVED = {
-  zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } },
+  // Zip center → Territory (Oct 14), then Get Zips its own section and
+  // Territory a rail of owner pages (Oct 19).
+  'zips/all': { section: 'territory', tab: 'holds' },
+  'zips/rules': { section: 'territory', tab: 'health' },
+  'territory/who': { section: 'territory', tab: 'map' },
+  'territory/zip-mgmt': { section: 'territory', tab: 'holds' },
+  'territory/zips': { section: 'zips', tab: 'mine' },
+  'territory/rules': { section: 'territory', tab: 'health' },
   'board/pipeline': { section: 'pipeline', tab: 'all' },
   'team/coaching': { section: 'team', tab: 'scorecard' },
   'pipeline/calendar': { section: 'calendar', tab: 'all' },

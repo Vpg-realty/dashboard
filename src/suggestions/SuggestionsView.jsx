@@ -22,7 +22,7 @@ const STATUS_PILL = {
   done: 'bg-[#EEF8F1] text-[#14532D] ring-[#9FD4B1]', declined: 'bg-zinc-100 text-zinc-600 ring-zinc-200',
 };
 // Which part of the site (the sidebar's sections).
-const AREAS = [['home', 'Home'], ['pipeline', 'Pipeline'], ['deals', 'Deals'], ['finance', 'Finance'], ['territory', 'Territory'], ['team', 'Team Scorecards'], ['me', 'My Scorecard'], ['board', 'Team Overview / TV'], ['settings', 'Settings'], ['other', 'Something else']];
+const AREAS = [['home', 'Home'], ['pipeline', 'Pipeline'], ['deals', 'Deals'], ['finance', 'Finance'], ['territory', 'Territory'], ['zips', 'Get Zips'], ['team', 'Team Scorecards'], ['me', 'My Scorecard'], ['board', 'Team Overview / TV'], ['settings', 'Settings'], ['other', 'Something else']];
 const AREA = Object.fromEntries(AREAS);
 const areaOf = (path) => { const seg = String(path || '').split(/[/?]/)[1] || 'home'; return AREA[seg] ? seg : 'other'; };
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });

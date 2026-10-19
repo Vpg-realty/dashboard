@@ -1,3 +1,4 @@
+import { paceRatio, PACE_NEAR } from './pace.js';
 export const formatCurrency = (n) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -16,10 +17,13 @@ export const formatNumber = (n) =>
 
 // Returns Tailwind text + bg classes for an against-target status.
 // status: 'on' | 'warn' | 'behind'
+// The site's one pace rule (utils/pace.js — Luke, Oct 19): at or above the
+// whole number it should be at = on, 75%+ = near, else behind.
 export const kpiStatus = (actual, target) => {
-  const pct = target > 0 ? actual / target : 0;
-  if (pct >= 1) return { status: 'on', label: 'ON KPI', color: '#10b981', text: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
-  if (pct >= 0.6) return { status: 'warn', label: 'CLOSE', color: '#f59e0b', text: 'text-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-500/30' };
+  const r = paceRatio(actual, target);
+  const pct = r == null ? 1 : r;
+  if (pct >= 1) return { status: 'on', label: 'ON PACE', color: '#10b981', text: 'text-emerald-600', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
+  if (pct >= PACE_NEAR) return { status: 'warn', label: 'NEAR PACE', color: '#f59e0b', text: 'text-amber-600', bg: 'bg-amber-500/10', border: 'border-amber-500/30' };
   return { status: 'behind', label: 'BEHIND', color: '#f43f5e', text: 'text-rose-600', bg: 'bg-rose-500/10', border: 'border-rose-500/30' };
 };
 

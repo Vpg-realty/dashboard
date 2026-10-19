@@ -245,14 +245,6 @@ export default function AllDealsView() {
             ))}
           </div>
         </Menu>
-        <Menu label={<>ⓘ Colour key</>} align="right">
-          <div className="w-80 p-3.5 text-[12.5px] text-zinc-700 flex flex-col gap-1.5">
-            {SHEET_LEGEND.map(([st, l]) => <span key={l} className="flex items-center gap-2"><span className="w-4 h-3.5 rounded-sm ring-1 ring-inset ring-black/10 shrink-0" style={{ background: st.background }} />{l}</span>)}
-            <span className="flex items-center gap-2"><span className="w-4 h-3.5 rounded-sm ring-2 ring-inset ring-[#D92D20] bg-white shrink-0" />Needed for its stage</span>
-            <span className="flex items-center gap-2"><span className="flex gap-0.5 shrink-0"><span className="w-2 h-2 rounded-full bg-[#B42318]" /><span className="w-2 h-2 rounded-full bg-[#DC8A0E]" /><span className="w-2 h-2 rounded-full bg-[#1D4ED8]" /><span className="w-2 h-2 rounded-full bg-[#15803D]" /></span>Next step (the dot before the address)</span>
-            <span className="mt-1.5 pt-2 border-t border-zinc-100 text-zinc-500">Click a cell to edit it, or the address to open the full deal. Rows stay in place while you edit.</span>
-          </div>
-        </Menu>
         <button onClick={csv} className={btnCls}>Export CSV</button>
         {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
@@ -376,6 +368,13 @@ export default function AllDealsView() {
           </table>
         </div>
       </section>
+      {/* The colour key sits at the page foot (Luke, Oct 19), not in a pop-up. */}
+      <div className="shrink-0 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-600">
+        {SHEET_LEGEND.map(([st, l]) => <span key={l} className="flex items-center gap-1.5"><span className="w-4 h-3.5 rounded-sm ring-1 ring-inset ring-black/10 shrink-0" style={{ background: st.background }} />{l}</span>)}
+        <span className="flex items-center gap-1.5"><span className="w-4 h-3.5 rounded-sm ring-2 ring-inset ring-[#D92D20] bg-white shrink-0" />Needed for its stage</span>
+        <span className="flex items-center gap-1.5"><span className="flex gap-0.5 shrink-0"><span className="w-2 h-2 rounded-full bg-[#B42318]" /><span className="w-2 h-2 rounded-full bg-[#DC8A0E]" /><span className="w-2 h-2 rounded-full bg-[#1D4ED8]" /><span className="w-2 h-2 rounded-full bg-[#15803D]" /></span>Next step</span>
+        <span className="text-zinc-500">Click a cell to edit it, or the address to open the deal.</span>
+      </div>
       {panel}
     </div>
   );
