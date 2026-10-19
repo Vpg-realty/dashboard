@@ -11,6 +11,7 @@ import PipelineView from '../views/PipelineView.jsx';
 import { CYCLE_VIEWS, TV_VIEWS, CYCLE_INTERVAL_MS } from '../data/config.js';
 import { useDataUpdates, useDataStatus } from '../data/source.js';
 import { navigate } from './router.js';
+import { logout } from './logout.js';
 
 const VIEWS = {
   conversations: { label: 'Conversations · live',           component: ConversationsView },
@@ -103,6 +104,9 @@ export default function TvMode({ me }) {
   const shownView = TV_VIEWS.includes(view) ? view : CYCLE_VIEWS[0];
   const ActiveView = VIEWS[shownView].component;
   const canExit = me && me.role !== 'tv' && me.role !== 'none';
+  // The TV account (info@) has no app to go back to, so it gets Log out
+  // instead — to sign in on that screen as someone else (Luke, Oct 19).
+  const canLogout = me && !canExit;
 
   return (
     <div className="relative h-app flex flex-col bg-zinc-50">
@@ -130,6 +134,14 @@ export default function TvMode({ me }) {
       {canExit && (
         <button onClick={() => navigate('/')} className="fixed bottom-3 left-3 z-50 rounded-lg bg-white/90 border border-zinc-200 shadow-sm px-3 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
           ← Back to app
+        </button>
+      )}
+      {canLogout && (
+        <button
+          onClick={() => { if (window.confirm(`Log out of ${me.email || 'this screen'}? The next sign-in asks for an emailed code.`)) logout(); }}
+          className="fixed bottom-3 left-3 z-50 rounded-lg bg-white/90 border border-zinc-200 shadow-sm px-3 py-1.5 text-xs font-medium text-zinc-600 hover:text-red-700"
+        >
+          Log out
         </button>
       )}
 

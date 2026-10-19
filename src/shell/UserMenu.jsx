@@ -5,11 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ROLE_LABEL } from './sections.js';
 import { useAlerts, setChime } from '../alerts/store.js';
-
-function logout() {
-  try { sessionStorage.removeItem('vpg.viewAs'); } catch { /* storage blocked */ }
-  window.location.href = '/cdn-cgi/access/logout';
-}
+import { logout } from './logout.js';
 
 export default function UserMenu({ me, collapsed, phone, Avatar }) {
   const [open, setOpen] = useState(false);
