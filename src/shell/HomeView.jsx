@@ -52,10 +52,21 @@ function paceBadge(ratio) {
   return ['Behind', 'bg-red-100 text-red-800 ring-red-300', 'bg-red-50', '#dc2626'];
 }
 
+// Value vs where they should be by now. Counts are judged against the same
+// whole number "Should be at" shows (Luke, Oct 19: Monday morning read "1 /
+// 45 · should be at 1 · Behind" — the badge used at least 5% of the week);
+// at or above it is On pace, and nothing due yet is On pace.
+function paceRatio(value, target, pace, { count = true } = {}) {
+  if (!target || pace == null) return null;
+  const want = target * pace;
+  if (count && value >= Math.round(want)) return 1;
+  return want > 0 ? value / want : 1;
+}
+
 function Stat({ label, value, target, color, period }) {
   const pct = target ? Math.min(100, Math.round((100 * value) / target)) : null;
   const pace = target && period ? paceFraction(period) : null;
-  const ratio = pace ? value / (target * Math.max(pace, 0.05)) : null;
+  const ratio = paceRatio(value, target, pace);
   const badge = paceBadge(ratio);
   return (
     <div className={`px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${badge ? badge[2] : ''}`}>
@@ -94,7 +105,7 @@ function RevenueCard({ m, n, title = 'Revenue · this month' }) {
   const goal = T.revenuePerRepMonth * n;
   const pace = paceFraction('month');
   const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
-  const badge = paceBadge(goal ? m.projected / (goal * Math.max(pace, 0.05)) : null);
+  const badge = paceBadge(paceRatio(m.projected, goal, pace, { count: false }));
   return (
     <Card title={title} tint={badge ? badge[2] : undefined} right={more('/board/overview', 'Overview')}>
       {/* The pace badge sits in the box's own top right (Luke, Oct 16). */}
@@ -196,8 +207,8 @@ function Leaderboard({ reps, title = 'This week by rep' }) {
   const wk = paceFraction('week');
   const mo = paceFraction('month');
   const cell = (v, t, frac = wk) => {
-    const b = paceBadge(v / (t * Math.max(frac, 0.05)));
-    return <span className={`inline-block min-w-[64px] rounded-md px-2 py-0.5 tabular-nums font-semibold ring-1 ring-inset ${b[1]}`}>{v}<span className="opacity-60 font-normal"> / {t}</span></span>;
+    const b = paceBadge(paceRatio(v, t, frac));
+    return <span className={`inline-block min-w-[64px] rounded-md px-2 py-0.5 tabular-nums font-semibold ring-1 ring-inset ${b?.[1] || ""}`}>{v}<span className="opacity-60 font-normal"> / {t}</span></span>;
   };
   return (
     <Card title={title} right={more('/team/scorecard', 'Scorecard')} >

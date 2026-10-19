@@ -251,7 +251,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   pace, or off pace … throughout the whole site"): the number boxes, the
   Revenue card and every "This week by rep" cell are tinted green / amber /
   red by pace (`paceBadge`: ≥ 100% / ≥ 70% of where they should be by
-  now), like the TV boxes and the Team pages already were; each bar is
+  now; Oct 19: judged against the same whole number "Should be at N by now"
+  shows — at or above it is On pace, none due yet is On pace (`paceRatio`;
+  the old 5% floor made Monday's "1 / 45 · should be at 1" read Behind)),
+  like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
 - **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
