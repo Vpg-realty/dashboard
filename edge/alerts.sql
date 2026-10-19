@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS alerts (
   verdict_at TEXT
 );
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
+-- Oct 19: the sync and the red-dot poll scanned the whole table every time
+-- and used up D1's free daily reads; these keep both to the open rows.
+CREATE INDEX IF NOT EXISTS alerts_kind ON alerts (kind, done_at);
+CREATE INDEX IF NOT EXISTS alerts_done ON alerts (done_at);
 -- When each person last opened Alerts (the red dot = newer than this) and
 -- whether they want the chime.
 CREATE TABLE IF NOT EXISTS alert_seen (

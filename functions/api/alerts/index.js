@@ -11,7 +11,7 @@
 // Everyone in the app but the TV (edge/alerts.js). Writes are logged in
 // edit_log (not seen / chime) and refused while viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan, counts, scopeOf } from '../../../edge/alerts.js';
+import { canUse, load, plan, counts, countFor, scopeOf } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 
 async function answer(db, user) {
@@ -23,9 +23,8 @@ export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!canUse(user)) return json({ error: 'not set up yet' }, 403);
-  const data = await answer(context.env.DB, user);
-  if (new URL(context.request.url).searchParams.get('count')) return json({ counts: data.counts, chime: data.chime });
-  return json(data);
+  if (new URL(context.request.url).searchParams.get('count')) return json(await countFor(context.env.DB, user, azDate()));
+  return json(await answer(context.env.DB, user));
 }
 
 export async function onRequestPost(context) {

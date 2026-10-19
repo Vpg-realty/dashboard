@@ -19,7 +19,7 @@ export async function call(path, opts = {}) {
   const headers = { ...(opts.headers || {}), ...(as ? { 'X-View-As': as } : {}) };
   const r = await fetch(`${BASE}api/${path}`, { cache: 'no-store', credentials: 'same-origin', ...opts, headers });
   const type = r.headers.get('content-type') || '';
-  if (!type.includes('json')) throw Object.assign(new Error('not available'), { status: 0 });
+  if (!type.includes('json')) throw Object.assign(new Error('not available'), { status: r.status >= 500 ? r.status : 0 });
   const data = await r.json();
   if (!r.ok) throw Object.assign(new Error(data?.error || `error ${r.status}`), { status: r.status });
   return data;
@@ -28,6 +28,10 @@ export async function call(path, opts = {}) {
 // --- who's signed in: { email, name, role } or null --------------------------
 let me;            // undefined = not loaded, null = unknown / not available
 let meLoading = null;
+// The server answered /api/me with an error (Oct 19: D1's daily read limit) —
+// TV mode then says so instead of quietly showing the board.
+let meDown = false;
+export const meFailed = () => meDown;
 const meListeners = new Set();
 // A trainee with no sub-account of their own yet sees their pod lead's
 // numbers and deals on Home and Pipeline — the rep they shadow (Luke, Oct
@@ -38,7 +42,7 @@ function shadowing(u) {
 }
 // Resolves once with the signed-in person (or null); shared by every caller.
 export function loadMe() {
-  if (!meLoading) meLoading = call('me').catch(() => null).then((u) => { me = shadowing(u); meListeners.forEach((f) => f(me)); return me; });
+  if (!meLoading) meLoading = call('me').catch((e) => { meDown = e.status >= 500; return null; }).then((u) => { me = shadowing(u); meListeners.forEach((f) => f(me)); return me; });
   return meLoading;
 }
 export function useMe() {

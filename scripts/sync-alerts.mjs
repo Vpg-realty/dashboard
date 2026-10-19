@@ -143,9 +143,20 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   const iso = new Date(now).toISOString();
   const today = azDate(now);
   const rows = async (sql, params) => (await query(sql, params))[0]?.results || [];
+  // Indexes added Oct 19 (edge/alerts.sql); a no-op once they exist.
+  await query('CREATE INDEX IF NOT EXISTS alerts_kind ON alerts (kind, done_at)');
+  await query('CREATE INDEX IF NOT EXISTS alerts_done ON alerts (done_at)');
   const prev = JSON.parse((await rows("SELECT value FROM settings WHERE key = 'alerts_sync'"))[0]?.value || 'null') || {};
   const since = prev.since || iso;
   const status = { since, at: iso, tasks: 0, tasksDone: 0, checkins: 0, leads: 0, judged: 0, taskErrors: {}, leadError: null };
+
+  // Every open GHL task and check-in, read once per run (index alerts_kind).
+  // Oct 19: one full-table read per sub-account, and re-saving every task on
+  // every run, used up D1's free 5M reads a day — now only new, changed or
+  // finished rows are written.
+  const openRows = await rows("SELECT id, ext_id, kind, sub, opp, title, body, due FROM alerts WHERE kind IN ('ghl', 'checkin') AND done_at IS NULL");
+  const openBySub = {};
+  for (const a of openRows) (openBySub[`${a.kind}|${a.sub}`] ||= []).push(a);
 
   // GHL tasks
   for (const s of subs) {
@@ -153,16 +164,20 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     if (!token) continue;
     let list;
     try { list = await searchTasks(s.locationId, token); } catch (e) { status.taskErrors[s.key] = String(e.message || e).slice(0, 200); continue; }
-    const open = await rows("SELECT id, ext_id FROM alerts WHERE kind = 'ghl' AND sub = ? AND done_at IS NULL", [s.key]);
+    const open = openBySub[`ghl|${s.key}`] || [];
+    const byExt = new Map(open.map((a) => [a.ext_id, a]));
     const seen = new Set();
     for (const t of list) {
       const f = taskFields(t);
       if (!f.id) continue;
-      seen.add(`ghl:${f.id}`);
+      const ext = `ghl:${f.id}`;
+      seen.add(ext);
+      status.tasks++;
+      const had = byExt.get(ext);
+      if (had && had.title === f.title && (had.body || null) === f.body && (had.due || null) === f.due) continue;
       await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, sub, contact, due, created_by, created_at) VALUES (?, ?, ?, 'ghl', ?, ?, ?, ?, ?, 'GHL', ?)
         ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, due = excluded.due`,
-      [newId(), `ghl:${f.id}`, s.repId, f.title, f.body, s.key, f.contact, f.due, iso]);
-      status.tasks++;
+      [newId(), ext, s.repId, f.title, f.body, s.key, f.contact, f.due, iso]);
     }
     for (const a of open) {
       if (seen.has(a.ext_id)) continue;
@@ -178,17 +193,24 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     if (!f) continue;
     const due = planCheckins(f.abandoned, now, sinceMs);
     const still = new Set((f.abandoned || []).map((o) => o.id));
+    const open = openBySub[`checkin|${s.key}`] || [];
+    const openExt = new Set(open.map((a) => a.ext_id));
+    const closed = new Set();
     for (const c of due) {
+      if (openExt.has(c.ext)) continue;
       const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, sub, opp, contact, due, created_by, created_at) VALUES (?, ?, ?, 'checkin', ?, ?, ?, ?, ?, ?, 'Alerts', ?)
         ON CONFLICT (ext_id) DO NOTHING`,
       [newId(), c.ext, s.repId, `Check back with the agent — ${c.address || 'abandoned lead'}`, `Abandoned ${shortDate(c.at)} (${c.n * CHECKIN_DAYS} days)${c.who ? ` · ${c.who}` : ''}`, s.key, c.opp, c.contact || null, azDate(c.dueMs), iso]);
       if (r[0]?.meta?.changes) {
         status.checkins++;
-        await query("UPDATE alerts SET done_by = 'Next check-in', done_at = ? WHERE kind = 'checkin' AND opp = ? AND ext_id <> ? AND done_at IS NULL", [iso, c.opp, c.ext]);
+        for (const a of open) {
+          if (a.opp !== c.opp || a.ext_id === c.ext) continue;
+          await query("UPDATE alerts SET done_by = 'Next check-in', done_at = ? WHERE id = ?", [iso, a.id]);
+          closed.add(a.id);
+        }
       }
     }
-    const open = await rows("SELECT id, opp FROM alerts WHERE kind = 'checkin' AND sub = ? AND done_at IS NULL", [s.key]);
-    for (const a of open) if (!still.has(a.opp)) await query("UPDATE alerts SET done_by = 'No longer Abandoned in GHL', done_at = ? WHERE id = ?", [iso, a.id]);
+    for (const a of open) if (!closed.has(a.id) && !still.has(a.opp)) await query("UPDATE alerts SET done_by = 'No longer Abandoned in GHL', done_at = ? WHERE id = ?", [iso, a.id]);
   }
 
   // Leads Claude spotted

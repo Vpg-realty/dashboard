@@ -12,6 +12,7 @@ import { CYCLE_VIEWS, TV_VIEWS, CYCLE_INTERVAL_MS } from '../data/config.js';
 import { useDataUpdates, useDataStatus } from '../data/source.js';
 import { navigate } from './router.js';
 import { logout } from './logout.js';
+import { meFailed } from '../utils/dashApi.js';
 
 const VIEWS = {
   conversations: { label: 'Conversations · live',           component: ConversationsView },
@@ -135,6 +136,13 @@ export default function TvMode({ me }) {
         <button onClick={() => navigate('/')} className="fixed bottom-3 left-3 z-50 rounded-lg bg-white/90 border border-zinc-200 shadow-sm px-3 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
           ← Back to app
         </button>
+      )}
+      {!me && meFailed() && (
+        <div className="fixed bottom-3 left-3 z-50 flex items-center gap-3 rounded-lg bg-white border border-amber-300 shadow-sm px-3 py-1.5 text-xs text-zinc-700">
+          <span>The dashboard’s server isn’t answering, so it can’t tell who you are — this is the TV board for now.</span>
+          <button onClick={() => window.location.reload()} className="font-semibold text-navy-700 hover:underline">Try again</button>
+          <button onClick={logout} className="font-semibold text-zinc-500 hover:text-red-700">Log out</button>
+        </div>
       )}
       {canLogout && (
         <button
