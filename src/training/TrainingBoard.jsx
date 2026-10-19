@@ -4,10 +4,10 @@
 // file (?trainee=<email>): the checklist with sign-offs (paperwork sent /
 // signed, live sessions with a 1–5 rating and note, sign-offs), test
 // attempts, daily logs, and trainer notes the trainee never sees.
-// "+ Add a trainee" creates their login (role trainee) with their pod lead,
-// who is their manager, trainer and shadow rep.
+// New people (trainees included) are added in Settings › People — the one
+// place (Luke, Oct 19); their pod lead is their trainer and shadow rep.
 import { useEffect, useState } from 'react';
-import { useLocation, setQuery } from '../shell/router.js';
+import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
 import { useTraining, testScores, topicScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, dayLabel } from './api.js';
@@ -23,21 +23,6 @@ function waitingOn(program, t) {
   return step;
 }
 const canSign = (me, step) => step.who !== 'owners' || me?.role === 'owner';
-
-function AddTrainee({ leads, run, busy, onDone }) {
-  const [f, setF] = useState({ name: '', email: '', trainer: leads[0]?.id || '', start: '' });
-  const ok = f.name.trim() && /@/.test(f.email) && f.trainer;
-  return (
-    <form onSubmit={async (e) => { e.preventDefault(); if (await run({ action: 'add', ...f })) onDone(); }} className="rounded-xl border border-tan-200 bg-tan-50/50 p-4 flex flex-wrap items-end gap-3">
-      <label className="grid gap-1 text-[13px] text-zinc-600">Name<input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
-      <label className="grid gap-1 text-[13px] text-zinc-600">Company email<input className={`${inputCls} w-64`} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@valleypropertygroup.com" /></label>
-      <label className="grid gap-1 text-[13px] text-zinc-600">Pod lead (trainer)<select className={inputCls} value={f.trainer} onChange={(e) => setF({ ...f, trainer: e.target.value })}>{leads.map((l) => <option key={l.id} value={l.id}>{repName(l.id)} · {l.pod}</option>)}</select></label>
-      <label className="grid gap-1 text-[13px] text-zinc-600">Start date<input className={inputCls} type="date" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></label>
-      <button type="submit" disabled={!ok || busy} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">Add trainee</button>
-      <p className="w-full text-[12.5px] text-zinc-500">They sign in with this email (emailed code) and land on My Training. Send the VPG 1099 and W-9 from DocuSign, then mark them sent here.</p>
-    </form>
-  );
-}
 
 function StepRow({ step, prog, log, scores, me, run, busy, email, current }) {
   const [open, setOpen] = useState(false);
@@ -150,10 +135,9 @@ export default function TrainingBoard() {
   const me = useMe();
   const { query } = useLocation();
   const { data, err, busy, run } = useTraining();
-  const [adding, setAdding] = useState(false);
   if (err && !data) return <div className="max-w-xl mx-auto mt-10 text-center text-zinc-600">{err}</div>;
   if (!data) return <div className="text-zinc-500">Loading…</div>;
-  const { program, trainees, phases, leads } = data;
+  const { program, trainees, phases } = data;
   if (!program) return <div className="max-w-xl mx-auto mt-10 text-center text-zinc-600">The training program isn’t set up yet{me?.role === 'owner' ? ' — Settings › Training Program.' : '.'}</div>;
   const active = trainees.filter((t) => t.person.role === 'trainee');
   const grads = trainees.filter((t) => t.person.role !== 'trainee');
@@ -175,10 +159,9 @@ export default function TrainingBoard() {
             <div key={l} className={`rounded-xl px-4 py-2 ${hot && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10'}`}><div className={`text-[11px] font-semibold uppercase tracking-wide ${hot && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div></div>
           ))}
         </div>
-        {leads.length > 0 && <button type="button" onClick={() => setAdding(!adding)} className="h-10 px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">{adding ? 'Close' : '+ Add a trainee'}</button>}
+        {me?.role === 'owner' && <a {...linkProps('/settings/people')} className="h-10 inline-flex items-center px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">+ Add a person</a>}
       </div>
       {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
-      {adding && <AddTrainee leads={leads} run={run} busy={busy} onDone={() => setAdding(false)} />}
 
       <section className="rounded-xl border border-tan-200 overflow-hidden">
         <div className="bg-navy-700 text-white px-4 py-2.5 font-semibold">Waiting on a Trainer</div>
@@ -202,7 +185,7 @@ export default function TrainingBoard() {
               <th className="px-4 py-2 font-semibold">Now</th>
             </tr></thead>
             <tbody>
-              {!trainees.length && <tr><td colSpan={4 + topicsAll.length} className="px-4 py-5 text-zinc-500">No trainees yet — add one with “+ Add a trainee”.</td></tr>}
+              {!trainees.length && <tr><td colSpan={4 + topicsAll.length} className="px-4 py-5 text-zinc-500">No trainees yet — add a new hire in Settings › People and tick “Enroll in the training program”.</td></tr>}
               {trainees.map((t) => {
                 const tops = Object.fromEntries(topicScores(program, t.attempts).map((x) => [x.topic, x.score]));
                 const cur = program.steps.find((s) => s.id === t.status?.current);

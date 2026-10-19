@@ -708,12 +708,23 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   now", every step, "A question for <pod lead>" → an Alerts task for them);
   **Management › Training** (`/team/training`, owners every trainee, a pod
   lead their own — Waiting on a Trainer, the trainees table with best score
-  by topic, "+ Add a trainee" (creates the login, role trainee, pod lead,
-  start date), the trainee file `?trainee=<email>`: where they need help,
+  by topic, the trainee file `?trainee=<email>`: where they need help,
   checklist with Mark sent / Mark signed / Log session / Check off /
   Graduate, daily logs, trainer notes, Remove (owners)). The step waiting on
   a trainer is an Alerts task for the pod lead (`alertOps`, ext_id
   `train:<email>:<step>`), closed when it's done.
+- **Adding people = Settings › People only** (Luke, Oct 19: "avoid adding 2
+  areas where we add people"): Full name, Company email, Role; for
+  Acquisitions an **Enroll in the training program** box (on by default) asks
+  for the pod lead and start date and saves the person as `trainee`
+  (`functions/api/settings/users.js` upserts `training_people` and opens the
+  pod lead's first alert); unticked, "Rep on the board" defaults to **Not on
+  the board yet** — a new rep is linked once their GHL sub-account exists
+  (Sub-Accounts). A trainee's row shows their pod lead (Trainer: …) and a
+  link to their training file; moving someone off Trainee there counts as
+  graduating (`graduated_at`); removing a trainee removes their training
+  records. Management › Training has no add form — owners get "+ Add a
+  person" → Settings › People.
 - **Not yet**: a trainee's own GHL sub-account (Week 2) would put them on the
   TV board and scorecard like any rep — exclude trainees there before their
   Week 2 starts; Week 2 messages are self-reported until then; DocuSign is
