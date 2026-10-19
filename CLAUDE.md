@@ -582,6 +582,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   rate vs the team's, the rep's weakest step outlined; beside it the steps
   below the team rate ranked by how many deals each gap costs ("5 more
   offers would close the gap", top 5).
+- **Brand tile = the site's one number tile** (Luke, Oct 19: "a tile
+  template that we will use across the entire site"): `BrandTile`
+  (src/shell/BrandTile.jsx — Finance's MoneyTile, which finance/ui.jsx
+  re-exports): white card, tan border, tan eyebrow with a status dot
+  (`accent` navy / green / red / amber / sky / violet / tan), big navy
+  number, short tan rule, faint V mark; clickable ones act as tabs (navy
+  when picked). Used on Finance and Who Works Where's At a Glance so far.
+  Who Works Where's map controls (Colour by + All reps) sit on the map, its
+  key under it. My Scorecard's bottom "Open your Full Breakdown" bar is gone
+  (the Full Breakdown tab is the way in).
 - **One dropdown everywhere** (Luke, Oct 19: "match the rest of the website
   dropdowns … consistent throughout the whole site"): the plain `<select>`s
   on Zips & Holds, Get Zips, Alerts (add a task), Who Works Where, the Rep

@@ -11,7 +11,6 @@ import { REPS, MARKETS, ghlConvUrl, issueUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
-import { linkProps } from '../../shell/router.js';
 import RepView from './RepView.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
 import { paceChip } from '../../shell/panelStyle.js';
@@ -398,13 +397,6 @@ export default function MyScorecardView() {
       <LeakByState rep={rep} />
       <Trend sc={sc} rep={rep} />
 
-      {/* The full breakdown is its own tab now (Luke, Oct 15: "hard to
-          see / easy to miss … a completely separate tab"). */}
-      <a {...linkProps('/me/breakdown')} className="rounded-xl bg-navy-700 hover:bg-navy-800 text-white px-5 py-4 flex items-center gap-3 shadow-sm">
-        <span className="font-semibold text-[15px]">Open your Full Breakdown</span>
-        <span className="text-[13px] text-white/75">any week or month, every number, points by week, funnel, states</span>
-        <span className="ml-auto text-tan-400 font-semibold">→</span>
-      </a>
     </div>
   );
 }
