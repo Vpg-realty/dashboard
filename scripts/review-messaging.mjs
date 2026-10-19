@@ -122,7 +122,7 @@ export function aiSummary(state, weekStart, pairKey, convs) {
   const v = state.weeks?.[weekStart]?.[pairKey] || {};
   const done = convs.filter((c) => v[c]);
   const bad = done.filter((c) => !v[c].ok);
-  return { ok: done.length - bad.length, total: done.length, pending: convs.length - done.length, bad: bad.slice(0, 10).map((c) => ({ why: v[c].issue })) };
+  return { ok: done.length - bad.length, total: done.length, pending: convs.length - done.length, bad: bad.slice(0, 10).map((c) => ({ why: v[c].issue, conv: c })) };
 }
 
 const REPLY_SCHEMA = {

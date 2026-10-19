@@ -31,7 +31,7 @@ const RAIL = [
 ];
 const LATER = [
   { id: 'upcoming', label: 'Upcoming', sub: 'Due after today' },
-  { id: 'done', label: 'Done', sub: 'Last two weeks' },
+  { id: 'done', label: 'Done', sub: 'Last 24 hours' },
 ];
 
 const PICK = {
@@ -92,17 +92,28 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
           {[whose && <span key="w" className="font-semibold text-navy-700">{whose}</span>,
             a.body,
             a.kind === 'lead' ? `texted ${ago(a.created_at)}` : a.kind === 'task' && a.created_by ? `added by ${a.created_by}` : null,
-            done && (a.verdict ? `${a.verdict === 'real' ? 'Real lead' : 'Not a lead'} · ${a.verdict_by}` : `${a.done_by} · ${dayLabel(azDate(new Date(a.done_at)))}`),
+            a.verdict && `${a.verdict === 'real' ? 'Real lead' : 'Not a lead'} — ${a.verdict_by}`,
+            done && `done by ${a.done_by} · ${dayLabel(azDate(new Date(a.done_at)))}`,
           ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
         </div>
         {a.quote && <div className="mt-1.5 text-[13px] text-zinc-700 bg-violet-50 border-l-[3px] border-violet-400 rounded px-2.5 py-1.5 whitespace-pre-line">“{a.quote}”</div>}
       </div>
       <div className="col-start-3 md:col-start-auto flex flex-wrap gap-1.5 md:justify-end">
-        {a.kind === 'lead' && !done && <>
-          <button type="button" disabled={busy} onClick={() => act({ action: 'verdict', id: a.id, verdict: 'real' })} className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12.5px] font-semibold hover:bg-emerald-700 disabled:opacity-50">Real lead</button>
-          <button type="button" disabled={busy} onClick={() => act({ action: 'verdict', id: a.id, verdict: 'not' })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 disabled:opacity-50">Not a lead</button>
+        {/* Real / Not a lead teaches Claude what counts (the last 30 answers
+            go along as examples) and stays on the alert; Complete closes it
+            (Luke, Oct 19). A second click on the picked answer clears it. */}
+        {a.kind === 'lead' && <>
+          <span role="group" aria-label="Is this a lead? (teaches Claude)" className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
+            {[['real', 'Real lead', 'bg-emerald-600 text-white'], ['not', 'Not a lead', 'bg-zinc-700 text-white']].map(([v, l, on]) => (
+              <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v} title="Teaches Claude what counts as a lead"
+                onClick={() => act({ action: 'verdict', id: a.id, verdict: a.verdict === v ? null : v })}
+                className={`h-8 px-3 text-[12.5px] font-semibold disabled:opacity-50 ${a.verdict === v ? on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{l}</button>
+            ))}
+          </span>
+          {!done
+            ? <button type="button" disabled={busy} onClick={() => act({ action: 'done', id: a.id, done: true })} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800 disabled:opacity-50">Complete</button>
+            : <button type="button" disabled={busy} onClick={() => act({ action: 'done', id: a.id, done: false })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-[12.5px] font-semibold hover:bg-zinc-50">Reopen</button>}
         </>}
-        {a.kind === 'lead' && done && <button type="button" disabled={busy} onClick={() => act({ action: 'verdict', id: a.id, verdict: null })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-[12.5px] font-semibold hover:bg-zinc-50">Undo</button>}
         {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" className="h-8 inline-flex items-center px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open in GHL ↗</a>}
         {a.kind === 'task' && !done && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove this task?')) act({ action: 'remove', id: a.id }); }} title="Remove" className="h-8 w-8 rounded-lg border border-zinc-200 bg-white text-zinc-400 hover:text-red-700 hover:bg-red-50">×</button>}
@@ -203,7 +214,7 @@ export default function AlertsView() {
   const groups = view === 'today' ? [
     ['New since you last looked', shown.filter((a) => isNew(a))],
     ['Overdue', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.due && a.due < today)],
-    ['Leads to answer', shown.filter((a) => !isNew(a) && a.kind === 'lead')],
+    ['Leads to work', shown.filter((a) => !isNew(a) && a.kind === 'lead')],
     ['Due today', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.due === today)],
     ['No due date', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && !a.due)],
   ].filter(([, l]) => l.length) : [[null, shown]];
@@ -291,7 +302,7 @@ export default function AlertsView() {
             {data && !shown.length && (
               <div className="px-5 py-8 text-center text-zinc-500">
                 <div className="text-[22px] text-emerald-600">✓</div>
-                {view === 'today' ? 'Nothing for today — you’re all caught up.' : view === 'done' ? 'Nothing finished in the last two weeks.' : 'Nothing here right now.'}
+                {view === 'today' ? 'Nothing for today — you’re all caught up.' : view === 'done' ? 'Nothing finished in the last 24 hours.' : 'Nothing here right now.'}
               </div>
             )}
             {groups.map(([label, list]) => (
@@ -303,7 +314,7 @@ export default function AlertsView() {
             {data && view !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           <p className="mt-4 text-[12px] text-zinc-500">
-            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. The red dot shows how many you have to do today — due today or late, leads to answer and tasks with no date — and stays until they’re ticked off; it pulses when something new arrived since you last looked.
+            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. Two counts sit on the Alerts entry: red for leads still to work and blue for tasks due today or late (and tasks with no date). Each stays until it’s cleared — Complete closes a lead, the tick closes a task — and finished ones stay under Done for 24 hours.
           </p>
         </div>
       </div>

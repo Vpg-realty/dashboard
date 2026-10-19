@@ -34,7 +34,9 @@ const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 const clip = (x, n) => String(x ?? '').trim().slice(0, n);
-const KEEP_DONE_DAYS = 14;
+// Done items stay on the list for a day (Luke, Oct 19: "the done category
+// should clear out every 24 hours").
+const KEEP_DONE_MS = 24 * 3600000;
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
 // Oct 19); everyone can turn it on or off for themself.
 const chimeDefault = (u) => !(u.role === 'owner' || u.role === 'manager');
@@ -43,7 +45,7 @@ export const MANY_MAX = 300;
 // Open alerts plus the ones finished in the last two weeks, for this person.
 export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
-  const since = new Date(now.getTime() - KEEP_DONE_DAYS * 86400000).toISOString();
+  const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
   const where = scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '';
   const [rows, seen, people] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
@@ -79,15 +81,17 @@ export function rings(a, scope) {
 // dated ones join on their day. `unseen` = arrived since they last opened
 // Alerts (the chime and the pulse); overdue = due before today.
 export function counts(alerts, scope, seenAt, today) {
-  let unseen = 0, overdue = 0, open = 0, owe = 0;
+  let unseen = 0, overdue = 0, open = 0, owe = 0, leads = 0;
   for (const a of alerts) {
     if (a.done_at || !rings(a, scope)) continue;
     open++;
     if (!seenAt || a.created_at > seenAt) unseen++;
     if (a.kind !== 'lead' && a.due && a.due < today) overdue++;
     if (a.kind === 'lead' || a.kind === 'deal' || !a.due || a.due <= today) owe++;
+    if (a.kind === 'lead') leads++;
   }
-  return { unseen, overdue, open, owe };
+  // Two badges (Luke, Oct 19): red = leads not completed yet, blue = the rest.
+  return { unseen, overdue, open, owe, leads, tasks: owe - leads };
 }
 
 // The red dot alone (polled every minute): only this person's open alerts and
@@ -141,9 +145,11 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (existing.kind !== 'lead') return { error: 'Only spotted leads take a verdict' };
     if (!['real', 'not', null].includes(b.verdict ?? null)) return { error: 'Unknown verdict' };
     const v = b.verdict ?? null;
-    // Answering it also takes it off the list (undo puts it back).
-    return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_by = ?, done_at = ? WHERE id = ?',
-      [v, v ? user.name : null, v ? now : null, v ? user.name : null, v ? now : null, b.id]]] };
+    // The answer teaches Claude what counts as a lead (the last 30 go along
+    // as examples); it no longer closes the alert — "Complete" does (Luke,
+    // Oct 19).
+    return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ? WHERE id = ?',
+      [v, v ? user.name : null, v ? now : null, b.id]]] };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };

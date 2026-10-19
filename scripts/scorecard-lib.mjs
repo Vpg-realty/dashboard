@@ -187,7 +187,8 @@ export function autoCrm(pairs, monday, limit = 12) {
   // clear of Never-send / quiet hours / STOP vs 90%, and conversations
   // Claude judged to meet the Texting Standard vs 50%. Their average
   // grades it: 90%+ = 2, 60%+ = 1, below = 0.
-  const msgs = pairs.map((p) => p.messaging).filter((m) => m && m.speed);
+  // `sub` rides along so a flagged conversation can link to GHL.
+  const msgs = pairs.filter((p) => p.messaging?.speed).map((p) => ({ ...p.messaging, sub: `${p.repId}|${p.marketId}` }));
   if (msgs.length) {
     const sum = (f) => msgs.reduce((a, m) => a + (f(m) || 0), 0);
     const ai = msgs.filter((m) => m.ai);
@@ -202,9 +203,9 @@ export function autoCrm(pairs, monday, limit = 12) {
     const shares = mparts.map((x) => x.share).filter((v) => v != null);
     const share = shares.length ? shares.reduce((a, b) => a + b, 0) / shares.length : null;
     const bad = [
-      ...msgs.flatMap((m) => (m.ai?.bad || []).map((b) => ({ id: `ai${b.why}`, addr: 'AI review', why: b.why }))),
+      ...msgs.flatMap((m) => (m.ai?.bad || []).map((b) => ({ id: `ai${b.conv || b.why}`, addr: b.conv ? 'AI review · open the conversation' : 'AI review', why: b.why, sub: m.sub, conv: b.conv || null }))),
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
-      ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min` }))),
+      ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min`, sub: m.sub, conv: b.conv || null }))),
     ];
     detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length };
   }

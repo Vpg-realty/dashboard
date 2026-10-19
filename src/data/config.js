@@ -77,6 +77,15 @@ export function ghlOppUrl(sub, oppId) {
   return `https://app.gohighlevel.com/v2/location/${loc}/opportunities/${oppId}?tab=Opportunity+details`;
 }
 
+// Where a flagged CRM / messaging item opens in GHL: its conversation when it
+// is a text (AI review, slow answers — Luke, Oct 19: "straight to the
+// conversation, not the opportunity"), else its opportunity.
+export function issueUrl(b) {
+  if (b.url) return b.url;
+  if ('conv' in b) return b.conv && b.sub ? ghlConvUrl(b.sub, b.conv) : null;
+  return b.sub ? ghlOppUrl(b.sub, b.id) : null;
+}
+
 // Tier definitions — Luke uses literal "Tier 1/2/3/4" tags in GHL.
 export const TIERS = [
   { id: 1, label: 'Tier 1 — VIP',     color: '#fbbf24', desc: 'Routine deals, easy follow-up' },
