@@ -50,7 +50,7 @@ export async function load(db, user, now = new Date()) {
   const [rows, seen, people] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
-    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team')").all(),
+    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
   ]);
   const names = {};
   for (const p of people.results) names[holderOf(p)] = p.name;

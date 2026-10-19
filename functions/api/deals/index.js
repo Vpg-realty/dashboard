@@ -2,7 +2,8 @@
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
 import { zillowUrl, addrKeys } from '../../../src/deals/math.js';
-import { canSeeDeals, canEditDeals, canManagerEdit, MANAGER_KEYS, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canManagerEdit, MANAGER_KEYS, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes, effectiveLists } from '../../../edge/deals.js';
+import roster from '../../../subaccounts.json' with { type: 'json' };
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -22,7 +23,7 @@ export async function onRequestGet(context) {
     // or cancelled while GHL still shows it active.
     ended: all.filter((d) => !canSeeDeal(user, d)).flatMap((d) => addrKeys(d.address).map((key) => ({ key, status: d.status }))),
     deals: all.filter((d) => canSeeDeal(user, d)).map((d) => ({ ...shape(d, user), ghlSub: links.get(d.id) || null, cancelAt: cancels.get(d.id) || null })),
-    lists: await getSetting(db, 'deal_lists', {}),
+    lists: effectiveLists(await getSetting(db, 'deal_lists', {}), (await db.prepare('SELECT rep_id, status FROM users WHERE rep_id IS NOT NULL').all()).results, roster),
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',
     readOnly: !canEditDeals(user),

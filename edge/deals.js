@@ -190,3 +190,19 @@ export const SECRET_LOG = (field) => SECRET_KEYS.includes(field.replace(/^fixed\
 // History entries a rep may see (fields of the sections they see).
 export const REP_LOG = (field) => { if (field.startsWith('*')) return true; const f = FIELD[field.replace(/^fixed\./, '')]; return !!f && repSees(f); };
 export const ALL_KEYS = FIELDS.map((f) => f.key);
+
+// The dropdown lists (Luke's site map, Oct 19: no Dropdown Lists page — the
+// lists come from People, Sub-Accounts, the code and past deals): the stored
+// deal_lists plus every active person's rep name (acq. manager / dispo
+// member) and every state with a sub-account; inactive people's names drop
+// out. Old names stay on the deals that use them.
+export function effectiveLists(lists, users, roster) {
+  const repName = new Map(roster.reps.map((r) => [r.id, r.name]));
+  const marketName = new Map(roster.markets.map((m) => [m.id, m.name]));
+  const active = users.filter((u) => u.status !== 'inactive' && repName.has(u.rep_id)).map((u) => repName.get(u.rep_id));
+  const gone = new Set(users.filter((u) => u.status === 'inactive' && repName.has(u.rep_id)).map((u) => repName.get(u.rep_id).toLowerCase()));
+  const people = (list) => [...new Set([...(list || []), ...active])].filter((n) => !gone.has(String(n).toLowerCase()));
+  const states = [...new Set(roster.subaccounts.map((x) => marketName.get(x.marketId)).filter(Boolean).map((n) => n.toUpperCase()))];
+  return { ...lists, acqTeam: people(lists.acqTeam), dispoMembers: people(lists.dispoMembers), states: [...new Set([...(lists.states || []), ...states])] };
+}
+

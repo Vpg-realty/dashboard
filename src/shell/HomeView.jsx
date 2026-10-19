@@ -67,7 +67,7 @@ function Stat({ label, value, target, color, period }) {
       {pct != null && (<>
         <div className="relative mt-3.5 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
           {pct > 0 && <div className="h-full rounded-full" style={{ width: `${pct}%`, background: badge ? badge[3] : color }} />}
-          {pace != null && pace < 1 && <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${pace * 100}%` }} title="Where you should be by now" />}
+          {pace != null && pace < 1 && <span className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${pace * 100}% - 1px)` }} title="Where you should be by now" />}
         </div>
         {pace != null && pace < 1 && <div className="mt-1.5 text-[11.5px] text-zinc-500 tabular-nums">Should be at {Math.round(target * pace)} by now</div>}
       </>)}

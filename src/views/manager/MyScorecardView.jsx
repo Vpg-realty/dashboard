@@ -42,6 +42,10 @@ function Ring({ score, estimate }) {
   );
 }
 
+// The "should be here" marker — the same 3px tick on every box (Luke, Oct 19:
+// one looked thinner than the others).
+const Tick = ({ at, title }) => <span className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${at * 100}% - 1px)` }} title={title} />;
+
 function Kpi({ label, v, t, frac, money }) {
   const tone = paceTone(v, t, frac);
   const word = tone.key === 'good' ? 'On pace' : tone.key === 'close' ? 'Near pace' : 'Behind';
@@ -57,7 +61,7 @@ function Kpi({ label, v, t, frac, money }) {
       </div>
       <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
         {v > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, (100 * v) / t)}%`, background: tone.bar }} />}
-        {frac < 1 && <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${frac * 100}%` }} title="Where you should be by now" />}
+        {frac < 1 && <Tick at={frac} title="Where you should be by now" />}
       </div>
     </div>
   );
@@ -87,21 +91,23 @@ function oneThing(parts, m, scale) {
 function SpeedKpi({ ok, total }) {
   const r = total ? ok / total : null;
   const tone = total == null ? null : r == null || r >= SPEED_TARGET ? 'good' : r >= SPEED_TARGET * 0.75 ? 'close' : 'bad';
-  const cls = { good: ['border-emerald-200 bg-emerald-50', 'text-emerald-700', '#059669'], close: ['border-amber-200 bg-amber-50', 'text-amber-700', '#d97706'], bad: ['border-red-200 bg-red-50', 'text-red-700', '#dc2626'] }[tone] || ['border-zinc-200 bg-zinc-50', 'text-zinc-500', '#a1a1aa'];
+  // The same boxes, badge and bar colours as the pace boxes beside it (Luke,
+  // Oct 19: this one had no box around it).
+  const cls = { good: ['bg-emerald-100 border-emerald-300', '#059669'], close: ['bg-amber-100 border-amber-300', '#d97706'], bad: ['bg-rose-100 border-rose-300', '#e11d48'] }[tone] || ['border-zinc-300 bg-zinc-50', '#a1a1aa'];
   const word = tone == null ? '' : r == null ? 'No agent texts' : tone === 'good' ? 'On target' : tone === 'close' ? 'Near target' : 'Below target';
   return (
     <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${cls[0]}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · one of your six CRM items: 2 at ${Math.round(SPEED_TARGET * 100)}%+, 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+`}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-medium text-zinc-600 whitespace-nowrap">Answered ≤ {ANSWER_WITHIN_MIN} min</span>
-        <span className={`ml-auto text-[11.5px] font-semibold ${cls[1]}`}>{word}</span>
+        {word && <span className={`ml-auto ${paceChip(word)}`}>{word}</span>}
       </div>
       <div className="mt-2 flex items-baseline gap-1.5">
         <span className={`leading-none font-bold tabular-nums ${tone ? 'text-[30px] text-navy-800' : 'text-[20px] text-zinc-400'}`}>{tone == null ? 'not checked yet' : r == null ? '—' : `${Math.round(r * 100)}%`}</span>
         <span className="text-zinc-500 tabular-nums">{total ? `${ok} of ${total} texts` : total === 0 ? 'none this week' : ''}</span>
       </div>
       <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
-        {r > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: cls[2] }} />}
-        <span className="absolute -top-1 -bottom-1 w-0.5 rounded bg-navy-800" style={{ left: `${SPEED_TARGET * 100}%` }} title={`Target ${Math.round(SPEED_TARGET * 100)}%`} />
+        {r > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: cls[1] }} />}
+        <Tick at={SPEED_TARGET} title={`Target ${Math.round(SPEED_TARGET * 100)}%`} />
       </div>
     </div>
   );
@@ -154,26 +160,43 @@ function FixList({ pairs, monday, crm, manual, m }) {
   const auto = autoCrm(pairs, monday, Infinity);
   const rows = [];
   const good = [];
+  // Every CRM item with its grade, speed to lead included — the 12 points
+  // (Luke, Oct 19: reps "need to see what all 12 points are").
+  const chips = [];
   CRM_ITEMS.forEach((it, i) => {
     const g = crm?.[i];
+    chips.push({ key: it.key, short: it.short, g });
     const d = auto?.detail?.[it.key];
     const byManager = Array.isArray(manual) && manual[i] != null;
     if (g === 2) { good.push(it.short); return; }
     const bad = byManager ? [] : d?.bad || [];
     rows.push({ key: it.key, label: it.label, help: it.help, g, bad, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
   });
-  // Speed is the sixth CRM item (Luke, Oct 16): below the standard, the texts
-  // behind it are listed here too.
-  if (m.speedTotal && m.speedOk / m.speedTotal < SPEED_TARGET) {
+  // Speed to lead is the sixth CRM item (Luke, Oct 16): below the standard,
+  // the texts behind it are listed here too.
+  const sg = speedGrade(m.speedOk, m.speedTotal);
+  chips.push({ key: 'speed', short: 'Speed to lead', g: sg });
+  if (sg === 2) good.push('Speed to lead');
+  else if (m.speedTotal) {
     const bad = slowTexts(pairs);
     const r = m.speedOk / m.speedTotal;
-    rows.push({ key: 'speed', label: `Answer agent texts within ${ANSWER_WITHIN_MIN} minutes`, help: '', g: speedGrade(m.speedOk, m.speedTotal), bad, total: Math.max(bad.length, m.speedTotal - m.speedOk), note: `${m.speedOk} of ${m.speedTotal} answered in time (${Math.round(r * 100)}%, target ${Math.round(SPEED_TARGET * 100)}%)` });
+    rows.push({ key: 'speed', label: `Speed to lead — answer agent texts within ${ANSWER_WITHIN_MIN} min`, help: '', g: sg, bad, total: Math.max(bad.length, m.speedTotal - m.speedOk), note: `${m.speedOk} of ${m.speedTotal} answered in time (${Math.round(r * 100)}%, target ${Math.round(SPEED_TARGET * 100)}% for 2 points, ${Math.round(SPEED_GRADE_ONE * 100)}% for 1)` });
   }
+  const have = chips.filter((c) => c.g != null);
+  const pts = have.reduce((t, c) => t + c.g, 0);
   const badge = (g) => (g == null ? 'bg-zinc-200 text-zinc-500' : g === 1 ? 'bg-amber-500 text-white' : 'bg-red-600 text-white');
   return (
     <section className={card}>
-      <PanelHead title={rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'} />
+      <PanelHead title={rows.length ? `Fix ${rows.length === 1 ? 'this' : `these ${rows.length} things`} this week` : 'Your CRM is clean this week'} right={<span>CRM {pts} of {have.length * 2} points{have.length < chips.length ? ' so far' : ''}</span>} />
       <div className="p-5 flex flex-col gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-zinc-600 mr-1">Your six CRM items, 2 points each:</span>
+          {chips.map((c) => (
+            <span key={c.key} className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-medium ${c.g === 2 ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : c.g === 1 ? 'border-amber-300 bg-amber-50 text-amber-900' : c.g === 0 ? 'border-red-300 bg-red-50 text-red-900' : 'border-zinc-200 bg-zinc-50 text-zinc-500'}`}>
+              <span className={`w-5 h-5 rounded grid place-items-center text-[12px] font-bold ${badge(c.g === 2 ? null : c.g)} ${c.g === 2 ? '!bg-emerald-600 !text-white' : ''}`}>{c.g ?? '–'}</span>{c.short}
+            </span>
+          ))}
+        </div>
         {rows.map(({ key, label, help, g, bad, total, note }) => (
           <div key={key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
             <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
@@ -220,7 +243,7 @@ function Trend({ sc, rep }) {
       <PanelHead title={`Your weekly score, last ${weeks.length} weeks`} right={(
         <span className="flex items-center gap-4 text-[12.5px] text-zinc-600">
           <span className="inline-flex items-center gap-1.5 font-medium"><span className="w-5 h-1 rounded bg-navy-700" />You</span>
-          <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-zinc-400" />Team average</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-5 border-t-[3px] border-dashed border-violet-600" />Team average</span>
         </span>
       )} />
       <div className="px-5 pb-5">
@@ -236,12 +259,12 @@ function Trend({ sc, rep }) {
         <LineChart
           labels={weeks.map((w) => w.label)}
           series={[
-            { name: 'Team average', color: '#a1a1aa', dash: true, values: team },
+            { name: 'Team average', color: '#7c3aed', dash: true, values: team },
             { name: rep.name, color: '#1b385f', bold: true, showValues: true, values: mine },
           ]}
         />
       </div>
-      <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Friday noon); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed line is the team's average score, for reference.</div>
+      <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Friday noon); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed purple line is the team's average score, for reference.</div>
       </div>
     </section>
   );
