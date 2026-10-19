@@ -316,7 +316,7 @@ export default function AllDealsView() {
                           : null;
                       // Bookkeeping is locked until the COE date (Luke, Oct 14).
                       const locked = BOOKS_KEYS.includes(f.key) && !booksOpen(d);
-                      const editable = !s.readOnly && !f.calc && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret) && !locked;
+                      const editable = !s.readOnly && !f.calc && !f.fin && f.type !== 'ghl' && f.key !== 'address' && (s.owner || !f.secret) && !locked;
                       let shown = content ?? cell(f, d[f.key], editable, d);
                       // The status set by hand differs from GHL's stage (Luke,
                       // Oct 14: GHL's stage drives it, people can override).

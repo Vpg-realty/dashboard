@@ -27,11 +27,11 @@ import { EmdPill } from './pills.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
-// To approve — Finance › Payouts is where it changes.
+// To approve — Finance › Money In & Out is where it changes.
 function PayTag({ line }) {
   const t = payText(line);
   if (!t) return null;
-  return <a {...linkProps('/finance/payouts')} title="Commission payouts are approved and paid in Finance › Payouts" className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t.tone]}`}>{t.text}</a>;
+  return <a {...linkProps('/finance/money')} title="Commission payouts are approved and paid in Finance › Money In & Out" className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[t.tone]}`}>{t.text}</a>;
 }
 
 const TZ_FIELD = FIELDS.find((f) => f.key === 'ddEndTz');
@@ -501,9 +501,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                             {locked && <span className="text-[10.5px] font-normal text-zinc-400" title="Bookkeeping can be filled in once the COE date is reached or the deal is closed">locked · unlocks at COE</span>}
                             {f.calc && !isFixed && <span className="text-[10.5px] font-normal text-zinc-400">auto</span>}
                             {f.type === 'ghl' && <span className="text-[10.5px] font-normal text-violet-600">from GHL</span>}
+                            {f.fin && <span className="text-[10.5px] font-normal text-emerald-700">from Finance</span>}
                             {isFixed && <span className="text-[10.5px] rounded bg-amber-100 text-amber-800 px-1" title="Typed by hand (in the sheet or here) — doesn't recalculate">typed</span>}
                           </span>
-                          {f.calc || f.type === 'ghl' ? (
+                          {f.calc || f.fin || f.type === 'ghl' ? (
                             <div className={`flex items-center gap-2 ${ro ? '' : 'min-h-8'}`}>
                               <span className={`tabular-nums ${ro ? 'text-[14.5px] font-semibold' : 'text-[14px] font-medium'} ${isFixed ? 'text-amber-900' : lossHigh ? 'text-[#B42318] font-bold' : ro ? 'text-navy-900' : 'text-zinc-900'}`}>{!isFixed && NEEDS_BUYER.has(f.key) && noBuyer(merged) ? <span className="text-zinc-400 font-normal">no buyer yet</span> : show(f, merged[f.key])}</span>
                               {fin && partOfField(f.key) && <PayTag line={fin.parts[partOfField(f.key)]} />}
@@ -524,7 +525,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                 </div>
                               ) : <Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
-                              {f.key === 'commPaid' && fin && fin.total > 0 && <span className="block mt-1 text-[11.5px] text-zinc-500">Finance: {fin.paid} of {fin.total} commission{fin.total === 1 ? '' : 's'} paid — set automatically when a payout is marked paid in <a {...linkProps('/finance/payouts')} className="text-navy-700 underline">Finance</a>.</span>}
+                              {f.key === 'commPaid' && fin && fin.total > 0 && <span className="block mt-1 text-[11.5px] text-zinc-500">Finance: {fin.paid} of {fin.total} commission{fin.total === 1 ? '' : 's'} paid — set automatically when a payout is marked paid in <a {...linkProps('/finance/money')} className="text-navy-700 underline">Finance</a>.</span>}
                               {f.key === 'originalPrice' && <span className="block mt-1 text-[11.5px] text-zinc-400">Price before the retrade — for reference, not used in any math.</span>}
                             </>
                           )}

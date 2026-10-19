@@ -109,6 +109,8 @@ export function buildLines(deals, rules, rows = []) {
 
 // Which tracker column each payout is (Commissions & profit).
 export const PART_FIELD = { acq: 'acqComm', dispo: 'dispoComm', manager: 'mgrComm', override: 'override', tc: 'tcComm' };
+// The deal's "Paid on" column for each part (Finance writes it).
+export const PART_PAID_ON = { acq: 'acqPaidOn', dispo: 'dispoPaidOn', manager: 'mgrPaidOn', override: 'overridePaidOn', tc: 'tcPaidOn' };
 const FIELD_PART = Object.fromEntries(Object.entries(PART_FIELD).map(([p, f]) => [f, p]));
 export const partOfField = (key) => FIELD_PART[key] || null;
 

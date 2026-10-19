@@ -60,22 +60,12 @@ function Card({ title, sub, right, children }) {
   );
 }
 
-// Company overview: four headline numbers, the rest in plain rows, what's
-// coming in, the year by month, and the top reps / states (each opens).
+// Company overview: the deal-flow and money bands, what's coming in and the
+// year by month (the Top 5 boxes went Oct 19 — Luke: the side rail has them).
 function Overview({ data, then, owner, compareLabel }) {
   const { now } = data;
   const t = (k) => (then ? then[k] : null);
   const maxNet = Math.max(1, ...(data.months || []).map((m) => m.net));
-  const top = (kind, rows) => rows.slice(0, 5).map((r) => (
-    <button key={r.key} type="button" onClick={() => setQuery({ file: `${kind}:${r.key}` }, { replace: false })} className="w-full flex items-center gap-3 px-4 py-2 border-t border-tan-100 first:border-t-0 hover:bg-tan-50 text-left">
-      <span className="min-w-0 flex-1">
-        <span className="block">{kind === 'state' ? <span className="font-medium text-navy-800">{titleCase(r.key)}</span> : <Person name={r.key} full />}</span>
-        <span className="block mt-0.5 text-[12px] text-zinc-500 tabular-nums">{r.contracts} contract{r.contracts === 1 ? '' : 's'} · {r.closed} closed</span>
-      </span>
-      <span className="w-20 text-right font-semibold tabular-nums text-navy-900">{compact(r.net)}</span>
-      <span className="text-zinc-300">›</span>
-    </button>
-  ));
   return (
     <div className="grid gap-4">
       {/* Luke, Oct 16: top row the deal flow, second row the money — VPG colours. */}
@@ -117,14 +107,6 @@ function Overview({ data, then, owner, compareLabel }) {
           </div>
         </Card>
       )}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {[['acq', data.groups.acq], ['dispo', data.groups.dispo], ['state', data.groups.state]].map(([k, rows]) => (
-          <Card key={k} title={{ acq: 'Top acquisition reps', dispo: 'Top dispo reps', state: 'Top states' }[k]}
-            right={<button type="button" onClick={() => setQuery({ view: k })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">All ›</button>}>
-            {rows.length ? top(k, rows) : <div className="px-4 py-6 text-center text-zinc-500 text-[13.5px]">No deals in this period.</div>}
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
@@ -251,7 +233,7 @@ export default function SummaryView() {
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <FinanceHead eyebrow="Deal Summary" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
+      <FinanceHead eyebrow="Finance Overview" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
         right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <Rail view={view} counts={counts} />

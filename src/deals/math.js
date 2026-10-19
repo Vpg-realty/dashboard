@@ -67,18 +67,25 @@ export const FIELDS = [
   ['wireDate', 'Wire date received', 'money', 'date'],
   ['emdReturned', 'EMD returned?', 'money', 'list'],
   ['commBase', 'Commission base', 'pay', 'money', 'calc', 'secret'],
+  // Each commission's "Paid on" (Luke, Oct 19): written by Finance when the
+  // payout is marked paid (cleared when it's undone) — read-only here ('fin').
   ['acqComm', 'Acq. manager commission', 'pay', 'money', 'calc', 'secret'],
+  ['acqPaidOn', 'Acq. commission paid on', 'pay', 'date', 'fin', 'secret'],
   ['dispoComm', 'Dispo commission', 'pay', 'money', 'calc', 'secret'],
+  ['dispoPaidOn', 'Dispo commission paid on', 'pay', 'date', 'fin', 'secret'],
   ['mgrComm', 'Manager commission', 'pay', 'money', 'calc', 'secret'],
+  ['mgrPaidOn', 'Manager commission paid on', 'pay', 'date', 'fin', 'secret'],
   ['override', 'Mgmt override', 'pay', 'money', 'calc', 'secret'],
+  ['overridePaidOn', 'Override paid on', 'pay', 'date', 'fin', 'secret'],
   ['tcComm', 'TC commission', 'pay', 'money', 'calc', 'secret'],
+  ['tcPaidOn', 'TC commission paid on', 'pay', 'date', 'fin', 'secret'],
   ['grossProfit', 'Gross profit', 'pay', 'money', 'calc', 'secret'],
   ['netProfit', 'Net profit', 'pay', 'money', 'calc', 'secret'],
   ['commPaid', 'Commission paid', 'pay', 'list', null, 'secret'],
   ['notes', 'Notes', 'notes', 'longtext'],
   // Luke, Oct 14: "Zillow link"; filled in automatically for new deals.
   ['links', 'Zillow link', 'notes', 'longtext'],
-].map(([key, label, group, type, calc, secret]) => ({ key, label, group, type, calc: calc === 'calc', secret: secret === 'secret' }));
+].map(([key, label, group, type, calc, secret]) => ({ key, label, group, type, calc: calc === 'calc', fin: calc === 'fin', secret: secret === 'secret' }));
 
 export const FIELD = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 export const SECRET_KEYS = FIELDS.filter((f) => f.secret).map((f) => f.key);

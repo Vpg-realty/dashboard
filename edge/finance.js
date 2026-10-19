@@ -4,9 +4,10 @@
 // approvals and payments (edge/finance.sql). Every action is checked against
 // the live lines, logged in edit_log (`finance.*`), and a deal whose lines
 // are all paid gets "Commission paid" = Yes in the tracker (logged in its
-// history as Finance) — undoing a payment sets it back to No.
+// history as Finance) — undoing a payment sets it back to No. Each paid part
+// also fills the deal's "<part> paid on" date (Oct 19), cleared on undo.
 import { compute } from '../src/deals/math.js';
-import { buildLines, lineKey, METHODS, isTcLine } from '../src/finance/lines.js';
+import { buildLines, lineKey, METHODS, isTcLine, PART_PAID_ON } from '../src/finance/lines.js';
 import { rowToDeal, getSetting, cancelTimes } from './deals.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -74,6 +75,22 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     }
   }
 
+  // What the deal sheet gets: each part's "Paid on" date (Luke, Oct 19 —
+  // set on pay, cleared on undo, the TC's too) and "Commission paid".
+  const sets = new Map();
+  const setOn = (deal, k, to) => {
+    const from = deal[k] ?? null;
+    if (from === to) return;
+    const m = sets.get(deal.id) || {};
+    m[k] = [from, to];
+    sets.set(deal.id, m);
+  };
+  if (action === 'pay' || action === 'unpay') {
+    for (const l of picked) {
+      const deal = all.deals.find((d) => d.id === l.dealId);
+      if (deal && PART_PAID_ON[l.part]) setOn(deal, PART_PAID_ON[l.part], action === 'pay' ? pay.paidOn : null);
+    }
+  }
   // "Commission paid" on the deal follows its acq / dispo / manager /
   // override lines — the TC is paid monthly, on its own (lines.js isTcLine).
   const touched = [...new Set(picked.filter((l) => !isTcLine(l)).map((l) => l.dealId))];
@@ -88,8 +105,9 @@ export function plan(all, body, user, now = new Date().toISOString()) {
     const want = action === 'pay' ? (allPaid ? 'YES' : 'NO') : action === 'unpay' ? 'NO' : null;
     const cur = String(deal.commPaid || '').toUpperCase() || null;
     if (!want || cur === want) continue;
-    st.push({ commPaid: { id, from: deal.commPaid ?? null, to: want } });
+    setOn(deal, 'commPaid', want);
   }
+  for (const [id, set] of sets) st.push({ deal: { id, set } });
   return { statements: st, lines: picked.map((l) => l.key), action, pay };
 }
 
@@ -97,14 +115,16 @@ export async function run(db, planned, user, now = new Date().toISOString()) {
   const batch = [];
   for (const s of planned.statements) {
     if (Array.isArray(s)) { batch.push(db.prepare(s[0]).bind(...s[1])); continue; }
-    const { id, from, to } = s.commPaid;
+    const { id, set } = s.deal;
     const row = await db.prepare('SELECT data FROM deals WHERE id = ?').bind(id).first();
     if (!row) continue;
     const data = JSON.parse(row.data);
-    data.commPaid = to;
+    for (const [k, [from, to]] of Object.entries(set)) {
+      if (to == null) delete data[k]; else data[k] = to;
+      batch.push(db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, now, user.email, `${user.name} (Finance)`, k, JSON.stringify(from), JSON.stringify(to)));
+    }
     batch.push(db.prepare('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(JSON.stringify(data), now, `${user.name} (Finance)`, id));
-    batch.push(db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, now, user.email, `${user.name} (Finance)`, 'commPaid', JSON.stringify(from), JSON.stringify(to)));
   }
   batch.push(db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)')
     .bind(now, user.email, `finance.${planned.action}`, JSON.stringify({ lines: planned.lines, ...(planned.pay || {}) })));

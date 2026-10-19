@@ -204,7 +204,7 @@ function LineTable({ rows, coming, onOpen, run, busy }) {
   );
 }
 
-export default function PayoutsView() {
+export default function PayoutsView({ embedded = false }) {
   const f = useFinance();
   const { open, panel } = useDealPanel();
   const { query } = useLocation();
@@ -252,13 +252,17 @@ export default function PayoutsView() {
   const n = (x, one, many = `${one}s`) => `${x} ${x === 1 ? one : many}`;
 
   return (
-    <div className="max-w-[1500px] mx-auto">
-      <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC's monthly bonus counts every deal that closed or was cancelled (after Dispo Active) that month." right={<>
-        <SearchSelect className="w-52" value={who} onChange={(v) => setQuery({ who: v || null })} placeholder="Everyone" options={f.people.map((p) => ({ value: p, label: p }))} />
-        <Search value={q} onChange={setQ} placeholder="Search address or person…" />
-      </>} />
+    <div className={embedded ? '' : 'max-w-[1500px] mx-auto'}>
+      {!embedded && <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC's monthly bonus counts every deal that closed or was cancelled (after Dispo Active) that month." />}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-[13px] text-zinc-600">Approve, then mark paid — the deal sheet gets each commission's Paid on date and Commission paid. The TC is paid monthly.</span>
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          <SearchSelect className="w-52" value={who} onChange={(v) => setQuery({ who: v || null })} placeholder="Everyone" options={f.people.map((p) => ({ value: p, label: p }))} />
+          <Search value={q} onChange={setQ} placeholder="Search address or person…" />
+        </span>
+      </div>
 
-      <CompanyOutlook deals={f.deals} rules={f.rules} />
+      {!embedded && <CompanyOutlook deals={f.deals} rules={f.rules} />}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MoneyTile label="To approve" accent="amber" value={money(owedAmt)} sub={n(deals.filter((d) => d.toApprove).length, 'deal')} tone={owedAmt ? 'text-[#B54708]' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
         <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={n(deals.filter((d) => !d.toApprove).length, 'deal')} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />

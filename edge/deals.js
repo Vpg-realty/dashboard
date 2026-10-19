@@ -152,6 +152,7 @@ export function applyEdit(deal, body, user) {
   for (const [k, v] of Object.entries(body.fields || {})) {
     const f = FIELD[k];
     if (!f || f.calc || f.type === 'ghl') return { error: `${k} can't be set` };
+    if (f.fin) return { error: `${f.label} is set by Finance when the payout is marked paid` };
     if (f.secret && !owner) return { error: `${f.label} is owners only` };
     const c = clean(k, v);
     if (c.error) return c;
