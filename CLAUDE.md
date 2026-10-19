@@ -251,7 +251,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   pace, or off pace … throughout the whole site"): the number boxes, the
   Revenue card and every "This week by rep" cell are tinted green / amber /
   red by pace (`paceBadge`: ≥ 100% / ≥ 70% of where they should be by
-  now), like the TV boxes and the Team pages already were; each bar is
+  now; Oct 19: judged against the same whole number "Should be at N by now"
+  shows — at or above it is On pace, none due yet is On pace (`paceRatio`;
+  the old 5% floor made Monday's "1 / 45 · should be at 1" read Behind)),
+  like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
 - **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
@@ -1667,6 +1670,32 @@ automatic requests that never hand out a zip twice.
   low, `lowLeft` requests' worth) → Edit over time (tier 3 mixing in,
   untiered / hand-picked zips, paused / excluded, recent sheet pulls, focus
   cities not set), plus a "When the data looks bad — what to do" table.
+
+## Usage & cost — check every time (Luke, Oct 19)
+
+Luke: "keep the usage at top of mind … I need to ensure that I am not
+overpaying … a quick check step each time". The account is on Cloudflare
+**Workers Paid** since Oct 19 ($5/month: 25B D1 rows read, 50M rows
+written, 10M Functions requests, 5 GB included; overage $0.001 / M reads,
+$1 / M writes, $0.30 / M requests). Before that the free plan's 5M reads a
+day ran out (the Alerts sync, see Alerts) and took every /api call down.
+- **`npm run usage`** (`scripts/usage.mjs`, read-only; in a Claude Code
+  session with `NODE_USE_ENV_PROXY=1`): D1 reads / writes and Functions
+  requests per day for 7 days, this month so far, a 30-day estimate against
+  the plan, the estimated bill, database size, the queries that read the
+  most rows today, and the owners' Claude chat spend this month. Oct 19
+  baseline: ~15M reads / month estimated (0.06% of the plan), $5.00 / month,
+  nothing over.
+- **Every change that adds a query, a poll or a per-run step**: estimate
+  its rows per day (rows scanned × runs: a deploy runs ~96× a day, a
+  per-minute poll ~1,440× per open tab) before shipping, run `npm run
+  usage` after it deploys, and tell Luke the estimate and the result in
+  plain words. Rules of thumb: index what per-run / per-poll queries filter
+  on (check with EXPLAIN QUERY PLAN), read once per run rather than once per
+  sub-account, write only rows that changed, don't poll from hidden tabs,
+  and keep polls to the small query the badge needs.
+- Claude API spend (messaging review, lead spotting, chat) is on the
+  Anthropic console; the chat's own spend is capped by settings `chat_cap`.
 
 ## Refresh cadence
 
