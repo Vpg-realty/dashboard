@@ -31,7 +31,7 @@ function Tile({ label, v, t, frac, money, na, sub, subText }) {
   const want = t * frac;
   // Whole tile in the pace colour, like the Team table cells.
   const tone = na ? null : paceTone(v, t, frac);
-  const word = !tone ? null : tone.key === 'good' ? (frac < 1 ? 'ON PACE' : 'HIT') : tone.key === 'close' ? 'CLOSE' : (frac < 1 ? 'BEHIND' : 'MISSED');
+  const word = !tone ? null : tone.key === 'good' ? (frac < 1 ? 'ON PACE' : 'HIT') : tone.key === 'close' ? (frac < 1 ? 'NEAR PACE' : 'CLOSE') : (frac < 1 ? 'BEHIND' : 'MISSED');
   return (
     <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${tone ? tone.box : 'bg-white border-zinc-300/80'}`}>
       <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${tone ? tone.text : 'text-zinc-500'} opacity-80`}>{label}{money ? ` / ${kMoney(t).slice(1)}` : ''}</div>

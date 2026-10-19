@@ -21,14 +21,18 @@ export function GhlChip({ g }) {
   return <StageChip stage={g.stage} prefix="GHL · " />;
 }
 
-export function PageHead({ title, sub, right }) {
+// The standard navy band (Luke's site map, Oct 19: one filter band per page,
+// like Pipeline's): eyebrow, title, a line under it, the controls on the right.
+export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
   return (
-    <div className="flex flex-wrap items-end gap-x-4 gap-y-2 mb-4">
+    <div className="shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">{titleCase(title)}</h1>
-        {sub && <div className="text-zinc-500 mt-0.5">{sub}</div>}
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{eyebrow}</div>
+        <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{titleCase(title)}</h1>
+        {sub && <div className="text-[12.5px] text-white/70 mt-0.5 [&_*]:!text-white/70">{sub}</div>}
       </div>
-      <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>
+      {/* A navy primary button reads tan on the band, like Pipeline's picked switch. */}
+      {right && <div className="ml-auto flex flex-wrap items-center gap-2 [&_.bg-navy-700]:!bg-tan-500 [&_.bg-navy-700]:!text-navy-900 [&_.bg-navy-700]:font-semibold [&_.bg-navy-700:hover]:!bg-tan-400">{right}</div>}
     </div>
   );
 }

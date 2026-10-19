@@ -18,7 +18,7 @@ import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
 const pct = (x) => `${Math.round(x * 100)}%`;
-const onMap = (patch) => navigate(`/territory/who?${new URLSearchParams(patch)}`);
+const onMap = (patch) => navigate(`/territory/map?${new URLSearchParams(patch)}`);
 // Season columns get a faint tint so the risky states stand out down the grid.
 const COL_TINT = { winter: 'bg-sky-50/70', summer: 'bg-orange-50/70', none: '' };
 
@@ -80,7 +80,6 @@ export default function RepsStates() {
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Reps × states</h1>
         <div className="text-zinc-500 text-[13px]">Where every rep works, how each state is doing this month, and what to change. Click a rep to filter the review; click a state to open it on the map.</div>
       </div>
 

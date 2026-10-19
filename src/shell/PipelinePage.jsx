@@ -31,6 +31,12 @@ import { formatCompactCurrency } from '../utils/format.js';
 import { titleCase } from './titleCase.js';
 
 const norm = (x) => String(x || '').trim().toLowerCase();
+// "Viewing" is remembered across Contracted Deals, Opportunities and the
+// Calendar for this tab (Luke, Oct 19: one filter band that stays put).
+const WHO_KEY = 'vpg.pipeline.who';
+const storedWho = () => { try { return sessionStorage.getItem(WHO_KEY); } catch { return null; } };
+const storeWho = (v) => { try { if (v) sessionStorage.setItem(WHO_KEY, v); else sessionStorage.removeItem(WHO_KEY); } catch { /* private mode */ } };
+const pickWho = (v) => { storeWho(v); setQuery({ who: v, st: null }); };
 const MARKET_NAME = Object.fromEntries(MARKETS.map((m) => [m.id, m.name]));
 
 export function PipelineOpps() { return <PipelinePage mode="opps" />; }
@@ -71,7 +77,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).
   const dflt = mineId ? 'me' : scoped && !teamOpps ? '' : 'all';
-  const asked = query.get('who') || dflt;
+  const asked = query.get('who') || storedWho() || dflt;
   const outside = !['all', 'me', 'pod'].includes(asked) && !(canPick && pickable.some((r) => r.id === asked));
   const raw = (scoped && asked === 'all' && !teamOpps) || (asked === 'pod' && !pod) || outside ? dflt : asked;
   const picked = !['all', 'me', 'pod'].includes(raw) && canPick && pickable.some((r) => r.id === raw) ? raw : null;
@@ -109,11 +115,12 @@ export default function PipelinePage({ mode = 'deals' }) {
   const inScope = (repId) => (rep ? repId === rep.id : podOnly ? podReps.includes(repId) : true);
   // Closed / cancelled in the tracker but still open in GHL: left out.
   const ended = endedByAddr(s);
-  const keep = (d, p) => !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const needle = q.trim().toLowerCase();
+  const hit = (x) => !needle || String(x.address || x.name || '').toLowerCase().includes(needle);
+  const keep = (d, p) => hit(d) && !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const ghlAddr = new Set(PAIRS.flatMap((p) => (p.deals || []).map((d) => addrKey(d.address || d.name))));
   const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !addrKeys(t.address).some((k) => ghlAddr.has(k))).map(trackerOnly)
-    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? podReps.includes(x.repId) : true) && (!st || x.marketId === st)) : null;
+    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? podReps.includes(x.repId) : true) && (!st || x.marketId === st) && hit(x)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);
   const calBlocked = view === 'cal' && !oppScope;
@@ -137,7 +144,7 @@ export default function PipelinePage({ mode = 'deals' }) {
 
   const seg = (v, label) => {
     const on = v === 'all' ? !who && raw === 'all' : v === 'pod' ? podOnly : raw === 'me' && !!who;
-    return <button key={v} type="button" onClick={() => setQuery({ who: v === dflt ? null : v, st: null })} aria-pressed={on}
+    return <button key={v} type="button" onClick={() => pickWho(v === dflt ? null : v)} aria-pressed={on}
       className={`h-7 px-3 rounded-md text-[13px] font-semibold ${on ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{label}</button>;
   };
   const chip = (id, label, n) => (
@@ -159,9 +166,9 @@ export default function PipelinePage({ mode = 'deals' }) {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {/* In the band, not the state row, so the columns below sit at the
               same height on both tabs (Luke, Oct 16). */}
-          {isOpps && oppScope && (
+          {(isOpps ? oppScope : !calBlocked) && (
             <label className="relative">
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search name or address…"
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder={isOpps ? 'Search name or address…' : 'Search address…'}
                 className="h-8 w-60 rounded-md bg-white/10 text-white placeholder:text-white/50 ring-1 ring-inset ring-white/25 pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-tan-400" />
               <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5 top-1.5 !text-white/60 hover:!text-white hover:!bg-white/10" />
             </label>
@@ -178,7 +185,7 @@ export default function PipelinePage({ mode = 'deals' }) {
             </span>
           )}
           {canPick && (
-            <select aria-label="Pick a person" value={picked || ''} onChange={(e) => setQuery({ who: e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'), st: null })}
+            <select aria-label="Pick a person" value={picked || ''} onChange={(e) => pickWho(e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'))}
               className={`h-[34px] rounded-lg px-2 text-[13px] font-semibold ${picked ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'bg-transparent text-white ring-1 ring-inset ring-white/35 hover:bg-white/10'}`}>
               <option value="" className="text-navy-900">Pick a person…</option>
               {pickable.map((r) => <option key={r.id} value={r.id} className="text-navy-900">{r.name}</option>)}

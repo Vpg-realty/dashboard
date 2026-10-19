@@ -1,4 +1,4 @@
-// Territory › Get zips (reps, and managers for their own states; Luke,
+// Get Zips (its own sidebar entry since Oct 19; reps, and managers for their own states; Luke,
 // Oct 14: "a simple way for reps to search or ask for zips"): request zips
 // (automatic — 10 at a time, 3 times a week in each state, Active states only), search any
 // zip / county / city in their states, see what they hold and for how long,
@@ -105,6 +105,7 @@ export default function MyZips() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [flagging, setFlagging] = useState(null);
+  const [showRules, setShowRules] = useState(false);
   const me = z.data?.me;
   const byState = useMemo(() => {
     const m = new Map();
@@ -137,9 +138,15 @@ export default function MyZips() {
 
   return (
     <div className="max-w-[1200px] mx-auto flex flex-col gap-5">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-navy-700">Get Zips</h1>
-        <div className="text-zinc-500 text-[13px]">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Ask for zips to pull agent data from. Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</div>
+      {/* The standard navy band (Luke's site map, Oct 19); the rules open
+          from ⓘ instead of a page of their own. */}
+      <div className="rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Get Zips{me.owner ? ' · as yourself' : ''}</div>
+          <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{(me.holds || []).length} zip{(me.holds || []).length === 1 ? '' : 's'} held · {left} request{left === 1 ? '' : 's'} left in {state || 'each state'} this week</h1>
+          <p className="text-[12.5px] text-white/70">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</p>
+        </div>
+        <button type="button" onClick={() => setShowRules(true)} className="ml-auto h-8 px-3 rounded-lg bg-tan-500 text-navy-900 text-[13px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.35)] hover:bg-tan-400">ⓘ The rules</button>
       </div>
 
       <Panel title="Request zips" right={<span className={`text-[12.5px] font-medium ${left ? 'text-navy-700' : 'text-red-700'}`}>{left} of {rules.perWeek} requests left in {state || 'each state'} this week · resets Monday</span>}>
@@ -211,6 +218,38 @@ export default function MyZips() {
           ))}
         </tbody></table>
       </Panel>
+      {showRules && <RulesDrawer items={z.data.ruleText || []} onClose={() => setShowRules(false)} />}
+    </div>
+  );
+}
+
+// How zips are handed out, in a side drawer (the same list as Territory ›
+// Rules & Data Health; owners change the numbers there).
+function RulesDrawer({ items, onClose }) {
+  const groups = [];
+  for (const r of items) {
+    let g = groups.find((x) => x.name === r.group);
+    if (!g) groups.push(g = { name: r.group, items: [] });
+    g.items.push(r);
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-navy-900/30" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} role="presentation">
+      <aside role="dialog" aria-label="Zip rules" onClick={(e) => e.stopPropagation()} className="h-full w-full max-w-[440px] overflow-y-auto bg-white shadow-2xl">
+        <div className="sticky top-0 flex items-center bg-navy-700 text-white px-5 py-3.5">
+          <h2 className="text-[16px] font-semibold">How Zips Are Handed Out</h2>
+          <button type="button" autoFocus onClick={onClose} aria-label="Close" className="ml-auto grid place-items-center w-8 h-8 rounded-full hover:bg-white/15 text-lg">×</button>
+        </div>
+        {groups.map((g) => (
+          <div key={g.name} className="px-5 py-4 border-b border-tan-100">
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-tan-700 mb-2">{g.name}</div>
+            <ul className="flex flex-col gap-1.5">
+              {g.items.map((r, i) => (
+                <li key={i} className="flex gap-2 text-[13.5px] text-zinc-800"><span className="mt-[7px] w-1.5 h-1.5 rounded-full shrink-0 bg-navy-600" />{r.text}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </aside>
     </div>
   );
 }

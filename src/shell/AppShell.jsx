@@ -307,7 +307,7 @@ export default function AppShell({ me }) {
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} />
       {!me.viewAs && <Welcome me={me} />}
-      {section.id === 'territory' && <AskClaude page={tab?.id?.startsWith('zip') || tab?.id === 'rules' ? 'zips' : 'territory'} />}
+      {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id === 'zips' || tab?.id === 'holds' || tab?.id === 'health' ? 'zips' : 'territory'} />}
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );
