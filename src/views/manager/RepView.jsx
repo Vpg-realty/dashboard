@@ -284,7 +284,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
             month: the week's number on top, the month underneath. A past
             period: that period's total against its target. */}
         {weekView ? (
-          <div className="grid grid-cols-7 gap-3">
+          <div className={`grid gap-3 ${self ? 'grid-cols-6' : 'grid-cols-7'}`}>
             <Tile label="Opps opened · week" v={wkN.opps} t={wkT.opps} frac={wkFrac} na={na('oppsM') && !!range} sub={monthSub('oppsM', T.oppsOpenedPerWeek * 4)} />
             <Tile label="Offers · week" v={wkN.offers} t={wkT.offers} frac={wkFrac} na={na('offersM') && !!range} sub={monthSub('offersM', T.offersPerWeek * 4)} />
             <Tile label="Contracts · week" v={wkN.contracts} t={wkT.contracts} frac={wkFrac} na={na('contractsM') && !!range} sub={monthSub('contractsM', T.contractsPerMonth)} />
@@ -302,7 +302,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
                 <Tile label="Projected · month" v={m.projected} t={T.revenuePerRepMonth} frac={paceFraction('month')} money subText={`closed ${kMoney(m.revenueM)} + assigned ${kMoney(m.assigned || 0)}`} />
               </>
             )}
-            <CancelTile v={wkN.cancels} na={na('cancelsM') && !!range} contracts={wkN.contracts} label="Cancels · week" subText={range ? (mtd && !mtd.untracked.has('cancelsM') ? `${mtd.cancelsM} ${mtd.label}` : 'month not on record') : `${m.cancelsM} this month`} />
+            {/* Reps see cancels in the By State table instead (Luke, Oct 19: fewer tiles on top). */}
+            {!self && <CancelTile v={wkN.cancels} na={na('cancelsM') && !!range} contracts={wkN.contracts} label="Cancels · week" subText={range ? (mtd && !mtd.untracked.has('cancelsM') ? `${mtd.cancelsM} ${mtd.label}` : 'month not on record') : `${m.cancelsM} this month`} />}
             <SpeedTile ok={speed.ok} total={speed.total} subText={speedSub} missing={range ? '—' : 'not checked yet'} />
           </div>
         ) : (

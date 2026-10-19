@@ -591,7 +591,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   when picked). Used on Finance and Who Works Where's At a Glance so far.
   Who Works Where's map controls (Colour by + All reps) sit on the map, its
   key under it. My Scorecard's bottom "Open your Full Breakdown" bar is gone
-  (the Full Breakdown tab is the way in).
+  (the Full Breakdown tab is the way in). Reps' own Full Breakdown has no week
+  Cancels tile (cancels show in its By State table); managers' Rep view keeps it.
 - **One dropdown everywhere** (Luke, Oct 19: "match the rest of the website
   dropdowns … consistent throughout the whole site"): the plain `<select>`s
   on Zips & Holds, Get Zips, Alerts (add a task), Who Works Where, the Rep
