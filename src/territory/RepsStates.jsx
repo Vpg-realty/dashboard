@@ -1,14 +1,14 @@
-// Territory › Reps × states (Luke, Oct 14: "a new tab for reps x states and
-// states charts so we can reference them there"): the team structure review
-// (where each person is at and what to move), the reps × states grid and the
-// states reference table. Same numbers as Who works where (useModel.js).
+// Territory › Coverage (Luke, Oct 19 — was Reps × States, Oct 14): one review
+// list (Who Works Where's Needs Review and the team structure review merged,
+// `coverageReview`), the reps × states grid and the states reference table.
+// Same numbers as Who Works Where (useModel.js).
 import { useRef, useState } from 'react';
 import Floating from '../shell/Floating.jsx';
 import { navigate } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { useTerritoryModel } from './useModel.js';
-import { structureReview, STRUCTURE_RULES } from './structure.js';
-import { SEVERITY } from './model.js';
+import { coverageReview, STRUCTURE_RULES } from './structure.js';
+import { SEVERITY, FLAG_RULES } from './model.js';
 import { RepDot } from './WhoWorksWhere.jsx';
 import { StatusChip, SeasonChip } from './badges.jsx';
 import { SEASON_LOOK, seasonOf, statusOf } from './status.js';
@@ -43,10 +43,23 @@ function RepsCell({ reps }) {
 
 function Review({ items, focus, setFocus }) {
   const [rules, setRules] = useState(false);
-  const shown = focus ? items.filter((f) => f.rep === focus) : items;
+  const [sev, setSev] = useState(null);
+  const byRep = focus ? items.filter((f) => f.rep === focus || (!f.rep && f.state && f.reps?.includes(focus))) : items;
+  const shown = sev ? byRep.filter((f) => f.sev === sev) : byRep;
+  const count = (k) => byRep.filter((f) => f.sev === k).length;
+  // Every rule both lists check, once.
+  const allRules = [...STRUCTURE_RULES, ...FLAG_RULES.filter(([k]) => !['quiet', 'winter', 'crowded', 'dispo', 'open', 'paused'].includes(k))];
   return (
-    <Panel title="Team structure review" sub={`${shown.length} finding${shown.length === 1 ? '' : 's'} from this month's numbers · each with a suggested move`} right={<span className="flex items-center gap-3">{focus && <button onClick={() => setFocus(null)} className="text-[12.5px] text-zinc-500 hover:text-navy-700">Show everyone ×</button>}<button onClick={() => setRules((v) => !v)} className="text-[12.5px] text-navy-700 hover:underline">{rules ? 'Hide' : 'What we check'}</button></span>}>
-      {rules && <div className="px-5 py-3 border-b border-tan-100 bg-tan-50/50 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px]">{STRUCTURE_RULES.map(([k, l, t]) => <div key={k}><span className="font-semibold text-navy-800">{l}:</span> <span className="text-zinc-600">{t}</span></div>)}</div>}
+    <Panel title="What to Review" sub={`${shown.length} item${shown.length === 1 ? '' : 's'} from this month's numbers and the territory sheet`} right={<span className="flex items-center gap-3">{focus && <button onClick={() => setFocus(null)} className="text-[12.5px]">Show everyone ×</button>}<button onClick={() => setRules((v) => !v)} className="text-[12.5px]">{rules ? 'Hide' : 'What we check'}</button></span>}>
+      <div className="flex flex-wrap items-center gap-1.5 px-5 py-2.5 border-b border-tan-100">
+        {[[null, 'All', byRep.length], ['high', SEVERITY.high.label, count('high')], ['med', SEVERITY.med.label, count('med')], ['info', SEVERITY.info.label, count('info')]].map(([k, l, n]) => (
+          <button key={l} onClick={() => setSev(k)} aria-pressed={sev === k} className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12.5px] font-medium ring-1 ring-inset ${sev === k ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-tan-50'}`}>
+            {k && <span className={`w-2 h-2 rounded-full ${SEVERITY[k].dot}`} />}{l} <span className="tabular-nums opacity-70">{n}</span>
+          </button>
+        ))}
+        <span className="ml-2 text-[12px] text-zinc-500">Click a rep in the grid below to see only theirs.</span>
+      </div>
+      {rules && <div className="px-5 py-3 border-b border-tan-100 bg-tan-50/50 grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px]">{allRules.map(([k, l, t]) => <div key={k}><span className="font-semibold text-navy-800">{l}:</span> <span className="text-zinc-600">{t}</span></div>)}</div>}
       <ul className="divide-y divide-tan-100">
         {shown.map((f, i) => (
           <li key={i} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 px-5 py-3">
@@ -54,7 +67,7 @@ function Review({ items, focus, setFocus }) {
             <div className="min-w-0">
               <div className="font-medium text-zinc-900">{f.title}</div>
               <div className="text-[13px] text-zinc-600">{f.facts}</div>
-              <div className="mt-1 text-[13px] text-navy-800"><span className="font-semibold">Suggested move:</span> {f.move}</div>
+              {f.move && <div className="mt-1 text-[13px] text-navy-800"><span className="font-semibold">Suggested move:</span> {f.move}</div>}
             </div>
             <div className="flex flex-col items-end gap-1">
               <span className={`${chip} ${SEVERITY[f.sev].chip}`}>{SEVERITY[f.sev].label}</span>
@@ -63,7 +76,7 @@ function Review({ items, focus, setFocus }) {
             </div>
           </li>
         ))}
-        {!shown.length && <li className="px-5 py-6 text-center text-emerald-700">✓ No structure issues found this month.</li>}
+        {!shown.length && <li className="px-5 py-6 text-center text-emerald-700">✓ Nothing to review.</li>}
       </ul>
     </Panel>
   );
@@ -74,13 +87,14 @@ export default function RepsStates() {
   const [focus, setFocus] = useState(null);
   if (status === 'error') return <div className="py-16 text-center text-zinc-500">{error}</div>;
   if (!m) return <div className="py-16 text-center text-zinc-400">Loading territory…</div>;
-  const review = structureReview(m);
+  // A state finding counts for every rep working the state (rep filter).
+  const review = coverageReview(m).map((f) => (f.state && !f.rep ? { ...f, reps: m.byAbbr.get(f.state)?.ghl.map((r) => r.id) || [] } : f));
   const worked = m.states.filter((s) => s.ghl.length).sort((a, b) => b.ghl.length - a.ghl.length || b.act.opps - a.act.opps);
 
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div>
-        <div className="text-zinc-500 text-[13px]">Where every rep works, how each state is doing this month, and what to change. Click a rep to filter the review; click a state to open it on the map.</div>
+        <div className="text-zinc-500 text-[13px]">Where every rep works, how each state is doing this month, and what to change — one list for everything the map and the team structure checks flag.</div>
       </div>
 
       <Review items={review} focus={focus} setFocus={setFocus} />

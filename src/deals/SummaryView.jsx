@@ -62,8 +62,10 @@ function Card({ title, sub, right, children }) {
 
 // Company overview: the deal-flow and money bands, what's coming in and the
 // year by month (the Top 5 boxes went Oct 19 — Luke: the side rail has them).
-function Overview({ data, then, owner, compareLabel }) {
+function Overview({ data, then, owner, compareLabel, deals, onOpenDeal }) {
   const { now } = data;
+  const { query } = useLocation();
+  const mo = data.months?.find((m) => m.key === query.get('mo')) || null;
   const t = (k) => (then ? then[k] : null);
   const maxNet = Math.max(1, ...(data.months || []).map((m) => m.net));
   return (
@@ -95,19 +97,63 @@ function Overview({ data, then, owner, compareLabel }) {
         </div>
       )}
       {data.months && (
-        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals by closing date (COE) · click a month to open it" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
+        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals by closing date (COE) · click a month for its closings" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
           <div className="px-5 pt-4 pb-3 grid grid-cols-12 gap-2 items-end h-[190px]">
             {data.months.map((m, i) => (
-              <button key={m.key} type="button" onClick={() => setQuery({ p: `m:${m.key}`, by: null })} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
-                <span className="text-[11.5px] tabular-nums text-zinc-600 group-hover:text-navy-800">{m.net ? compact(m.net) : ''}</span>
-                <span className="w-full max-w-[56px] rounded-t-md bg-navy-600 group-hover:bg-navy-800" style={{ height: `${Math.max(m.net ? 4 : 0, (m.net / maxNet) * 120)}px` }} />
-                <span className="w-full border-t border-tan-200 pt-1 text-center text-[12px] text-zinc-500">{MONTH[i].slice(0, 3)}</span>
+              <button key={m.key} type="button" onClick={() => setQuery({ mo: mo?.key === m.key ? null : m.key })} aria-pressed={mo?.key === m.key} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
+                <span className={`text-[11.5px] tabular-nums group-hover:text-navy-800 ${mo?.key === m.key ? 'text-navy-900 font-semibold' : 'text-zinc-600'}`}>{m.net ? compact(m.net) : ''}</span>
+                <span className={`w-full max-w-[56px] rounded-t-md ${mo?.key === m.key ? 'bg-tan-500' : mo ? 'bg-navy-300 group-hover:bg-navy-600' : 'bg-navy-600 group-hover:bg-navy-800'}`} style={{ height: `${Math.max(m.net ? 4 : 0, (m.net / maxNet) * 120)}px` }} />
+                <span className={`w-full border-t border-tan-200 pt-1 text-center text-[12px] ${mo?.key === m.key ? 'text-navy-900 font-semibold' : 'text-zinc-500'}`}>{MONTH[i].slice(0, 3)}</span>
               </button>
             ))}
           </div>
         </Card>
       )}
+      {mo && <MonthClosings month={mo} deals={deals} owner={owner} onOpenDeal={onOpenDeal} />}
     </div>
+  );
+}
+
+// Every property closed in the month picked on the chart (Luke, Oct 19:
+// "a list of all properties closed in that month below with key info").
+const CLOSE_COLS = [['address', 'Property'], ['acq', 'Acq. manager'], ['state', 'State'], ['coe', 'COE'], ['grossAssign', 'Gross assignment'], ['netAssign', 'Net assignment'], ['netProfit', 'Net profit']];
+const shortDay = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
+function MonthClosings({ month, deals, owner, onOpenDeal }) {
+  const list = deals.filter((d) => d.status === 'COMPLETE' && String(d.coe || '').startsWith(month.key)).sort((a, b) => String(a.coe).localeCompare(String(b.coe)));
+  const cols = CLOSE_COLS.filter(([k]) => owner || k !== 'netProfit');
+  const tot = (k) => list.reduce((t, d) => t + (Number(d[k]) || 0), 0);
+  const isMoneyCol = (k) => ['grossAssign', 'netAssign', 'netProfit'].includes(k);
+  return (
+    <Card title={`Closed in ${month.name} ${month.key.slice(0, 4)}`} sub={`${list.length} propert${list.length === 1 ? 'y' : 'ies'} · click one to open the deal`} right={<button type="button" onClick={() => setQuery({ mo: null })} className="text-[12.5px] font-medium px-2">Close ×</button>}>
+      {!list.length ? <div className="px-5 py-8 text-center text-zinc-500">Nothing closed in {month.name}.</div> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[14px]">
+            <thead className="text-[12px] text-zinc-500 bg-tan-50/60">
+              <tr>{cols.map(([k, l], i) => <th key={k} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium whitespace-nowrap ${isMoneyCol(k) ? 'text-right' : ''}`}>{l}</th>)}</tr>
+            </thead>
+            <tbody>
+              {list.map((d) => (
+                <tr key={d.id} onClick={() => onOpenDeal(d.id)} className="border-t border-tan-100 cursor-pointer hover:bg-tan-50">
+                  <td className="pl-5 px-3 py-2.5 font-medium text-navy-800">{d.address || '—'}</td>
+                  <td className="px-3 py-2.5">{d.acq ? <Person name={d.acq} /> : '—'}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">{d.state || '—'}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap tabular-nums">{shortDay(d.coe)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{money(d.grossAssign || 0)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-navy-900">{money(d.netAssign || 0)}</td>
+                  {owner && <td className={`px-3 py-2.5 text-right tabular-nums ${d.netProfit < 0 ? 'text-red-700 font-semibold' : 'text-emerald-700'}`}>{money(d.netProfit || 0)}</td>}
+                </tr>
+              ))}
+              <tr className="border-t-2 border-navy-100 bg-navy-50/50 font-semibold text-navy-900">
+                <td className="pl-5 px-3 py-2.5" colSpan={4}>Total · {list.length} closed</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{money(tot('grossAssign'))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{money(tot('netAssign'))}</td>
+                {owner && <td className="px-3 py-2.5 text-right tabular-nums">{money(tot('netProfit'))}</td>}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -238,7 +284,7 @@ export default function SummaryView() {
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <Rail view={view} counts={counts} />
         <div className="min-w-0">
-          {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} />}
+          {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} />}
           {(view === 'acq' || view === 'dispo' || view === 'state') && <GroupTable kind={view} rows={data.groups[view]} prev={then ? data.prevGroups[view] : null} now={data.now} owner={owner} />}
           {view === 'months' && <Months data={data} owner={owner} />}
         </div>

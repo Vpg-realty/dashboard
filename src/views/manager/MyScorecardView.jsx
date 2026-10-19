@@ -12,13 +12,14 @@ import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import RepView from './RepView.jsx';
+import FunnelByState from './FunnelByState.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
 import { paceChip } from '../../shell/panelStyle.js';
 import LineChart from './LineChart.jsx';
 import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
-import { T, metrics, repPairs, teamMetrics, scoreParts, scoreTone, paceTone, mostPointsLeft, STEPS, rate, pct } from './metrics.js';
+import { T, metrics, repPairs, teamMetrics, scoreParts, scoreTone, paceTone, mostPointsLeft, STEPS, rate } from './metrics.js';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 const card = 'rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
@@ -124,17 +125,14 @@ function slowTexts(pairs) {
   }).sort((a, b) => b.at - a.at);
 }
 
-// A list of flagged deals / texts: the first 3, then "Show all N" opens the
-// rest in place (Luke, Oct 14: reps couldn't see what "+9 more" were).
-const SHOW = 3;
+// A list of flagged deals / texts — every one (Luke, Oct 19: "why do you not
+// show all things"); a long list scrolls inside the row.
 function BadList({ bad, total }) {
-  const [open, setOpen] = useState(false);
-  const shown = open ? bad : bad.slice(0, SHOW);
   const hidden = total - bad.length; // flagged but not kept (25 per state)
   return (
     <>
-      <ul className="mt-1 space-y-0.5 text-[13.5px]">
-        {shown.map((b, i) => {
+      <ul className={`mt-1 space-y-0.5 text-[13.5px] ${bad.length > 12 ? 'max-h-[19rem] overflow-y-auto pr-2' : ''}`}>
+        {bad.map((b, i) => {
           // Deals open their GHL opportunity in a new tab (Luke, Oct 15).
           const url = issueUrl(b);
           return (
@@ -145,13 +143,26 @@ function BadList({ bad, total }) {
           );
         })}
       </ul>
-      {open && hidden > 0 && <div className="mt-1 text-[12.5px] text-zinc-500">…and {hidden} more like these (only the first 25 per state are listed).</div>}
-      {bad.length > SHOW && (
-        <button onClick={() => setOpen((v) => !v)} className="mt-1.5 text-[13px] font-semibold text-navy-700 hover:text-navy-900 hover:underline">
-          {open ? 'Show less ▴' : `Show all ${total} ▾`}
-        </button>
-      )}
+      {hidden > 0 && <div className="mt-1 text-[12.5px] text-zinc-500">…and {hidden} more like these (only the first 25 per state are listed).</div>}
     </>
+  );
+}
+
+// Messaging is graded from several checks; each one shows with its numbers
+// and the team standard, so nothing behind the grade is hidden.
+function MsgParts({ parts }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5 text-[12.5px]">
+      {parts.map((x) => {
+        const r = x.total ? x.ok / x.total : null;
+        const ok = r == null || r >= (x.target || 0);
+        return (
+          <span key={x.key} className={`rounded-md border px-2 py-0.5 ${r == null ? 'border-zinc-200 bg-white text-zinc-500' : ok ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+            {x.label}: {r == null ? 'nothing to check' : `${x.ok} of ${x.total} (${Math.round(r * 100)}%)`} · standard {Math.round((x.target || 0) * 100)}%{x.pending ? ` · ${x.pending} waiting on review` : ''}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -169,7 +180,7 @@ function FixList({ pairs, monday, crm, manual, m }) {
     const byManager = Array.isArray(manual) && manual[i] != null;
     if (g === 2) { good.push(it.short); return; }
     const bad = byManager ? [] : d?.bad || [];
-    rows.push({ key: it.key, label: it.label, help: it.help, g, bad, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : '' });
+    rows.push({ key: it.key, label: it.label, help: it.help, g, bad, parts: byManager ? null : d?.parts, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : d?.badN ? `${d.badN} to look at` : '' });
   });
   // Speed to lead is the sixth CRM item (Luke, Oct 16): below the standard,
   // the texts behind it are listed here too.
@@ -196,12 +207,13 @@ function FixList({ pairs, monday, crm, manual, m }) {
             </span>
           ))}
         </div>
-        {rows.map(({ key, label, help, g, bad, total, note }) => (
+        {rows.map(({ key, label, help, g, bad, parts, total, note }) => (
           <div key={key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
             <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
             <div className="min-w-0 flex-1">
-              <div className="font-semibold text-zinc-900">{label} <span className="font-normal text-zinc-500">· {note}</span></div>
-              {bad.length > 0 ? <BadList bad={bad} total={total} /> : <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}
+              <div className="font-semibold text-zinc-900">{label}{note && <span className="font-normal text-zinc-500"> · {note}</span>}</div>
+              {parts?.length > 0 && <MsgParts parts={parts} />}
+              {bad.length > 0 ? <BadList bad={bad} total={total} /> : !parts?.length && <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}
             </div>
           </div>
         ))}
@@ -216,86 +228,13 @@ function FixList({ pairs, monday, crm, manual, m }) {
   );
 }
 
-// Where it leaks, by state (Luke, Oct 19 — option C of the mock-ups): this
-// month's funnel with each of the rep's states as a shade of navy, next to
-// the steps that fall below the team's rate, ranked by how many deals each
-// gap costs ("5 more offers would close the gap").
-const SHADES = ['#1b385f', '#4a6a94', '#8aa3c4', '#b9c8dc', '#d9e2ee', '#eef2f8'];
-const STEP_KEYS = [['convosM', 'New conversations'], ['oppsM', 'Opps'], ['offersM', 'Offers'], ['contractsM', 'Contracts']];
-const UNIT = { oppsM: ['opp', 'opps'], offersM: ['offer', 'offers'], contractsM: ['contract', 'contracts'] };
+// This month's funnel by state + where each state leaks (FunnelByState.jsx).
 function LeakByState({ rep }) {
   const pairs = repPairs(rep.id);
-  const name = (id) => MARKETS.find((x) => x.id === id)?.name || id;
-  const states = pairs.map((p) => ({ id: p.marketId, name: name(p.marketId), m: metrics([p]) }))
+  const states = pairs.map((p) => ({ id: p.marketId, name: MARKETS.find((x) => x.id === p.marketId)?.name || p.marketId, m: metrics([p]) }))
     .sort((a, b) => (b.m.convosM || 0) - (a.m.convosM || 0));
-  if (!states.length) return null;
-  const total = metrics(pairs);
   const team = teamMetrics();
-  const teamRates = STEPS.map((s) => rate(team, s));
-  const top = Math.max(1, total.convosM || 0);
-  // The rep's own weakest step (furthest below the team), for the outline.
-  const rel = STEPS.map((s, i) => { const r = rate(total, s); return r == null || !teamRates[i] ? 1 : r / teamRates[i]; });
-  const leakI = rel.indexOf(Math.min(...rel));
-  const gaps = states.flatMap((st) => STEPS.map((s, i) => {
-    const from = st.m[s.from] || 0; const to = st.m[s.to] || 0; const tr = teamRates[i];
-    if (!from || tr == null) return null;
-    const r = to / from;
-    if (r >= tr) return null;
-    return { st, s, i, r, from, to, tr, short: Math.max(1, Math.ceil(tr * from - to)) };
-  })).filter(Boolean).sort((a, b) => b.short - a.short || a.r / a.tr - b.r / b.tr).slice(0, 5);
-  const shade = (i) => SHADES[Math.min(i, SHADES.length - 1)];
-  return (
-    <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4">
-      <div className={card}>
-        <PanelHead title="Your Funnel This Month · Each State a Shade" />
-        <div className="px-5 py-4 flex flex-col gap-4">
-          {STEP_KEYS.map(([k, label], i) => {
-            const v = total[k] || 0;
-            const st = i > 0 ? STEPS[i - 1] : null;
-            const r = st ? rate(total, st) : null;
-            const leak = st && i - 1 === leakI && rel[leakI] < 1;
-            return (
-              <div key={k}>
-                <div className="flex items-baseline gap-2 text-[14px] mb-1.5">
-                  <b className="text-navy-900">{label}</b>
-                  {st && <span className={leak ? 'text-[#9a3412] font-semibold' : 'text-zinc-500'}>{pct(r)} · team {pct(teamRates[i - 1])}{leak ? ' — your biggest leak' : ''}</span>}
-                  <span className="ml-auto font-bold tabular-nums text-navy-900">{v}</span>
-                </div>
-                <div className="flex h-[22px] rounded-md overflow-hidden bg-zinc-100" style={{ width: `${Math.max(3, Math.min(100, (Math.log10(v + 1) / Math.log10(top + 1)) * 100))}%`, outline: leak ? '2px solid #c2410c' : undefined, outlineOffset: 2 }}>
-                  {states.map((x, j) => { const n = x.m[k] || 0; return n ? <span key={x.id} title={`${x.name}: ${n}`} style={{ width: `${(n / Math.max(1, v)) * 100}%`, background: shade(j) }} /> : null; })}
-                </div>
-              </div>
-            );
-          })}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-zinc-600">
-            {states.map((x, j) => <span key={x.id} className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: shade(j) }} />{x.name}</span>)}
-            <span className="text-zinc-400">· bars on a log scale, so the small steps stay visible</span>
-          </div>
-        </div>
-      </div>
-      <div className={card}>
-        <PanelHead title="Where It Leaks, by State" />
-        {gaps.length ? (
-          <ol>
-            {gaps.map((g, n) => {
-              const word = UNIT[g.s.to] || ['', ''];
-              const badge = n === 0 ? 'bg-[#c2410c]' : g.r / g.tr < 0.8 ? 'bg-red-600' : 'bg-amber-500';
-              return (
-                <li key={`${g.st.id}-${g.s.key}`} className="flex gap-3.5 items-start px-5 py-3.5 border-b border-tan-100 last:border-b-0">
-                  <span className={`w-7 h-7 shrink-0 rounded-lg grid place-items-center text-white font-bold text-[13px] ${badge}`}>{n + 1}</span>
-                  <div>
-                    <div className="font-semibold text-navy-800">{g.st.name} · {g.s.label}</div>
-                    <div className="text-[13.5px] text-zinc-600">{pct(g.r)} ({g.to} of {g.from}) vs team {pct(g.tr)} — {g.short} more {g.short === 1 ? word[0] : word[1]} would close the gap</div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        ) : <div className="px-5 py-8 text-center text-zinc-500">Every step in every state is at or above the team's rate this month.</div>}
-        <div className="px-5 py-3 text-[12.5px] text-zinc-500 border-t border-tan-100">Ranked by how many deals each gap costs you. Steps at or above the team aren't listed.</div>
-      </div>
-    </section>
-  );
+  return <FunnelByState states={states} total={metrics(pairs)} teamRates={STEPS.map((s) => rate(team, s))} when="This Month" />;
 }
 
 function Trend({ sc, rep }) {

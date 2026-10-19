@@ -29,6 +29,7 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import ClearX from './ClearX.jsx';
 import { formatCompactCurrency } from '../utils/format.js';
 import { titleCase } from './titleCase.js';
+import BandMark from './BandMark.jsx';
 
 const norm = (x) => String(x || '').trim().toLowerCase();
 // "Viewing" is remembered across Contracted Deals, Opportunities and the
@@ -156,7 +157,8 @@ export default function PipelinePage({ mode = 'deals' }) {
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
-      <div className="shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+      <div className="relative isolate shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+        <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{view === 'cal' ? 'Calendar' : 'Pipeline'} · {scopeName}</div>
           <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{view === 'cal' ? titleCase(headline) : headline}</h1>

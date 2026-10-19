@@ -45,19 +45,17 @@ import PipelinePage, { PipelineOpps, PipelineCalendar } from './PipelinePage.jsx
 import UserMenu from './UserMenu.jsx';
 import AskClaude from '../chat/ChatPanel.jsx';
 import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
-import TerritorySheet from '../territory/SheetView.jsx';
 import RepsStates from '../territory/RepsStates.jsx';
 import MyZips from '../zips/MyZips.jsx';
 import AllZips from '../zips/AllZips.jsx';
-import ZipRules from '../zips/RulesHealth.jsx';
 
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
   suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView,
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
-  'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
-  'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
+  'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
+  'zips-mine': MyZips, 'zips-all': AllZips,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };

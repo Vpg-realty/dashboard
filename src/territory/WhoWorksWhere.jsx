@@ -9,12 +9,12 @@ import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { REPS } from '../data/config.js';
 import { PAIRS, historyEntries } from '../data/source.js';
-import { useLocation, setQuery } from '../shell/router.js';
+import { useLocation, setQuery, navigate, linkProps } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { BrandTile } from '../shell/BrandTile.jsx';
 import UsMap, { MapLegend } from './UsMap.jsx';
 import { MAP_MODES } from './mapColors.js';
-import { SEVERITY, FLAG_RULES } from './model.js';
+import { coverageReview } from './structure.js';
 import { useTerritoryModel } from './useModel.js';
 import { stateYtd, YTD_FIELDS, monthName } from './ytd.js';
 import { StatusChip, SeasonChip } from './badges.jsx';
@@ -23,7 +23,6 @@ import StateControls from './StateControls.jsx';
 import { money } from '../deals/format.js';
 import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
 
-const first = (r) => String(r?.name || '').split(' ')[0];
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
 const Legal = ({ v }) => (v ? <span className={`${chip} ${LEGAL_CHIP[v] || 'bg-zinc-50 text-zinc-600 ring-zinc-200'}`}>Legal: {v}</span> : null);
@@ -183,17 +182,11 @@ function RepDetail({ row, flags, onState }) {
           ))}
         </div>
       </div>
-      {flags.length > 0 && <div className="text-[13px] text-zinc-600"><span className="font-semibold text-navy-800">{flags.length} item{flags.length === 1 ? '' : 's'} to review</span> — see "Needs review" below.</div>}
+      {flags.length > 0 && <div className="text-[13px] text-zinc-600"><a {...linkProps(`/territory/coverage`)} className="font-semibold text-navy-700 hover:underline">{flags.length} item{flags.length === 1 ? '' : 's'} to review on Coverage →</a></div>}
     </div>
   );
 }
 const Fact = ({ l, v }) => <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2"><div className="text-[11.5px] font-medium text-zinc-500">{l}</div><div className="font-semibold text-navy-900 mt-0.5">{v}</div></div>;
-
-// Open a state (or a rep) and bring the map into view.
-function focusMap(patch) {
-  setQuery(patch);
-  setTimeout(() => document.getElementById('terr-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
-}
 
 export default function WhoWorksWhere() {
   const { m, status, error, tracker, owner } = useTerritoryModel();
@@ -201,25 +194,28 @@ export default function WhoWorksWhere() {
   const mode = MAP_MODES.some(([k]) => k === query.get('color')) ? query.get('color') : 'reps';
   const focusRep = REPS.some((r) => r.id === query.get('rep')) ? query.get('rep') : '';
   const selected = query.get('state') || '';
-  const [showRules, setShowRules] = useState(false);
   if (status === 'error') return <div className="py-16 text-center text-zinc-500">{error}</div>;
   if (!m) return <div className="py-16 text-center text-zinc-400">Loading territory…</div>;
 
   const st = selected ? m.byAbbr.get(selected) : null;
   // Needs review is for owners only (Luke, Oct 15: the map is for everyone).
-  const flags = !owner ? [] : focusRep ? m.flags.filter((f) => (f.rep ? f.rep === focusRep : !!m.byAbbr.get(f.state)?.ghl.some((r) => r.id === focusRep))) : m.flags;
+  const review = owner ? coverageReview(m) : [];
+  const flags = focusRep ? review.filter((f) => (f.rep ? f.rep === focusRep : !!m.byAbbr.get(f.state)?.ghl.some((r) => r.id === focusRep))) : review;
   const counts = Object.fromEntries(Object.keys(STATUS_LOOK).map((k) => [k, m.states.filter((s) => statusOf(s) === k).length]));
 
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
-      <div className="text-zinc-500 text-[13px]">Reps from GHL sub-accounts, states from the territory sheet · click a state for its year-to-date numbers.</div>
+      <div className="flex flex-wrap items-center gap-3 text-zinc-500 text-[13px]">
+        <span>Reps from GHL sub-accounts, states from the territory sheet · click a state for its year-to-date numbers.</span>
+        {owner && review.length > 0 && <a {...linkProps('/territory/coverage')} className="ml-auto font-semibold text-navy-700 hover:underline">{review.length} to review on Coverage →</a>}
+      </div>
 
       {/* The site's brand tile (Luke, Oct 19: the At a Glance tiles weren't
           "customized enough"). */}
       <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
         <BrandTile label="Reps working" value={String(m.tiles.reps)} sub="with a GHL sub-account" />
         <BrandTile label="States" accent="green" value={`${counts.Active} active`} sub={`${counts.Exploring} exploring · ${counts.Paused} paused · ${counts.Inactive} inactive`} />
-        <BrandTile label="Act on" accent="red" value={String(m.tiles.act)} tone={m.tiles.act ? 'text-[#B42318]' : undefined} sub="flagged red in Needs review" />
+        <BrandTile label="To review" accent={review.some((f) => f.sev === 'high') ? 'red' : 'amber'} value={String(review.length)} sub={`${review.filter((f) => f.sev === 'high').length} to act on · open Coverage →`} onClick={owner ? () => navigate('/territory/coverage') : undefined} />
         <BrandTile label="Quiet markets" accent="amber" value={String(m.tiles.quiet)} sub="no new conversations in 7 days" />
         <BrandTile label="Winter-exposed reps" accent="sky" value={String(m.tiles.winterReps)} sub="half their opps in ❄ states" />
         <BrandTile label="Open seats" accent="tan" value={String(m.tiles.openSeats)} sub="planned on the sheet, not filled" />
@@ -243,29 +239,6 @@ export default function WhoWorksWhere() {
         </Panel>
       </div>
 
-      {owner && <Panel title="Needs review" sub={`${flags.length} item${flags.length === 1 ? '' : 's'}${focusRep ? ` for ${first(REPS.find((r) => r.id === focusRep))}` : ''}`} right={<button onClick={() => setShowRules((v) => !v)} className="text-[12.5px] text-navy-700 hover:underline">{showRules ? 'Hide' : 'How'} the flags work</button>}>
-        {showRules && (
-          <div className="px-5 py-3 border-b border-tan-100 bg-tan-50/50 grid sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-1.5 text-[12.5px]">
-            {FLAG_RULES.map(([k, l, txt]) => <div key={k}><span className="font-semibold text-navy-800">{l}:</span> <span className="text-zinc-600">{txt}</span></div>)}
-          </div>
-        )}
-        <ul className="divide-y divide-tan-100">
-          {flags.map((f, i) => (
-            <li key={i} className="flex items-start gap-3 px-5 py-2.5">
-              <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${SEVERITY[f.sev].dot}`} />
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-zinc-900">{f.title}</div>
-                <div className="text-[13px] text-zinc-600">{f.detail}</div>
-              </div>
-              <span className={`${chip} ${SEVERITY[f.sev].chip} mt-0.5`}>{SEVERITY[f.sev].label}</span>
-              {f.state
-                ? <button onClick={() => focusMap({ state: f.state })} className="mt-0.5 text-[12.5px] text-navy-700 hover:underline whitespace-nowrap">Show on map ↑</button>
-                : f.rep ? <button onClick={() => focusMap({ rep: f.rep, state: null })} className="mt-0.5 text-[12.5px] text-navy-700 hover:underline whitespace-nowrap">Show their states ↑</button> : null}
-            </li>
-          ))}
-          {!flags.length && <li className="px-5 py-6 text-center text-zinc-500">Nothing to review.</li>}
-        </ul>
-      </Panel>}
     </div>
   );
 }

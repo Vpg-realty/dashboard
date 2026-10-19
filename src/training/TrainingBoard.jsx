@@ -12,6 +12,7 @@ import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
 import { useTraining, testScores, topicScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, dayLabel } from './api.js';
+import BandMark from '../shell/BandMark.jsx';
 
 const repName = (id) => REPS.find((r) => r.id === id)?.name || id || '—';
 const PHASE_CHIP = { paper: 'bg-zinc-100 text-zinc-700', onboard: 'bg-sky-50 text-sky-800', shadow: 'bg-tan-100 text-tan-800', guided: 'bg-violet-50 text-violet-800', full: 'bg-emerald-50 text-emerald-800', done: 'bg-emerald-50 text-emerald-800' };
@@ -148,7 +149,8 @@ export default function TrainingBoard() {
   const pick = (email) => setQuery({ trainee: email });
   return (
     <div className="max-w-[1500px] mx-auto space-y-5">
-      <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+      <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+        <BandMark />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Management · Training</div>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight">New Hires in Training</h1>

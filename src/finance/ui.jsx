@@ -2,6 +2,7 @@
 import { METHODS } from './lines.js';
 import { money, shortDate } from '../deals/format.js';
 import { titleCase } from '../shell/titleCase.js';
+import BandMark from '../shell/BandMark.jsx';
 
 const PILL = {
   owed: 'bg-amber-50 text-amber-800 ring-amber-200',
@@ -26,12 +27,15 @@ export function Trail({ l }) {
 }
 
 // The brand tile now lives in src/shell/BrandTile.jsx — the one tile for the site.
-export { BrandTile as MoneyTile } from '../shell/BrandTile.jsx';
+import { BrandTile } from '../shell/BrandTile.jsx';
+// Finance keeps the faint V mark on its tiles (Luke, Oct 19).
+export const MoneyTile = (props) => <BrandTile mark {...props} />;
 // Every Finance page opens with the same navy band (Luke, Oct 15: "match the
 // style of the rest of the dashboard" — like Home's welcome banner).
 export function FinanceHead({ eyebrow, title, sub, right }) {
   return (
-    <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+    <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+      <BandMark />
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Finance · {eyebrow}</div>
         <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{titleCase(title)}</h1>

@@ -1,14 +1,9 @@
-// Zip center › Rules & data health (Luke, Oct 14: "a list of the rules for
-// the zip center so we know what to edit over time and which areas to
-// address immediately if we are hitting bad data"). Everyone sees the rules;
-// owners edit the numbers. Owners, managers and the TC also see the data
-// health list (fix now / coming up / edit over time) and the playbook.
+// Zip rules (Luke, Oct 14: "a list of the rules for the zip center so we know
+// what to edit over time and which areas to address immediately if we are
+// hitting bad data"); since Oct 19 a drawer on the Zip Center (the data
+// health list is on its Overview). Owners edit the numbers.
 import { useState } from 'react';
-import Panel from '../shell/Panel.jsx';
-import { useMe } from '../utils/dashApi.js';
-import { navigate } from '../shell/router.js';
-import { useZips, zipAction } from './store.js';
-import { HealthList } from './AllZips.jsx';
+import { zipAction } from './store.js';
 
 const FIELDS = {
   perRequest: { label: 'Zips per request', unit: 'zips' },
@@ -22,7 +17,7 @@ const FIELDS = {
 
 // What a bad-data signal means and what to do about it, most urgent first.
 const PLAYBOOK = [
-  ['now', 'A state is out of zips', 'Every usable zip has been handed out this round, or is held.', 'Approve a new round (All zips → Needs attention), or add counties to the state. Don\'t start a new round just to give a rep more if the zips came back bad.'],
+  ['now', 'A state is out of zips', 'Every usable zip has been handed out this round, or is held.', 'Approve a new round (Zip Center › Overview → Needs attention), or add counties to the state. Don\'t start a new round just to give a rep more if the zips came back bad.'],
   ['now', 'Several zips flagged in one county', 'The county\'s agent data is likely poor (landlines, DND, no agents).', 'Open the state, select the county and Pause it; re-pull the data, then set it Active again.'],
   ['now', 'A rep flagged a zip', 'One zip looks bad to the rep working it.', 'Clear the flag if it\'s fine (it goes back into requests), or Exclude the zip for good.'],
   ['now', 'A request came up short', 'The state had fewer zips left than a request gives.', 'Same as "out of zips" — approve a new round or add counties.'],
@@ -57,73 +52,48 @@ function RulesEditor({ rules, onDone }) {
   );
 }
 
-export default function RulesHealth() {
-  const me = useMe();
-  const owner = me?.role === 'owner' && !me?.viewAs;
-  const z = useZips();
+// The rules, the numbers owners can change and the bad-data playbook, in a
+// side drawer opened from the Zip Center's ⓘ (Luke, Oct 19).
+export default function ZipRulesDrawer({ data: d, owner, onClose }) {
   const [edit, setEdit] = useState(false);
-  if (z.status === 'error') return <div className="py-16 text-center text-zinc-500">{z.error}</div>;
-  if (z.status !== 'ready') return <div className="py-16 text-center text-zinc-400">Loading…</div>;
-  const d = z.data;
   const groups = [];
-  for (const r of d.ruleText) {
+  for (const r of d.ruleText || []) {
     let g = groups.find((x) => x.name === r.group);
     if (!g) groups.push(g = { name: r.group, items: [] });
     g.items.push(r);
   }
-  const health = d.health || null;
-  const goState = (st) => navigate(`/territory/holds?state=${encodeURIComponent(st)}`);
-
   return (
-    <div className="max-w-[1400px] mx-auto flex flex-col gap-5">
-      <div>
-        <div className="text-zinc-500 text-[13px]">How zips are handed out{health ? ', and what to fix when the data goes bad' : ''}. The numbers in navy can be changed{owner ? ' — click “Edit the numbers”' : ' by owners'}.</div>
-      </div>
-
-      {health && (
-        <Panel title="Data health" sub={`${health.filter((h) => h.level === 'now').length} to fix now · ${health.filter((h) => h.level === 'soon').length} coming up · ${health.filter((h) => h.level === 'info').length} to edit over time`}>
-          <HealthList items={health} owner={owner} onState={goState} />
-        </Panel>
-      )}
-
-      <Panel title="The rules" right={owner && !edit && <button onClick={() => setEdit(true)} className="h-7 px-3 rounded-md bg-navy-700 text-white text-[12.5px] font-medium">Edit the numbers</button>}>
-        {edit ? <RulesEditor rules={d.rules} onDone={() => setEdit(false)} /> : (
-          <div className="grid grid-cols-1 lg:grid-cols-2">
-            {groups.map((g) => (
-              <div key={g.name} className="px-5 py-4 border-b border-tan-100 lg:odd:border-r">
-                <div className="text-[12px] font-semibold uppercase tracking-wide text-tan-700 mb-2">{g.name}</div>
-                <ul className="flex flex-col gap-1.5">
-                  {g.items.map((r, i) => (
-                    <li key={i} className="flex gap-2 text-[13.5px] text-zinc-800">
-                      <span className={`mt-[7px] w-1.5 h-1.5 rounded-full shrink-0 ${r.key ? 'bg-navy-600' : 'bg-zinc-300'}`} />
-                      <span className={r.key ? 'text-navy-900 font-medium' : ''}>{r.text}{r.key && <span className="ml-1.5 text-[11px] font-normal text-navy-600">editable</span>}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+    <div className="fixed inset-0 z-50 flex justify-end bg-navy-900/30" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} role="presentation">
+      <aside role="dialog" aria-label="Zip rules" onClick={(e) => e.stopPropagation()} className="h-full w-full max-w-[640px] overflow-y-auto bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center gap-3 bg-navy-700 text-white px-5 py-3.5">
+          <h2 className="text-[16px] font-semibold">How Zips Are Handed Out</h2>
+          {owner && !edit && <button onClick={() => setEdit(true)} className="ml-auto h-8 px-3 rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold hover:bg-tan-400">Edit the numbers</button>}
+          <button type="button" autoFocus onClick={onClose} aria-label="Close" className={`${owner && !edit ? '' : 'ml-auto '}grid place-items-center w-8 h-8 rounded-full hover:bg-white/15 text-lg`}>×</button>
+        </div>
+        {edit ? <RulesEditor rules={d.rules} onDone={() => setEdit(false)} /> : groups.map((g) => (
+          <div key={g.name} className="px-5 py-4 border-b border-tan-100">
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-tan-700 mb-2">{g.name}</div>
+            <ul className="flex flex-col gap-1.5">
+              {g.items.map((r, i) => (
+                <li key={i} className="flex gap-2 text-[13.5px] text-zinc-800">
+                  <span className={`mt-[7px] w-1.5 h-1.5 rounded-full shrink-0 ${r.key ? 'bg-navy-600' : 'bg-zinc-300'}`} />
+                  <span className={r.key ? 'text-navy-900 font-medium' : ''}>{r.text}{r.key && <span className="ml-1.5 text-[11px] font-normal text-navy-600">editable</span>}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-      </Panel>
-
-      {health && (
-        <Panel title="When the data looks bad — what to do" sub="most urgent first">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13.5px]">
-              <thead className="bg-tan-50/60 text-[12px] text-zinc-500"><tr>{['Signal', 'What it means', 'What to do'].map((h, i) => <th key={h} className={`${i === 0 ? 'pl-5' : ''} px-3 py-2.5 font-medium text-left`}>{h}</th>)}</tr></thead>
-              <tbody>
-                {PLAYBOOK.map(([lvl, sig, means, todo]) => (
-                  <tr key={sig} className="border-t border-tan-100 align-top">
-                    <td className="pl-5 px-3 py-2.5 font-medium text-zinc-900 whitespace-nowrap"><span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${DOT[lvl]}`} />{sig}</td>
-                    <td className="px-3 py-2.5 text-zinc-600">{means}</td>
-                    <td className="px-3 py-2.5 text-zinc-800">{todo}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
+        ))}
+        <div className="px-5 pt-5 pb-2 text-[12px] font-semibold uppercase tracking-wide text-tan-700">When the data looks bad — what to do</div>
+        <div className="px-5 pb-6 flex flex-col gap-3">
+          {PLAYBOOK.map(([lvl, sig, means, todo]) => (
+            <div key={sig} className="rounded-lg border border-tan-100 px-4 py-3">
+              <div className="font-medium text-zinc-900"><span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${DOT[lvl]}`} />{sig}</div>
+              <div className="mt-0.5 text-[13px] text-zinc-600">{means}</div>
+              <div className="mt-1 text-[13px] text-zinc-800">{todo}</div>
+            </div>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }

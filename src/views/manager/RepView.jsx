@@ -22,6 +22,8 @@ import { autoCrm, SPEED_FROM } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import RepProgress from './RepProgress.jsx';
 import MyCrmCard from './MyCrmCard.jsx';
+import { FunnelCard } from './FunnelByState.jsx';
+import { titleCase } from '../../shell/titleCase.js';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
@@ -120,6 +122,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
   const [customTo, setCustomTo] = useState(today);
   const [showScore, setShowScore] = useState(false);
+  const [pick, setPick] = useState(null);
   const scoreAnchor = useRef(null);
 
   // Anything but "Current" is a date range totalled from history.
@@ -168,7 +171,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   // The week's speed: live this week, a past week from its frozen scorecard.
   const frozenWk = range?.kind === 'week' ? sc.weeks[range.from]?.reps?.[rep.id] : null;
   const speed = !range ? { ok: m.speedOk, total: m.speedTotal } : { ok: frozenWk?.speedOk ?? null, total: frozenWk?.speedTotal ?? null };
-  const speedSub = range && !frozenWk ? 'week not on record' : range && range.from < SPEED_FROM ? 'not in the score before Oct 12' : `target ${Math.round(SPEED_TARGET * 100)}% · 10 pts`;
+  const speedSub = range && !frozenWk ? 'week not on record' : range && range.from < SPEED_FROM ? 'not in the score before Oct 12' : `target ${Math.round(SPEED_TARGET * 100)}% · a CRM item`;
   const markets = rep.markets.map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,
     m: (() => {
@@ -242,7 +245,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
 
   return (
     <ManagerFrame title={breakdown ? 'Full breakdown' : self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : breakdown ? 'Only your own numbers — pick any week, month or dates' : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
-      <div className={`h-full grid ${self && !breakdown ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
+      <div className={`h-full grid ${breakdown ? 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_auto]' : self ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
         <div className="flex items-center gap-4 rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5">
           {!self && <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline whitespace-nowrap">← Scorecard</button>}
           <span className="w-4 h-4 rounded-full" style={{ background: rep.color }} />
@@ -269,7 +272,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
           )}
           {leak && (
             <span className="ml-4 rounded-full bg-orange-100 text-orange-800 px-3 py-1 text-sm font-bold">
-              ⚠ {solo ? 'Biggest drop' : 'Leak'}: {leak.s.label} — {pct(leak.r)}{solo ? '' : ` vs team ${pct(teamRates[leak.i])}`}
+              ⚠ {solo ? 'Biggest leak' : 'Leak'}: {leak.s.label} — {pct(leak.r)} vs team {pct(teamRates[leak.i])}
             </span>
           )}
           {!range && (
@@ -319,38 +322,42 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
         {self && !breakdown && <MyCrmCard pairs={pairs} monday={wk} crm={crm} manual={reviewFor(sc, wk, rep.id, null).manual} />}
         <RepProgress sc={sc} rep={rep} pointsOnly={solo} />
         <div className="grid grid-cols-[1.1fr_1.4fr] gap-3 min-h-0">
+          {/* Reps' Full Breakdown carries My Scorecard's funnel (Luke, Oct 19):
+              states as shades, a state picker, team rates on top. */}
+          {solo ? <FunnelCard states={markets} total={m} teamRates={teamRates} when={titleCase(when)} pick={pick} setPick={setPick} untracked={m.untracked} /> : (
           <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Funnel · {when}</div>
-            <div className="text-lg font-bold">Where {first(rep)}'s deals drop off</div>
-            <div className="flex-1 min-h-0 flex flex-col justify-around">
-              {funnel.map(([label, v], i) => {
-                const st = i > 0 ? STEPS[i - 1] : null;
-                const isLeak = leak && st && st.key === leak.s.key;
-                return (
-                  <div key={label}>
-                    {i > 0 && (
-                      <div className={`text-sm font-semibold pl-32 ${isLeak ? 'text-orange-700' : 'text-zinc-500'}`}>
-                        {st ? <>↓ {pct(rate(m, st))}{solo ? ' moved on' : <span className="font-normal"> (team {pct(teamRates[i - 1])})</span>}{isLeak ? (solo ? ' ⚠ your biggest drop' : ' ⚠ biggest leak') : ''}</> : <span className="font-normal text-zinc-400">↓ closings mostly come from earlier months' contracts</span>}
+              <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Funnel · {when}</div>
+              <div className="text-lg font-bold">Where {first(rep)}'s deals drop off</div>
+              <div className="flex-1 min-h-0 flex flex-col justify-around">
+                {funnel.map(([label, v], i) => {
+                  const st = i > 0 ? STEPS[i - 1] : null;
+                  const isLeak = leak && st && st.key === leak.s.key;
+                  return (
+                    <div key={label}>
+                      {i > 0 && (
+                        <div className={`text-sm font-semibold pl-32 ${isLeak ? 'text-orange-700' : 'text-zinc-500'}`}>
+                          {st ? <>↓ {pct(rate(m, st))}{solo ? ' moved on' : <span className="font-normal"> (team {pct(teamRates[i - 1])})</span>}{isLeak ? (solo ? ' ⚠ your biggest drop' : ' ⚠ biggest leak') : ''}</> : <span className="font-normal text-zinc-400">↓ closings mostly come from earlier months' contracts</span>}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-2">
+                        <span className="text-base font-bold">{label}</span>
+                        <div className="h-[min(1.5rem,2.6vh)] rounded-md bg-zinc-100 overflow-hidden">
+                          {/* Sized against the biggest step shown and capped at 100% — a past
+                              week can have a closing but no conversations on
+                              record (Oct 12: Anthony, June 22–28, bar ran off
+                              the screen). Untracked steps get no bar. */}
+                          {!na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i]) && (
+                            <div className="h-full rounded-md" style={{ width: `${Math.min(100, Math.max(1.5, (v / Math.max(1, ...funnel.map(([, x], j) => (na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][j]) ? 0 : x || 0)))) * 100))}%`, background: rep.color, opacity: 1 - i * 0.12 }} />
+                          )}
+                        </div>
+                        <span className="text-2xl font-extrabold tabular-nums text-right">{show(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i], v)}</span>
                       </div>
-                    )}
-                    <div className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-2">
-                      <span className="text-base font-bold">{label}</span>
-                      <div className="h-[min(1.5rem,2.6vh)] rounded-md bg-zinc-100 overflow-hidden">
-                        {/* Sized against the biggest step shown and capped at 100% — a past
-                            week can have a closing but no conversations on
-                            record (Oct 12: Anthony, June 22–28, bar ran off
-                            the screen). Untracked steps get no bar. */}
-                        {!na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i]) && (
-                          <div className="h-full rounded-md" style={{ width: `${Math.min(100, Math.max(1.5, (v / Math.max(1, ...funnel.map(([, x], j) => (na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][j]) ? 0 : x || 0)))) * 100))}%`, background: rep.color, opacity: 1 - i * 0.12 }} />
-                        )}
-                      </div>
-                      <span className="text-2xl font-extrabold tabular-nums text-right">{show(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i], v)}</span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           <StateCard markets={markets} when={when} rep={rep} range={range} solo={solo} teamRate={teamRates[0]} />
         </div>
       </div>
@@ -390,7 +397,7 @@ function StateCard({ markets, when, rep, range, solo, teamRate }) {
             <th className="py-2 pl-1 font-semibold">State</th>
             {STATE_COLS.map(([k, l]) => <th key={k} className={`py-2 font-semibold text-center ${k === 'cancelsM' ? 'text-rose-700' : ''}`}>{l}</th>)}
             <th className="py-2 font-semibold text-right">{range ? 'Revenue' : 'Projected'}</th>
-            <th className="py-2 font-semibold text-center">Convo→Opp</th>
+            {!solo && <th className="py-2 font-semibold text-center">Convo→Opp</th>}
           </tr></thead>
           <tbody>
             {markets.map(({ id, name, m: mm }) => (
@@ -398,7 +405,7 @@ function StateCard({ markets, when, rep, range, solo, teamRate }) {
                 <td className="py-2 pl-1"><span className="flex items-center gap-2 font-semibold text-navy-800"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATE_DOT }} />{name}</span></td>
                 {STATE_COLS.map(([k]) => <td key={k} className="py-2 text-center">{chip(k, mm)}</td>)}
                 <td className="py-2 text-right tabular-nums font-semibold text-emerald-700">{has(mm, 'projected') ? (mm.projected ? formatCompactCurrency(mm.projected) : <span className="text-zinc-300 font-normal">$0</span>) : '—'}</td>
-                <td className="py-2 text-center"><span className={`inline-block min-w-[52px] rounded-md px-2 py-0.5 tabular-nums font-semibold ${solo ? 'bg-zinc-100 text-zinc-700' : convCls(rate(mm, STEPS[0]), teamRate)}`}>{pct(rate(mm, STEPS[0]))}</span></td>
+                {!solo && <td className="py-2 text-center"><span className={`inline-block min-w-[52px] rounded-md px-2 py-0.5 tabular-nums font-semibold ${convCls(rate(mm, STEPS[0]), teamRate)}`}>{pct(rate(mm, STEPS[0]))}</span></td>}
               </tr>
             ))}
             {markets.length > 1 && (
@@ -406,13 +413,13 @@ function StateCard({ markets, when, rep, range, solo, teamRate }) {
                 <td className="py-2 pl-1 text-navy-800">Total</td>
                 {STATE_COLS.map(([k]) => <td key={k} className={`py-2 text-center tabular-nums ${k === 'cancelsM' && sum(k) ? 'text-rose-700' : 'text-navy-800'}`}>{sum(k)}</td>)}
                 <td className="py-2 text-right tabular-nums text-emerald-700">{formatCompactCurrency(sum('projected'))}</td>
-                <td className="py-2 text-center tabular-nums text-navy-800">{tot.convosM ? `${Math.round((100 * tot.oppsM) / tot.convosM)}%` : '—'}</td>
+                {!solo && <td className="py-2 text-center tabular-nums text-navy-800">{tot.convosM ? `${Math.round((100 * tot.oppsM) / tot.convosM)}%` : '—'}</td>}
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <div className="text-[12px] text-zinc-500 px-4 py-2 border-t border-tan-100">{solo ? 'Your states share your targets, so they show counts and conversion, not targets.' : "States share the rep's targets, so they show counts and conversion. Convo→Opp is green / amber / red vs the team rate."}</div>
+      <div className="text-[12px] text-zinc-500 px-4 py-2 border-t border-tan-100">{solo ? 'Your states share your targets, so they show counts, not targets — each step\'s rate is on the funnel.' : "States share the rep's targets, so they show counts and conversion. Convo→Opp is green / amber / red vs the team rate."}</div>
     </section>
   );
 }

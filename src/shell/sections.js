@@ -94,10 +94,12 @@ export const SECTIONS = [
     id: 'territory', label: 'Territory', icon: 'map', roles: ['owner'], rail: true,
     tabs: [
       { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
-      { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true, group: 'Manage', sub: 'States, counties, zips', title: 'Territory sheet' },
-      { id: 'holds', label: 'Zips & Holds', view: 'zips-all', scroll: true, group: 'Manage', sub: 'Who holds what, request log', title: 'Zips and holds' },
-      { id: 'reps', label: 'Reps × States', view: 'terr-reps', scroll: true, group: 'Manage', sub: 'Team structure review', title: 'Reps × states' },
-      { id: 'health', label: 'Rules & Data Health', view: 'zips-rules', scroll: true, group: 'Manage', sub: 'Zip rules, what to fix', title: 'Zip rules and data health' },
+      // Luke, Oct 19: Needs Review and the team structure review as one list,
+      // with the Reps × States grid.
+      { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
+      // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
+      // as one page with tabs (Overview / Browse & Assign / Holds & History).
+      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Zips, holds, rules', title: 'Zip center' },
     ],
   },
   {
@@ -179,12 +181,18 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 const MOVED = {
   // Zip center → Territory (Oct 14), then Get Zips its own section and
   // Territory a rail of owner pages (Oct 19).
-  'zips/all': { section: 'territory', tab: 'holds' },
-  'zips/rules': { section: 'territory', tab: 'health' },
+  // Oct 19 (later): Territory Sheet, Zips & Holds and Rules & Data Health
+  // folded into the Zip Center, Reps × States became Coverage.
+  'zips/all': { section: 'territory', tab: 'zip-center' },
+  'zips/rules': { section: 'territory', tab: 'zip-center' },
   'territory/who': { section: 'territory', tab: 'map' },
-  'territory/zip-mgmt': { section: 'territory', tab: 'holds' },
+  'territory/zip-mgmt': { section: 'territory', tab: 'zip-center' },
   'territory/zips': { section: 'zips', tab: 'mine' },
-  'territory/rules': { section: 'territory', tab: 'health' },
+  'territory/rules': { section: 'territory', tab: 'zip-center' },
+  'territory/sheet': { section: 'territory', tab: 'zip-center' },
+  'territory/holds': { section: 'territory', tab: 'zip-center' },
+  'territory/health': { section: 'territory', tab: 'zip-center' },
+  'territory/reps': { section: 'territory', tab: 'coverage' },
   'board/pipeline': { section: 'pipeline', tab: 'all' },
   'team/coaching': { section: 'team', tab: 'scorecard' },
   'pipeline/calendar': { section: 'calendar', tab: 'all' },

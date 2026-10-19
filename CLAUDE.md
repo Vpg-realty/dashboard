@@ -291,6 +291,33 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   Health (`/territory/health`). Old /territory/who, /zip-mgmt, /rules,
   /zips (→ Get Zips) and /zips/all, /zips/rules links redirect via `MOVED`.
   Ask Claude shows on Get Zips and Territory.
+- **Territory, later Oct 19** (Luke — overrides the Territory rail above):
+  the rail is Map — Who Works Where (`/territory/map`); Team — **Coverage**
+  (`/territory/coverage`, RepsStates.jsx: one "What to Review" list —
+  `coverageReview` in structure.js = the structure findings with their
+  suggested moves plus the map flags they don't already cover, filter by
+  severity, by rep from the grid — then the Reps × States grid and the States
+  table); Zips — **Zip Center** (`/territory/zip-center`, zips/AllZips.jsx,
+  `?view=` overview | browse | holds): Overview (brand tiles, Needs Attention
+  & Data Health, the states' progress — a state opens it in Browse), **Browse
+  & Assign** (territory/SheetView.jsx: states on the left, the state's facts
+  and counties; an open county shows its zips by tier with their zip-center
+  state — available, held in the holder's colour with their name, used,
+  flagged, paused — and owners select zips across counties, then Assign /
+  Release & reuse / Make active / Pause / Exclude / Copy from one bar; a
+  "Held by" column per county; `?s=` the state), **Holds & History** (Who
+  Holds What, Requests & Pulls); the rules, editable numbers and bad-data
+  playbook in the ⓘ drawer (zips/RulesHealth.jsx). Who Works Where lost its
+  Needs Review list: a "To review" tile and "N to review on Coverage →". Old
+  /territory/sheet, /holds, /health, /reps (and older /zips/all, /zips/rules,
+  /zip-mgmt, /rules) links redirect via `MOVED`; /territory/zips still goes
+  to Get Zips.
+- **Finance Overview's month bars** (Luke, Oct 19): a click on a month in
+  Net Assignment by Month lists that month's closings under the chart
+  (`?mo=YYYY-MM`, `MonthClosings` in SummaryView.jsx: property, acq. manager,
+  state, COE, gross, net, net profit for owners, a total row; a row opens the
+  deal; the picked bar turns tan, click again or Close × clears). It no
+  longer changes the page's period (Month by month still does).
 - **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
   keeps "needs attention" with no duplication): sidebar section `alerts`
   right under Home (`solo`, everyone but the TV; `src/alerts/`). One list of
@@ -576,19 +603,30 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `self`, `liveTeamAvg`); `weekSeries` carries `teamAvg`, which RepProgress
   draws as the team line.
 - **Where It Leaks, by State** (My Scorecard, Luke Oct 19 — option C of the
-  mock-ups): `LeakByState` in MyScorecardView.jsx, under Fix These — this
-  month's funnel (conversations → opps → offers → contracts) with each of
-  the rep's states as a shade of navy (bars on a log scale), each step's
-  rate vs the team's, the rep's weakest step outlined; beside it the steps
-  below the team rate ranked by how many deals each gap costs ("5 more
-  offers would close the gap", top 5).
+  mock-ups, reworked the same day): `src/views/manager/FunnelByState.jsx`.
+  `FunnelCard` — this month's funnel with each state a shade of navy (log-scale
+  bars), a state picker (All markets + each state; the legend and the leak
+  list pick too), the team's three step rates on top, and between stages the
+  step itself ("Convo → Opp 2%", green / amber / red vs the team, "team 3%")
+  with a Biggest leak tag on the worst one. `LeakList` — one row per state:
+  its biggest leak (step, "n of d" vs team, "N more offers would close the
+  gap"), badge = the state's shade, ranked by the gap. Full Breakdown uses the
+  same `FunnelCard` for the period picked (team rates for that period), and
+  its By State table dropped Convo→Opp. Fix These lists every flagged item (a
+  long list scrolls) and the Messaging row shows each check (ends in a
+  question / Never-send / AI review: n of m vs its standard).
 - **Brand tile = the site's one number tile** (Luke, Oct 19: "a tile
   template that we will use across the entire site"): `BrandTile`
-  (src/shell/BrandTile.jsx — Finance's MoneyTile, which finance/ui.jsx
-  re-exports): white card, tan border, tan eyebrow with a status dot
-  (`accent` navy / green / red / amber / sky / violet / tan), big navy
-  number, short tan rule, faint V mark; clickable ones act as tabs (navy
-  when picked). Used on Finance and Who Works Where's At a Glance so far.
+  (src/shell/BrandTile.jsx): white card, tan border, tan eyebrow with a status
+  dot (`accent` navy / green / red / amber / sky / violet / tan / grey), big
+  navy number, short tan rule; clickable ones act as tabs (navy when picked).
+  No V mark (Luke, later Oct 19) — only Finance's `MoneyTile` (finance/ui.jsx,
+  `mark`) keeps the faint V. Used on Finance, Who Works Where and the Zip
+  Center. **Every navy page band** carries the V logo top right like Home's
+  banner: `BandMark` (src/shell/BandMark.jsx; the band gets `relative
+  isolate`, the mark sits behind its content and is clipped without clipping
+  the band's pop-ups) — Settings / Territory frame, Deals PageHead, TC List,
+  Finance head, Pipeline, Alerts, Get Zips, Training, the Scorecard strip.
   Who Works Where's map controls (Colour by + All reps) sit on the map, its
   key under it. My Scorecard's bottom "Open your Full Breakdown" bar is gone
   (the Full Breakdown tab is the way in). Reps' own Full Breakdown has no week

@@ -63,3 +63,18 @@ export function structureReview(m) {
   const order = { high: 0, med: 1, info: 2 };
   return out.sort((a, b) => order[a.sev] - order[b.sev]);
 }
+
+// Coverage (Luke, Oct 19: Who Works Where's "Needs review" and Reps × States'
+// "Team structure review" were the same list twice): one list — every
+// structure finding (with its suggested move) plus the map flags it doesn't
+// already cover (sheet ≠ GHL, high-risk legal, low close rate, winter
+// exposure at the "some" level …). Worst first.
+const SAME = { open: 'seat', paused: 'status' };
+export function coverageReview(m) {
+  const moves = structureReview(m);
+  const key = (f) => `${SAME[f.kind] || f.kind}|${f.state || ''}|${f.rep || ''}`;
+  const seen = new Set(moves.map(key));
+  const extra = (m.flags || []).filter((f) => !seen.has(key(f))).map((f) => ({ ...f, facts: f.detail }));
+  const order = { high: 0, med: 1, info: 2 };
+  return [...moves, ...extra].sort((a, b) => order[a.sev] - order[b.sev]);
+}
