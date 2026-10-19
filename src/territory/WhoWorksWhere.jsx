@@ -5,6 +5,7 @@
 // own tab (RepsStates.jsx). Numbers: this month from GHL, new conversations
 // over the last 7 days (history.json), the sheet from D1, and — owners / TC —
 // the deal tracker.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { REPS } from '../data/config.js';
 import { PAIRS, historyEntries } from '../data/source.js';
@@ -215,10 +216,7 @@ export default function WhoWorksWhere() {
           <div className="text-zinc-500 text-[13px]">Reps from GHL sub-accounts, states from the territory sheet · click a state for its year-to-date numbers.</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <select value={focusRep} onChange={(e) => setQuery({ rep: e.target.value || null })} className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]">
-            <option value="">All reps</option>
-            {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
+          <SearchSelect className="w-48" value={focusRep || ''} onChange={(v) => setQuery({ rep: v || null })} clearable={false} pinned={[{ value: '', label: 'All reps' }]} options={REPS.map((r) => ({ value: r.id, label: r.name }))} />
           <span className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
             {MAP_MODES.map(([k, l]) => <button key={k} onClick={() => setQuery({ color: k === 'reps' ? null : k })} className={`px-3 h-7 rounded-md ${mode === k ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{l}</button>)}
           </span>

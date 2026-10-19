@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { tokensFrom } from './push-ghl.mjs';
 import { addrKey } from '../src/deals/math.js';
+import { PODS } from './scorecard-lib.mjs';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -296,9 +297,12 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   } else if (todo.length) status.leadError = 'no Claude key here';
   // Same address sent to more than one rep (Luke, Oct 19): the spotted leads
   // of the last 30 days grouped by address (addrKey: house number + street
-  // word); two or more reps → one 'dupe' alert per address, held by the rep
-  // who got it first (it rings their pod lead and the owners), naming every
-  // rep and when. One read of the recent leads per run.
+  // word); two or more reps → one 'dupe' alert per pod involved (ext_id
+  // dupe:<key>|<pod>), held by that pod's first rep on it, so each pod lead
+  // (and the owners) hears that another pod's rep already has it — every rep
+  // named with their pod and when they got it. A rep in no pod is a pod of
+  // their own (owners only). A new rep on it updates the alert and reopens a
+  // ticked one. One read of the recent leads per run.
   status.dupes = 0;
   const leadRows = await rows("SELECT holder, addr, created_at FROM alerts WHERE kind = 'lead' AND addr IS NOT NULL AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
   const byAddr = new Map();
@@ -307,19 +311,36 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     if (k) byAddr.set(k, [...(byAddr.get(k) || []), l]);
   }
   const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
+  const podOf = (id) => PODS.find((p) => p.lead === id || p.reps.includes(id));
+  const when = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
   for (const [k, ls] of byAddr) {
     const first = new Map();
     for (const l of ls.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) if (!first.has(l.holder)) first.set(l.holder, l);
     if (first.size < 2) continue;
     const list = [...first.values()];
-    const title = `Same address sent to ${list.length} reps — ${clip(list[0].addr, 120)}`;
-    const body = `${list.map((l) => `${repName(l.holder)} (${shortDate(Date.parse(l.created_at))})`).join(', ')} · decide who works it`;
-    // A new rep on it reopens a ticked one.
-    const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, 'Alerts', ?)
-      ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
-    [newId(), `dupe:${k}`, list[0].holder, title, body, list[0].addr, iso]);
-    if (r[0]?.meta?.changes) status.dupes++;
+    const pods = new Map();
+    for (const l of list) {
+      const p = podOf(l.holder);
+      const pk = p ? p.title : `solo:${l.holder}`;
+      if (!pods.has(pk)) pods.set(pk, l);
+    }
+    const tag = (l) => { const p = podOf(l.holder); return p ? `${repName(l.holder)} (${p.title})` : repName(l.holder); };
+    const timeline = list.map((l) => `${tag(l)} ${when(l.created_at)}`).join(' → ');
+    for (const [pk, l] of pods) {
+      const multi = pods.size > 1;
+      const earlier = list.filter((x) => x.created_at < l.created_at && podOf(x.holder)?.title !== podOf(l.holder)?.title);
+      const title = !multi ? `Same address sent to ${list.length} reps — ${clip(list[0].addr, 120)}`
+        : earlier.length ? `Already received by another pod — ${clip(l.addr, 120)}`
+          : `Also sent to another pod — ${clip(l.addr, 120)}`;
+      const ext = `dupe:${k}|${pk}`;
+      const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, 'Alerts', ?)
+        ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
+      [newId(), ext, l.holder, title, `${timeline} · decide who works it`, l.addr, iso]);
+      if (r[0]?.meta?.changes) status.dupes++;
+    }
   }
+  // The first version (one alert per address, no pod) is replaced.
+  await query("DELETE FROM alerts WHERE kind = 'dupe' AND ext_id NOT LIKE 'dupe:%|%'");
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('lead_judged', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(judged), iso]);
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('alerts_sync', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(status), iso]);
   status.today = today;

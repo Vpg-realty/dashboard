@@ -16,6 +16,7 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
+import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
 import { REPS, issueUrl } from '../../data/config.js';
@@ -652,10 +653,8 @@ export default function ScorecardView() {
 
   const pickers = (
     <>
-      <select className="rounded-md bg-white text-zinc-900 px-2 py-1.5 text-sm font-semibold border border-tan-200" value={week} onChange={(e) => setWeek(e.target.value)}>
-        <option value="__trends">📈 Trends · last 8 weeks</option>
-        {weekOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      <SearchSelect className="w-64" value={week} onChange={(v) => v && setWeek(v)} clearable={false} sort={false}
+        pinned={[{ value: '__trends', label: 'Trends · last 8 weeks' }]} options={weekOptions.map((o) => ({ value: o.value, label: o.label }))} />
       <ScoreHelp light />
     </>
   );

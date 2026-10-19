@@ -372,8 +372,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   last 30 days (`DUPE_DAYS`) grouped by `addrKey`; two or more reps → one
   alert per address (ext_id `dupe:<key>`), held by the rep who got it first,
   ringing their pod lead and the owners like leads (`SHARED` kinds in
-  edge/alerts.js), body "Axel (Oct 19), Danni (Oct 19) · decide who works
-  it", no due date; a new rep on it updates it and reopens a ticked one.
+  edge/alerts.js), no due date; a new rep on it updates it and reopens a
+  ticked one. **One alert per pod** (Luke, later Oct 19: "alert both pod
+  leads that the address was already received by another pod member with
+  name and timing"): ext_id `dupe:<key>|<pod title>` (a rep in no pod is a
+  pod of their own), held by that pod's first rep on it; titles "Already
+  received by another pod — …" / "Also sent to another pod — …" (one pod:
+  "Same address sent to N reps — …"); body = every rep with pod and Arizona
+  time, "Axel (Pod A) Oct 19, 2:06 PM → Danni (Pod B) Oct 19, 2:07 PM ·
+  decide who works it". Owners see one per pod. The first version's
+  `dupe:<key>` rows are deleted by the sync.
   Leads keep the address Claude read (`alerts.addr`, added Oct 19 with ALTER
   TABLE and backfilled from the titles). Usage: one read of the recent leads
   per sync run (~0.5k rows) — about 50k reads a day.
@@ -567,6 +575,22 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   CRM / messaging fields) and `useScorecards` (cache with only their rows,
   `self`, `liveTeamAvg`); `weekSeries` carries `teamAvg`, which RepProgress
   draws as the team line.
+- **Where It Leaks, by State** (My Scorecard, Luke Oct 19 — option C of the
+  mock-ups): `LeakByState` in MyScorecardView.jsx, under Fix These — this
+  month's funnel (conversations → opps → offers → contracts) with each of
+  the rep's states as a shade of navy (bars on a log scale), each step's
+  rate vs the team's, the rep's weakest step outlined; beside it the steps
+  below the team rate ranked by how many deals each gap costs ("5 more
+  offers would close the gap", top 5).
+- **One dropdown everywhere** (Luke, Oct 19: "match the rest of the website
+  dropdowns … consistent throughout the whole site"): the plain `<select>`s
+  on Zips & Holds, Get Zips, Alerts (add a task), Who Works Where, the Rep
+  page, Month in Review, the Scorecard week picker, the pay dialog,
+  Suggestion Box and Training became `SearchSelect` (src/deals/SearchSelect.jsx;
+  an "All …" choice is a `pinned` option). Kept on purpose: the navy-band
+  person pickers (Pipeline, Alerts), the in-row CRM grade chips, the
+  coloured status selects on Territory, the Sub-Accounts form; the account
+  menu's Welcome choice is three small buttons.
 - **View as** (Luke, Oct 14: "log in as a rep to see what they see"):
   owners get a "View as" menu in the header (`ViewAs.jsx`, people from
   `GET /api/users`, owners only, TV left out), grouped (Luke, Oct 14:

@@ -8,6 +8,7 @@
 // off (Luke, Oct 19); opening the page only stops the pulse — what arrived
 // since the last visit keeps a NEW tag until the page is left. "Select all"
 // ticks many at once (leads take a Real / Not a lead answer instead).
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, setQuery } from '../shell/router.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
@@ -154,9 +155,8 @@ function AddTask({ assignable, me, act, busy }) {
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={assignable.length > 1 ? 'Add a task for yourself or someone on your team…' : 'Add a task for yourself…'}
         className="flex-1 min-w-[220px] h-9 rounded-lg border border-zinc-200 bg-white px-3 text-[13.5px]" maxLength={200} />
       {assignable.length > 1 && (
-        <select value={to} onChange={(e) => setTo(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]" aria-label="For">
-          {assignable.map((p) => <option key={p.id} value={p.id}>{p.id === me ? 'For me' : `For ${p.name}`}</option>)}
-        </select>
+        <SearchSelect className="w-48" value={to} onChange={(v) => v && setTo(v)} clearable={false} sort={false}
+          options={assignable.map((p) => ({ value: p.id, label: p.id === me ? 'For me' : `For ${p.name}` }))} />
       )}
       <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]" aria-label="Due date" />
       <button type="submit" disabled={busy || !title.trim()} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold text-[13.5px] hover:bg-navy-800 disabled:opacity-50">Add task</button>

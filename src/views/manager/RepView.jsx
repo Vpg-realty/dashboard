@@ -3,6 +3,7 @@
 // each of their states is doing. The period picker (Luke, Oct 8; carried
 // over from the old Advanced tab) swaps the live numbers for any past week,
 // month or custom range, totalled from history.json.
+import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useRef, useState } from 'react';
 import Floating from '../../shell/Floating.jsx';
 import { PANEL_HEAD } from '../../shell/panelStyle.js';
@@ -219,21 +220,14 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const picker = (
     <>
       {!self && (
-        <select className={pickCls} value={rep.id} onChange={(e) => onPickRep?.(e.target.value)}>
-          {withTeam && <option value="__team">Full team (scorecard)</option>}
-          {REPS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
+        <SearchSelect className="w-52" value={rep.id} onChange={(v) => v && onPickRep?.(v)} clearable={false}
+          pinned={withTeam ? [{ value: '__team', label: 'Full team (scorecard)' }] : []} options={REPS.map((x) => ({ value: x.id, label: x.name }))} />
       )}
-      <select className={pickCls} value={period} onChange={(e) => setPeriod(e.target.value)}>
-        {/* Luke, Oct 12: custom range at the top, then the weeks (opens on
-            this week), months at the bottom. */}
-        <option value="custom">Custom range…</option>
-        <optgroup label="Weeks">
-          <option value="now">This week ({nowLabel})</option>
-          {weeks.filter((o) => o.from !== wkFrom).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </optgroup>
-        <optgroup label="Months">{months.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
-      </select>
+      {/* Luke, Oct 12: custom range at the top, then the weeks (opens on
+          this week), months at the bottom. */}
+      <SearchSelect className="w-60" value={period} onChange={(v) => v && setPeriod(v)} clearable={false} sort={false}
+        pinned={[{ value: 'custom', label: 'Custom range…' }]}
+        options={[{ value: 'now', label: `This week (${nowLabel})`, hint: 'week' }, ...weeks.filter((o) => o.from !== wkFrom).map((o) => ({ value: o.value, label: o.label, hint: 'week' })), ...months.map((o) => ({ value: o.value, label: o.label, hint: 'month' }))]} />
       {period === 'custom' && (
         <>
           <input type="date" className={pickCls} value={customFrom} min={firstOnFile} max={today} onChange={(e) => setCustomFrom(e.target.value)} />

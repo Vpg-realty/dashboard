@@ -1,6 +1,7 @@
 // Manager · Month in Review (Luke, Oct 9): the first-Friday look back at a
 // month — contracts, cancellations, closings, revenue, who led each, and who
 // signed the month's first contract. Pick any month on file.
+import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useState } from 'react';
 import useMonthLog from './useMonthLog.js';
 import { REPS } from '../../data/config.js';
@@ -149,9 +150,7 @@ export default function MonthView() {
   ].filter(Boolean).join(' · ');
 
   const picker = (
-    <select className="rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibold" value={mo} onChange={(e) => setPick(e.target.value)}>
-      {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-    </select>
+    <SearchSelect className="w-48" value={mo} onChange={(v) => v && setPick(v)} clearable={false} sort={false} options={months.map((m) => ({ value: m.value, label: m.label }))} />
   );
 
   const list = tab === 'contracts' ? ev.contracts : tab === 'closings' ? ev.closings : ev.cancels;

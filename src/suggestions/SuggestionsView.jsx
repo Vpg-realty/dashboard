@@ -5,11 +5,12 @@
 // header's "Suggest a change" button, ?from=) and comments on any of them;
 // owners move each one New → Under review → Approved → Done, or Not now, with
 // an answer everyone sees. API: functions/api/suggestions (edge/suggestions.js).
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { call, useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import { PanelHead } from '../shell/Panel.jsx';
-import { primaryCls, btnCls, selectCls } from '../deals/format.js';
+import { primaryCls, btnCls } from '../deals/format.js';
 import ClearX from '../shell/ClearX.jsx';
 
 const KINDS = [['fix', 'Something is wrong'], ['change', 'Change something'], ['idea', 'New idea']];
@@ -49,7 +50,7 @@ function NewForm({ from, onSaved, onCancel }) {
               className={`h-8 px-3 rounded-lg border text-[13px] font-medium ${f.kind === k ? 'border-navy-700 bg-navy-700 text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'}`}>{l}</button>
           ))}
           <label className="ml-auto flex items-center gap-2 text-[13px] text-zinc-500">Where
-            <select value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} className={selectCls}>{AREAS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <SearchSelect value={f.area} onChange={(v) => v && setF({ ...f, area: v })} clearable={false} sort={false} options={AREAS.map(([k, l]) => ({ value: k, label: l }))} />
           </label>
         </div>
         <input autoFocus value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={140} placeholder="In one line — e.g. “Add the buyer's phone to the deal panel”" className={field} />

@@ -56,7 +56,7 @@ function PayDialog({ lines, title, onClose, onDone }) {
           </ul>
           <label className="grid gap-1"><span className="text-zinc-600">Paid on</span><input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className={selectCls} /></label>
           <label className="grid gap-1"><span className="text-zinc-600">How</span>
-            <select value={method} onChange={(e) => setMethod(e.target.value)} className={selectCls}>{Object.entries(METHODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+            <SearchSelect value={method} onChange={(v) => v && setMethod(v)} clearable={false} sort={false} options={Object.entries(METHODS).map(([k, v]) => ({ value: k, label: v }))} />
           </label>
           <label className="grid gap-1"><span className="text-zinc-600">Reference <span className="text-zinc-400">(optional — check #, batch, confirmation)</span></span><input value={ref} onChange={(e) => setRef(e.target.value)} maxLength={120} className={selectCls} /></label>
           {err && <div className="text-red-700">{err}</div>}

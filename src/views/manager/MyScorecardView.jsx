@@ -7,7 +7,7 @@
 // only ever sends their own rows plus the team average.
 import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
-import { REPS, ghlConvUrl, issueUrl } from '../../data/config.js';
+import { REPS, MARKETS, ghlConvUrl, issueUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
@@ -19,7 +19,7 @@ import LineChart from './LineChart.jsx';
 import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
-import { T, metrics, repPairs, scoreParts, scoreTone, paceTone, mostPointsLeft } from './metrics.js';
+import { T, metrics, repPairs, teamMetrics, scoreParts, scoreTone, paceTone, mostPointsLeft, STEPS, rate, pct } from './metrics.js';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 const card = 'rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
@@ -217,6 +217,88 @@ function FixList({ pairs, monday, crm, manual, m }) {
   );
 }
 
+// Where it leaks, by state (Luke, Oct 19 — option C of the mock-ups): this
+// month's funnel with each of the rep's states as a shade of navy, next to
+// the steps that fall below the team's rate, ranked by how many deals each
+// gap costs ("5 more offers would close the gap").
+const SHADES = ['#1b385f', '#4a6a94', '#8aa3c4', '#b9c8dc', '#d9e2ee', '#eef2f8'];
+const STEP_KEYS = [['convosM', 'New conversations'], ['oppsM', 'Opps'], ['offersM', 'Offers'], ['contractsM', 'Contracts']];
+const UNIT = { oppsM: ['opp', 'opps'], offersM: ['offer', 'offers'], contractsM: ['contract', 'contracts'] };
+function LeakByState({ rep }) {
+  const pairs = repPairs(rep.id);
+  const name = (id) => MARKETS.find((x) => x.id === id)?.name || id;
+  const states = pairs.map((p) => ({ id: p.marketId, name: name(p.marketId), m: metrics([p]) }))
+    .sort((a, b) => (b.m.convosM || 0) - (a.m.convosM || 0));
+  if (!states.length) return null;
+  const total = metrics(pairs);
+  const team = teamMetrics();
+  const teamRates = STEPS.map((s) => rate(team, s));
+  const top = Math.max(1, total.convosM || 0);
+  // The rep's own weakest step (furthest below the team), for the outline.
+  const rel = STEPS.map((s, i) => { const r = rate(total, s); return r == null || !teamRates[i] ? 1 : r / teamRates[i]; });
+  const leakI = rel.indexOf(Math.min(...rel));
+  const gaps = states.flatMap((st) => STEPS.map((s, i) => {
+    const from = st.m[s.from] || 0; const to = st.m[s.to] || 0; const tr = teamRates[i];
+    if (!from || tr == null) return null;
+    const r = to / from;
+    if (r >= tr) return null;
+    return { st, s, i, r, from, to, tr, short: Math.max(1, Math.ceil(tr * from - to)) };
+  })).filter(Boolean).sort((a, b) => b.short - a.short || a.r / a.tr - b.r / b.tr).slice(0, 5);
+  const shade = (i) => SHADES[Math.min(i, SHADES.length - 1)];
+  return (
+    <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4">
+      <div className={card}>
+        <PanelHead title="Your Funnel This Month · Each State a Shade" />
+        <div className="px-5 py-4 flex flex-col gap-4">
+          {STEP_KEYS.map(([k, label], i) => {
+            const v = total[k] || 0;
+            const st = i > 0 ? STEPS[i - 1] : null;
+            const r = st ? rate(total, st) : null;
+            const leak = st && i - 1 === leakI && rel[leakI] < 1;
+            return (
+              <div key={k}>
+                <div className="flex items-baseline gap-2 text-[14px] mb-1.5">
+                  <b className="text-navy-900">{label}</b>
+                  {st && <span className={leak ? 'text-[#9a3412] font-semibold' : 'text-zinc-500'}>{pct(r)} · team {pct(teamRates[i - 1])}{leak ? ' — your biggest leak' : ''}</span>}
+                  <span className="ml-auto font-bold tabular-nums text-navy-900">{v}</span>
+                </div>
+                <div className="flex h-[22px] rounded-md overflow-hidden bg-zinc-100" style={{ width: `${Math.max(3, Math.min(100, (Math.log10(v + 1) / Math.log10(top + 1)) * 100))}%`, outline: leak ? '2px solid #c2410c' : undefined, outlineOffset: 2 }}>
+                  {states.map((x, j) => { const n = x.m[k] || 0; return n ? <span key={x.id} title={`${x.name}: ${n}`} style={{ width: `${(n / Math.max(1, v)) * 100}%`, background: shade(j) }} /> : null; })}
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-zinc-600">
+            {states.map((x, j) => <span key={x.id} className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm" style={{ background: shade(j) }} />{x.name}</span>)}
+            <span className="text-zinc-400">· bars on a log scale, so the small steps stay visible</span>
+          </div>
+        </div>
+      </div>
+      <div className={card}>
+        <PanelHead title="Where It Leaks, by State" />
+        {gaps.length ? (
+          <ol>
+            {gaps.map((g, n) => {
+              const word = UNIT[g.s.to] || ['', ''];
+              const badge = n === 0 ? 'bg-[#c2410c]' : g.r / g.tr < 0.8 ? 'bg-red-600' : 'bg-amber-500';
+              return (
+                <li key={`${g.st.id}-${g.s.key}`} className="flex gap-3.5 items-start px-5 py-3.5 border-b border-tan-100 last:border-b-0">
+                  <span className={`w-7 h-7 shrink-0 rounded-lg grid place-items-center text-white font-bold text-[13px] ${badge}`}>{n + 1}</span>
+                  <div>
+                    <div className="font-semibold text-navy-800">{g.st.name} · {g.s.label}</div>
+                    <div className="text-[13.5px] text-zinc-600">{pct(g.r)} ({g.to} of {g.from}) vs team {pct(g.tr)} — {g.short} more {g.short === 1 ? word[0] : word[1]} would close the gap</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : <div className="px-5 py-8 text-center text-zinc-500">Every step in every state is at or above the team's rate this month.</div>}
+        <div className="px-5 py-3 text-[12.5px] text-zinc-500 border-t border-tan-100">Ranked by how many deals each gap costs you. Steps at or above the team aren't listed.</div>
+      </div>
+    </section>
+  );
+}
+
 function Trend({ sc, rep }) {
   const weeks = weekSeries(sc, 8);
   const mine = weeks.map((w) => w.reps[rep.id]?.s.score ?? null);
@@ -313,6 +395,7 @@ export default function MyScorecardView() {
       </section>
 
       <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} m={m} />
+      <LeakByState rep={rep} />
       <Trend sc={sc} rep={rep} />
 
       {/* The full breakdown is its own tab now (Luke, Oct 15: "hard to

@@ -6,6 +6,7 @@
 // Owners get the same page (Luke, Oct 14: "Jack and I still need to request
 // zips"): they hold zips as themselves (edge/zips.js holderOf), in every
 // Active state with zips on file, with the same weekly limit.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
 import { useZips, useManyStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } from './store.js';
@@ -51,7 +52,7 @@ function ZipSearch({ states, repId, owner }) {
     <Panel title="Search zips" sub={many ? 'a zip, county or city in one state' : 'a zip, county or city in your states'}>
       <div className="p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <select value={only} onChange={(e) => setOnly(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]">{!many && <option value="">All my states</option>}{states.map((s) => <option key={s}>{s}</option>)}</select>
+          <SearchSelect className="w-48" value={only} onChange={(v) => setOnly(v || '')} clearable={false} pinned={many ? [] : [{ value: '', label: 'All my states' }]} options={states.map((s) => ({ value: s, label: s }))} />
           <span className="relative flex items-center flex-1 min-w-[220px]">
             <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={escClears(q, () => setQ(''))} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 w-full rounded-lg border border-zinc-200 pl-3 pr-8 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
             <ClearX value={q} onClear={() => setQ('')} className="absolute right-2" />
@@ -90,7 +91,7 @@ function FlagForm({ zip, reasons, onDone }) {
   return (
     <div className="flex flex-wrap items-center gap-2 py-1">
       <span className="text-[12.5px] text-zinc-600">What's wrong with {zip}?</span>
-      <select value={reason} onChange={(e) => setReason(e.target.value)} className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]">{reasons.map((r) => <option key={r}>{r}</option>)}</select>
+      <SearchSelect className="w-56" value={reason} onChange={(v) => v && setReason(v)} clearable={false} sort={false} options={reasons.map((r) => ({ value: r, label: r }))} />
       <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="h-8 w-56 rounded-lg border border-zinc-200 px-2 text-[13px]" />
       <button onClick={async () => { try { await zipAction('flag', { zip, reason, note }); onDone(); } catch (e) { setErr(e.message); } }} className="h-8 px-3 rounded-lg bg-red-700 text-white text-[13px] font-medium">Flag it</button>
       <button onClick={onDone} className="h-8 px-2 text-[13px] text-zinc-500">Cancel</button>
@@ -155,7 +156,7 @@ export default function MyZips() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] text-zinc-600">State</span>
               {me.states.length > MANY ? (
-                <select value={state} onChange={(e) => setPick(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px] font-medium">{me.states.map((s) => <option key={s} value={s}>{s} · {Math.max(0, rules.perWeek - usedIn(s))} left</option>)}</select>
+                <SearchSelect className="w-56" value={state} onChange={(v) => v && setPick(v)} clearable={false} options={me.states.map((s) => ({ value: s, label: s, hint: `· ${Math.max(0, rules.perWeek - usedIn(s))} left` }))} />
               ) : <span className="inline-flex flex-wrap rounded-lg border border-zinc-200 bg-white p-0.5 text-[13px] font-medium">
                 {me.states.map((s) => { const mk = me.markets?.[s] || 'Active'; return <button key={s} onClick={() => setPick(s)} title={STATUS_LOOK[mk]?.hint} className={`px-3 h-8 rounded-md ${state === s ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{s}{mk !== 'Active' ? <span className={`ml-1 text-[10.5px] ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>· {mk.toLowerCase()}</span> : <span className={`ml-1 text-[10.5px] tabular-nums ${state === s ? 'text-navy-100' : 'text-zinc-400'}`}>{Math.max(0, rules.perWeek - usedIn(s))} left</span>}</button>; })}
               </span>}

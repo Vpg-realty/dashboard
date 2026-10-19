@@ -3,6 +3,7 @@
 // a state's counties and zips (held / used / available / flagged), who holds
 // what, and the request log. Owners assign specific zips to a rep, release or
 // reuse zips, pause / exclude them and approve a new round.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useMemo, useState } from 'react';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
@@ -119,11 +120,8 @@ function StateDetail({ state, reps, owner, onClose }) {
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 px-5 py-2.5 border-b border-tan-100 bg-tan-50">
           <span className="text-[13px] font-medium text-navy-800">{list.length ? `${list.length} selected` : 'Click zips to select them'}</span>
           {list.length > 0 && <>
-            <select value={rep} onChange={(e) => setRep(e.target.value)} className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]">
-              <option value="">Assign to…</option>
-              <optgroup label={`Works ${state}`}>{eligibleReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</optgroup>
-              {otherReps.length > 0 && <optgroup label="Others">{otherReps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</optgroup>}
-            </select>
+            <SearchSelect className="w-56" value={rep || null} onChange={(v) => setRep(v || '')} placeholder="Assign to…" sort={false}
+              options={[...eligibleReps.map((r) => ({ value: r.id, label: r.name, hint: `works ${state}` })), ...otherReps.map((r) => ({ value: r.id, label: r.name }))]} />
             <button disabled={!rep || busy} onClick={() => run('assign', { repId: rep, zips: list })} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[12.5px] font-medium disabled:opacity-40">Assign</button>
             <span className="w-px h-5 bg-tan-200 mx-1" />
             <button disabled={busy} onClick={() => run('release', { zips: list, reuse: true })} title="Release if held, and make available again this round" className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-[12.5px] font-medium">Release & reuse</button>
@@ -251,7 +249,7 @@ export default function AllZips() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
-        <Panel title="Who holds what" sub={`${d.holds.length} zips`} right={<select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} className="h-7 rounded-md border border-zinc-200 bg-white px-1.5 text-[12.5px]"><option value="">All reps</option>{d.reps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>}>
+        <Panel title="Who holds what" sub={`${d.holds.length} zips`} right={<SearchSelect className="w-44" value={repFilter} onChange={(v) => setRepFilter(v || '')} clearable={false} pinned={[{ value: '', label: 'All reps' }]} options={d.reps.map((r) => ({ value: r.id, label: r.name }))} />}>
           {!holds.length && <div className="px-5 py-6 text-center text-zinc-500">Nobody holds any zips yet.</div>}
           <div className="divide-y divide-tan-100">
             {holds.map(([id, list]) => {
