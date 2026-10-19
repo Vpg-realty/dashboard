@@ -2,6 +2,7 @@
 // GET  /api/alerts?count=1    → { counts, chime }   (the sidebar's red dot, polled)
 // POST /api/alerts { action: 'add', title, body?, due?, to? }   a task (pod leads / owners can assign)
 //                  { action: 'done', id, done }                 tick / untick
+//                  { action: 'doneMany', ids, done }            tick / untick several (not leads)
 //                  { action: 'verdict', id, verdict }           a spotted lead: real | not | null
 //                  { action: 'due', id, due }                   move a date (not GHL tasks)
 //                  { action: 'remove', id }                     a site task
@@ -11,7 +12,7 @@
 // Everyone in the app but the TV (edge/alerts.js). Writes are logged in
 // edit_log (not seen / chime) and refused while viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan, counts, countFor, scopeOf } from '../../../edge/alerts.js';
+import { canUse, load, plan, counts, countFor, scopeOf, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 
 async function answer(db, user) {
@@ -34,12 +35,21 @@ export async function onRequestPost(context) {
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const db = context.env.DB;
-  const existing = b?.id ? await db.prepare('SELECT * FROM alerts WHERE id = ?').bind(String(b.id)).first() : null;
+  let existing = b?.id ? await db.prepare('SELECT * FROM alerts WHERE id = ?').bind(String(b.id)).first() : null;
+  if (b?.action === 'doneMany') {
+    const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter((x) => /^a[a-f0-9]{12}$/.test(x)).slice(0, MANY_MAX);
+    existing = [];
+    // D1 takes at most 100 values per query.
+    for (let i = 0; i < ids.length; i += 90) {
+      const part = ids.slice(i, i + 90);
+      existing.push(...(await db.prepare(`SELECT id, holder, kind FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+    }
+  }
   const now = new Date().toISOString();
   const p = plan(b, user, now, existing);
   if (p.error) return json({ error: p.error }, 400);
   const log = b.action === 'seen' || b.action === 'chime' ? [] : [
-    db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, to: b.to, verdict: b.verdict, done: b.done })),
+    db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, ids: p.ids, to: b.to, verdict: b.verdict, done: b.done })),
   ];
   await db.batch([...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)), ...log]);
   return json(await answer(db, user));

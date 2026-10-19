@@ -23,6 +23,7 @@ import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { PILL_TONE } from './values.js';
 import MismatchList from './Mismatch.jsx';
+import { EmdPill } from './pills.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
@@ -306,12 +307,27 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const visible = (f) => (ro ? repSees(f) : owner || !f.secret);
   const groups = GROUPS.filter(([gid]) => FIELDS.some((f) => f.group === gid && visible(f)));
   const vpg = typeof merged.vpgAssign === 'number' && merged.vpgAssign > 0;
+  // Summary tile, frozen at the top (Luke, Oct 19: "the deal status at a
+  // glance"): row 1 the money — contracted, assignment, gross assignment (reps
+  // keep gross, Oct 14); row 2 the dates and EMD — COE, the inspection period
+  // from contract date to IP end (with its time), and EMD status + who placed it.
+  const dash = <span className="text-zinc-300">—</span>;
   const facts = [
-    ['Contracted price', retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)],
-    ['Assignment price', vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>],
-    ...(ro ? [] : [['Gross', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : <span className="text-zinc-400 font-medium text-[14px]">—</span>]]),
-    ['COE', <CoeChip key="coe" coe={merged.coe} />],
-    ['DD ends', merged.ddEnd ? <span title={showEndTime(merged)}>{shortDate(merged.ddEnd, { year: false })}{merged.ddEndTime ? <span className="block text-[11.5px] font-medium text-zinc-500 truncate">{showEndTime(merged)}</span> : null}</span> : <span className="text-zinc-300">—</span>],
+    [
+      ['Contracted price', retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)],
+      ['Assignment price', vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>],
+      ['Gross assignment', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : dash],
+    ],
+    [
+      ['COE', <CoeChip key="coe" coe={merged.coe} />],
+      ['Inspection period', merged.accepted || merged.ddEnd ? (
+        <span className="text-[15px]" title={showEndTime(merged) || undefined}>
+          {merged.accepted ? shortDate(merged.accepted, { year: false }) : '—'} → {merged.ddEnd ? shortDate(merged.ddEnd, { year: false }) : '—'}
+          {merged.ddEndTime ? <span className="block text-[11.5px] font-medium text-zinc-500 truncate">ends {showEndTime(merged)}</span> : null}
+        </span>
+      ) : dash],
+      ['EMD', <span key="emd" className="inline-flex flex-wrap items-center gap-1.5"><EmdPill deal={merged} />{merged.emd ? <span className="text-[13px] font-medium text-zinc-500">{money(merged.emd)}</span> : null}</span>],
+    ],
   ];
 
   return (
@@ -347,11 +363,15 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           )}
         </header>
         {!isNew && tab === 'details' && (
-          <div className={`shrink-0 grid ${facts.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} bg-white border-b border-tan-200`}>
-            {facts.map(([l, v]) => (
-              <div key={l} className="px-4 py-3 [&:not(:last-child)]:border-r border-tan-100 min-w-0">
-                <div className="text-[11.5px] font-medium text-zinc-500 whitespace-nowrap">{l}</div>
-                <div className="mt-1 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
+          <div className="shrink-0 bg-white border-b border-tan-200 divide-y divide-tan-100">
+            {facts.map((row, i) => (
+              <div key={i} className="grid grid-cols-3">
+                {row.map(([l, v]) => (
+                  <div key={l} className="px-4 py-2.5 [&:not(:last-child)]:border-r border-tan-100 min-w-0">
+                    <div className="text-[11.5px] font-medium text-zinc-500 whitespace-nowrap">{l}</div>
+                    <div className="mt-1 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

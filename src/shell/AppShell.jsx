@@ -90,12 +90,14 @@ function Avatar({ name, size = 26 }) {
 }
 
 // Option A (Luke, Oct 18): a pulsing red count on the sidebar's Alerts entry.
-function AlertDot({ unseen, overdue, collapsed, phone }) {
-  if (!unseen && !overdue) return null;
-  const n = unseen || overdue;
+// Red dot (Luke, Oct 19): what the person owes today, shown until it's
+// cleared — pulsing rose while something new arrived since they last looked.
+function AlertDot({ owe, unseen, collapsed, phone }) {
+  if (!owe) return null;
+  const n = owe;
   const pos = collapsed || phone ? 'absolute -top-1 right-0' : 'ml-auto';
   return (
-    <span title={unseen ? `${unseen} new` : `${overdue} overdue`}
+    <span title={`${owe} to do${unseen ? ` · ${unseen} new` : ''}`}
       className={`${pos} min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-bold text-white tabular-nums ${unseen ? 'bg-rose-600 alert-pulse' : 'bg-[#4c0519]'}`}>
       {n > 99 ? '99+' : n}
     </span>
@@ -123,7 +125,7 @@ export default function AppShell({ me }) {
   // when there's nothing new but something is late, a quieter maroon count.
   const { counts: alertCounts } = useAlerts();
   const unseen = section.id === 'alerts' ? 0 : alertCounts?.unseen || 0;
-  const overdue = alertCounts?.overdue || 0;
+  const owe = alertCounts?.owe || 0;
 
   // Keep the address bar on the page actually shown (old or forbidden links).
   const canonical = hrefOf(section, tab);
@@ -140,9 +142,9 @@ export default function AppShell({ me }) {
   }, []);
 
   useEffect(() => {
-    document.title = `${unseen ? `(${unseen}) ` : ''}${tab ? tab.label : section.label} · Valley Property Group`;
-    tabBadge(unseen);
-  }, [section, tab, unseen]);
+    document.title = `${owe ? `(${owe}) ` : ''}${tab ? tab.label : section.label} · Valley Property Group`;
+    tabBadge(owe);
+  }, [section, tab, owe]);
 
   const View = tab ? VIEWS[tab.view] : null;
   const rep = query.get('rep');
@@ -157,7 +159,7 @@ export default function AppShell({ me }) {
         {on && <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded-r bg-tan-500" />}
         <Icon name={s.icon} className={on ? 'text-navy-700' : 'text-tan-600/80'} />
         {!collapsed && s.label}
-        {s.id === 'alerts' && <AlertDot unseen={unseen} overdue={overdue} collapsed={collapsed} />}
+        {s.id === 'alerts' && <AlertDot owe={owe} unseen={unseen} collapsed={collapsed} />}
       </a>
     );
   };
@@ -290,7 +292,7 @@ export default function AppShell({ me }) {
         {sections.slice(0, 4).map((s) => (
           <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} className={`relative flex flex-col items-center gap-1 text-[11px] font-medium ${s.id === section.id ? 'text-navy-700' : 'text-zinc-500'}`}>
             <Icon name={s.icon} size={20} />{s.label}
-            {s.id === 'alerts' && <AlertDot unseen={unseen} overdue={overdue} phone />}
+            {s.id === 'alerts' && <AlertDot owe={owe} unseen={unseen} phone />}
           </a>
         ))}
         <button onClick={() => setPalette(true)} className="flex flex-col items-center gap-1 text-[11px] font-medium text-zinc-500"><Icon name="search" size={20} />Search</button>

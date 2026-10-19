@@ -8,7 +8,6 @@
 // width, bigger numbers with pace badges, and a right-hand column of cards —
 // revenue this month, the pipeline by stage, the deal tracker (owners / TC),
 // wins — plus a weekly leaderboard for owners and managers.
-import StageChip from './StageChip.jsx';
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
@@ -23,14 +22,11 @@ import { scopeReps } from './scope.js';
 import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { paceFraction } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
-import { EmdPill } from '../deals/pills.jsx';
-import { nextStep, dueTone } from '../deals/status.js';
+import { nextStep } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
 import Icon from './icons.jsx';
-import { titleCase } from './titleCase.js';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
-const KEY_LABEL = { ipEnd: 'IP end', coe: 'COE' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
 const DAY = 86_400_000;
 
@@ -128,12 +124,11 @@ function RevenueCard({ m, n, title = 'Revenue · this month' }) {
 }
 
 const STAGE_ORDER = [['under_contract', 'Under contract', '#2563eb'], ['dispo', 'Dispo active', '#d97706'], ['assigned', 'Assigned', '#7c3aed'], ['closed', 'Closed this month', '#059669']];
-// `split` (pod leads): [{ label, deals }] — a count column per side.
-function PipelineCard({ deals, split }) {
-  if (split) return <PipelineSplit split={split} />;
+// Owners only (Luke, Oct 19): open deals by GHL stage.
+function PipelineCard({ deals }) {
   const max = Math.max(1, ...STAGE_ORDER.map(([k]) => deals.filter((d) => d.stage === k).length));
   return (
-    <Card title="Pipeline" right={more('/pipeline/all', 'Open')}>
+    <Card title="Pipeline by Stage" right={more('/pipeline/all', 'Open')}>
       <div className="flex flex-col gap-2.5">
         {STAGE_ORDER.map(([k, label, color]) => {
           const list = deals.filter((d) => d.stage === k);
@@ -151,30 +146,7 @@ function PipelineCard({ deals, split }) {
   );
 }
 
-// A pod lead's pipeline: their own deals and their pod's side by side
-// (Luke, Oct 18: "differentiate everything … themselves and pod").
-function PipelineSplit({ split }) {
-  const cell = (list) => {
-    const value = list.reduce((a, d) => a + (d.value || 0), 0);
-    return <span className="text-right text-[13px] tabular-nums whitespace-nowrap"><span className={`font-semibold ${list.length ? '' : 'text-zinc-300'}`}>{list.length}</span>{value ? <span className="text-zinc-500"> · {formatCompactCurrency(value)}</span> : ''}</span>;
-  };
-  return (
-    <Card title="Pipeline" right={more('/pipeline/all', 'Open')}>
-      <div className="grid grid-cols-[minmax(0,1fr)_96px_96px] items-center gap-x-3 gap-y-2.5">
-        <span />
-        {split.map((x) => <span key={x.label} className="text-right text-[11.5px] font-semibold uppercase tracking-wide text-navy-700">{x.label}</span>)}
-        {STAGE_ORDER.map(([k, label, color]) => (
-          <div key={k} className="contents">
-            <span className="flex items-center gap-2 text-[13px] text-zinc-600"><span className="w-2 h-2 rounded-full" style={{ background: color }} />{label}</span>
-            {split.map((x) => <span key={x.label}>{cell(x.deals.filter((d) => d.stage === k))}</span>)}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// Owners and the TC: the deal tracker at a glance.
+// Owners: the deal tracker at a glance.
 function TrackerCard() {
   const s = useDeals();
   if (s.status === 'error') return null;
@@ -198,74 +170,6 @@ function TrackerCard() {
   );
 }
 
-// Owners and managers: who is moving this week (contracts, then offers, opps).
-function Leaderboard({ reps, title = 'This week by rep' }) {
-  const rows = reps.map((r) => {
-    const m = metrics(PAIRS.filter((p) => p.repId === r.id));
-    return { r, m };
-  }).sort((a, b) => b.m.contractsW - a.m.contractsW || b.m.offersW - a.m.offersW || b.m.oppsW - a.m.oppsW);
-  const wk = paceFraction('week');
-  const mo = paceFraction('month');
-  const cell = (v, t, frac = wk) => {
-    const b = paceBadge(paceRatio(v, t, frac));
-    return <span className={`inline-block min-w-[64px] rounded-md px-2 py-0.5 tabular-nums font-semibold ring-1 ring-inset ${b?.[1] || ""}`}>{v}<span className="opacity-60 font-normal"> / {t}</span></span>;
-  };
-  return (
-    <Card title={title} right={more('/team/scorecard', 'Scorecard')} >
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-[13.5px]">
-          <thead className="text-[11.5px] uppercase tracking-wide text-zinc-500"><tr>
-            <th className="py-2 font-semibold">Rep</th><th className="py-2 font-semibold text-right">Contracts</th><th className="py-2 font-semibold text-right">Offers</th><th className="py-2 font-semibold text-right">Opps opened</th><th className="py-2 font-semibold text-right">Contracts · month</th><th className="py-2 font-semibold text-right">Closed · month</th>
-          </tr></thead>
-          <tbody>
-            {rows.map(({ r, m }, i) => (
-              <tr key={r.id} className="border-t border-zinc-100">
-                <td className="py-2.5"><span className="flex items-center gap-2.5"><span className="w-5 text-zinc-400 tabular-nums">{i + 1}</span><Avatar rep={r} size={24} /><span className="font-medium">{r.name}</span></span></td>
-                <td className="py-2.5 text-right">{cell(m.contractsW, T.contractsPerWeek)}</td>
-                <td className="py-2.5 text-right">{cell(m.offersW, T.offersPerWeek)}</td>
-                <td className="py-2.5 text-right">{cell(m.oppsW, T.oppsOpenedPerWeek)}</td>
-                <td className="py-2.5 text-right">{cell(m.contractsM, T.contractsPerMonth, mo)}</td>
-                <td className="py-2.5 text-right">{cell(m.closedM, T.dealsClosedPerMonth, mo)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-// Stage chips: one colour per GHL stage, the same across the site
-// (src/shell/stages.js — Luke, Oct 16).
-function dueText(days, key) {
-  const what = KEY_LABEL[key];
-  const text = days < 0 ? `${-days}d late` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`;
-  return { what, text, cls: dueTone(days) };
-}
-
-// `tracked`: the deal tracker's deal at the same address (addrKey), for its
-// EMD status (Luke, Oct 14: EMD on every row) — none when the deal isn't in
-// the tracker yet, or the tracker hasn't loaded.
-function DealRow({ d, showRep, onOpen, tracked }) {
-  const due = dueText(d.days, d.key);
-  return (
-    <button type="button" onClick={() => onOpen(d)} className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_170px_140px_170px_160px] items-center gap-x-3 gap-y-1 min-h-11 py-2 md:py-0 px-1 text-[14px] border-t border-zinc-100 hover:bg-tan-50 rounded-sm">
-      <span className="font-medium truncate">{d.address}</span>
-      <span className="md:order-last justify-self-end flex items-center gap-1.5 whitespace-nowrap">
-        <span className="text-[11.5px] text-zinc-500">{due.what}</span>
-        <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${due.cls}`}>{due.text}</span>
-      </span>
-      {showRep ? (
-        <span className="flex items-center gap-2 text-zinc-600 min-w-0"><Avatar rep={d.rep} /> <span className="truncate">{d.rep?.name.split(' ')[0]} · {d.marketId}</span></span>
-      ) : <span className="hidden md:block text-zinc-500">{d.marketId}</span>}
-      <span className="justify-self-start"><StageChip stage={d.stage} /></span>
-      <span className="justify-self-start flex items-center gap-1.5 whitespace-nowrap">
-        {tracked && <><span className="text-[11.5px] text-zinc-500">EMD</span><EmdPill deal={tracked} /></>}
-      </span>
-    </button>
-  );
-}
-
 function greeting() {
   const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -280,6 +184,30 @@ function AlertsLink() {
     <a {...linkProps('/alerts')} className="ml-2 align-middle inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-rose-700">
       {counts.unseen} new alert{counts.unseen === 1 ? '' : 's'} →
     </a>
+  );
+}
+
+// Today at a Glance (Luke, Oct 19 — replaces the Needs Attention list, which
+// repeated Alerts, Calendar and Active): four counts, each a link to where the
+// work is done.
+function TodayCard({ alertsOpen, late, dueToday, closingWeek, today }) {
+  const tiles = [
+    ['Alerts to do', alertsOpen, '/alerts', 'text-navy-800'],
+    ['Late', late, '/calendar', 'text-[#B42318]'],
+    ['Due today', dueToday, `/calendar?day=${today}`, 'text-[#B54708]'],
+    ['Closing this week', closingWeek, '/calendar', 'text-emerald-700'],
+  ];
+  return (
+    <Card title="Today at a Glance" right={more('/calendar', 'Calendar')}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {tiles.map(([l, v, to, c]) => (
+          <a key={l} {...linkProps(to)} className="rounded-lg bg-tan-50 hover:bg-tan-100 px-4 py-3.5">
+            <div className={`text-[28px] leading-none font-semibold tabular-nums ${v ? c : 'text-zinc-300'}`}>{v ?? '—'}</div>
+            <div className="text-[12.5px] text-zinc-600 mt-1.5 flex items-center gap-1">{l} <Icon name="arrow" size={12} /></div>
+          </a>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -317,8 +245,11 @@ export default function HomeView({ me }) {
     .filter((d) => d && d.days <= 3)
     .sort((a, b) => a.days - b.days);
   const late = open.filter((d) => d.days < 0);
-  const soon = open.filter((d) => d.days >= 0 && d.days <= 1);
-  const later = open.filter((d) => d.days > 1);
+  const dueToday = open.filter((d) => d.days === 0).length;
+  // Closings (COE) from today through Sunday, for deals not closed yet.
+  const toSunday = 6 - ((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7);
+  const closingWeek = deals.filter((d) => d.stage !== 'closed' && d.coe && !ended.has(addrKey(d.address || d.name))).filter((d) => { const k = daysInclusive(today, d.coe) - 1; return k >= 0 && k <= toSunday; }).length;
+  const { counts: alertCounts } = useAlerts();
 
   // This week's wins: new contracts (startedAt) and closings (stageSince),
   // Mon → now — the whole team's, for everyone whatever their role or pod
@@ -332,33 +263,20 @@ export default function HomeView({ me }) {
 
   const m = metrics(pairs);
   const n = scope ? scope.length : REPS.length;
-  const showRep = !scope || scope.length > 1;
   const isTc = me?.role === 'tc';
-  const count = (st) => deals.filter((d) => d.stage === st).length;
-  const numbers = (mm, k) => [['Contracts this week', mm.contractsW, T.contractsPerWeek * k, '#2563eb', 'week'], ['Offers this week', mm.offersW, T.offersPerWeek * k, '#7c3aed', 'week'], ['Opps opened this week', mm.oppsW, T.oppsOpenedPerWeek * k, '#d97706', 'week'], ['Contracts this month', mm.contractsM, T.contractsPerMonth * k, '#0d9488', 'month']];
-  const stats = isTc
-    ? [['Under contract', count('under_contract')], ['Dispo', count('dispo')], ['Assigned', count('assigned')], ['Closed this month', m.closedM]]
-    : numbers(m, n);
-  const mineOf = (list) => list.filter((d) => d.rep?.id === me.rep_id);
-  const podOf = (list) => list.filter((d) => podIds.includes(d.rep?.id));
+  // The same four tiles in the same order for every role, the TC included
+  // (Luke, Oct 19): opps, offers and contracts this week, closed this month.
+  const numbers = (mm, k) => [['Opps opened this week', mm.oppsW, T.oppsOpenedPerWeek * k, '#d97706', 'week'], ['Offers this week', mm.offersW, T.offersPerWeek * k, '#7c3aed', 'week'], ['Contracts this week', mm.contractsW, T.contractsPerWeek * k, '#2563eb', 'week'], ['Closed this month', mm.closedM, T.dealsClosedPerMonth * k, '#059669', 'month']];
+  const stats = numbers(m, n);
   const podFirst = pod ? pod.reps.map((id) => repById[id]?.name.split(' ')[0]).filter(Boolean).join(', ') : '';
-  const statRows = pod && !isTc ? [
+  const statRows = pod ? [
     { title: 'Your numbers', sub: me?.name || null, list: numbers(metrics(PAIRS.filter((p) => p.repId === me.rep_id)), 1) },
     { title: `${pod.title} · your reps`, sub: podFirst, list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
   ] : [{ title: null, list: stats }];
   const shadowName = me?.shadowing ? repById[me.rep_id]?.name.split(' ')[0] : null;
   const scopeLabel = shadowName ? `Shadowing ${shadowName} — their numbers and deals` : !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
   const showMoney = !isTc;
-  // Leaderboard: owners see every rep, a manager their pod.
-  const leaders = me?.role === 'owner' ? REPS : pod ? REPS.filter((r) => podIds.includes(r.id)) : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;
   const dateLabel = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', month: 'long', day: 'numeric' });
-
-  const group = (title, dot, list) => list.length > 0 && (
-    <div key={title}>
-      <div className="flex items-center gap-2 pt-5 pb-2 text-[12.5px] font-semibold uppercase tracking-wide text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />{titleCase(title)}<span className="text-zinc-400">{list.length}</span></div>
-      {list.map((d) => <DealRow key={d.id} d={d} showRep={showRep} onOpen={openGhl} tracked={trackedOf(d)} />)}
-    </div>
-  );
 
   return (
     <div className="max-w-[1720px] mx-auto">
@@ -373,7 +291,6 @@ export default function HomeView({ me }) {
           <h1 className="mt-1.5 text-2xl md:text-[30px] font-semibold tracking-tight">{greeting()}, {me?.name || 'there'}</h1>
           <div className="text-navy-100 mt-1">
             {dateLabel}
-            {open.length > 0 && <> · {late.length > 0 && <span className="text-red-200 font-semibold">{late.length} late</span>}{late.length > 0 && soon.length > 0 && ', '}{soon.length > 0 && <span>{soon.length} due today or tomorrow</span>}</>}
             <AlertsLink />
             {scopeLabel && <span className="ml-2 text-xs rounded-md px-1.5 py-0.5 align-middle bg-tan-500/25 text-tan-100 ring-1 ring-tan-400/40">{scopeLabel}</span>}
           </div>
@@ -395,37 +312,12 @@ export default function HomeView({ me }) {
       ))}
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-        <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
-        {(pod ? [['Needs attention · yours', mineOf], [`Needs attention · ${pod.title}`, podOf]] : [['Needs attention', (x) => x]]).map(([title, pick]) => {
-          const [l, s1, n1] = [pick(late), pick(soon), pick(later)];
-          return (
-            <Card key={title} title={title} right={more('/pipeline/all', 'Pipeline')}>
-              {l.length + s1.length + n1.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-zinc-500">Nothing late or due in the next 3 days.</div>
-              ) : (
-                <div className="-mt-3">
-                  {group('Late', '#b91c1c', l)}
-                  {group('Today & tomorrow', '#ea580c', s1)}
-                  {group('Next few days', '#a1a1aa', n1)}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-        {leaders && <Leaderboard reps={leaders} title={pod ? `${pod.title} · this week by rep` : undefined} />}
-        </div>
-        <div className="flex flex-col gap-6 min-w-0">
-        {showMoney && (pod ? <>
-          <RevenueCard m={metrics(PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
-          <RevenueCard m={metrics(PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
-        </> : <RevenueCard m={m} n={n} />)}
-        {(me?.role === 'owner' || me?.role === 'tc') && <TrackerCard />}
-        <PipelineCard deals={deals} split={pod ? [{ label: 'Yours', deals: mineOf(deals) }, { label: pod.title, deals: podOf(deals) }] : null} />
-        {[['Wins this week · whole team', wins]].map(([title, list]) => (
-        <Card key={title} title={title}>
-          {list.length === 0 ? (
+        <div className={`${showMoney || me?.role === 'owner' ? 'xl:col-span-2' : 'xl:col-span-3'} flex flex-col gap-6 min-w-0`}>
+        <TodayCard alertsOpen={alertCounts ? alertCounts.owe : null} late={late.length} dueToday={dueToday} closingWeek={closingWeek} today={today} />
+        <Card title="Wins this week · whole team">
+          {wins.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>
-          ) : list.slice(0, 8).map((w) => (
+          ) : wins.slice(0, 8).map((w) => (
             <button type="button" onClick={() => openGhl(w)} key={`${w.id}${w.what}`} className="w-full text-left flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 hover:bg-tan-50 rounded-sm">
               <Avatar rep={w.rep} size={28} />
               <div className="min-w-0">
@@ -435,8 +327,16 @@ export default function HomeView({ me }) {
             </button>
           ))}
         </Card>
-        ))}
         </div>
+        {(showMoney || me?.role === 'owner') && <div className="flex flex-col gap-6 min-w-0">
+        {showMoney && (pod ? <>
+          <RevenueCard m={metrics(PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
+          <RevenueCard m={metrics(PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
+        </> : <RevenueCard m={m} n={n} />)}
+        {/* Owners only (Luke, Oct 19): the Deal tracker may go later — Deals covers it. */}
+        {me?.role === 'owner' && <TrackerCard />}
+        {me?.role === 'owner' && <PipelineCard deals={deals} />}
+        </div>}
       </div>
       {panel}
     </div>

@@ -30,6 +30,9 @@ const CHECKIN_DAYS = 30;
 const LEAD_PER_CALL = 25;
 const LEAD_MAX_PER_RUN = 200;
 const JUDGED_KEEP_DAYS = 10;
+// Alerts' fresh start (Luke, Oct 19): only GHL tasks created from Oct 18
+// (Arizona) on; older ones are taken off the list.
+export const TASKS_FROM = '2026-10-18T07:00:00Z';
 export const MODEL = 'claude-opus-5-5';
 
 const shortDate = (ms) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric' }).format(new Date(ms));
@@ -50,6 +53,7 @@ export function taskFields(t) {
     body: clip([who && `Contact: ${who}`, t.body || t.description].filter(Boolean).join(' · '), 1000),
     due: Number.isFinite(due) ? azDate(due) : null,
     contact: t.contactId || t.contactDetails?.id || null,
+    created: Date.parse(t.dateAdded || t.createdAt || '') || null,
   };
 }
 
@@ -139,7 +143,11 @@ export const leadTitle = (v) => (v.kind === 'address' && v.address ? `Agent sent
 
 // --- run ----------------------------------------------------------------------
 
-export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge, now = Date.now() }) {
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const isoAdd = (d, n) => new Date(Date.parse(`${d}T12:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+
+// `deals`: the tracker's deals (D1), for deadline alerts; `reps`: [{id, name}].
+export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge, deals = null, reps = [], now = Date.now() }) {
   const iso = new Date(now).toISOString();
   const today = azDate(now);
   const rows = async (sql, params) => (await query(sql, params))[0]?.results || [];
@@ -154,7 +162,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   // Oct 19: one full-table read per sub-account, and re-saving every task on
   // every run, used up D1's free 5M reads a day — now only new, changed or
   // finished rows are written.
-  const openRows = await rows("SELECT id, ext_id, kind, sub, opp, title, body, due FROM alerts WHERE kind IN ('ghl', 'checkin') AND done_at IS NULL");
+  const openRows = await rows("SELECT id, ext_id, kind, sub, opp, title, body, due FROM alerts WHERE kind IN ('ghl', 'checkin', 'deal') AND done_at IS NULL");
   const openBySub = {};
   for (const a of openRows) (openBySub[`${a.kind}|${a.sub}`] ||= []).push(a);
 
@@ -172,8 +180,13 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       if (!f.id) continue;
       const ext = `ghl:${f.id}`;
       seen.add(ext);
-      status.tasks++;
       const had = byExt.get(ext);
+      // Created before the fresh start: not on the list (and taken off it).
+      if (!f.created || f.created < Date.parse(TASKS_FROM)) {
+        if (had) { await query('DELETE FROM alerts WHERE id = ?', [had.id]); status.tasksOld = (status.tasksOld || 0) + 1; }
+        continue;
+      }
+      status.tasks++;
       if (had && had.title === f.title && (had.body || null) === f.body && (had.due || null) === f.due) continue;
       await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, sub, contact, due, created_by, created_at) VALUES (?, ?, ?, 'ghl', ?, ?, ?, ?, ?, 'GHL', ?)
         ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, due = excluded.due`,
@@ -211,6 +224,43 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       }
     }
     for (const a of open) if (!closed.has(a.id) && !still.has(a.opp)) await query("UPDATE alerts SET done_by = 'No longer Abandoned in GHL', done_at = ? WHERE id = ?", [iso, a.id]);
+  }
+
+  // Deal deadlines (Luke, Oct 19): a tracker deal whose IP ends within 48
+  // hours with no buyer yet (the Discord rule: Pending, not Assigned / Closed
+  // in GHL) or whose COE has passed while it's still open. One alert per
+  // deal and date, for its acquisitions rep — it also rings their pod lead
+  // and the owners (edge/alerts.js rings); closed when the condition clears.
+  if (deals) {
+    const repIdOf = (name) => {
+      const n = String(name || '').trim().toLowerCase();
+      if (!n) return null;
+      const r = reps.find((x) => x.name.toLowerCase() === n) || reps.find((x) => x.name.toLowerCase().split(' ')[0] === n.split(' ')[0]);
+      return r ? r.id : null;
+    };
+    const want = new Map();
+    const up = (x) => String(x || '').toUpperCase();
+    const in2 = isoAdd(today, 2);
+    for (const d of deals) {
+      const holder = repIdOf(d.acq);
+      if (!holder) continue;
+      const end = ISO.test(d.ddEnd || '') ? d.ddEnd : ISO.test(d.accepted || '') && Number(d.ddDays) ? isoAdd(d.accepted, Number(d.ddDays)) : null;
+      if (up(d.status) === 'PENDING' && !['ASSIGNED', 'CLOSED'].includes(up(d.ghlStage)) && end && end >= today && end <= in2) {
+        want.set(`deal:ip:${d.id}:${end}`, { holder, deal: d.id, due: end, title: `IP ends ${end === today ? 'today' : end === isoAdd(today, 1) ? 'tomorrow' : 'in 2 days'} — no buyer yet · ${d.address || 'a deal'}`, body: 'Find a buyer or cancel before the inspection period ends.' });
+      }
+      if (['PENDING', 'ASSIGNED'].includes(up(d.status)) && ISO.test(d.coe || '') && d.coe < today) {
+        want.set(`deal:coe:${d.id}:${d.coe}`, { holder, deal: d.id, due: d.coe, title: `Past COE, still open · ${d.address || 'a deal'}`, body: 'Close it, move the COE, or cancel it in the tracker.' });
+      }
+    }
+    const openDeal = openRows.filter((a) => a.kind === 'deal');
+    const have = new Set(openDeal.map((a) => a.ext_id));
+    for (const [ext, w] of want) {
+      if (have.has(ext)) continue;
+      const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, opp, due, created_by, created_at) VALUES (?, ?, ?, 'deal', ?, ?, ?, ?, 'Alerts', ?)
+        ON CONFLICT (ext_id) DO NOTHING`, [newId(), ext, w.holder, clip(w.title, 200), w.body, w.deal, w.due, iso]);
+      if (r[0]?.meta?.changes) status.deadlines = (status.deadlines || 0) + 1;
+    }
+    for (const a of openDeal) if (!want.has(a.ext_id)) await query("UPDATE alerts SET done_by = 'Cleared on the deal', done_at = ? WHERE id = ?", [iso, a.id]);
   }
 
   // Leads Claude spotted
@@ -287,12 +337,13 @@ async function main() {
   };
   const key = apiKey(secrets);
   const client = key ? new Anthropic({ apiKey: key }) : null;
+  const deals = (await query('SELECT id, data FROM deals WHERE deleted = 0'))[0].results.map((r) => ({ ...JSON.parse(r.data), id: r.id }));
   const status = await runAlerts({
-    query, feed, subs, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), searchTasks,
+    query, feed, subs, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), searchTasks, deals, reps: cfg.reps || [],
     judge: client ? (batch, examples) => judgeLeads(client, batch, examples) : null,
   });
   const errs = Object.keys(status.taskErrors).length;
-  console.log(`[alerts] GHL tasks ${status.tasks} (${status.tasksDone} done in GHL${errs ? `, ${errs} sub-accounts refused` : ''}) · check-ins +${status.checkins} · texts judged ${status.judged}, leads +${status.leads}${status.leadError ? ` (${status.leadError})` : ''}`);
+  console.log(`[alerts] GHL tasks ${status.tasks} (${status.tasksDone} done in GHL${status.tasksOld ? `, ${status.tasksOld} older than the fresh start removed` : ''}${errs ? `, ${errs} sub-accounts refused` : ''}) · deadlines +${status.deadlines || 0} · check-ins +${status.checkins} · texts judged ${status.judged}, leads +${status.leads}${status.leadError ? ` (${status.leadError})` : ''}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

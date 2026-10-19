@@ -103,7 +103,7 @@ export function tabBadge(n) {
     g.strokeStyle = '#fff';
     g.stroke();
     iconDot = c.toDataURL('image/png');
-    if (counts?.unseen) link.setAttribute('href', iconDot);
+    if (counts?.owe) link.setAttribute('href', iconDot);
   };
   img.src = iconHref;
 }
