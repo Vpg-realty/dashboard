@@ -6,6 +6,7 @@
 // attempts, daily logs, and trainer notes the trainee never sees.
 // New people (trainees included) are added in Settings › People — the one
 // place (Luke, Oct 19); their pod lead is their trainer and shadow rep.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import { useMe } from '../utils/dashApi.js';
@@ -13,7 +14,6 @@ import { REPS } from '../data/config.js';
 import { useTraining, testScores, topicScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, dayLabel } from './api.js';
 
 const repName = (id) => REPS.find((r) => r.id === id)?.name || id || '—';
-const inputCls = 'h-9 rounded-lg border border-zinc-200 px-2.5 bg-white';
 const PHASE_CHIP = { paper: 'bg-zinc-100 text-zinc-700', onboard: 'bg-sky-50 text-sky-800', shadow: 'bg-tan-100 text-tan-800', guided: 'bg-violet-50 text-violet-800', full: 'bg-emerald-50 text-emerald-800', done: 'bg-emerald-50 text-emerald-800' };
 
 // Who has to act on a trainee's current step.
@@ -52,7 +52,7 @@ function StepRow({ step, prog, log, scores, me, run, busy, email, current }) {
       {open && step.kind === 'session' && mine && (
         <div className="mt-2 ml-8 grid gap-2 max-w-xl">
           <label className="text-[13px] text-zinc-600">How did it go?
-            <select value={rating} onChange={(e) => setRating(e.target.value)} className={`${inputCls} ml-2`}><option value="">No rating</option>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} / 5</option>)}</select>
+            <SearchSelect className="inline-block w-36 ml-2 align-middle" value={rating ? String(rating) : ''} onChange={(v) => setRating(v || '')} clearable={false} sort={false} pinned={[{ value: '', label: 'No rating' }]} options={[5, 4, 3, 2, 1].map((n) => ({ value: String(n), label: `${n} / 5` }))} />
           </label>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Notes for owners and managers — the trainee doesn’t see these" className="rounded-lg border border-zinc-200 px-3 py-2" />
           <div><button type="button" disabled={busy} onClick={async () => { if (await check({ rating: rating || null, note })) setOpen(false); }} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold">Save · mark done</button></div>

@@ -4,6 +4,7 @@
 // is), live sessions, daily logs, sign-offs and the graduation. Saved as one
 // program (settings 'training_program'); a step keeps its id when edited or
 // moved, so trainees' progress stays with it.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useState } from 'react';
 import { useTraining, KIND_LABEL } from './api.js';
 
@@ -44,11 +45,11 @@ function StepEditor({ step, set, onClose }) {
       <div className="flex items-center"><b className="text-navy-800 text-[16px]">Edit step</b><button type="button" onClick={onClose} className="ml-auto h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold">Done</button></div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="grid gap-1 text-[13px] text-zinc-600 md:col-span-2">Title<input className={inputCls} value={step.title} onChange={(e) => set({ ...step, title: e.target.value })} /></label>
-        <label className="grid gap-1 text-[13px] text-zinc-600">Kind<select className={inputCls} value={step.kind} onChange={(e) => set({ ...step, kind: e.target.value, ...((e.target.value === 'video' || e.target.value === 'test') && !step.questions ? { questions: [] } : {}) })}>{KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
+        <label className="grid gap-1 text-[13px] text-zinc-600">Kind<SearchSelect value={step.kind} onChange={(v) => v && set({ ...step, kind: v, ...((v === 'video' || v === 'test') && !step.questions ? { questions: [] } : {}) })} clearable={false} sort={false} options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))} /></label>
       </div>
       <label className="grid gap-1 text-[13px] text-zinc-600">What the trainee reads on this step<textarea className="rounded-lg border border-zinc-200 px-2.5 py-2" rows={3} value={step.detail || ''} onChange={(e) => set({ ...step, detail: e.target.value })} /></label>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {['session', 'signoff', 'paper'].includes(step.kind) && <label className="grid gap-1 text-[13px] text-zinc-600">Who checks it off<select className={inputCls} value={step.who || 'trainer'} onChange={(e) => set({ ...step, who: e.target.value })}><option value="trainer">Pod lead or an owner</option><option value="owners">Jack or Luke only</option></select></label>}
+        {['session', 'signoff', 'paper'].includes(step.kind) && <label className="grid gap-1 text-[13px] text-zinc-600">Who checks it off<SearchSelect value={step.who || 'trainer'} onChange={(v) => v && set({ ...step, who: v })} clearable={false} sort={false} options={[{ value: 'trainer', label: 'Pod lead or an owner' }, { value: 'owners', label: 'Jack or Luke only' }]} /></label>}
         {(step.kind === 'video' || step.kind === 'test') && <label className="grid gap-1 text-[13px] text-zinc-600">Topic (for “where they need help”)<input className={inputCls} value={step.topic || ''} onChange={(e) => set({ ...step, topic: e.target.value })} /></label>}
         {step.kind === 'video' && <label className="grid gap-1 text-[13px] text-zinc-600 md:col-span-2">YouTube link<input className={inputCls} value={step.video || ''} onChange={(e) => set({ ...step, video: e.target.value })} placeholder="https://youtu.be/…" /></label>}
         {step.kind === 'log' && <label className="grid gap-1 text-[13px] text-zinc-600">Messages required that day (blank = none)<input type="number" className={inputCls} value={step.messages || ''} onChange={(e) => set({ ...step, messages: e.target.value ? Number(e.target.value) : null })} /></label>}

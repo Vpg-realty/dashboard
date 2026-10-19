@@ -36,7 +36,7 @@ export default function UserMenu({ me, collapsed, phone, Avatar }) {
         )}
       </button>
       {open && (
-        <div className={`absolute z-50 w-60 rounded-xl border border-tan-200 bg-white shadow-xl p-1.5 ${phone ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2'}`}>
+        <div className={`absolute z-50 w-72 rounded-xl border border-tan-200 bg-white shadow-xl p-1.5 ${phone ? 'right-0 top-full mt-2' : 'left-0 bottom-full mb-2'}`}>
           <div className="px-2.5 py-2 border-b border-tan-100 mb-1">
             <div className="font-semibold text-navy-800 truncate">{name}</div>
             <div className="text-[12px] text-zinc-500 truncate">{email}</div>
@@ -47,12 +47,15 @@ export default function UserMenu({ me, collapsed, phone, Avatar }) {
           {/* Each person's own alert sound (Luke, Oct 18: "editable by each
               person individually … turn the sound on or off"). */}
           {!me.viewAs && (<>
-            <label className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg font-medium text-navy-700 hover:bg-tan-50" title="The short welcome screen when you open the site">
+            <div className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg font-medium text-navy-700" title="The short welcome screen when you open the site">
               <span aria-hidden="true">👋</span> Welcome
-              <select value={splash} onChange={(e) => { setSplash(me.email, e.target.value); setSplashState(e.target.value); }} className="ml-auto h-7 rounded-md border border-zinc-200 bg-white px-1 text-[12px] font-semibold">
-                {SPLASH_CHOICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </label>
+              <span role="group" aria-label="Welcome screen" className="ml-auto inline-flex rounded-md border border-zinc-200 bg-white p-0.5">
+                {SPLASH_CHOICES.map(([v, l]) => (
+                  <button key={v} type="button" aria-pressed={splash === v} onClick={(e) => { e.preventDefault(); setSplash(me.email, v); setSplashState(v); }}
+                    className={`h-6 px-1.5 rounded text-[11.5px] font-semibold ${splash === v ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>{l}</button>
+                ))}
+              </span>
+            </div>
             <button onClick={() => setChime(!chime).catch(() => {})} className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg text-left font-medium text-navy-700 hover:bg-tan-50" title="A short sound when a new alert arrives while the site is open">
               <span aria-hidden="true">{chime ? '🔔' : '🔕'}</span> Alert sound
               <span className={`ml-auto text-[12px] font-semibold rounded-md px-1.5 py-0.5 ${chime ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>{chime ? 'On' : 'Off'}</span>
