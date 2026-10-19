@@ -28,7 +28,8 @@ function take(r) {
   return r;
 }
 
-export const pollCount = () => call('alerts?count=1').then(take).catch(() => {});
+// A tab in the background doesn't ask (it asks again when it's looked at).
+export const pollCount = () => (typeof document !== 'undefined' && document.hidden ? Promise.resolve() : call('alerts?count=1').then(take).catch(() => {}));
 export const loadAlerts = () => call('alerts').then(take);
 
 const post = (body) => call('alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(take);
@@ -41,6 +42,7 @@ function start() {
   pollCount();
   timer = setInterval(pollCount, POLL_MS);
   window.addEventListener('focus', pollCount);
+  document.addEventListener('visibilitychange', pollCount);
 }
 
 export function useAlerts() {

@@ -81,6 +81,20 @@ export function counts(alerts, scope, seenAt, today) {
   return { unseen, overdue, open };
 }
 
+// The red dot alone (polled every minute): only this person's open alerts and
+// the open spotted leads, through the holder / kind indexes — never the whole
+// table (Oct 19: the full list on every poll used up D1's daily reads).
+export async function countFor(db, user, today) {
+  const scope = scopeOf(user);
+  const [mine, leads, seen] = await Promise.all([
+    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
+    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE kind = 'lead' AND done_at IS NULL").all(),
+    db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
+  ]);
+  const rows = [...mine.results, ...leads.results.filter((a) => a.holder !== scope.me)];
+  return { counts: counts(rows, scope, seen?.seen_at || null, today), chime: seen ? !!seen.chime : true };
+}
+
 // body = { action, ... } → { error } or { run: [[sql, params], …] }
 export function plan(b, user, now = new Date().toISOString(), existing = null) {
   const scope = scopeOf(user);

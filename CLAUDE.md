@@ -176,6 +176,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   button bottom left instead of Back to app (Luke, Oct 19: to sign in as
   an owner on that screen), with a confirm so a passer-by can't do it by
   accident; the "not set up yet" page has one too (`src/shell/logout.js`).
+  When /api/me fails with a server error (Oct 19: D1's free daily read
+  limit was used up, so every /api call failed and Luke landed on the TV
+  board), TV mode says so with Try again / Log out (`meFailed` in dashApi).
 - **The app** (`src/shell/AppShell.jsx`) for everyone else: a sidebar of
   sections (collapsible, `vpg.sidebarCollapsed`), the section's tabs along
   the top, a breadcrumb, "Updated N min ago", Refresh (owner / manager), a
@@ -292,6 +295,14 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the messaging check, every 3 hours), judged once each (settings
   `lead_judged`, 10 days) by `claude-opus-5-5` (effort low, structured
   output, ≤ 200 per run).
+  **D1 reads** (Oct 19: the sync read the whole table once per sub-account
+  and re-saved every GHL task on every run, and the minute poll loaded the
+  full list — 5.1M rows read in a day, past D1's free 5M, so every /api call
+  failed until midnight UTC): the sync reads the open GHL tasks / check-ins
+  once per run and writes only new, changed or finished ones; the poll
+  (`countFor`) reads only the person's open alerts and open leads; indexes
+  `alerts_kind` / `alerts_done` (created by the sync); hidden tabs don't
+  poll. Watch new per-run or per-poll queries for full-table scans.
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
