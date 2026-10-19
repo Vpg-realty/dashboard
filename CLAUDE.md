@@ -171,7 +171,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   the app opens it from the navy "TV Mode" button at the right of Team
   Overview's tab bar (Luke, Oct 15: built into Team Overview, not its own
   sidebar entry); a "← Back to app" button returns. The TV (info@) is
-  unchanged: Pipeline stays a clickable tab, never in the rotation.
+  unchanged: Pipeline stays a clickable tab, never in the rotation. The
+  TV account (and anyone the app doesn't know) gets a small "Log out"
+  button bottom left instead of Back to app (Luke, Oct 19: to sign in as
+  an owner on that screen), with a confirm so a passer-by can't do it by
+  accident; the "not set up yet" page has one too (`src/shell/logout.js`).
 - **The app** (`src/shell/AppShell.jsx`) for everyone else: a sidebar of
   sections (collapsible, `vpg.sidebarCollapsed`), the section's tabs along
   the top, a breadcrumb, "Updated N min ago", Refresh (owner / manager), a
