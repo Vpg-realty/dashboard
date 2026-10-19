@@ -3,6 +3,7 @@
 // button (settings `team_chat`, owners set it in Settings → People; Luke,
 // Oct 15), for everyone in the app — not the TV.
 import { currentUser, json } from '../../edge/auth.js';
+import { loadProgram, statusOf } from '../../edge/training.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -14,5 +15,20 @@ export async function onRequestGet(context) {
       teamChat = row ? JSON.parse(row.value)?.url || null : null;
     } catch { /* no settings table yet */ }
   }
-  return json({ ...user, teamChat });
+  // A trainee's place in the program: until onboarding is done they see
+  // only My Training; their pod lead is the rep they shadow (Luke, Oct 19).
+  let training = null;
+  if (user.role === 'trainee') {
+    try {
+      const db = context.env.DB;
+      const [program, person, progress] = await Promise.all([
+        loadProgram(db),
+        db.prepare('SELECT trainer, start_date FROM training_people WHERE email = ?').bind(user.email).first(),
+        db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(user.email).all(),
+      ]);
+      const st = program ? statusOf(program, progress.results) : { phase: 'paper', early: true };
+      training = { phase: st.phase, early: st.early, shadow: person?.trainer || null, start: person?.start_date || null };
+    } catch { training = { phase: 'paper', early: true, shadow: null }; }
+  }
+  return json({ ...user, teamChat, ...(training ? { training } : {}) });
 }

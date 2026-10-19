@@ -8,12 +8,13 @@ import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting }
 import { ROLE_LABEL } from '../shell/sections.js';
 import { Section, inputCls } from './ui.jsx';
 
-const ROLES = ['owner', 'manager', 'tc', 'team', 'tv'];
+const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
 const ROLE_HELP = {
   owner: 'Everything, including Deals with commissions, buyers and Settings.',
   manager: 'Team pages (Scorecard, Coaching, Month in Review), their pod on Home, My scorecard, Active deals (view only).',
   tc: 'Deals (all of it except commissions, profit and buyers), Home and the board.',
   team: 'Their own Home and My scorecard, the board, Active deals (view only).',
+  trainee: 'New hires in training: My Training only until onboarding is done, then also Home, Pipeline and Get Zips. Add them from Management › Training so they get a pod lead.',
   tv: 'The office TV board only.',
 };
 

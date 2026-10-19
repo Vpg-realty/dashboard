@@ -669,6 +669,56 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   in sections.js (Pipeline / Opportunities stack into a tall scroll; the
   wide ones keep the desktop layout and scroll sideways).
 
+## Training (Luke, Oct 19)
+
+A standard program for every new hire (from "Valley Property Group Training
+Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
+`functions/api/training`, tables in `edge/training.sql`.
+- **The program** = D1 settings `training_program` (never in the repo — it
+  holds the test answers): `{passBar, steps: [{id, phase, kind, title,
+  detail, who, topic?, video?, questions?, messages?, graduate?}]}`; phases
+  `PHASES` (paper, onboard, shadow, guided, full); kinds paper (DocuSign
+  1099 / W-9 — only "sent / signed" is kept, the W-9 stays in DocuSign),
+  video (YouTube + test), test, session (live; rating 1–5 + note), log
+  (daily takeaways; Week 2 also messages sent, `messages` = the minimum),
+  signoff (`graduate` = the last one: the trainee's role becomes `team`).
+  `who: 'owners'` = Jack or Luke only (Week 2 one-on-ones); else the
+  trainee's pod lead or an owner (Luke: "either can"). Edited by owners in
+  **Settings › Training Program** (`ProgramBuilder.jsx`, `checkProgram`);
+  steps keep their ids, so progress stays attached. Drafted Oct 19 by
+  Claude (31 steps, 67 questions, answers shuffled) for Luke to review; the
+  video links are his to add.
+- **Order**: steps run strictly in order (`statusOf` — the first not done).
+  A video's test unlocks when the YouTube player reports the end (IFrame
+  API; a "didn't unlock?" link after 2 minutes). Tests are graded on the
+  server (`grade`; a trainee never receives answers — `forTrainee`), pass at
+  `passBar` (80%), unlimited retakes (Luke: "they keep going until they
+  pass"); a fail shows which questions and their video time, a pass also
+  the right answers. Every attempt is kept (`training_attempts`).
+- **Who sees what**: `navRole` (sections.js) — a trainee is `trainee-early`
+  (My Training only) until onboarding is signed off, then `trainee`: My
+  Training, Home, Pipeline and Territory › Get Zips (Luke, Oct 19). Their
+  pod lead is their trainer and shadow rep (`training_people.trainer`);
+  without a rep_id of their own the browser shows the pod lead's numbers and
+  deals on Home / Pipeline ("Shadowing Anthony", `shadowing` in dashApi
+  `loadMe`). Trainees see their own scores, never trainer notes or session
+  ratings (stripped server-side). The server lets `trainee` read the board
+  data, deals as a rep (`isRepView`), territory and zips.
+- **Pages**: **My Training** (`/training`, trainee — the path, "Do this
+  now", every step, "A question for <pod lead>" → an Alerts task for them);
+  **Management › Training** (`/team/training`, owners every trainee, a pod
+  lead their own — Waiting on a Trainer, the trainees table with best score
+  by topic, "+ Add a trainee" (creates the login, role trainee, pod lead,
+  start date), the trainee file `?trainee=<email>`: where they need help,
+  checklist with Mark sent / Mark signed / Log session / Check off /
+  Graduate, daily logs, trainer notes, Remove (owners)). The step waiting on
+  a trainer is an Alerts task for the pod lead (`alertOps`, ext_id
+  `train:<email>:<step>`), closed when it's done.
+- **Not yet**: a trainee's own GHL sub-account (Week 2) would put them on the
+  TV board and scorecard like any rep — exclude trainees there before their
+  Week 2 starts; Week 2 messages are self-reported until then; DocuSign is
+  manual (no API yet).
+
 ## Deal tracker (Luke, Oct 14)
 
 The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar

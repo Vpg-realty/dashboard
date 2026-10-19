@@ -22,7 +22,7 @@ import * as Z from '../../../edge/zips.js';
 import roster from '../../../subaccounts.json' with { type: 'json' };
 
 const SEES_ALL = ['owner', 'manager', 'tc'];
-const IN_APP = [...SEES_ALL, 'team'];
+const IN_APP = [...SEES_ALL, 'team', 'trainee'];
 
 // The signed-in person's own zips: a rep's, or an owner's (Z.holderOf).
 async function mine(db, user, now) {

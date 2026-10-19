@@ -16,7 +16,7 @@ const MANAGER_FILES = ['/data-mgr.json', '/scorecards.json', '/messaging-review.
 // @valleypropertygroup.com email; Settings › People decides who's in): only
 // people on the list, and the build, may read it.
 const TEAM_FILES = ['/data.json', '/history.json', '/opp-state.json', '/opps.json'];
-const KNOWN = ['owner', 'manager', 'tc', 'team', 'tv', 'service'];
+const KNOWN = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv', 'service'];
 
 export async function onRequest(context) {
   const path = new URL(context.request.url).pathname;

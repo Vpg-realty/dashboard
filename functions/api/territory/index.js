@@ -6,7 +6,7 @@
 // from the "VPG_Territory_Tracker" Google Sheet.
 import { currentUser, json } from '../../../edge/auth.js';
 
-export const canSeeTerritory = (u) => ['owner', 'manager', 'tc', 'team'].includes(u?.role);
+export const canSeeTerritory = (u) => ['owner', 'manager', 'tc', 'team', 'trainee'].includes(u?.role);
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);

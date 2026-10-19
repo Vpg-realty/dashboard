@@ -46,6 +46,7 @@ export function ViewAsButton({ me }) {
     ...PODS.map((p) => ({ key: `pod${p.id}`, title: `Acquisitions · ${p.title}`, note: 'Their own numbers', list: team.filter((u) => podOf(u)?.id === p.id) })),
     { key: 'nopod', title: PODS.length ? 'Acquisitions · no pod' : 'Acquisitions', note: 'Their own numbers', list: team.filter((u) => !podOf(u)) },
     { key: 'tc', title: 'Transaction coordinator', note: 'Deals, no commissions', list: others.filter((u) => u.role === 'tc'), sub: () => 'TC' },
+    { key: 'trainee', title: 'Trainees', note: 'My Training', list: others.filter((u) => u.role === 'trainee'), sub: () => 'Trainee' },
   ].filter((g) => g.list.length);
   const repColor = (u) => REPS.find((r) => r.id === u.rep_id)?.color || '#1b385f';
   return (
