@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS alerts (
   done_at TEXT,
   verdict TEXT,                 -- leads: real | not
   verdict_by TEXT,
-  verdict_at TEXT
+  verdict_at TEXT,
+  -- the property address a lead / same-address alert is about (Oct 19;
+  -- added to the live table with ALTER TABLE alerts ADD COLUMN addr TEXT)
+  addr TEXT
 );
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
 -- Oct 19: the sync and the red-dot poll scanned the whole table every time

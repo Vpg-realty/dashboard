@@ -10,7 +10,8 @@
 //                  { action: 'chime', on }                      this person's sound on / off
 //   → same as GET
 // Everyone in the app but the TV (edge/alerts.js). Writes are logged in
-// edit_log (not seen / chime) and refused while viewing as someone.
+// edit_log (not seen / chime) and refused while viewing as someone — except
+// an owner ticking alerts off (done / doneMany), saved under the owner's name.
 import { currentUser, json } from '../../../edge/auth.js';
 import { canUse, load, plan, counts, countFor, scopeOf, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
@@ -28,12 +29,22 @@ export async function onRequestGet(context) {
   return json(await answer(context.env.DB, user));
 }
 
+const TICKS = new Set(['done', 'doneMany']);
+
 export async function onRequestPost(context) {
-  const user = await currentUser(context);
-  if (!user) return json({ error: 'not signed in' }, 401);
-  if (!canUse(user) || user.viewAs) return json({ error: user.viewAs ? 'not while viewing as someone' : 'not set up yet' }, 403);
+  const viewed = await currentUser(context);
+  if (!viewed) return json({ error: 'not signed in' }, 401);
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
+  // Owners viewing as someone may tick their alerts off (Luke, Oct 19) — done
+  // under the owner's own name; nothing else is written while viewing as.
+  let user = viewed;
+  if (viewed.viewAs) {
+    const real = TICKS.has(b?.action) ? await currentUser(context, { real: true }) : null;
+    if (real?.role !== 'owner') return json({ error: 'not while viewing as someone' }, 403);
+    user = real;
+  }
+  if (!canUse(user)) return json({ error: 'not set up yet' }, 403);
   const db = context.env.DB;
   let existing = b?.id ? await db.prepare('SELECT * FROM alerts WHERE id = ?').bind(String(b.id)).first() : null;
   if (b?.action === 'doneMany') {
@@ -52,5 +63,7 @@ export async function onRequestPost(context) {
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, ids: p.ids, to: b.to, verdict: b.verdict, done: b.done })),
   ];
   await db.batch([...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)), ...log]);
-  return json(await answer(db, user));
+  // Answer as the person being viewed (a write request gave them role 'none').
+  const asRole = viewed.viewAs ? (await db.prepare('SELECT role FROM users WHERE email = ?').bind(viewed.email).first())?.role : null;
+  return json(await answer(db, asRole ? { ...viewed, role: asRole } : viewed));
 }

@@ -12,7 +12,9 @@
 // as someone (currentUser makes the role 'none').
 import { PODS } from '../scripts/scorecard-lib.mjs';
 
-export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline' };
+export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Same address' };
+// Kinds that also ring the holder's pod lead and the owners.
+const SHARED = new Set(['lead', 'deal', 'dupe']);
 export const ROLES = ['owner', 'manager', 'tc', 'team'];
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 
@@ -72,7 +74,7 @@ export async function load(db, user, now = new Date()) {
 export function rings(a, scope) {
   if (a.holder === scope.me) return true;
   // Spotted leads and deal deadlines also ring the pod lead and the owners.
-  return (a.kind === 'lead' || a.kind === 'deal') && (!scope.leads || scope.leads.includes(a.holder));
+  return SHARED.has(a.kind) && (!scope.leads || scope.leads.includes(a.holder));
 }
 
 // The red dot (Luke, Oct 19: it stays until they're cleared): `owe` = open
@@ -87,7 +89,7 @@ export function counts(alerts, scope, seenAt, today) {
     open++;
     if (!seenAt || a.created_at > seenAt) unseen++;
     if (a.kind !== 'lead' && a.due && a.due < today) overdue++;
-    if (a.kind === 'lead' || a.kind === 'deal' || !a.due || a.due <= today) owe++;
+    if (SHARED.has(a.kind) || !a.due || a.due <= today) owe++;
     if (a.kind === 'lead') leads++;
   }
   // Two badges (Luke, Oct 19): red = leads not completed yet, blue = the rest.
@@ -101,7 +103,7 @@ export async function countFor(db, user, today) {
   const scope = scopeOf(user);
   const [mine, leads, seen] = await Promise.all([
     db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
-    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal') AND done_at IS NULL").all(),
+    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
   ]);
   const rows = [...mine.results, ...leads.results.filter((a) => a.holder !== scope.me)];
