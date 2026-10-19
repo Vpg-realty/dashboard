@@ -90,7 +90,8 @@ function Avatar({ name, size = 26 }) {
 }
 
 // Option A (Luke, Oct 18): a pulsing red count on the sidebar's Alerts entry.
-// Two badges side by side (Luke, Oct 19): red = new leads to work, blue =
+// Two badges side by side (Luke, Oct 19): purple = new leads to work (the
+// Lead spotted tag's colour), red =
 // tasks owed today; each stays until it's cleared. The red one pulses while
 // something new arrived since the person last looked.
 function AlertDot({ leads, tasks, unseen, collapsed, phone }) {
@@ -101,8 +102,8 @@ function AlertDot({ leads, tasks, unseen, collapsed, phone }) {
   );
   return (
     <span className={`${pos} flex items-center gap-1`}>
-      {pill(leads, `bg-rose-600 ${unseen ? 'alert-pulse' : ''}`, `${leads} lead${leads === 1 ? '' : 's'} to work`)}
-      {!(collapsed || phone) || !leads ? pill(tasks, 'bg-sky-600', `${tasks} task${tasks === 1 ? '' : 's'} due`) : null}
+      {pill(leads, `bg-violet-600 ${unseen ? 'alert-pulse' : ''}`, `${leads} lead${leads === 1 ? '' : 's'} to work`)}
+      {!(collapsed || phone) || !leads ? pill(tasks, 'bg-rose-600', `${tasks} task${tasks === 1 ? '' : 's'} due`) : null}
     </span>
   );
 }

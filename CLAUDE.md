@@ -334,9 +334,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   alerts and the tracker's deals once per run (~0.3k rows) — about 30k reads
   a day.
   **Later Oct 19** (Luke): two badges side by side on the Alerts entry —
-  red = leads not completed (`counts.leads`), blue = everything else owed
+  purple = leads not completed (`counts.leads`), red = everything else owed
   today (`counts.tasks`); each stays until cleared (collapsed sidebar /
-  phone show one: red when there are leads). Real lead / Not a lead only
+  phone show one: purple when there are leads). Real lead / Not a lead only
   teaches Claude (the last 30 answers are examples) and stays on the alert
   (a second click clears it); **Complete** closes a lead, Reopen undoes it.
   Done keeps 24 hours (`KEEP_DONE_MS`), then drops off the list.
