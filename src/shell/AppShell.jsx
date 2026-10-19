@@ -17,9 +17,7 @@ import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
 import SettingsFrame from '../settings/Frame.jsx';
-import PodsView from '../settings/PodsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
-import TcPayView from '../settings/TcPayView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
 import SuggestionsView from '../suggestions/SuggestionsView.jsx';
@@ -32,7 +30,7 @@ import StatementsView from '../finance/StatementsView.jsx';
 import MoneyView from '../finance/MoneyView.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
-import SubAccountsPanel from '../components/SubAccountsPanel.jsx';
+import SubAccountsView from '../settings/SubAccountsView.jsx';
 import { useDataStatus, refreshNow } from '../data/source.js';
 import { sectionsFor, resolve, hrefOf, navRole } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
@@ -41,7 +39,6 @@ import CommandPalette from './CommandPalette.jsx';
 import Welcome from './Welcome.jsx';
 import PeopleView from '../settings/PeopleView.jsx';
 import RulesView from '../settings/RulesView.jsx';
-import ListsView from '../settings/ListsView.jsx';
 import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
 import PipelinePage, { PipelineOpps, PipelineCalendar } from './PipelinePage.jsx';
@@ -61,7 +58,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
-  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-lists': ListsView, 'settings-pods': PodsView, 'settings-alerts': AlertsView, 'settings-tc': TcPayView,
+  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -118,7 +115,6 @@ export default function AppShell({ me }) {
   const { section, tab } = resolve(path, role);
   const sections = sectionsFor(role);
   const [palette, setPalette] = useState(false);
-  const [subs, setSubs] = useState(false);
   const [collapsed, setCollapsed] = useStoredFlag('vpg.sidebarCollapsed', false);
   const [refreshing, setRefreshing] = useState(false);
   const status = useDataStatus();
@@ -214,14 +210,9 @@ export default function AppShell({ me }) {
             </a>
           )}
         </nav>
-        {(sections.some((x) => x.bottom === 'admin') || me.role === 'owner') && (
+        {sections.some((x) => x.bottom === 'admin') && (
           <nav className="flex flex-col gap-0.5 mb-2 pt-2 border-t border-tan-200" aria-label="Admin">
             {sections.filter((x) => x.bottom === 'admin').map(navItem)}
-            {me.role === 'owner' && (
-              <button onClick={() => setSubs(true)} title="Sub-Accounts" className={`flex items-center gap-2.5 h-8 rounded-lg font-medium text-zinc-600 hover:bg-tan-100 hover:text-navy-700 ${collapsed ? 'justify-center' : 'px-2.5'}`}>
-                <Icon name="plug" className="text-tan-600/80" />{!collapsed && 'Sub-Accounts'}
-              </button>
-            )}
           </nav>
         )}
         <div className="border-t border-tan-200 pt-2">
@@ -306,7 +297,6 @@ export default function AppShell({ me }) {
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} />
       {!me.viewAs && <Welcome me={me} />}
       {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id === 'zips' || tab?.id === 'holds' || tab?.id === 'health' ? 'zips' : 'territory'} />}
-      <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
     </div>
   );
 }

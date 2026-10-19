@@ -7,17 +7,27 @@
 // lead (trainer and shadow rep) and a start date; they become Acquisitions
 // when they graduate. Moving someone off trainee here counts as graduating.
 // Logging in also needs the person on the Cloudflare Access allow-list.
+// Status (Luke's site map, Oct 19): active or inactive, with the dates they
+// started (`started`) and finished (`ended`). Setting someone inactive keeps
+// their history; they can't sign in (edge/auth.js), drop out of the pickers,
+// their zips are released and their open alerts move to their pod lead.
 import { json } from '../../../edge/auth.js';
 import { owner, log, cleanUser } from '../../../edge/settings.js';
 import { LEADS, loadProgram, alertOps } from '../../../edge/training.js';
+import { PODS } from '../../../scripts/scorecard-lib.mjs';
+import { holderOf as zipHolder } from '../../../edge/zips.js';
+import { holderOf as alertHolder } from '../../../edge/alerts.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SELECT = `SELECT u.email, u.name, u.role, u.rep_id, u.status, u.start_date AS started, u.end_date AS ended, t.trainer, t.start_date AS start, t.graduated_at
+    FROM users u LEFT JOIN training_people t ON t.email = u.email`;
+// The pod lead of a rep (scorecard-lib PODS), for their alerts.
+const leadOf = (repId) => PODS.find((p) => p.reps.includes(repId))?.lead || null;
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);
   if (res) return res;
-  const rows = await context.env.DB.prepare(`SELECT u.email, u.name, u.role, u.rep_id, t.trainer, t.start_date AS start, t.graduated_at
-    FROM users u LEFT JOIN training_people t ON t.email = u.email ORDER BY u.role, u.name`).all();
+  const rows = await context.env.DB.prepare(`${SELECT} ORDER BY u.role, u.name`).all();
   return json({ users: rows.results });
 }
 
@@ -30,11 +40,28 @@ export async function onRequestPost(context) {
   if (p.error) return json(p, 400);
   if (p.email === user.email) return json({ error: "you can't change your own access here" }, 400);
   const db = context.env.DB;
-  const before = await db.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(p.email).first();
+  const before = await db.prepare('SELECT email, name, role, rep_id, status, start_date, end_date FROM users WHERE email = ?').bind(p.email).first();
+  const status = body.status === undefined ? before?.status || 'active' : String(body.status);
+  if (!['active', 'inactive'].includes(status)) return json({ error: 'pick a status' }, 400);
+  const started = body.started === undefined ? before?.start_date || null : body.started || null;
+  const ended = body.ended === undefined ? before?.end_date || null : body.ended || null;
+  if ((started && !DATE.test(started)) || (ended && !DATE.test(ended))) return json({ error: 'pick a date' }, 400);
+  if (started && ended && ended < started) return json({ error: 'the end date is before the start date' }, 400);
+  if (status === 'inactive' && p.role === 'owner') return json({ error: 'an owner can’t be set inactive — change their role first' }, 400);
   const enrolled = await db.prepare('SELECT trainer, start_date FROM training_people WHERE email = ?').bind(p.email).first();
   const now = new Date().toISOString();
-  const run = [db.prepare(`INSERT INTO users (email, name, role, rep_id) VALUES (?, ?, ?, ?)
-    ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = excluded.role, rep_id = excluded.rep_id`).bind(p.email, p.name, p.role, p.rep_id)];
+  const run = [db.prepare(`INSERT INTO users (email, name, role, rep_id, status, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = excluded.role, rep_id = excluded.rep_id, status = excluded.status, start_date = excluded.start_date, end_date = excluded.end_date`)
+    .bind(p.email, p.name, p.role, p.rep_id, status, started, ended)];
+  // Going inactive: release their zips, hand their open alerts to their pod lead.
+  let handedTo = null;
+  if (status === 'inactive' && (before?.status || 'active') !== 'inactive') {
+    const person = { ...p, role: before?.role || p.role };
+    const zh = zipHolder(person);
+    if (zh) run.push(db.prepare("UPDATE zip_assignments SET released_at = ?, released_by = ?, release_reason = 'person inactive' WHERE released_at IS NULL AND rep_id = ?").bind(now, user.name, zh));
+    handedTo = p.rep_id ? leadOf(p.rep_id) : null;
+    if (handedTo && handedTo !== p.rep_id) run.push(db.prepare('UPDATE alerts SET holder = ? WHERE holder = ? AND done_at IS NULL').bind(handedTo, alertHolder(person)));
+  }
   let trainer = null;
   if (p.role === 'trainee') {
     trainer = body.trainer || enrolled?.trainer;
@@ -56,9 +83,9 @@ export async function onRequestPost(context) {
       await db.batch(alertOps({ email: p.email, name: p.name, trainer }, program, progress, now).map(([sql, args]) => db.prepare(sql).bind(...args)));
     }
   }
-  await log(db, user, 'settings.user', { before, after: { ...p, trainer } });
-  const after = await db.prepare('SELECT u.email, u.name, u.role, u.rep_id, t.trainer, t.start_date AS start, t.graduated_at FROM users u LEFT JOIN training_people t ON t.email = u.email WHERE u.email = ?').bind(p.email).first();
-  return json({ user: after });
+  await log(db, user, 'settings.user', { before, after: { ...p, trainer, status, started, ended, handedTo } });
+  const after = await db.prepare(`${SELECT} WHERE u.email = ?`).bind(p.email).first();
+  return json({ user: after, handedTo });
 }
 
 export async function onRequestDelete(context) {

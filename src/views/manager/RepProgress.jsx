@@ -56,7 +56,7 @@ export default function RepProgress({ sc, rep, pointsOnly }) {
         <span className="text-lg font-bold">{pointsOnly ? 'Points earned, week by week' : `Is ${rep.name.split(' ')[0]} improving?`}</span>
         {!pointsOnly && <span className="ml-auto flex items-center gap-4 text-[11px] text-zinc-600">
           <span className="inline-flex items-center gap-1 font-semibold"><span className="w-4 h-1 rounded" style={{ background: rep.color }} />{rep.name.split(' ')[0]}</span>
-          <span className="inline-flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-zinc-500" />Team average</span>
+          <span className="inline-flex items-center gap-1"><span className="w-4 border-t-[3px] border-dashed border-violet-600" />Team average</span>
           <span>{onFile} of {weeks.length} weeks on file</span>
         </span>}
       </div>
@@ -66,7 +66,7 @@ export default function RepProgress({ sc, rep, pointsOnly }) {
             labels={weeks.map((w) => w.label)}
             autoFrom={autoFrom}
             series={[
-              { name: 'Team', color: '#71717a', dash: true, values: team },
+              { name: 'Team', color: '#7c3aed', dash: true, values: team },
               { name: rep.name, color: rep.color, bold: true, showValues: true, values: mine },
             ]}
           />

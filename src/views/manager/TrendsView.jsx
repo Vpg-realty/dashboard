@@ -149,7 +149,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
                 <YAxis stroke="#71717a" tick={{ fontSize: 13 }} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 90, 100]} />
                 <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8 }} />
                 <Line
-                  type="monotone" dataKey="team" name="Team average" stroke={focusRep ? '#a1a1aa' : TEAM} strokeWidth={focusRep ? 2 : 3}
+                  type="monotone" dataKey="team" name="Team average" stroke={focusRep ? '#7c3aed' : TEAM} strokeWidth={focusRep ? 2 : 3}
                   strokeDasharray={focusRep ? '6 5' : undefined} dot={dot(focusRep ? '#a1a1aa' : TEAM, focusRep ? 3.5 : 5)} connectNulls isAnimationActive={false}
                 >
                   {!focusRep && <LabelList dataKey="team" position="top" fill="#1e3a8a" fontSize={14} fontWeight={700} offset={10} />}
@@ -164,7 +164,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
           </div>
           <div className="flex items-center justify-center gap-5 text-xs text-zinc-600 shrink-0">
             {focusRep && <span className="inline-flex items-center gap-1.5"><span className="w-5 h-[3px] rounded" style={{ background: focusRep.color }} /> {first(focusRep.id)}</span>}
-            <span className="inline-flex items-center gap-1.5">{focusRep ? <span className="w-5 border-t-2 border-dashed border-zinc-400" /> : <span className="w-5 h-[3px] rounded" style={{ background: TEAM }} />} Team average</span>
+            <span className="inline-flex items-center gap-1.5">{focusRep ? <span className="w-5 border-t-[3px] border-dashed border-violet-600" /> : <span className="w-5 h-[3px] rounded" style={{ background: TEAM }} />} Team average</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-100" />Strong 90+</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-amber-100" />Watch 75–89</span>
             <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-rose-100" />Behind</span>

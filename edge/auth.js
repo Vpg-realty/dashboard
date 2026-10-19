@@ -75,7 +75,7 @@ export async function currentUser({ request, env }, { real = false } = {}) {
   const me = await signedIn({ request, env });
   const as = request.headers.get('X-View-As');
   if (real || !as || me?.role !== 'owner') return me;
-  const target = await env.DB.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(String(as).toLowerCase()).first();
+  const target = await env.DB.prepare("SELECT email, name, role, rep_id FROM users WHERE email = ? AND status != 'inactive'").bind(String(as).toLowerCase()).first();
   if (!target || target.role === 'tv') return me;
   const write = !['GET', 'HEAD'].includes(request.method);
   return { ...target, ...(write ? { role: 'none' } : {}), viewAs: true, realName: me.name, realEmail: me.email };
@@ -88,7 +88,11 @@ async function signedIn({ request, env }) {
   }
   const email = typeof claims?.email === 'string' ? claims.email.toLowerCase() : (env.DEV_EMAIL ? String(env.DEV_EMAIL).toLowerCase() : null);
   if (!email) return null;
-  const row = await env.DB.prepare('SELECT email, name, role, rep_id FROM users WHERE email = ?').bind(email).first();
+  const row = await env.DB.prepare('SELECT email, name, role, rep_id, status FROM users WHERE email = ?').bind(email).first();
+  // Inactive people (Settings › People, Oct 19) sign in to nothing — like
+  // someone who isn't set up, with a note that their access has ended.
+  if (row?.status === 'inactive') return { email, name: row.name, role: 'none', inactive: true, loginAt: null };
+  delete row?.status;
   // loginAt: when this Access login was issued (the JWT's iat, seconds) —
   // a new value means they logged in again (Welcome shows the splash + card).
   const loginAt = typeof claims?.iat === 'number' ? claims.iat : null;

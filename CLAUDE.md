@@ -760,6 +760,38 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   in sections.js (Pipeline / Opportunities stack into a tall scroll; the
   wide ones keep the desktop layout and scroll sideways).
 
+## Site map phase 4 — Settings (Oct 19, Luke)
+
+Overrides the Settings notes above where they differ.
+- **Rail**: Team — People, Training Program; Money — Commissions;
+  Connections — Sub-Accounts, Discord & Chat. Pods, TC Pay and Dropdown
+  Lists are gone (old links redirect via `MOVED`); Sub-Accounts left the
+  sidebar for Settings › Sub-Accounts (`SubAccountsPanel inline`).
+- **People = Role + Status**: D1 `users` gained `status` ('active' /
+  'inactive'), `start_date`, `end_date` (`edge/users.sql`; the table was
+  rebuilt Oct 19 — its old CHECK didn't allow role 'trainee', so adding a
+  trainee failed). A trainee shows as Acquisitions · Training (still role
+  `trainee` underneath). **Inactive**: can't sign in (edge/auth.js →
+  role 'none', `inactive: true`, "Your dashboard access has ended"), left out
+  of View as, Alerts' people and the deal dropdowns; their zips are released
+  (`release_reason` 'person inactive') and their open alerts move to their
+  pod lead (`PODS`) when they're set inactive; history stays. An owner can't
+  be set inactive. **Pod lead** column = deal_lists.reportsTo by rep name
+  (the one place; saves at once; the pod override follows it). Scorecard
+  pods (`PODS` in scorecard-lib) are still in code.
+- **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
+  pod lead | TC, one number per cell (click = edit that rule, with its start
+  date), then every rule (acq / dispo, manager, pod override, TC) and the
+  changes by date (`#rule-history`).
+- **Dropdown lists** come from People / Sub-Accounts / code / past deals:
+  GET /api/deals sends `effectiveLists` (edge/deals.js) — the stored
+  deal_lists plus active people's rep names (acq. manager / dispo member),
+  minus inactive ones, plus every state with a sub-account.
+- **My Scorecard** (same round): the speed box uses the pace boxes' colours
+  and badge, every "should be here" tick is 3px (Home too), Fix These shows
+  all six CRM items with their grades ("CRM N of 12 points", Speed to lead
+  included), and the team average line is purple (dashed) everywhere.
+
 ## Training (Luke, Oct 19)
 
 A standard program for every new hire (from "Valley Property Group Training

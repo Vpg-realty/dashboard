@@ -23,7 +23,9 @@ import {
 //     commit against subaccounts.json + a deploy dispatch (Luke, June:
 //     "make it completely REAL" — no localStorage-only stubs).
 //   • Settings — GitHub PAT management.
-export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotErrors }) {
+// `inline` (Oct 19): drawn as a page in Settings › Sub-Accounts instead of a
+// pop-up.
+export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotErrors, inline = false }) {
   const [mode, setMode] = useState('view');     // 'view' | 'add' | 'reps' | 'settings'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);   // { tone, text }
@@ -32,7 +34,7 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
   useEffect(() => {
     if (!open) { setMode('view'); setStatus(null); return; }
     setPatPresent(hasPAT());
-    const onEsc = (e) => e.key === 'Escape' && onClose();
+    const onEsc = (e) => e.key === 'Escape' && !inline && onClose?.();
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
   }, [open, onClose]);
@@ -40,9 +42,9 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <div className={inline ? 'w-full' : 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm'} onClick={inline ? undefined : onClose}>
       <div
-        className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-2xl flex flex-col"
+        className={inline ? 'w-full overflow-hidden rounded-xl border border-tan-200 bg-white flex flex-col' : 'w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-2xl flex flex-col'}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -63,11 +65,11 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
               }`}
               title="GitHub PAT settings"
             >⚙</button>
-            <button
+            {!inline && <button
               onClick={onClose}
               className="text-zinc-500 hover:text-zinc-900 text-2xl leading-none -mt-1"
               aria-label="Close"
-            >×</button>
+            >×</button>}
           </div>
         </div>
 

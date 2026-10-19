@@ -154,11 +154,13 @@ export const SECTIONS = [
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
       { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
-      { id: 'pods', label: 'Pods', view: 'settings-pods', scroll: true, group: 'Team', sub: 'Leads and their reps', title: 'Pods and pod leads', blurb: 'Who reports to whom, and what each lead is paid on their reps’ deals.' },
-      { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'By person, then rules', title: 'Who gets paid what', blurb: 'Every rate with its start date. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
-      { id: 'tc', label: 'TC Pay', view: 'settings-tc', scroll: true, group: 'Money', sub: 'Fee and commission', title: 'Transaction coordinator pay', blurb: 'The TC fee taken off each deal and the TC’s commission per deal, with when each applies.' },
-      { id: 'lists', label: 'Dropdown Lists', view: 'settings-lists', scroll: true, group: 'Tracker', sub: 'States, deal types, EMD', title: 'Dropdown lists', blurb: 'The choices in the deal tracker’s dropdowns. Removing a choice doesn’t change deals that already use it.' },
-      { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Alerts', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
+      // Oct 19 (Luke's site map): Pods and TC Pay folded into Commissions (who
+      // reports to whom is People's Pod lead column), Dropdown Lists gone (the
+      // lists come from People, Sub-Accounts, the code and past deals), and
+      // Sub-Accounts moved in from the sidebar.
+      { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'Rates by person, the rules', title: 'Who gets paid what', blurb: 'Every rate with its start date — acquisitions, dispo, manager, pod lead and the TC. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
+      { id: 'subaccounts', label: 'Sub-Accounts', view: 'settings-subaccounts', scroll: true, group: 'Connections', sub: 'GHL accounts per rep and state', title: 'GHL sub-accounts', blurb: 'Each rep’s GoHighLevel sub-account per state, and its key. Adding one puts the rep and state on every page.' },
+      { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Connections', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
     ],
   },
 ];
@@ -189,6 +191,9 @@ const MOVED = {
   // CRM Review (Oct 16) folded back into the Scorecard the same day (Luke).
   'team/crm': { section: 'team', tab: 'scorecard' },
   'deals/summary': { section: 'finance', tab: 'overview' },
+  'settings/pods': { section: 'settings', tab: 'people' },
+  'settings/tc': { section: 'settings', tab: 'commissions' },
+  'settings/lists': { section: 'settings', tab: 'people' },
   'finance/summary': { section: 'finance', tab: 'overview' },
   'finance/payouts': { section: 'finance', tab: 'money' },
   'finance/wires': { section: 'finance', tab: 'money' },

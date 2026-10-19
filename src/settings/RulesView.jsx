@@ -10,7 +10,7 @@
 // value today, since when, any change still to come and its own history.
 // Before saving, shows which deals the change moves.
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, navigate } from '../shell/router.js';
+import { useLocation } from '../shell/router.js';
 import { readSetting, changeRule } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute, RULE_STATUSES } from '../deals/math.js';
@@ -45,7 +45,7 @@ const SECTIONS = [
     // never off the dispo side — editable here.
     { key: 'manager.side', label: 'Paid on', hint: 'which side of the deal a listed rep must be on', type: 'side' },
   ] },
-  { title: 'Pod override', sub: 'Paid to the pod lead on closed deals by the reps who report to them (Dropdown lists › Reports to).', rules: [
+  { title: 'Pod override', sub: 'Paid to the pod lead on closed deals by the reps who report to them (Settings › People › Pod lead).', rules: [
     { key: 'override.name', label: 'Pod lead', type: 'person' },
     { key: 'override.rate', label: 'Rate', hint: 'of net assignment', type: 'pct' },
     { key: 'override.from', label: 'Only on deals with COE from', type: 'date' },
@@ -248,56 +248,56 @@ function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, im
 }
 
 
-// Commission by person (Luke, Oct 16: "where is a specific section to adjust
-// commission per rep?"): everyone the rules name, with what they're paid
-// today on each side of a deal; each Edit opens the rule it comes from.
+// Commission by person (Luke, Oct 16; simplified Oct 19 — site map: "Name |
+// Acq % | Dispo % | Manager / pod lead | TC"): what each person is paid today,
+// one number per cell; a cell's Edit opens the rule it comes from, and the
+// rules and their history are further down the page.
 function ByPerson({ t, today, lists, onEdit }) {
   const r = rulesAt(t, today);
   const pct = (x) => `${Math.round((x || 0) * 1000) / 10}%`;
   const none = (r.noCommission || []).map((x) => x.toLowerCase());
   const m = r.manager || {}; const o = r.override || {};
   const mgrReps = (m.reps || []).filter((x) => !x.coeBefore || x.coeBefore > today);
-  const fromTxt = (x) => (x.coeFrom ? ` (from ${day(x.coeFrom, false)})` : '');
-  const reportsTo = lists?.reportsTo || {};
   const acqTeam = lists?.acqTeam || []; const dispo = lists?.dispoMembers || [];
   const people = [...new Set([...acqTeam, ...dispo, m.name, o.name, r.tcName].filter(Boolean))].sort();
-  const btn = (key, label = 'Edit') => <button type="button" onClick={() => onEdit(key)} className="ml-1.5 text-[12px] font-medium text-navy-700 hover:underline">{label}</button>;
-  const cell = (txt, key, extra) => <div className="text-[13px] leading-snug">{txt}{key && btn(key)}{extra}</div>;
+  const since = (key) => { const e = entryAt(t.timelines[key] || [], today); return e?.from ? sinceText(e.from) : ''; };
+  const Cell = ({ main, sub, k }) => (
+    <button type="button" onClick={() => onEdit(k)} title="Edit this rule" className="group text-left">
+      <span className="block text-[14px] font-semibold tabular-nums text-navy-900 group-hover:underline underline-offset-2">{main}</span>
+      {sub && <span className="block text-[11.5px] text-zinc-500">{sub}</span>}
+    </button>
+  );
   const dash = <span className="text-zinc-300">—</span>;
   return (
     <div className="overflow-x-auto -mx-5">
       <table className="w-full text-left">
         <thead className="text-[12px] text-zinc-500 bg-tan-50/70">
-          <tr>{['Person', 'Acquisition side', 'Dispo side', 'Manager / pod lead', 'Reports to'].map((h, i) => <th key={h} className={`${i ? '' : 'pl-5'} px-3 py-2 font-medium whitespace-nowrap`}>{h}</th>)}</tr>
+          <tr>{['Name', 'Acq %', 'Dispo %', 'Manager / pod lead', 'TC'].map((h, i) => <th key={h} className={`${i ? '' : 'pl-5'} px-3 py-2 font-medium whitespace-nowrap`}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {people.map((p) => {
             const owner = none.includes(p.toLowerCase());
             const net = r.acqOfNet?.[p];
-            const acq = !acqTeam.includes(p) ? dash
-              : owner ? cell('None (no commission)', 'noCommission')
-                : net != null ? cell(`${pct(net)} of net assignment`, `${NET}${p}`)
-                  : cell(<>{pct(r.acqRate)} of the commission base <span className="text-zinc-400">(standard rate)</span></>, 'acqRate', btn(`${NET}${p}`, 'Pay on net instead'));
-            const dsp = !dispo.includes(p) ? dash : owner ? cell('None (no commission)', 'noCommission') : cell(`${pct(r.dispoRate)} of the commission base`, 'dispoRate');
-            const roles = [];
-            if (p === m.name) roles.push(cell(<><b className="font-semibold">Manager</b>: {pct(m.rate)} on {m.side === 'both' ? 'deals' : 'acquisitions'} by {mgrReps.length ? mgrReps.map((x) => `${x.rep.split(' ')[0]}${fromTxt(x)}`).join(', ') : 'nobody right now'}</>, 'manager.reps'));
-            if (p === o.name) roles.push(cell(<><b className="font-semibold">Pod lead</b>: {pct(o.rate)} of net on closed deals by the reps who report to them</>, 'override.rate'));
-            if (p === r.tcName) roles.push(cell(<><b className="font-semibold">TC</b>: {money(r.tcComm)} per deal</>, 'tcComm'));
-            const lead = reportsTo[p];
-            const mgrOf = mgrReps.some((x) => x.rep === p) ? m.name : null;
+            const acq = !acqTeam.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" />
+              : net != null ? <Cell main={pct(net)} sub={`of net · own rate ${since(`${NET}${p}`)}`} k={`${NET}${p}`} />
+                : <Cell main={pct(r.acqRate)} sub={`of commission base · ${since('acqRate')}`} k="acqRate" />;
+            const dsp = !dispo.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" /> : <Cell main={pct(r.dispoRate)} sub={`of commission base · ${since('dispoRate')}`} k="dispoRate" />;
+            const lead = [];
+            if (p === m.name) lead.push(<Cell key="m" main={`${pct(m.rate)} manager`} sub={`on ${m.side === 'both' ? 'deals' : 'acquisitions'} by ${mgrReps.length ? mgrReps.map((x) => x.rep.split(' ')[0]).join(', ') : 'nobody right now'}`} k="manager.rate" />);
+            if (p === o.name) lead.push(<Cell key="o" main={`${pct(o.rate)} pod lead`} sub="of net, closed deals by their reps" k="override.rate" />);
             return (
               <tr key={p} className="border-t border-tan-100 align-top">
                 <td className="pl-5 px-3 py-2.5 text-[13.5px] font-semibold text-navy-800 whitespace-nowrap">{p}</td>
                 <td className="px-3 py-2.5">{acq}</td>
                 <td className="px-3 py-2.5">{dsp}</td>
-                <td className="px-3 py-2.5">{roles.length ? <div className="flex flex-col gap-1">{roles}</div> : dash}</td>
-                <td className="px-3 py-2.5 text-[13px]">{lead || mgrOf ? <>{lead || mgrOf}{mgrOf && <span className="text-zinc-500"> · pays {mgrOf.split(' ')[0]} {pct(m.rate)} on their acquisitions</span>}{lead && lead === o.name && <span className="text-zinc-500"> · pays {lead.split(' ')[0]} {pct(o.rate)} of net when closed</span>}</> : dash}</td>
+                <td className="px-3 py-2.5">{lead.length ? <div className="flex flex-col gap-1.5">{lead}</div> : dash}</td>
+                <td className="px-3 py-2.5">{p === r.tcName ? <Cell main={`${money(r.tcComm)} / deal`} sub={`fee ${money(r.tcFee)} off each deal · ${since('tcComm')}`} k="tcComm" /> : dash}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <p className="px-5 pt-3 text-[12px] text-zinc-500">Reports to is set in Settings › Dropdown Lists › Reports to (the pod columns). A standard rate change applies to everyone on it; "Pay on net instead" gives one person their own rate.</p>
+      <p className="px-5 pt-3 text-[12px] text-zinc-500">Click a number to change it — you pick the date it takes effect, and closed deals keep the rules they had. Who reports to whom is the Pod lead column in Settings › People. <a href="#rule-history" className="text-navy-700 underline">History ›</a></p>
     </div>
   );
 }
@@ -307,8 +307,10 @@ function ByPerson({ t, today, lists, onEdit }) {
 // pod override) and TC pay. `only` = the section titles a page shows.
 // `?edit=<rule key>` opens that rule's editor (Commission by person's Edit
 // links to a rule on another page).
-const PAGE_OF = (key) => (key.startsWith('manager.') || key.startsWith('override.') ? 'pods' : key.startsWith('tc') ? 'tc' : 'commissions');
-export default function RulesView({ only = ['Acquisition and dispo'], byPerson = true, changesList = true }) {
+// Since Oct 19 (site map) every rule is on the one Commissions page — TC Pay
+// and Pods merged in.
+const ALL = SECTIONS.map((x) => x.title);
+export default function RulesView({ only = ALL, byPerson = true, changesList = true }) {
   const s = useDeals();
   const { query } = useLocation();
   const [t, setT] = useState(null);
@@ -370,9 +372,8 @@ export default function RulesView({ only = ['Acquisition and dispo'], byPerson =
         </div>
       )}
       {byPerson && (
-        <Section title="Commission by person" sub="What each person is paid today. Edit opens the rule it comes from.">
+        <Section title="Who gets paid what" sub="Each person's rates today. The rules behind them are below, then every change by date.">
           <ByPerson t={t} today={today} lists={s.lists} onEdit={(key) => {
-            if (PAGE_OF(key) !== 'commissions') { navigate(`/settings/${PAGE_OF(key)}?edit=${encodeURIComponent(key)}`); return; }
             setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
           }} />
         </Section>
@@ -402,6 +403,7 @@ export default function RulesView({ only = ['Acquisition and dispo'], byPerson =
           </div>
         </Section>
       ))}
+      {changesList && <div id="rule-history" className="scroll-mt-4" />}
       {changesList && <Section title="Changes by start date" sub="Every dated change on one list, so changes meant to start together share a date.">
         {!changes.length ? <p className="text-zinc-500 text-[13px]">No changes yet — every rule is as it was when the tracker began.</p> : (
           <div className="flex flex-col gap-3">

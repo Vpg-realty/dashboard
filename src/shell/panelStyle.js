@@ -21,6 +21,6 @@ const TONE = {
 };
 export function paceChip(word) {
   const w = String(word || '').toUpperCase();
-  const tone = /ON PACE|HIT|ON KPI/.test(w) ? 'on' : /NEAR|CLOSE/.test(w) ? 'warn' : 'behind';
+  const tone = /ON PACE|HIT|ON KPI|ON TARGET|NO AGENT/.test(w) ? 'on' : /NEAR|CLOSE/.test(w) ? 'warn' : 'behind';
   return `${CHIP} ${TONE[tone]}`;
 }
