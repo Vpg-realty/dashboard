@@ -1414,6 +1414,21 @@ the server strips them (`forTc`) and refuses edits to them.
 Sidebar **Finance** (owners only; `src/finance/`). Luke: commissions are
 paid per deal at closing, and Luke or Jack approves payouts (either one —
 the approval records who).
+- **Site map phase 3 (Oct 19, Luke)** — overrides the page list below where
+  it differs: Finance has three tabs. **Finance Overview** (`/finance/
+  overview`, the old Deal Summary — `SummaryView.jsx`; the Top 5 acq / dispo /
+  state boxes are gone, the rail has those views) — the old Finance ›
+  Overview page (OverviewView.jsx) was removed. **Money In & Out**
+  (`/finance/money`, `MoneyView.jsx`): the company outlook, then a Money out
+  · Payouts / Money in · Wires switch (`?side=in`) showing `PayoutsView` /
+  `WiresView` with `embedded`. **Statements** unchanged. Old /finance/
+  summary, /payouts, /wires and /deals/summary links redirect (`MOVED`; a
+  Wires `?tab=` lands on Money in). **Paid on per commission**: the deal sheet
+  has `acqPaidOn`, `dispoPaidOn`, `mgrPaidOn`, `overridePaidOn`, `tcPaidOn`
+  (owners only, after each commission; `fin: true` in FIELDS = read-only,
+  the API refuses edits, "from Finance" in the panel) — edge/finance.js sets
+  the part's date when a payout is marked paid and clears it on undo, logged
+  in the deal's history with Commission paid (`PART_PAID_ON` in lines.js).
 - **Lines** (`src/finance/lines.js`, shared by the pages and the server):
   every closed (COMPLETE) deal's `payouts()` (math.js — acq, dispo,
   manager, override, TC) is a line `<dealId>:<part>`: **Owed → Approved →

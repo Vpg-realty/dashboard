@@ -73,11 +73,11 @@ export const SECTIONS = [
     // Owners only (the API refuses everyone else).
     id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
     tabs: [
-      { id: 'summary', label: 'Deal Summary', view: 'deals-summary', scroll: true },
-      { id: 'payouts', label: 'Payouts', view: 'fin-payouts', scroll: true },
-      { id: 'wires', label: 'Wires In', view: 'fin-wires', scroll: true },
+      // Oct 19 (Luke's site map): Deal Summary is the Finance Overview (the
+      // old Overview page went), Payouts + Wires In are one page.
+      { id: 'overview', label: 'Finance Overview', view: 'deals-summary', scroll: true },
+      { id: 'money', label: 'Money In & Out', view: 'fin-money', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
-      { id: 'overview', label: 'Overview', view: 'fin-overview', scroll: true },
     ],
   },
   {
@@ -188,7 +188,10 @@ const MOVED = {
   'pipeline/calendar': { section: 'calendar', tab: 'all' },
   // CRM Review (Oct 16) folded back into the Scorecard the same day (Luke).
   'team/crm': { section: 'team', tab: 'scorecard' },
-  'deals/summary': { section: 'finance', tab: 'summary' },
+  'deals/summary': { section: 'finance', tab: 'overview' },
+  'finance/summary': { section: 'finance', tab: 'overview' },
+  'finance/payouts': { section: 'finance', tab: 'money' },
+  'finance/wires': { section: 'finance', tab: 'money' },
 };
 
 export function resolve(path, role) {

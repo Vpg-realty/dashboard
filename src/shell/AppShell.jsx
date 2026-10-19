@@ -22,16 +22,14 @@ import AlertsView from '../settings/AlertsView.jsx';
 import TcPayView from '../settings/TcPayView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
-import PayoutsView from '../finance/PayoutsView.jsx';
 import SuggestionsView from '../suggestions/SuggestionsView.jsx';
 import AlertsPage from '../alerts/AlertsView.jsx';
 import MyTraining from '../training/MyTraining.jsx';
 import TrainingBoard from '../training/TrainingBoard.jsx';
 import ProgramBuilder from '../training/ProgramBuilder.jsx';
 import { useAlerts, tabBadge } from '../alerts/store.js';
-import WiresView from '../finance/WiresView.jsx';
 import StatementsView from '../finance/StatementsView.jsx';
-import FinanceOverview from '../finance/OverviewView.jsx';
+import MoneyView from '../finance/MoneyView.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import SubAccountsPanel from '../components/SubAccountsPanel.jsx';
@@ -59,7 +57,7 @@ import ZipRules from '../zips/RulesHealth.jsx';
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
-  'fin-payouts': PayoutsView, suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
+  suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView,
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
