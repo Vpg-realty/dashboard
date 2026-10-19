@@ -1,11 +1,17 @@
 // Settings › People (owners): who can use the dashboard and what they see.
-// Role decides the sections (Owner, Manager, TC, Acquisitions, Office TV);
-// "Rep" ties a login to their rep on the board (their Home, My scorecard,
-// "Only mine" deals; a manager's pod). Saved straight to D1.
+// Role decides the sections (Owner, Manager, TC, Acquisitions, Trainee,
+// Office TV); "Rep on the board" ties a login to their rep (their Home, My
+// scorecard, "Only mine" deals; a manager's pod) — a new rep has none until
+// their GHL sub-account is added (Sub-Accounts). The one place people are
+// added (Luke, Oct 19): a new Acquisitions hire can be enrolled in the
+// training program here — they start as a Trainee with their pod lead and
+// become Acquisitions when they graduate. Saved straight to D1.
 import { useEffect, useState } from 'react';
 import { REPS } from '../data/config.js';
 import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
+import { linkProps } from '../shell/router.js';
+import { PODS } from '../../scripts/scorecard-lib.mjs';
 import { Section, inputCls } from './ui.jsx';
 
 const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
@@ -14,7 +20,7 @@ const ROLE_HELP = {
   manager: 'Team pages (Scorecard, Coaching, Month in Review), their pod on Home, My scorecard, Active deals (view only).',
   tc: 'Deals (all of it except commissions, profit and buyers), Home and the board.',
   team: 'Their own Home and My scorecard, the board, Active deals (view only).',
-  trainee: 'New hires in training: My Training only until onboarding is done, then also Home, Pipeline and Get Zips. Add them from Management › Training so they get a pod lead.',
+  trainee: 'New hires in the training program: My Training only until onboarding is signed off, then also Home, Pipeline and Get Zips. Their pod lead trains them; they become Acquisitions when they graduate.',
   tv: 'The office TV board only.',
 };
 
@@ -68,13 +74,39 @@ function DiscordTest() {
   );
 }
 
+const repName = (id) => REPS.find((r) => r.id === id)?.name || id;
+const LEADS = PODS.map((p) => ({ id: p.lead, label: `${repName(p.lead)} · ${p.title}` }));
+const NO_REP = 'Not on the board yet';
+
+// Rep on the board, or — for a trainee — their pod lead.
+function RepOrLead({ d, setD, disabled }) {
+  if (d.role === 'trainee') {
+    return (
+      <select value={d.trainer || ''} disabled={disabled} onChange={(e) => setD({ ...d, trainer: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Pod lead">
+        <option value="">Pick their pod lead…</option>
+        {LEADS.map((l) => <option key={l.id} value={l.id}>Trainer: {l.label}</option>)}
+      </select>
+    );
+  }
+  return (
+    <select value={d.rep_id || ''} disabled={disabled} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Rep on the board">
+      <option value="">{d.role === 'team' || d.role === 'manager' ? NO_REP : '— none —'}</option>
+      {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+    </select>
+  );
+}
+
 function Row({ u, me, onSaved, onRemoved }) {
   const [d, setD] = useState(u);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const self = u.email === me?.email;
-  const dirty = d.name !== u.name || d.role !== u.role || (d.rep_id || null) !== (u.rep_id || null);
-  const save = async () => { setBusy(true); setErr(null); try { await saveUser(d); onSaved(d); } catch (e) { setErr(e.message); } finally { setBusy(false); } };
+  const dirty = d.name !== u.name || d.role !== u.role || (d.rep_id || null) !== (u.rep_id || null) || (d.role === 'trainee' && (d.trainer || null) !== (u.trainer || null));
+  const save = async () => {
+    if (u.role === 'trainee' && d.role !== 'trainee' && !window.confirm(`Move ${u.name} out of training? This counts as graduating them.`)) return;
+    setBusy(true); setErr(null);
+    try { const { user } = await saveUser(d); setD(user); onSaved(user); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
   const remove = async () => {
     if (!window.confirm(`Remove ${u.name} (${u.email})? They'll lose access to the dashboard.`)) return;
     try { await removeUser(u.email); onRemoved(u.email); } catch (e) { setErr(e.message); }
@@ -89,10 +121,9 @@ function Row({ u, me, onSaved, onRemoved }) {
         </select>
       </td>
       <td className="py-2 pr-3">
-        <select value={d.rep_id || ''} disabled={self} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`}>
-          <option value="">— none —</option>
-          {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
+        <RepOrLead d={d} setD={setD} disabled={self} />
+        {u.role === 'trainee' && <a {...linkProps(`/team/training?trainee=${encodeURIComponent(u.email)}`)} className="block mt-1 text-[12px] text-navy-700 underline">Training file{u.start ? ` · started ${u.start}` : ''} →</a>}
+        {u.role !== 'trainee' && u.graduated_at && <span className="block mt-1 text-[12px] text-emerald-700">Graduated from training</span>}
       </td>
       <td className="py-2 text-right whitespace-nowrap">
         {err && <span className="text-red-700 text-xs mr-2">{err}</span>}
@@ -107,44 +138,66 @@ export default function PeopleView() {
   const me = useMe();
   const [users, setUsers] = useState(null);
   const [error, setError] = useState(null);
-  const [add, setAdd] = useState({ email: '', name: '', role: 'team', rep_id: null });
+  const blank = { email: '', name: '', role: 'team', rep_id: null, enroll: true, trainer: '', start: '' };
+  const [add, setAdd] = useState(blank);
+  const [added, setAdded] = useState(null);
   const [addErr, setAddErr] = useState(null);
   useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, []);
   if (error) return <div className="py-16 text-center text-zinc-500">{error}</div>;
   if (!users) return <div className="py-16 text-center text-zinc-400">Loading…</div>;
   const order = (u) => ROLES.indexOf(u.role);
   const list = [...users].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+  const enrolling = add.role === 'team' && add.enroll;
   const create = async () => {
-    setAddErr(null);
+    setAddErr(null); setAdded(null);
     try {
-      const { user } = await saveUser(add);
+      const body = enrolling ? { email: add.email, name: add.name, role: 'trainee', rep_id: null, trainer: add.trainer, start: add.start || null } : { email: add.email, name: add.name, role: add.role, rep_id: add.rep_id };
+      const { user } = await saveUser(body);
       setUsers((us) => [...us.filter((u) => u.email !== user.email), user]);
-      setAdd({ email: '', name: '', role: 'team', rep_id: null });
+      setAdded(user);
+      setAdd(blank);
     } catch (e) { setAddErr(e.message); }
   };
+  const addRoles = ROLES.filter((r) => r !== 'trainee');
   return (
     <div className="max-w-[1200px] flex flex-col gap-5">
       <Section title={`Everyone · ${users.length}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px]">
-            <thead className="text-[12px] text-zinc-500"><tr><th className="pb-2 font-medium w-[18%]">Name</th><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium w-[18%]">Role</th><th className="pb-2 font-medium w-[20%]">Rep on the board</th><th className="pb-2" /></tr></thead>
+            <thead className="text-[12px] text-zinc-500"><tr><th className="pb-2 font-medium w-[18%]">Name</th><th className="pb-2 font-medium">Email</th><th className="pb-2 font-medium w-[18%]">Role</th><th className="pb-2 font-medium w-[22%]">Rep on the board · or pod lead</th><th className="pb-2" /></tr></thead>
             <tbody>
               {list.map((u) => <Row key={u.email} u={u} me={me} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} />)}
             </tbody>
           </table>
         </div>
       </Section>
-      <Section title="Add a person" sub="They also need to be on the login list (Cloudflare Access) to sign in — see the note below.">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1fr_1fr_auto] gap-3 items-end">
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Name</span><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} className={inputCls} placeholder="First name" /></label>
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Email</span><input value={add.email} onChange={(e) => setAdd({ ...add, email: e.target.value })} className={inputCls} placeholder="name@valleypropertygroup.com" /></label>
+      <Section title="Add a person" sub="Anyone with a @valleypropertygroup.com email can sign in with an emailed code once they're on this list.">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1fr] gap-3 items-end">
+          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Full name</span><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} className={inputCls} placeholder="First and last name" /></label>
+          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Company email</span><input value={add.email} onChange={(e) => setAdd({ ...add, email: e.target.value })} className={inputCls} placeholder="name@valleypropertygroup.com" /></label>
           <label><span className="block text-[12.5px] text-zinc-600 mb-1">Role</span>
-            <select value={add.role} onChange={(e) => setAdd({ ...add, role: e.target.value })} className={inputCls}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}</select></label>
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Rep on the board</span>
-            <select value={add.rep_id || ''} onChange={(e) => setAdd({ ...add, rep_id: e.target.value || null })} className={inputCls}><option value="">— none —</option>{REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-          <button onClick={create} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold">Add</button>
+            <select value={add.role} onChange={(e) => setAdd({ ...add, role: e.target.value })} className={inputCls}>{addRoles.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}</select></label>
+        </div>
+        {add.role === 'team' && (
+          <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-2.5 cursor-pointer">
+            <input type="checkbox" checked={add.enroll} onChange={(e) => setAdd({ ...add, enroll: e.target.checked })} className="mt-1 accent-navy-700" />
+            <span><b className="text-navy-800">Enroll in the training program</b><span className="block text-[13px] text-zinc-600">They start as a Trainee (My Training first, then Home, Pipeline and Get Zips) and become Acquisitions automatically when they graduate. Untick for someone who skips training.</span></span>
+          </label>
+        )}
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+          {enrolling ? <>
+            <label><span className="block text-[12.5px] text-zinc-600 mb-1">Pod lead — trains them, and they shadow them in Week 1</span>
+              <select value={add.trainer} onChange={(e) => setAdd({ ...add, trainer: e.target.value })} className={inputCls}><option value="">Pick a pod lead…</option>{LEADS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</select></label>
+            <label><span className="block text-[12.5px] text-zinc-600 mb-1">Start date</span><input type="date" value={add.start} onChange={(e) => setAdd({ ...add, start: e.target.value })} className={inputCls} /></label>
+          </> : (
+            <label className="md:col-span-2"><span className="block text-[12.5px] text-zinc-600 mb-1">Rep on the board</span>
+              <select value={add.rep_id || ''} onChange={(e) => setAdd({ ...add, rep_id: e.target.value || null })} className={inputCls}><option value="">{NO_REP}</option>{REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+              <span className="block mt-1 text-[12px] text-zinc-500">A new rep isn't on the board until their GHL sub-account is added (Sub-Accounts, bottom of the sidebar) — then link them here.</span></label>
+          )}
+          <button onClick={create} disabled={!add.name.trim() || !add.email.trim() || (enrolling && !add.trainer)} className="h-9 px-5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{enrolling ? 'Add and enroll' : 'Add'}</button>
         </div>
         {addErr && <div className="mt-2 text-red-700 text-[13px]">{addErr}</div>}
+        {added && <div className="mt-2 text-emerald-700 text-[13px]">{added.name} added{added.role === 'trainee' ? ` as a trainee with ${repName(added.trainer)}. Send the 1099 and W-9 from DocuSign, then mark them sent in their training file.` : '.'}</div>}
       </Section>
       <Section title="What each role sees">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13.5px]">

@@ -7,7 +7,6 @@
 //             { action: 'ask', text }                              a question → an alert for their pod lead
 //   trainers: { action: 'check', email, step, done, status?, rating?, note? }
 //             { action: 'note', email, text }
-//             { action: 'add', email, name, trainer, start? }      adds the login (role trainee) too
 //             { action: 'start', email, start, trainer? }
 //             { action: 'remove', email }                          owners
 //   owners:   { action: 'program', program }                       Settings › Training Program
@@ -36,17 +35,16 @@ export async function onRequestPost(context) {
   const email = user.role === 'trainee' ? user.email : String(b?.email || '').toLowerCase();
   const person = email ? await trainee(db, email) : null;
   const progress = person ? (await db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(email).all()).results : [];
-  const existingUser = b?.action === 'add' ? await db.prepare('SELECT role FROM users WHERE email = ?').bind(String(b.email || '').trim().toLowerCase()).first() : null;
   const now = new Date().toISOString();
-  const p = plan(b, user, { program, person, progress, existingUser }, now);
+  const p = plan(b, user, { program, person, progress }, now);
   if (p.error) return json({ error: p.error }, 400);
   await db.batch([
     ...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)),
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `training.${b.action}`, JSON.stringify({ email: email || b.email, step: b.step, done: b.done, status: b.status, score: p.result?.score })),
   ]);
   // Keep the "waiting on you" alert for the pod lead in step with progress.
-  const target = b.action === 'add' ? await trainee(db, String(b.email).trim().toLowerCase()) : person;
-  if (program && target && (p.after === 'alerts' || b.action === 'add')) {
+  const target = person;
+  if (program && target && p.after === 'alerts') {
     const fresh = (await db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(target.email).all()).results;
     await db.batch(alertOps(target, program, fresh, now).map(([sql, args]) => db.prepare(sql).bind(...args)));
   }

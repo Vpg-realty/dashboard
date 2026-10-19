@@ -187,21 +187,6 @@ export function plan(b, user, ctx, now = new Date().toISOString()) {
     if (c.error) return c;
     return { run: [["INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('training_program', ?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by", [JSON.stringify(c.program), now, user.name]]] };
   }
-  if (a === 'add') {
-    if (!canTrain(user)) return { error: 'owners and pod leads only' };
-    const email = clip(b.email, 120).toLowerCase();
-    const name = clip(b.name, 60);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'enter a valid email' };
-    if (!name) return { error: 'enter a name' };
-    if (!isLead(b.trainer)) return { error: 'pick their pod lead' };
-    if (user.role !== 'owner' && b.trainer !== user.rep_id) return { error: 'you can add trainees to your own pod' };
-    if (b.start && !DATE.test(b.start)) return { error: 'pick a start date' };
-    if (ctx.existingUser && ctx.existingUser.role !== 'trainee') return { error: `${email} is already on the dashboard as ${ctx.existingUser.role}` };
-    return { run: [
-      ["INSERT INTO users (email, name, role, rep_id) VALUES (?, ?, 'trainee', NULL) ON CONFLICT (email) DO UPDATE SET name = excluded.name, role = 'trainee'", [email, name]],
-      ['INSERT INTO training_people (email, trainer, start_date, created_by, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (email) DO UPDATE SET trainer = excluded.trainer, start_date = excluded.start_date', [email, b.trainer, b.start || null, user.name, now]],
-    ] };
-  }
   if (!program) return { error: 'the training program isn’t set up yet' };
   const step = program.steps.find((s) => s.id === b.step);
   const st = statusOf(program, progress);
