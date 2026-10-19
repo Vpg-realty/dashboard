@@ -7,7 +7,7 @@
 // only ever sends their own rows plus the team average.
 import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
-import { REPS, ghlOppUrl, ghlConvUrl } from '../../data/config.js';
+import { REPS, ghlConvUrl, issueUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
@@ -131,7 +131,7 @@ function BadList({ bad, total }) {
       <ul className="mt-1 space-y-0.5 text-[13.5px]">
         {shown.map((b, i) => {
           // Deals open their GHL opportunity in a new tab (Luke, Oct 15).
-          const url = b.url || (b.sub ? ghlOppUrl(b.sub, b.id) : null);
+          const url = issueUrl(b);
           return (
             <li key={`${b.id || ''}${i}`}>
               {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="font-medium text-navy-700 underline decoration-navy-200 underline-offset-2 hover:decoration-navy-700">{b.addr} ↗</a> : <span className="font-medium">{b.addr}</span>}

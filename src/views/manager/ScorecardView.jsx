@@ -18,7 +18,7 @@
 // get a read-only view without notes.
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
-import { REPS, ghlOppUrl } from '../../data/config.js';
+import { REPS, issueUrl } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { addDays, rangeLabel } from '../../utils/historyRange.js';
@@ -283,7 +283,7 @@ function Issues({ auto, manual }) {
             )}
             {d?.bad?.length > 0 && (
               <ul className="mt-0.5 ml-8 text-[13px] text-zinc-600 space-y-0.5">
-                {d.bad.map((b) => { const url = b.sub ? ghlOppUrl(b.sub, b.id) : null; return <li key={b.id + b.why} className="truncate">• {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="underline decoration-zinc-300 underline-offset-2 hover:decoration-current">{b.addr} ↗</a> : b.addr} — <span className="text-rose-700">{b.why}</span></li>; })}
+                {d.bad.map((b) => { const url = issueUrl(b); return <li key={b.id + b.why} className="truncate">• {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="underline decoration-zinc-300 underline-offset-2 hover:decoration-current">{b.addr} ↗</a> : b.addr} — <span className="text-rose-700">{b.why}</span></li>; })}
                 {(d.badN ?? d.total - d.ok) > d.bad.length && <li className="text-zinc-400">… and {(d.badN ?? d.total - d.ok) - d.bad.length} more</li>}
               </ul>
             )}

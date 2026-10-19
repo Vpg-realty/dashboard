@@ -333,6 +333,13 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   owners and pod leads (`chimeDefault`). Usage: the sync reads the open
   alerts and the tracker's deals once per run (~0.3k rows) — about 30k reads
   a day.
+  **Later Oct 19** (Luke): two badges side by side on the Alerts entry —
+  red = leads not completed (`counts.leads`), blue = everything else owed
+  today (`counts.tasks`); each stays until cleared (collapsed sidebar /
+  phone show one: red when there are leads). Real lead / Not a lead only
+  teaches Claude (the last 30 answers are examples) and stays on the alert
+  (a second click clears it); **Complete** closes a lead, Reopen undoes it.
+  Done keeps 24 hours (`KEEP_DONE_MS`), then drops off the list.
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
@@ -2242,7 +2249,11 @@ Under `src/views/`:
       what the top reps reach: questions 40%, compliance 90%, AI review 50%;
       speed 75% before it became its own part), capped at 1:
       90%+ = 2, 60%+ = 1, below = 0; the issue list shows AI reasons,
-      compliance hits and slow answers.
+      compliance hits and slow answers. Oct 19 (Luke): each AI-review finding and slow
+      answer carries its conversation (`conv`, from the thread key) and the
+      pair's `sub`, and links straight to the GHL conversation —
+      `issueUrl` (src/data/config.js) picks conversation or opportunity for
+      every flagged item on both scorecards.
   - **Coaching** (`CoachingView.jsx`): since Luke, Oct 15 ("the chart that
     says 'where they leak this month' should replace the coaching tab") the
     tab is the Scorecard's **Where they leak** card (`LeakCard`, exported from

@@ -90,16 +90,19 @@ function Avatar({ name, size = 26 }) {
 }
 
 // Option A (Luke, Oct 18): a pulsing red count on the sidebar's Alerts entry.
-// Red dot (Luke, Oct 19): what the person owes today, shown until it's
-// cleared — pulsing rose while something new arrived since they last looked.
-function AlertDot({ owe, unseen, collapsed, phone }) {
-  if (!owe) return null;
-  const n = owe;
+// Two badges side by side (Luke, Oct 19): red = new leads to work, blue =
+// tasks owed today; each stays until it's cleared. The red one pulses while
+// something new arrived since the person last looked.
+function AlertDot({ leads, tasks, unseen, collapsed, phone }) {
+  if (!leads && !tasks) return null;
   const pos = collapsed || phone ? 'absolute -top-1 right-0' : 'ml-auto';
+  const pill = (n, cls, title) => n > 0 && (
+    <span title={title} className={`min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-bold text-white tabular-nums ${cls}`}>{n > 99 ? '99+' : n}</span>
+  );
   return (
-    <span title={`${owe} to do${unseen ? ` · ${unseen} new` : ''}`}
-      className={`${pos} min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-bold text-white tabular-nums ${unseen ? 'bg-rose-600 alert-pulse' : 'bg-[#4c0519]'}`}>
-      {n > 99 ? '99+' : n}
+    <span className={`${pos} flex items-center gap-1`}>
+      {pill(leads, `bg-rose-600 ${unseen ? 'alert-pulse' : ''}`, `${leads} lead${leads === 1 ? '' : 's'} to work`)}
+      {!(collapsed || phone) || !leads ? pill(tasks, 'bg-sky-600', `${tasks} task${tasks === 1 ? '' : 's'} due`) : null}
     </span>
   );
 }
@@ -126,6 +129,8 @@ export default function AppShell({ me }) {
   const { counts: alertCounts } = useAlerts();
   const unseen = section.id === 'alerts' ? 0 : alertCounts?.unseen || 0;
   const owe = alertCounts?.owe || 0;
+  const leadsN = alertCounts?.leads || 0;
+  const tasksN = alertCounts?.tasks ?? owe;
 
   // Keep the address bar on the page actually shown (old or forbidden links).
   const canonical = hrefOf(section, tab);
@@ -159,7 +164,7 @@ export default function AppShell({ me }) {
         {on && <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded-r bg-tan-500" />}
         <Icon name={s.icon} className={on ? 'text-navy-700' : 'text-tan-600/80'} />
         {!collapsed && s.label}
-        {s.id === 'alerts' && <AlertDot owe={owe} unseen={unseen} collapsed={collapsed} />}
+        {s.id === 'alerts' && <AlertDot leads={leadsN} tasks={tasksN} unseen={unseen} collapsed={collapsed} />}
       </a>
     );
   };
@@ -292,7 +297,7 @@ export default function AppShell({ me }) {
         {sections.slice(0, 4).map((s) => (
           <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} className={`relative flex flex-col items-center gap-1 text-[11px] font-medium ${s.id === section.id ? 'text-navy-700' : 'text-zinc-500'}`}>
             <Icon name={s.icon} size={20} />{s.label}
-            {s.id === 'alerts' && <AlertDot owe={owe} unseen={unseen} phone />}
+            {s.id === 'alerts' && <AlertDot leads={leadsN} tasks={tasksN} unseen={unseen} phone />}
           </a>
         ))}
         <button onClick={() => setPalette(true)} className="flex flex-col items-center gap-1 text-[11px] font-medium text-zinc-500"><Icon name="search" size={20} />Search</button>
