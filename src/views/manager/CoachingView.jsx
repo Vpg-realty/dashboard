@@ -14,7 +14,7 @@ export default function CoachingView({ onPickRep }) {
   const order = [...PODS.flatMap((p) => p.reps), ...POD_LEADS];
   const ids = [...order.filter((id) => REPS.some((r) => r.id === id)), ...REPS.map((r) => r.id).filter((id) => !order.includes(id))];
   return (
-    <ManagerFrame title="Coaching" subtitle="Where each rep's funnel leaks this month">
+    <ManagerFrame title="Where They Leak" subtitle="Each rep's funnel this month vs the team">
       <div className="h-full overflow-y-auto pb-6">
         <LeakCard ids={ids} week={currentWeek().monday} isLive onPickRep={onPickRep} />
       </div>

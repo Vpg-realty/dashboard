@@ -12,6 +12,7 @@
 //     (the Access token's issue time) differs from the one stored.
 // Remembered per person in localStorage (`vpg.welcome.<email>`); never in
 // TV mode. Respects reduced motion.
+import { getSplash } from './splash.js';
 import { useEffect, useState } from 'react';
 import { PAIRS } from '../data/source.js';
 import { scopeReps } from './scope.js';
@@ -60,7 +61,7 @@ function dayFacts(me) {
 
 const TIPS = {
   team: [['Home', 'Your numbers for the week and the deals that need you today.'], ['Pipeline', 'Every active deal by stage — the team’s or just yours. Click one to see it.'], ['My Scorecard', 'Your score, exactly what to fix, and how you’re trending vs the team.'], ['Search', 'Press ⌘K (Ctrl K on Windows) to jump to any page or deal.']],
-  manager: [['Home', 'Your pod at a glance — numbers, deals that need attention, who’s moving.'], ['Management', 'The weekly scorecard, coaching and month in review.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
+  manager: [['Home', 'Your numbers and your pod’s, and today at a glance.'], ['Team Scorecards', 'The weekly scorecard, where reps leak and month in review.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
   owner: [['Home', 'The whole company at a glance — revenue, pipeline, who’s moving.'], ['Deals', 'The deal tracker: edit right in the table, GHL keeps it in sync.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any rep, page or deal.']],
   tc: [['Home', 'Every deal that needs attention, by date.'], ['Deals', 'The deal tracker: edit right in the table, GHL keeps it in sync.'], ['Search', 'Press ⌘K (Ctrl K) to jump to any deal.']],
 };
@@ -74,6 +75,8 @@ function Mark({ className = '', animate }) {
   );
 }
 
+const isMonday = () => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', weekday: 'short' }).format(new Date()) === 'Mon';
+
 export default function Welcome({ me }) {
   const key = `vpg.welcome.${me?.email || 'anon'}`;
   // What to show, in order: 'daily' = the splash, 'first' = the card.
@@ -83,9 +86,11 @@ export default function Welcome({ me }) {
       const today = azToday();
       const login = me?.loginAt ?? seen?.login ?? null;
       localStorage.setItem(key, JSON.stringify({ first: seen?.first || today, last: today, login }));
-      if (!seen) return ['daily', 'first'];
-      if (me?.loginAt && seen.login !== me.loginAt) return ['daily', 'first'];
-      return seen.last === today ? [] : ['daily'];
+      const pref = getSplash(me?.email);
+      const splash = pref === 'off' ? [] : pref === 'mondays' && !isMonday() ? [] : ['daily'];
+      if (!seen) return [...splash, 'first'];
+      if (me?.loginAt && seen.login !== me.loginAt) return [...splash, 'first'];
+      return seen.last === today ? [] : splash;
     } catch { return []; } // private mode: skip it
   });
   const mode = steps[0] || null;
@@ -97,7 +102,8 @@ export default function Welcome({ me }) {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape' || (mode === 'daily' && e.key === 'Enter')) close(); };
     window.addEventListener('keydown', onKey);
-    const t = mode === 'daily' ? setTimeout(close, 3400) : null;
+    // On screen a little longer (Luke, Oct 19: was 3.4 s).
+    const t = mode === 'daily' ? setTimeout(close, 5500) : null;
     return () => { window.removeEventListener('keydown', onKey); if (t) clearTimeout(t); };
   }, [open, mode]);
 

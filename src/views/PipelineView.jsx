@@ -606,7 +606,6 @@ function BrandOppColumn({ col, opps, repById, marketById }) {
 // ---- Calendar (Luke, Oct 16: its own sidebar section): two weeks at a time,
 // a row per open stage, a column per day plus "Late"; each deal's IP end (with
 // its time) and COE as small chips.
-const CAL_STAGES = COLUMNS.filter((c) => c.stage !== 'closed');
 // Every date a deal has (Luke, Oct 16: "add inspection period dates and
 // times"): its IP end (Under contract / Dispo — with the time from the
 // tracker) and its COE. The stage's key date is coloured by how close it is;
@@ -624,6 +623,8 @@ function calEvents(deals, now) {
   });
 }
 const STAGE_ORDER = { under_contract: 0, dispo: 1, assigned: 2 };
+const STAGE_DOT = Object.fromEntries(COLUMNS.map((c) => [c.stage, c.color]));
+const STAGE_NAME = Object.fromEntries(COLUMNS.map((c) => [c.stage, c.title]));
 const byTime = (a, b) => a.sort - b.sort || STAGE_ORDER[a.deal.stage] - STAGE_ORDER[b.deal.stage];
 const monthOf = (iso) => iso.slice(0, 7);
 const addMonths = (ym, n) => { const [y, m] = ym.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + n, 1)); return d.toISOString().slice(0, 7); };
@@ -634,10 +635,11 @@ const dayLong = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US'
 // if they click into a specific date it pulls up the day"): Two weeks (rows
 // by stage, a Late column) and Month (a month grid, any month ahead or back).
 // Clicking a day — a day heading in Two weeks, a date in Month — opens that
-// day's list on the right. All in the link: ?cal=month&m=2026-11&day=2026-11-04.
+// day's list on the right. All in the link: ?m=2026-11&day=2026-11-04 (Two weeks: ?cal=weeks).
 function CalendarBoard({ deals, today }) {
   const { query } = useLocation();
-  const mode = query.get('cal') === 'month' ? 'month' : 'weeks';
+  // Month is the default (Luke, Oct 19); ?cal=weeks for Two weeks.
+  const mode = query.get('cal') === 'weeks' ? 'weeks' : 'month';
   const [w, setW] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
@@ -646,33 +648,39 @@ function CalendarBoard({ deals, today }) {
   const openDay = (d) => setQuery({ day: d });
   const btn = 'h-8 px-3 rounded-md text-[13px] font-semibold text-navy-900 bg-tan-500 hover:bg-tan-400 shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
   const modeBtn = (m, label) => (
-    <button type="button" aria-pressed={mode === m} onClick={() => setQuery({ cal: m === 'month' ? 'month' : null, m: null })}
+    <button type="button" aria-pressed={mode === m} onClick={() => setQuery({ cal: m === 'weeks' ? 'weeks' : null, m: null })}
       className={`h-7 px-3 rounded-md text-[13px] font-semibold ${mode === m ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 hover:bg-tan-100'}`}>{label}</button>
   );
+  // The key sits at the page foot (Luke, Oct 19: keys at the bottom, top clear).
   const legend = (
-    <span className="ml-auto flex flex-wrap items-center gap-3 text-[12px] text-zinc-500">
+    <span className="flex flex-wrap items-center gap-3 px-1 text-[12px] text-zinc-500">
+      <span className="font-semibold text-zinc-600">Key</span>
+      {COLUMNS.filter((c) => c.stage !== 'closed').map((c) => <span key={c.stage} className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: c.color }} />{c.title}</span>)}
       <span className="inline-flex items-center gap-1.5"><span className="rounded bg-navy-700 text-white px-1 text-[10px] font-bold">IP</span>inspection period ends</span>
       <span className="inline-flex items-center gap-1.5"><span className="rounded bg-emerald-700 text-white px-1 text-[10px] font-bold">COE</span>closing</span>
       <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-white" />not the date the stage runs on</span>
     </span>
   );
-  const toggle = <span role="group" aria-label="Calendar view" className="inline-flex gap-0.5 rounded-lg bg-white ring-1 ring-tan-200 p-[3px]">{modeBtn('weeks', 'Two weeks')}{modeBtn('month', 'Month')}</span>;
+  const toggle = <span role="group" aria-label="Calendar view" className="inline-flex gap-0.5 rounded-lg bg-white ring-1 ring-tan-200 p-[3px]">{modeBtn('month', 'Month')}{modeBtn('weeks', 'Two weeks')}</span>;
   return (
     <div className="flex flex-col gap-3">
       {mode === 'month'
-        ? <MonthGrid events={events} today={today} ym={/^\d{4}-\d{2}$/.test(query.get('m') || '') ? query.get('m') : monthOf(today)} toggle={toggle} legend={legend} btn={btn} openDay={openDay} />
-        : <TwoWeeks events={events} deals={deals} today={today} w={w} setW={setW} toggle={toggle} legend={legend} btn={btn} openDay={openDay} />}
+        ? <MonthGrid events={events} today={today} ym={/^\d{4}-\d{2}$/.test(query.get('m') || '') ? query.get('m') : monthOf(today)} toggle={toggle} btn={btn} openDay={openDay} />
+        : <TwoWeeks events={events} today={today} w={w} setW={setW} toggle={toggle} btn={btn} openDay={openDay} />}
+      {legend}
       {day && <DayPanel day={day} today={today} events={events.filter((e) => e.date === day).sort(byTime)} onClose={() => setQuery({ day: null })} />}
     </div>
   );
 }
 
-function TwoWeeks({ events, deals, today, w, setW, toggle, legend, btn, openDay }) {
+// Two weeks (Luke, Oct 19: "not classified by stages … items together on their
+// due date"): a column per day, every deal's dates stacked in time order —
+// the stage is the dot on each chip — plus a Late column.
+function TwoWeeks({ events, today, w, setW, toggle, btn, openDay }) {
   const monday = addDays(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7) + w * 7);
   const days = Array.from({ length: 14 }, (_, i) => addDays(monday, i));
-  const open = deals.filter((d) => d.stage !== 'closed');
-  const lateOf = (stage) => events.filter((e) => e.deal.stage === stage && e.late).sort(byTime);
-  const on = (stage, day) => events.filter((e) => e.deal.stage === stage && e.date === day && !e.late).sort(byTime);
+  const late = events.filter((e) => e.late).sort(byTime);
+  const on = (day) => events.filter((e) => e.date === day && !e.late).sort(byTime);
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -681,45 +689,38 @@ function TwoWeeks({ events, deals, today, w, setW, toggle, legend, btn, openDay 
         <span className="h-8 px-3 rounded-md bg-white ring-1 ring-tan-200 text-[13px] font-semibold text-navy-800 grid place-items-center">{shortDate(days[0])} – {shortDate(days[13])}</span>
         <button type="button" className={btn} onClick={() => setW(w + 1)}>Later →</button>
         {w !== 0 && <button type="button" onClick={() => setW(0)} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this week</button>}
-        {legend}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-tan-200 bg-white">
-        <table className="w-full min-w-[1100px] border-collapse table-fixed">
-          <colgroup><col style={{ width: 132 }} /><col style={{ width: 120 }} />{days.map((d) => <col key={d} />)}</colgroup>
-          <thead>
-            <tr className="text-[11.5px]">
-              <th className="bg-tan-50 text-left px-3 py-2 font-bold uppercase tracking-[0.1em] text-tan-700 border-b border-tan-200">Stage</th>
-              <th className="bg-[#4c0519] text-white px-2 py-2 font-bold border-b border-tan-200">Late</th>
-              {days.map((d, i) => {
-                const isToday = d === today;
-                const wknd = i % 7 >= 5;
-                return (
-                  <th key={d} className={`p-0 font-semibold border-b border-l border-tan-200 ${isToday ? 'bg-navy-700 text-white' : wknd ? 'bg-tan-50 text-zinc-400' : 'bg-tan-50 text-navy-800'} ${i === 7 ? 'border-l-2 border-l-tan-400' : ''}`}>
-                    <button type="button" onClick={() => openDay(d)} title="Open this day" className="w-full px-1 py-2 hover:underline">{WEEKDAY[new Date(`${d}T12:00:00Z`).getUTCDay()]} {+d.slice(8)}</button>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {CAL_STAGES.map((c) => (
-              <tr key={c.stage} className="align-top">
-                <td className="px-3 py-2 border-b border-tan-100" style={{ boxShadow: `inset 3px 0 0 ${c.color}` }}>
-                  <div className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: c.color }}>{c.title}</div>
-                  <div className="text-[11.5px] text-zinc-500">{open.filter((d) => d.stage === c.stage).length} open</div>
-                  <div className="text-[11px] text-zinc-400">runs on {KEY_DATE[c.stage] === 'coe' ? 'COE' : 'IP end'}</div>
-                </td>
-                <td className="p-1 border-b border-tan-100 bg-[#4c0519]/[0.04]"><div className="flex flex-col gap-1">{lateOf(c.stage).map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div></td>
-                {days.map((d, i) => (
-                  <td key={d} className={`p-1 border-b border-l border-tan-100 ${d === today ? 'bg-navy-50/60' : i % 7 >= 5 ? 'bg-tan-50/50' : ''} ${i === 7 ? 'border-l-2 border-l-tan-300' : ''}`}>
-                    <div className="flex flex-col gap-1">{on(c.stage, d).map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div>
+      {[days.slice(0, 7), days.slice(7)].map((week, wi) => (
+        <div key={wi} className="overflow-x-auto rounded-xl border border-tan-200 bg-white">
+          <table className="w-full min-w-[1000px] border-collapse table-fixed">
+            <colgroup>{wi === 0 && <col style={{ width: 150 }} />}{wi === 1 && <col style={{ width: 150 }} />}{week.map((d) => <col key={d} />)}</colgroup>
+            <thead>
+              <tr className="text-[11.5px]">
+                {wi === 0 ? <th className="bg-[#4c0519] text-white px-2 py-2 font-bold border-b border-tan-200">Late · {late.length}</th> : <th className="bg-tan-50 border-b border-tan-200" />}
+                {week.map((d, i) => {
+                  const isToday = d === today;
+                  const wknd = i >= 5;
+                  return (
+                    <th key={d} className={`p-0 font-semibold border-b border-l border-tan-200 ${isToday ? 'bg-navy-700 text-white' : wknd ? 'bg-tan-50 text-zinc-400' : 'bg-tan-50 text-navy-800'}`}>
+                      <button type="button" onClick={() => openDay(d)} title="Open this day" className="w-full px-1 py-2 hover:underline">{WEEKDAY[new Date(`${d}T12:00:00Z`).getUTCDay()]} {+d.slice(8)}</button>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="align-top">
+                <td className={`p-1 border-b border-tan-100 ${wi === 0 ? 'bg-[#4c0519]/[0.04]' : 'bg-tan-50/40'}`}>{wi === 0 && <div className="flex flex-col gap-1">{late.map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div>}</td>
+                {week.map((d, i) => (
+                  <td key={d} className={`p-1 h-24 border-b border-l border-tan-100 ${d === today ? 'bg-navy-50/60' : i >= 5 ? 'bg-tan-50/50' : ''}`}>
+                    <div className="flex flex-col gap-1">{on(d).map((e) => <CalChip key={e.deal.id + e.kind} ev={e} />)}</div>
                   </td>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      ))}
     </>
   );
 }
@@ -728,7 +729,7 @@ function TwoWeeks({ events, deals, today, w, setW, toggle, legend, btn, openDay 
 // four, then "+N more"); a click on the date opens the day. Key dates already
 // late from earlier months are listed above the grid.
 const MONTH_SHOW = 4;
-function MonthGrid({ events, today, ym, toggle, legend, btn, openDay }) {
+function MonthGrid({ events, today, ym, toggle, btn, openDay }) {
   const first = `${ym}-01`;
   const start = addDays(first, -((new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7));
   const nextFirst = `${addMonths(ym, 1)}-01`;
@@ -746,7 +747,6 @@ function MonthGrid({ events, today, ym, toggle, legend, btn, openDay }) {
         <button type="button" className={btn} onClick={() => setQuery({ m: addMonths(ym, 1) })}>{MONTHS_LONG[+addMonths(ym, 1).slice(5, 7) - 1].slice(0, 3)} →</button>
         {ym !== monthOf(today) && <button type="button" onClick={() => setQuery({ m: null })} className="text-[13px] font-medium text-navy-700 hover:underline">Back to this month</button>}
         <span className="text-[12.5px] text-zinc-500 tabular-nums">{count((e) => e.kind === 'ip')} IP ends · {count((e) => e.kind === 'coe')} closings</span>
-        {legend}
       </div>
       {overdue.length > 0 && (
         <div className="rounded-xl bg-[#4c0519]/[0.05] ring-1 ring-[#4c0519]/20 p-2 flex flex-wrap items-center gap-1.5">
@@ -913,6 +913,7 @@ function CalChip({ ev }) {
       className={`w-full text-left rounded border px-1.5 py-1 text-[11.5px] leading-tight hover:shadow-sm ${tone}`}
       style={{ borderLeft: `3px solid ${deal.rep?.color || '#a1a1aa'}` }}>
       <span className="flex flex-wrap items-center gap-x-1 min-w-0">
+        <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: STAGE_DOT[deal.stage] || '#a1a1aa' }} title={STAGE_NAME[deal.stage]} />
         <span className={`shrink-0 rounded px-1 text-[10px] font-bold text-white ${kind === 'ip' ? 'bg-navy-700' : 'bg-emerald-700'}`}>{tag}</span>
         {kind === 'ip' && deal.ipTime && <span className="text-[10.5px] font-bold whitespace-nowrap">{deal.ipTime}</span>}
       </span>

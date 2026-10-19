@@ -257,6 +257,16 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   like the TV boxes and the Team pages already were; each bar is
   drawn in its box's pace colour with a navy "should be here by now" tick
   and the number under it (Luke, Oct 14: bars "in the wrong colors").
+- **Home since Oct 19** (Luke, site-map round; the history above still
+  explains each card): the four number tiles are the same for every role,
+  the TC included, in one order — Opps opened (week), Offers (week),
+  Contracts (week), Closed (month). **Today at a Glance** (`TodayCard`:
+  Alerts to do → /alerts, Late, Due today, Closing this week → /calendar)
+  replaces the Needs Attention list; This Week by Rep is gone for everyone
+  (per-rep numbers live on Team Scorecards); Deal Tracker and Pipeline by
+  Stage are owners only (the tracker card may go later); Wins sits under
+  Today; the banner no longer repeats late / due counts. With no right-hand
+  cards (the TC) the left column takes the full width.
 - **Alerts** (Luke, Oct 18: "its own section … the main daily page", Home
   keeps "needs attention" with no duplication): sidebar section `alerts`
   right under Home (`solo`, everyone but the TV; `src/alerts/`). One list of
@@ -306,6 +316,23 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   (`countFor`) reads only the person's open alerts and open leads; indexes
   `alerts_kind` / `alerts_done` (created by the sync); hidden tabs don't
   poll. Watch new per-run or per-poll queries for full-table scans.
+  **Oct 19** (Luke): the red dot is `counts.owe` — open alerts that ring the
+  person and are theirs today (due today or late, unanswered leads, deal
+  deadlines, tasks with no date) — and stays until they're ticked off
+  (opening Alerts only stops the pulse; the tab title and icon follow it).
+  **Select all** / Select some… + Mark done ticks many at once (`doneMany`,
+  ≤ 300, looked up 90 ids per query; leads are left out — they take Real /
+  Not a lead). **Fresh start**: only GHL tasks created from Oct 18 Arizona
+  (`TASKS_FROM`, the task's `dateAdded`) — older ones are deleted from
+  `alerts` as the sync meets them. **Deal deadlines** (kind `deal`, ext_id
+  `deal:ip:<id>:<date>` / `deal:coe:<id>:<date>`, `opp` = tracker deal id,
+  "Open deal" opens the deal panel here): IP ends within 48 h with no buyer
+  (the Discord rule) and past COE while still open, for the deal's acq.
+  manager's rep — they ring the pod lead and owners like leads; closed
+  "Cleared on the deal" once the condition clears. Sound starts **off** for
+  owners and pod leads (`chimeDefault`). Usage: the sync reads the open
+  alerts and the tracker's deals once per run (~0.3k rows) — about 30k reads
+  a day.
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan
@@ -406,6 +433,10 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   acq. manager). "If anything changes … the calendar should reflect it":
   edits in the app show at once (shared deals store); others' are picked up
   every 2 minutes and on window focus (`loadDeals`), GHL's with data.json.
+  **Oct 19** (Luke): Month is the default (`?cal=weeks` for Two weeks, old
+  `?cal=month` links still open Month); Two weeks is one column per day with
+  every deal's dates stacked in time order and a Late column — no stage rows;
+  each chip carries a stage-colour dot; the key sits at the page foot.
 - **Finished in the tracker, open in GHL** (Luke, Oct 16 — 10869 Waltman,
   cancelled in the tracker, still Dispo active in GHL, showed as "IP end 6d
   late" on Axel's Home and "Not in the deal tracker yet" in the panel): GET
@@ -416,6 +447,11 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   and the GHL panel says "Cancelled / Closed in the deal tracker — move it
   to Lost / Closed in GoHighLevel". `addrKey` now lives in math.js (the
   server uses it). The TV board still reads GHL only.
+- **Deal panel summary tile** (Luke, Oct 19): frozen under the header, two
+  rows — Contracted price · Assignment price · Gross assignment (reps keep
+  gross); COE · Inspection period (contract date → IP end, with its time) ·
+  EMD (the EMD pill = status + who placed it, and the amount). Replaces the
+  one-row key facts.
 - **"Doesn't match the tracker"** (Luke, Oct 16: "the top was in purple and
   said it didn't match. this should be a note for every property"): the deal
   panel's purple In GoHighLevel note lists every disagreement —
@@ -511,6 +547,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   edge/auth.js) differs from the one stored. Click / Esc skips;
   stored per email in localStorage `vpg.welcome.<email>`; reduced motion
   respected; never in TV mode. Home's `scopeReps` moved to `shell/scope.js`.
+  Oct 19 (Luke): the splash stays 5.5 s, and each person picks Every day /
+  Mondays / Off in the account menu ("Welcome", `src/shell/splash.js`,
+  localStorage `vpg.splash.<email>`, this device).
 - **Ask Claude while viewing as** (Luke, Oct 15: it looked missing for reps
   on Get zips — it was only hidden by View as): the button shows as that
   person sees it and opens a preview (their conversation stays private,
@@ -613,6 +652,9 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   titles carry `sc-head` / `sc-sub` / `sc-crm`, which `.app-team` makes 13px
   bold navy with a darker second line (Luke, Oct 14: "hard to read"); the
   five CRM columns are 3.5rem so their titles don't overlap.
+- **Team Scorecards** (Oct 19: the Management section renamed, id still
+  `team`): Scorecard has a Scores | Where They Leak switch (`?view=leak`,
+  TeamHub.jsx) — the Coaching tab is gone (/team/coaching redirects).
 - **Settings** (owners; Luke, Oct 14: change things without going through
   Claude): bottom of the sidebar (`bottom: 'admin'` in sections.js),
   `src/settings/`. **Layout A** (Luke, Oct 16 — picked from the proposals page):

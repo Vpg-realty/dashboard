@@ -1,4 +1,4 @@
-// Management › Training (Luke, Oct 19): every new hire in the program, where
+// Team Scorecards › Training (Luke, Oct 19): every new hire in the program, where
 // they are, what's waiting on a trainer, and their test scores by topic.
 // Owners see every trainee, a pod lead their own. A row opens the trainee's
 // file (?trainee=<email>): the checklist with sign-offs (paperwork sent /

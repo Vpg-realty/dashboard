@@ -114,10 +114,11 @@ export const SECTIONS = [
   },
   {
     // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…).
-    id: 'team', label: 'Management', icon: 'team', roles: ['owner', 'manager'],
+    // "Management" renamed Team Scorecards (Luke, Oct 19); Coaching is the
+    // Scorecard's Where They Leak view now (old /team/coaching links redirect).
+    id: 'team', label: 'Team Scorecards', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
-      { id: 'coaching', label: 'Coaching', view: 'mgr-coaching', phone: DESK },
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
@@ -178,6 +179,7 @@ export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(rol
 const MOVED = {
   zips: { section: 'territory', tabs: { mine: 'zips', all: 'zip-mgmt', rules: 'rules' } },
   'board/pipeline': { section: 'pipeline', tab: 'all' },
+  'team/coaching': { section: 'team', tab: 'scorecard' },
   'pipeline/calendar': { section: 'calendar', tab: 'all' },
   // CRM Review (Oct 16) folded back into the Scorecard the same day (Luke).
   'team/crm': { section: 'team', tab: 'scorecard' },

@@ -4,19 +4,23 @@
 // one to someone), GHL tasks, 30-day check-ins on Abandoned leads and leads
 // Claude spotted in agents' texts — those alert the rep, their pod lead and
 // the owners, and "Real lead" / "Not a lead" teaches Claude what counts.
-// Opening the page clears the red dot (marks everything seen); what arrived
-// since the last visit keeps a NEW tag until the page is left.
+// The red dot counts what the person owes today and stays until it's ticked
+// off (Luke, Oct 19); opening the page only stops the pulse — what arrived
+// since the last visit keeps a NEW tag until the page is left. "Select all"
+// ticks many at once (leads take a Real / Not a lead answer instead).
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, setQuery } from '../shell/router.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import { ghlContactUrl, ghlConvUrl, ghlOppUrl, REPS } from '../data/config.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
+import useDealPanel from '../deals/useDealPanel.jsx';
 
 const KIND = {
   lead: { label: 'Lead spotted', tag: 'bg-violet-100 text-violet-800', icon: '✦', bg: 'bg-violet-100 text-violet-700' },
   ghl: { label: 'GHL task', tag: 'bg-sky-100 text-sky-800', icon: '✓', bg: 'bg-sky-100 text-sky-700' },
   checkin: { label: 'Check-in', tag: 'bg-tan-100 text-tan-800', icon: '↻', bg: 'bg-tan-100 text-tan-700' },
   task: { label: 'Task', tag: 'bg-zinc-100 text-zinc-700', icon: '✎', bg: 'bg-zinc-100 text-zinc-600' },
+  deal: { label: 'Deal deadline', tag: 'bg-red-100 text-[#B42318]', icon: '!', bg: 'bg-red-100 text-[#B42318]' },
 };
 
 const RAIL = [
@@ -31,11 +35,11 @@ const LATER = [
 ];
 
 const PICK = {
-  today: (a, t) => !a.done_at && (a.kind === 'lead' || !a.due || a.due <= t),
+  today: (a, t) => !a.done_at && (a.kind === 'lead' || a.kind === 'deal' || !a.due || a.due <= t),
   leads: (a) => !a.done_at && a.kind === 'lead',
-  tasks: (a) => !a.done_at && (a.kind === 'task' || a.kind === 'ghl'),
+  tasks: (a) => !a.done_at && (a.kind === 'task' || a.kind === 'ghl' || a.kind === 'deal'),
   checkins: (a) => !a.done_at && a.kind === 'checkin',
-  upcoming: (a, t) => !a.done_at && a.kind !== 'lead' && a.due && a.due > t,
+  upcoming: (a, t) => !a.done_at && a.kind !== 'lead' && a.kind !== 'deal' && a.due && a.due > t,
   done: (a) => !!a.done_at,
 };
 
@@ -55,20 +59,24 @@ function linkOf(a) {
 
 function DueTag({ a, today }) {
   if (a.done_at || a.kind === 'lead' || !a.due) return null;
+  if (a.kind === 'deal' && a.due >= today) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-red-100 text-[#B42318]">{a.due === today ? 'Today' : dayLabel(a.due)}</span>;
   const d = daysBetween(a.due, today);
   if (d > 0) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-[#4c0519] text-white">{d}d late</span>;
   if (d === 0) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-amber-100 text-amber-800">Today</span>;
   return <span className="rounded px-1.5 py-px text-[11px] font-semibold bg-zinc-100 text-zinc-600">{dayLabel(a.due)}</span>;
 }
 
-function Row({ a, isNew, today, names, me, busy, act }) {
+function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
   const k = KIND[a.kind] || KIND.task;
   const url = linkOf(a);
   const whose = a.holder !== me ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
   const done = !!a.done_at;
   return (
     <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${isNew && !done ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-70' : ''}`}>
-      {a.kind === 'lead' ? <span /> : (
+      {a.kind === 'lead' ? <span /> : sel ? (
+        <input type="checkbox" checked={sel.has(a.id)} onChange={() => toggle(a.id)}
+          className="mt-1.5 w-[18px] h-[18px] accent-tan-600 cursor-pointer" aria-label="Select" />
+      ) : (
         <input type="checkbox" checked={done} disabled={busy} onChange={(e) => act({ action: 'done', id: a.id, done: e.target.checked })}
           className="mt-1.5 w-[18px] h-[18px] accent-navy-700 cursor-pointer" aria-label={done ? 'Mark not done' : 'Mark done'} />
       )}
@@ -95,6 +103,7 @@ function Row({ a, isNew, today, names, me, busy, act }) {
           <button type="button" disabled={busy} onClick={() => act({ action: 'verdict', id: a.id, verdict: 'not' })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 disabled:opacity-50">Not a lead</button>
         </>}
         {a.kind === 'lead' && done && <button type="button" disabled={busy} onClick={() => act({ action: 'verdict', id: a.id, verdict: null })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-[12.5px] font-semibold hover:bg-zinc-50">Undo</button>}
+        {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" className="h-8 inline-flex items-center px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open in GHL ↗</a>}
         {a.kind === 'task' && !done && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove this task?')) act({ action: 'remove', id: a.id }); }} title="Remove" className="h-8 w-8 rounded-lg border border-zinc-200 bg-white text-zinc-400 hover:text-red-700 hover:bg-red-50">×</button>}
       </div>
@@ -145,6 +154,8 @@ export default function AlertsView() {
   const [seenBefore, setSeenBefore] = useState(undefined);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [sel, setSel] = useState(null); // a Set while selecting, else null
+  const dealPanel = useDealPanel();
   const today = azDate();
 
   // Load, remember when they last looked (for the NEW tags), then clear the dot.
@@ -178,7 +189,7 @@ export default function AlertsView() {
     if (who === 'all') return all;
     if (who === 'pod' && pod) return all.filter((a) => pod.reps.includes(a.holder));
     if (who !== 'me') return all.filter((a) => a.holder === who);
-    return all.filter((a) => a.holder === me || (a.kind === 'lead' && (owner || pod?.reps.includes(a.holder))));
+    return all.filter((a) => a.holder === me || ((a.kind === 'lead' || a.kind === 'deal') && (owner || pod?.reps.includes(a.holder))));
   }, [data, who, me, pod, owner]);
   const count = (id) => scoped.filter((a) => PICK[id](a, today)).length;
   const isNew = (a) => seenBefore !== undefined && (!seenBefore || a.created_at > seenBefore);
@@ -203,6 +214,13 @@ export default function AlertsView() {
   const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (owner || pod?.reps.includes(id))) : [];
   const whoName = who === 'me' ? 'Mine' : who === 'pod' ? pod?.title : who === 'all' ? 'Everyone' : data?.names[who] || who;
   const title = [...RAIL, ...LATER].find((r) => r.id === view)?.label;
+  // What "Select all" picks: the ticks shown in this list (not leads).
+  const selectable = shown.filter((a) => a.kind !== 'lead').map((a) => a.id);
+  const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allOn = sel && selectable.length > 0 && selectable.every((id) => sel.has(id));
+  const tickMany = async () => {
+    if (await act({ action: 'doneMany', ids: [...sel], done: view !== 'done' })) setSel(null);
+  };
 
   return (
     <div className="max-w-[1500px] mx-auto">
@@ -255,6 +273,20 @@ export default function AlertsView() {
               <span className="font-semibold text-[15px]">{title}</span>
               <span className="ml-auto rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold px-2 py-0.5">{shown.length} {view === 'done' ? 'done' : 'open'}</span>
             </div>
+            {data && selectable.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 px-4 md:px-5 py-2 border-b border-tan-100 bg-tan-50/70 text-[13px]">
+                <label className="flex items-center gap-2 font-semibold text-navy-800 cursor-pointer">
+                  <input type="checkbox" checked={!!allOn} onChange={() => setSel(allOn ? new Set() : new Set(selectable))} className="w-[18px] h-[18px] accent-tan-600" />
+                  Select all {selectable.length}
+                </label>
+                {sel && <>
+                  <span className="text-zinc-500">{sel.size} selected</span>
+                  <button type="button" disabled={busy || !sel.size} onClick={tickMany} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">{view === 'done' ? 'Mark not done' : 'Mark done'}</button>
+                  <button type="button" onClick={() => setSel(null)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 font-semibold hover:bg-zinc-50">Cancel</button>
+                </>}
+                {!sel && <button type="button" onClick={() => setSel(new Set())} className="text-navy-700 font-semibold hover:underline">Select some…</button>}
+              </div>
+            )}
             {!data && !err && <div className="px-5 py-8 text-zinc-500">Loading…</div>}
             {data && !shown.length && (
               <div className="px-5 py-8 text-center text-zinc-500">
@@ -265,16 +297,17 @@ export default function AlertsView() {
             {groups.map(([label, list]) => (
               <div key={label || 'all'}>
                 {label && <div className={`px-4 md:px-5 pt-2 pb-1 text-[11.5px] font-bold uppercase tracking-[0.08em] bg-tan-50/70 border-t border-tan-100 ${label === 'Overdue' ? 'text-[#B42318]' : 'text-zinc-500'}`}>{label} · {list.length}</div>}
-                {list.map((a) => <Row key={a.id} a={a} isNew={isNew(a)} today={today} names={data.names} me={me} busy={busy} act={act} />)}
+                {list.map((a) => <Row key={a.id} a={a} isNew={isNew(a)} today={today} names={data.names} me={me} busy={busy} act={act} sel={sel} toggle={toggle} openDeal={dealPanel.open} />)}
               </div>
             ))}
             {data && view !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           <p className="mt-4 text-[12px] text-zinc-500">
-            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. The red dot shows what’s new since you last opened Alerts.
+            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts (ticking one here doesn’t tick it in GHL — finish it there and it clears here on the next refresh). A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. The red dot shows how many you have to do today — due today or late, leads to answer and tasks with no date — and stays until they’re ticked off; it pulses when something new arrived since you last looked.
           </p>
         </div>
       </div>
+      {dealPanel.panel}
     </div>
   );
 }
