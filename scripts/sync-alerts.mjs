@@ -21,6 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { tokensFrom } from './push-ghl.mjs';
+import { addrKey } from '../src/deals/math.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,6 +31,8 @@ const CHECKIN_DAYS = 30;
 const LEAD_PER_CALL = 25;
 const LEAD_MAX_PER_RUN = 200;
 const JUDGED_KEEP_DAYS = 10;
+// Same address to several reps: spotted leads this many days back.
+const DUPE_DAYS = 30;
 // Alerts' fresh start (Luke, Oct 19): only GHL tasks created from Oct 18
 // (Arizona) on; older ones are taken off the list.
 export const TASKS_FROM = '2026-10-18T07:00:00Z';
@@ -284,13 +287,39 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         judged[m.id] = now;
         status.judged++;
         if (!v.lead) continue;
-        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
           ON CONFLICT (ext_id) DO NOTHING`,
-        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), new Date(m.at).toISOString()]);
+        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), v.kind === 'address' && v.address ? clip(v.address, 160) : null, new Date(m.at).toISOString()]);
         if (r[0]?.meta?.changes) status.leads++;
       }
     }
   } else if (todo.length) status.leadError = 'no Claude key here';
+  // Same address sent to more than one rep (Luke, Oct 19): the spotted leads
+  // of the last 30 days grouped by address (addrKey: house number + street
+  // word); two or more reps → one 'dupe' alert per address, held by the rep
+  // who got it first (it rings their pod lead and the owners), naming every
+  // rep and when. One read of the recent leads per run.
+  status.dupes = 0;
+  const leadRows = await rows("SELECT holder, addr, created_at FROM alerts WHERE kind = 'lead' AND addr IS NOT NULL AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
+  const byAddr = new Map();
+  for (const l of leadRows) {
+    const k = addrKey(l.addr);
+    if (k) byAddr.set(k, [...(byAddr.get(k) || []), l]);
+  }
+  const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
+  for (const [k, ls] of byAddr) {
+    const first = new Map();
+    for (const l of ls.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) if (!first.has(l.holder)) first.set(l.holder, l);
+    if (first.size < 2) continue;
+    const list = [...first.values()];
+    const title = `Same address sent to ${list.length} reps — ${clip(list[0].addr, 120)}`;
+    const body = `${list.map((l) => `${repName(l.holder)} (${shortDate(Date.parse(l.created_at))})`).join(', ')} · decide who works it`;
+    // A new rep on it reopens a ticked one.
+    const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, 'Alerts', ?)
+      ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
+    [newId(), `dupe:${k}`, list[0].holder, title, body, list[0].addr, iso]);
+    if (r[0]?.meta?.changes) status.dupes++;
+  }
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('lead_judged', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(judged), iso]);
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('alerts_sync', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(status), iso]);
   status.today = today;

@@ -364,6 +364,19 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   teaches Claude (the last 30 answers are examples) and stays on the alert
   (a second click clears it); **Complete** closes a lead, Reopen undoes it.
   Done keeps 24 hours (`KEEP_DONE_MS`), then drops off the list.
+  **Phase 5 (Oct 19, Luke)**: owners **viewing as** someone can tick their
+  alerts off (actions done / doneMany only — `TICKS` in functions/api/alerts;
+  saved under the owner's own name, the page answers as the viewed person);
+  every other write is still refused while viewing as. **Same Address**
+  (kind `dupe`, rail entry under Leads Spotted): the spotted leads of the
+  last 30 days (`DUPE_DAYS`) grouped by `addrKey`; two or more reps → one
+  alert per address (ext_id `dupe:<key>`), held by the rep who got it first,
+  ringing their pod lead and the owners like leads (`SHARED` kinds in
+  edge/alerts.js), body "Axel (Oct 19), Danni (Oct 19) · decide who works
+  it", no due date; a new rep on it updates it and reopens a ticked one.
+  Leads keep the address Claude read (`alerts.addr`, added Oct 19 with ALTER
+  TABLE and backfilled from the titles). Usage: one read of the recent leads
+  per sync run (~0.5k rows) — about 50k reads a day.
 - **Suggestion Box** (Luke, Oct 15: "owners, tc, and managers can add
   comments in to review and approve for changes to the system" — managers
   use it from Oct 16): in the sidebar just above Team Overview, tinted tan

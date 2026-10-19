@@ -21,11 +21,15 @@ const KIND = {
   checkin: { label: 'Check-in', tag: 'bg-tan-100 text-tan-800', icon: '↻', bg: 'bg-tan-100 text-tan-700' },
   task: { label: 'Task', tag: 'bg-zinc-100 text-zinc-700', icon: '✎', bg: 'bg-zinc-100 text-zinc-600' },
   deal: { label: 'Deal deadline', tag: 'bg-red-100 text-[#B42318]', icon: '!', bg: 'bg-red-100 text-[#B42318]' },
+  // Luke, Oct 19: the same address sent to more than one rep.
+  dupe: { label: 'Same address', tag: 'bg-orange-100 text-orange-800', icon: '⇄', bg: 'bg-orange-100 text-orange-700' },
 };
+const SHARED = new Set(['lead', 'deal', 'dupe']);
 
 const RAIL = [
   { id: 'today', label: 'Today', sub: 'Leads, late and due today' },
   { id: 'leads', label: 'Leads Spotted', sub: 'Claude read agents’ texts' },
+  { id: 'dupes', label: 'Same Address', sub: 'Sent to more than one rep' },
   { id: 'tasks', label: 'Tasks', sub: 'From GHL and the site' },
   { id: 'checkins', label: 'Check-ins', sub: 'Abandoned 30+ days' },
 ];
@@ -35,11 +39,12 @@ const LATER = [
 ];
 
 const PICK = {
-  today: (a, t) => !a.done_at && (a.kind === 'lead' || a.kind === 'deal' || !a.due || a.due <= t),
+  today: (a, t) => !a.done_at && (SHARED.has(a.kind) || !a.due || a.due <= t),
   leads: (a) => !a.done_at && a.kind === 'lead',
+  dupes: (a) => !a.done_at && a.kind === 'dupe',
   tasks: (a) => !a.done_at && (a.kind === 'task' || a.kind === 'ghl' || a.kind === 'deal'),
   checkins: (a) => !a.done_at && a.kind === 'checkin',
-  upcoming: (a, t) => !a.done_at && a.kind !== 'lead' && a.kind !== 'deal' && a.due && a.due > t,
+  upcoming: (a, t) => !a.done_at && !SHARED.has(a.kind) && a.due && a.due > t,
   done: (a) => !!a.done_at,
 };
 
@@ -58,7 +63,7 @@ function linkOf(a) {
 }
 
 function DueTag({ a, today }) {
-  if (a.done_at || a.kind === 'lead' || !a.due) return null;
+  if (a.done_at || a.kind === 'lead' || a.kind === 'dupe' || !a.due) return null;
   if (a.kind === 'deal' && a.due >= today) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-red-100 text-[#B42318]">{a.due === today ? 'Today' : dayLabel(a.due)}</span>;
   const d = daysBetween(a.due, today);
   if (d > 0) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-[#4c0519] text-white">{d}d late</span>;
@@ -200,7 +205,7 @@ export default function AlertsView() {
     if (who === 'all') return all;
     if (who === 'pod' && pod) return all.filter((a) => pod.reps.includes(a.holder));
     if (who !== 'me') return all.filter((a) => a.holder === who);
-    return all.filter((a) => a.holder === me || ((a.kind === 'lead' || a.kind === 'deal') && (owner || pod?.reps.includes(a.holder))));
+    return all.filter((a) => a.holder === me || (SHARED.has(a.kind) && (owner || pod?.reps.includes(a.holder))));
   }, [data, who, me, pod, owner]);
   const count = (id) => scoped.filter((a) => PICK[id](a, today)).length;
   const isNew = (a) => seenBefore !== undefined && (!seenBefore || a.created_at > seenBefore);
@@ -213,14 +218,15 @@ export default function AlertsView() {
   // Today's list in groups: new since the last look, late, due today, the rest.
   const groups = view === 'today' ? [
     ['New since you last looked', shown.filter((a) => isNew(a))],
-    ['Overdue', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.due && a.due < today)],
+    ['Overdue', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today)],
+    ['Same address, more than one rep', shown.filter((a) => !isNew(a) && a.kind === 'dupe')],
     ['Leads to work', shown.filter((a) => !isNew(a) && a.kind === 'lead')],
-    ['Due today', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.due === today)],
-    ['No due date', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && !a.due)],
+    ['Due today', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today)],
+    ['No due date', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !a.due)],
   ].filter(([, l]) => l.length) : [[null, shown]];
 
-  const late = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.due && a.due < today).length;
-  const dueToday = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.due === today).length;
+  const late = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today).length;
+  const dueToday = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today).length;
   const newN = scoped.filter((a) => !a.done_at && isNew(a)).length;
   const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (owner || pod?.reps.includes(id))) : [];
   const whoName = who === 'me' ? 'Mine' : who === 'pod' ? pod?.title : who === 'all' ? 'Everyone' : data?.names[who] || who;
