@@ -21,7 +21,8 @@ import roster from '../subaccounts.json' with { type: 'json' };
 // deal, read-only, without commission / profit / buyer (`forTc` strips
 // every secret field).
 export const canEditDeals = (u) => u?.role === 'owner' || u?.role === 'tc';
-export const isRepView = (u) => (u?.role === 'team' || u?.role === 'manager') && !!u.rep_id;
+// Trainees read like a rep (Luke, Oct 19: Home and Pipeline from shadow week).
+export const isRepView = (u) => ((u?.role === 'team' || u?.role === 'manager') && !!u.rep_id) || u?.role === 'trainee';
 export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u);
 export const isOwner = (u) => u?.role === 'owner';
 // Managers fix a deal's COE, IP end (its DD days) and EMD amount (Luke, Oct

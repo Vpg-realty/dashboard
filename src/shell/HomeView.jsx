@@ -335,7 +335,8 @@ export default function HomeView({ me }) {
     { title: 'Your numbers', sub: me?.name || null, list: numbers(metrics(PAIRS.filter((p) => p.repId === me.rep_id)), 1) },
     { title: `${pod.title} · your reps`, sub: podFirst, list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
   ] : [{ title: null, list: stats }];
-  const scopeLabel = !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
+  const shadowName = me?.shadowing ? repById[me.rep_id]?.name.split(' ')[0] : null;
+  const scopeLabel = shadowName ? `Shadowing ${shadowName} — their numbers and deals` : !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
   const showMoney = !isTc;
   // Leaderboard: owners see every rep, a manager their pod.
   const leaders = me?.role === 'owner' ? REPS : pod ? REPS.filter((r) => podIds.includes(r.id)) : me?.role === 'manager' ? REPS.filter((r) => scope.includes(r.id)) : null;

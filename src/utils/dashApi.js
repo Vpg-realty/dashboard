@@ -29,9 +29,16 @@ export async function call(path, opts = {}) {
 let me;            // undefined = not loaded, null = unknown / not available
 let meLoading = null;
 const meListeners = new Set();
+// A trainee with no sub-account of their own yet sees their pod lead's
+// numbers and deals on Home and Pipeline — the rep they shadow (Luke, Oct
+// 19). Browser only: the server still knows them as themselves.
+function shadowing(u) {
+  if (u?.role !== 'trainee' || u.rep_id || !u.training?.shadow) return u;
+  return { ...u, rep_id: u.training.shadow, shadowing: true };
+}
 // Resolves once with the signed-in person (or null); shared by every caller.
 export function loadMe() {
-  if (!meLoading) meLoading = call('me').catch(() => null).then((u) => { me = u; meListeners.forEach((f) => f(u)); return u; });
+  if (!meLoading) meLoading = call('me').catch(() => null).then((u) => { me = shadowing(u); meListeners.forEach((f) => f(me)); return me; });
   return meLoading;
 }
 export function useMe() {

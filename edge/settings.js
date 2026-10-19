@@ -6,7 +6,7 @@ import { currentUser, json } from './auth.js';
 import roster from '../subaccounts.json' with { type: 'json' };
 import { isTimelines, timelinesError, changeDates, rulesAt } from '../src/deals/rules.js';
 
-export const ROLES = ['owner', 'manager', 'tc', 'team', 'tv'];
+export const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
 export const REP_IDS = new Set(roster.reps.map((r) => r.id));
 
 export async function owner(context) {

@@ -23,7 +23,10 @@ const WIDE = { w: 1100, h: 820 };
 const DESK = { w: 1300, h: 900 };
 
 export const SECTIONS = [
-  { id: 'home', label: 'Home', icon: 'home', roles: PEOPLE },
+  // Luke, Oct 19: new hires work through the training program here.
+  { id: 'training', label: 'My Training', icon: 'grad', roles: ['trainee', 'trainee-early'], solo: true,
+    tabs: [{ id: 'all', label: 'My Training', view: 'my-training', scroll: true }] },
+  { id: 'home', label: 'Home', icon: 'home', roles: [...PEOPLE, 'trainee'] },
   // Luke, Oct 18: the main daily page — GHL tasks, site tasks, 30-day
   // check-ins and leads Claude spotted (src/alerts). The sidebar shows a red
   // count of what's new since the person last opened it.
@@ -32,7 +35,7 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
     // Full team / Mine / pick-a-person filter; deals open their details.
-    id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: PEOPLE,
+    id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: [...PEOPLE, 'trainee'],
     // Luke, Oct 16 (Pipeline A): Contracted deals / Opportunities as tabs
     // along the top, like Finance (the old ?view=opps links still work).
     tabs: [
@@ -83,12 +86,12 @@ export const SECTIONS = [
     // sheet (read-only) and the rules. Management also: the map, reps ×
     // states (with the team structure review) and zip management. The old
     // Zip center section folded in here (its links redirect, see resolve).
-    id: 'territory', label: 'Territory', icon: 'map', roles: PEOPLE,
+    id: 'territory', label: 'Territory', icon: 'map', roles: [...PEOPLE, 'trainee'],
     tabs: [
       // Owners request zips too, and see the tabs in the same order as
       // everyone (Luke, Oct 15: "keep the same order … so Jack and I can
       // easily switch to other views").
-      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager'] },
+      { id: 'zips', label: 'Get Zips', view: 'zips-mine', scroll: true, roles: ['owner', 'team', 'manager', 'trainee'] },
       // Managers, owners and the TC (Luke, Oct 15: "i was wrong, this should
       // be managers, owner, tc view only"); its Needs review panel owners only.
       { id: 'who', label: 'Who Works Where', view: 'terr-who', scroll: true, roles: ['owner', 'manager', 'tc'] },
@@ -96,7 +99,7 @@ export const SECTIONS = [
       // Managers, owners and the TC (Luke, Oct 15).
       { id: 'sheet', label: 'Territory Sheet', view: 'terr-sheet', scroll: true, roles: ['owner', 'manager', 'tc'] },
       { id: 'zip-mgmt', label: 'Zip Management', view: 'zips-all', scroll: true, roles: ['owner', 'manager', 'tc'] },
-      { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true },
+      { id: 'rules', label: 'Zip Rules & Data Health', view: 'zips-rules', scroll: true, roles: PEOPLE },
     ],
   },
   {
@@ -116,6 +119,9 @@ export const SECTIONS = [
       { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
       { id: 'coaching', label: 'Coaching', view: 'mgr-coaching', phone: DESK },
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
+      // New hires in training (Luke, Oct 19): owners every trainee, a pod
+      // lead their own.
+      { id: 'training', label: 'Training', view: 'mgr-training', scroll: true },
     ],
   },
   {
@@ -148,6 +154,7 @@ export const SECTIONS = [
     id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin', rail: true,
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
+      { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
       { id: 'pods', label: 'Pods', view: 'settings-pods', scroll: true, group: 'Team', sub: 'Leads and their reps', title: 'Pods and pod leads', blurb: 'Who reports to whom, and what each lead is paid on their reps’ deals.' },
       { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'By person, then rules', title: 'Who gets paid what', blurb: 'Every rate with its start date. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
       { id: 'tc', label: 'TC Pay', view: 'settings-tc', scroll: true, group: 'Money', sub: 'Fee and commission', title: 'Transaction coordinator pay', blurb: 'The TC fee taken off each deal and the TC’s commission per deal, with when each applies.' },
@@ -189,4 +196,9 @@ export function resolve(path, role) {
 
 export const hrefOf = (section, tab) => (tab ? `/${section.id}/${tab.id}` : section.id === 'home' ? '/' : `/${section.id}`);
 
-export const ROLE_LABEL = { owner: 'Owner', manager: 'Manager', tc: 'Transaction coordinator', team: 'Acquisitions', tv: 'Office TV' };
+export const ROLE_LABEL = { owner: 'Owner', manager: 'Manager', tc: 'Transaction coordinator', team: 'Acquisitions', trainee: 'Trainee', tv: 'Office TV' };
+
+// The role the sidebar is built for. A trainee is 'trainee-early' until
+// onboarding is done — My Training only — then 'trainee': My Training,
+// Home, Pipeline and Get Zips (Luke, Oct 19).
+export const navRole = (me) => (me?.role === 'trainee' && me.training?.early !== false ? 'trainee-early' : me?.role);

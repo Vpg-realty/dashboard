@@ -25,6 +25,9 @@ import DealsMapView from '../deals/DealsMapView.jsx';
 import PayoutsView from '../finance/PayoutsView.jsx';
 import SuggestionsView from '../suggestions/SuggestionsView.jsx';
 import AlertsPage from '../alerts/AlertsView.jsx';
+import MyTraining from '../training/MyTraining.jsx';
+import TrainingBoard from '../training/TrainingBoard.jsx';
+import ProgramBuilder from '../training/ProgramBuilder.jsx';
 import { useAlerts, tabBadge } from '../alerts/store.js';
 import WiresView from '../finance/WiresView.jsx';
 import StatementsView from '../finance/StatementsView.jsx';
@@ -33,7 +36,7 @@ import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import SubAccountsPanel from '../components/SubAccountsPanel.jsx';
 import { useDataStatus, refreshNow } from '../data/source.js';
-import { sectionsFor, resolve, hrefOf } from './sections.js';
+import { sectionsFor, resolve, hrefOf, navRole } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
@@ -56,7 +59,7 @@ import ZipRules from '../zips/RulesHealth.jsx';
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
-  'fin-payouts': PayoutsView, suggestions: SuggestionsView, alerts: AlertsPage, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
+  'fin-payouts': PayoutsView, suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-wires': WiresView, 'fin-statements': StatementsView, 'fin-overview': FinanceOverview,
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-sheet': TerritorySheet, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-rules': ZipRules,
@@ -107,8 +110,9 @@ function useStoredFlag(key, initial) {
 
 export default function AppShell({ me }) {
   const { path, query } = useLocation();
-  const { section, tab } = resolve(path, me.role);
-  const sections = sectionsFor(me.role);
+  const role = navRole(me);
+  const { section, tab } = resolve(path, role);
+  const sections = sectionsFor(role);
   const [palette, setPalette] = useState(false);
   const [subs, setSubs] = useState(false);
   const [collapsed, setCollapsed] = useStoredFlag('vpg.sidebarCollapsed', false);
@@ -293,7 +297,7 @@ export default function AppShell({ me }) {
       </nav>
 
       <CelebrationBanner />
-      <CommandPalette open={palette} onClose={() => setPalette(false)} role={me.role} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} />
       {!me.viewAs && <Welcome me={me} />}
       {section.id === 'territory' && <AskClaude page={tab?.id?.startsWith('zip') || tab?.id === 'rules' ? 'zips' : 'territory'} />}
       <SubAccountsPanel open={subs && me.role === 'owner'} onClose={() => setSubs(false)} dataStatus={status} snapshotErrors={status?.errors} />
