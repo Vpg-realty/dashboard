@@ -8,10 +8,12 @@ import ManagerFrame from './ManagerFrame.jsx';
 import { LeakCard } from './ScorecardView.jsx';
 import { currentWeek } from './useScorecards.js';
 import { REPS } from '../../data/config.js';
-import { PODS, POD_LEADS } from '../../../scripts/scorecard-lib.mjs';
+import { leadsOf } from '../../../scripts/scorecard-lib.mjs';
+import { usePods } from '../../shell/pods.js';
 
 export default function CoachingView({ onPickRep }) {
-  const order = [...PODS.flatMap((p) => p.reps), ...POD_LEADS];
+  const pods = usePods();
+  const order = [...pods.flatMap((p) => p.reps), ...leadsOf(pods)];
   const ids = [...order.filter((id) => REPS.some((r) => r.id === id)), ...REPS.map((r) => r.id).filter((id) => !order.includes(id))];
   return (
     <ManagerFrame title="Where They Leak" subtitle="Each rep's funnel this month vs the team">

@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { tokensFrom } from './push-ghl.mjs';
 import { addrKey } from '../src/deals/math.js';
-import { PODS } from './scorecard-lib.mjs';
+import { PODS, podsFrom } from './scorecard-lib.mjs';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -311,7 +311,10 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     if (k) byAddr.set(k, [...(byAddr.get(k) || []), l]);
   }
   const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
-  const podOf = (id) => PODS.find((p) => p.lead === id || p.reps.includes(id));
+  // Pods from Settings › People (deal_lists.reportsTo; one row per run).
+  const rt = (await rows("SELECT json_extract(value, '$.reportsTo') AS r FROM settings WHERE key = 'deal_lists'"))[0]?.r;
+  const pods = rt && reps.length ? podsFrom(JSON.parse(rt), reps) : PODS;
+  const podOf = (id) => pods.find((p) => p.lead === id || p.reps.includes(id));
   const when = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
   for (const [k, ls] of byAddr) {
     const first = new Map();

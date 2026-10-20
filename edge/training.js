@@ -11,7 +11,7 @@
 // a trainee never receives the answers — tests are graded here. Owners and
 // the trainee's pod lead (their manager, trainer and shadow rep) check steps
 // off; trainer notes and session ratings never reach the trainee.
-import { PODS } from '../scripts/scorecard-lib.mjs';
+import { getPods } from './pods.js';
 
 export const PHASES = [
   { id: 'paper', name: 'Paperwork' },
@@ -32,8 +32,9 @@ export const KINDS = ['paper', 'video', 'test', 'session', 'log', 'signoff'];
 const TRAINEE_DOES = ['video', 'test', 'log'];
 export const PASS_BAR = 0.8;
 
-export const LEADS = PODS.map((p) => ({ id: p.lead, pod: p.title }));
-const isLead = (id) => LEADS.some((l) => l.id === id);
+// The pod leads (Settings › People, edge/pods.js — call refreshPods first).
+export const leads = () => getPods().map((p) => ({ id: p.lead, pod: p.title }));
+export const isLead = (id) => leads().some((l) => l.id === id);
 
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -161,7 +162,7 @@ export async function load(db, user) {
     const data = await personData(db, p.email, { trainer: true });
     return { person: p, ...data, status: program ? statusOf(program, data.progress) : null };
   }));
-  return { mode: 'trainer', program, trainees, phases: PHASES, leads: user.role === 'owner' ? LEADS : LEADS.filter((l) => l.id === user.rep_id) };
+  return { mode: 'trainer', program, trainees, phases: PHASES, leads: user.role === 'owner' ? leads() : leads().filter((l) => l.id === user.rep_id) };
 }
 
 // The step that's waiting on a trainer gets an alert for the pod lead (and

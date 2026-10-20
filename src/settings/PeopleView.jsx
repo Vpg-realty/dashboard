@@ -9,11 +9,11 @@
 // (site map): Role + Status (Training / Active / Inactive) with Started and
 // Ended dates, and the Pod lead column — the one place for "reports to".
 import { useEffect, useState } from 'react';
-import { REPS } from '../data/config.js';
+import { ALL_REPS } from '../data/config.js';
 import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
 import { linkProps } from '../shell/router.js';
-import { PODS } from '../../scripts/scorecard-lib.mjs';
+import { usePods } from '../shell/pods.js';
 import { Section, inputCls } from './ui.jsx';
 
 const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
@@ -76,25 +76,34 @@ function DiscordTest() {
   );
 }
 
-const repName = (id) => REPS.find((r) => r.id === id)?.name || id;
-const LEADS = PODS.map((p) => ({ id: p.lead, label: `${repName(p.lead)} · ${p.title}` }));
+const repName = (id) => ALL_REPS.find((r) => r.id === id)?.name || id;
+// Trainers = the pod leads (Settings › People's Pod lead column → pods).
+const useLeads = () => usePods().map((p) => ({ id: p.lead, label: `${repName(p.lead)} · ${p.title}` }));
 const NO_REP = 'Not on the board yet';
-const LEAD_NAMES = PODS.map((p) => repName(p.lead));
 
 // Rep on the board, or — for a trainee — their pod lead.
 function RepOrLead({ d, setD, disabled }) {
+  const LEADS = useLeads();
   if (d.role === 'trainee') {
+    // Their own GHL sub-account once they have one (Week 2): kept off the TV
+    // board, the scorecard and the team targets until they graduate (Oct 20).
     return (
-      <select value={d.trainer || ''} disabled={disabled} onChange={(e) => setD({ ...d, trainer: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Pod lead">
-        <option value="">Pick their pod lead…</option>
-        {LEADS.map((l) => <option key={l.id} value={l.id}>Trainer: {l.label}</option>)}
-      </select>
+      <div className="flex flex-col gap-1">
+        <select value={d.trainer || ''} disabled={disabled} onChange={(e) => setD({ ...d, trainer: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Pod lead">
+          <option value="">Pick their pod lead…</option>
+          {LEADS.map((l) => <option key={l.id} value={l.id}>Trainer: {l.label}</option>)}
+        </select>
+        <select value={d.rep_id || ''} disabled={disabled} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Their sub-account" title="Their own GHL sub-account, once they have one — off the TV board and scorecard until they graduate">
+          <option value="">No sub-account yet</option>
+          {ALL_REPS.map((r) => <option key={r.id} value={r.id}>Own sub-account: {r.name}</option>)}
+        </select>
+      </div>
     );
   }
   return (
     <select value={d.rep_id || ''} disabled={disabled} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Rep on the board">
       <option value="">{d.role === 'team' || d.role === 'manager' ? NO_REP : '— none —'}</option>
-      {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+      {ALL_REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
     </select>
   );
 }
@@ -109,7 +118,7 @@ const STATUS_LABEL = { training: 'Training', active: 'Active', inactive: 'Inacti
 const STATUS_TONE = { training: 'bg-violet-50 text-violet-800 ring-violet-200', active: 'bg-emerald-50 text-emerald-800 ring-emerald-200', inactive: 'bg-zinc-100 text-zinc-600 ring-zinc-200' };
 const toBody = (d) => ({ ...d, role: d.status === 'training' ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active' });
 
-function Row({ u, me, onSaved, onRemoved, lists, setLead }) {
+function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames }) {
   const start = { ...u, role: uiRole(u), status: uiStatus(u) };
   const [d, setD] = useState(start);
   const [busy, setBusy] = useState(false);
@@ -135,7 +144,7 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead }) {
   };
   // Pod lead = who they report to (deal_lists.reportsTo, by rep name) — the
   // one place it's set (Luke, Oct 19); it's what the pod override pays on.
-  const rn = u.rep_id && REPS.find((r) => r.id === u.rep_id)?.name;
+  const rn = u.rep_id && ALL_REPS.find((r) => r.id === u.rep_id)?.name;
   const lead = rn ? lists?.reportsTo?.[rn] || '' : null;
   const cell = 'py-2 pr-2.5';
   return (
@@ -163,7 +172,7 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead }) {
         {lead === null ? <span className="text-zinc-400">—</span> : (
           <select value={lead} onChange={(e) => setLead(rn, e.target.value)} className={inputCls} aria-label="Pod lead">
             <option value="">No pod lead</option>
-            {LEAD_NAMES.filter((n) => n !== rn).map((n) => <option key={n} value={n}>{n}</option>)}
+            {leadNames.filter((n) => n !== rn).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         )}
       </td>
@@ -179,6 +188,7 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead }) {
 
 export default function PeopleView() {
   const me = useMe();
+  const LEADS = useLeads();
   const [users, setUsers] = useState(null);
   const [error, setError] = useState(null);
   const blank = { email: '', name: '', role: 'team', rep_id: null, enroll: true, trainer: '', start: '' };
@@ -196,6 +206,12 @@ export default function PeopleView() {
     setLeadMsg(null);
     try { await writeSetting('deal-lists', next); setLists(next); setLeadMsg({ ok: true, text: `${rep.split(' ')[0]} now reports to ${lead || 'nobody'}.` }); } catch (e) { setLeadMsg({ ok: false, text: e.message }); }
   };
+  // Who can lead a pod: every active manager with a rep on the board, plus
+  // anyone already leading one (Luke, Oct 20: pods follow this column).
+  const leadNames = [...new Set([
+    ...(users || []).filter((u) => u.role === 'manager' && u.rep_id && u.status !== 'inactive').map((u) => repName(u.rep_id)),
+    ...Object.values(lists?.reportsTo || {}),
+  ])].sort();
   if (error) return <div className="py-16 text-center text-zinc-500">{error}</div>;
   if (!users) return <div className="py-16 text-center text-zinc-400">Loading…</div>;
   const order = (u) => ROLES.indexOf(u.role);
@@ -220,7 +236,7 @@ export default function PeopleView() {
             <table className="w-full text-left text-[13.5px] min-w-[1080px]">
               <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Started', 'Ended', 'Rep on the board · trainer', 'Pod lead', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
               <tbody>
-                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} />)}
+                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} />)}
               </tbody>
             </table>
           </div>
@@ -247,7 +263,7 @@ export default function PeopleView() {
             <label><span className="block text-[12.5px] text-zinc-600 mb-1">Start date</span><input type="date" value={add.start} onChange={(e) => setAdd({ ...add, start: e.target.value })} className={inputCls} /></label>
           </> : (
             <label className="md:col-span-2"><span className="block text-[12.5px] text-zinc-600 mb-1">Rep on the board</span>
-              <select value={add.rep_id || ''} onChange={(e) => setAdd({ ...add, rep_id: e.target.value || null })} className={inputCls}><option value="">{NO_REP}</option>{REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+              <select value={add.rep_id || ''} onChange={(e) => setAdd({ ...add, rep_id: e.target.value || null })} className={inputCls}><option value="">{NO_REP}</option>{ALL_REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
               <span className="block mt-1 text-[12px] text-zinc-500">A new rep isn't on the board until their GHL sub-account is added (Sub-Accounts, bottom of the sidebar) — then link them here.</span></label>
           )}
           <button onClick={create} disabled={!add.name.trim() || !add.email.trim() || (enrolling && !add.trainer)} className="h-9 px-5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{enrolling ? 'Add and enroll' : 'Add'}</button>

@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, ReferenceArea } from 'recharts';
 import Panel from '../../components/Panel.jsx';
 import { REPS } from '../../data/config.js';
-import { PODS } from '../../../scripts/scorecard-lib.mjs';
+import { usePods } from '../../shell/pods.js';
 import { scoreTone } from './metrics.js';
 import { weekSeries, avgOf } from './trends.js';
 
@@ -36,6 +36,7 @@ function Stat({ label, value, sub, tone }) {
 }
 
 export default function TrendsView({ sc, groups, onPickRep }) {
+  const pods = usePods();
   const [focus, setFocus] = useState(null);   // rep id shown on the chart, or null = team
   const weeks = weekSeries(sc, 8);
   const score = (w, id) => w?.reps[id]?.s.score ?? null;
@@ -76,7 +77,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
     <div className="grid grid-cols-12 grid-rows-[auto_minmax(0,1fr)] gap-4 h-full min-h-0">
       <div className="col-span-12 grid grid-cols-4 gap-4">
         <Stat label={`Team score · week of ${now?.label || '—'}`} value={round(teamNow)} tone={teamNow} sub={<>week before {round(teamPrev)} · <Change v={teamNow != null && teamPrev != null ? teamNow - teamPrev : null} />{live ? <> · this week so far {round(teamOf(live))}</> : null}</>} />
-        {PODS.map((p) => {
+        {pods.map((p) => {
           const a = podOf(now, p);
           const b = prev ? podOf(prev, p) : null;
           return <Stat key={p.id} label={`${p.title} · ${first(p.lead)}`} value={round(a)} tone={a} sub={<>week before {round(b)} · <Change v={a != null && b != null ? a - b : null} />{live ? <> · so far {round(podOf(live, p))}</> : null}</>} />;

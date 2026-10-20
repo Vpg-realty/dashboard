@@ -1,9 +1,10 @@
-// GET /api/me → { email, name, role, rep_id, teamChat } for the signed-in
+// GET /api/me → { email, name, role, rep_id, teamChat, pods } for the signed-in
 // person. teamChat = the Discord invite behind the sidebar's Team Chat
 // button (settings `team_chat`, owners set it in Settings → People; Luke,
 // Oct 15), for everyone in the app — not the TV.
 import { currentUser, json } from '../../edge/auth.js';
 import { loadProgram, statusOf } from '../../edge/training.js';
+import { refreshPods } from '../../edge/pods.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -30,5 +31,7 @@ export async function onRequestGet(context) {
       training = { phase: st.phase, early: st.early, shadow: person?.trainer || null, start: person?.start_date || null };
     } catch { training = { phase: 'paper', early: true, shadow: null }; }
   }
-  return json({ ...user, teamChat, ...(training ? { training } : {}) });
+  // Pods from Settings › People, for Home, View as, the scorecard (Oct 20).
+  const pods = user.role && user.role !== 'tv' ? await refreshPods(context.env.DB) : undefined;
+  return json({ ...user, teamChat, pods, ...(training ? { training } : {}) });
 }

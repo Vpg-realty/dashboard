@@ -31,12 +31,20 @@ export const MARKETS = config.markets.filter((m) => LINKED_MARKET_IDS.has(m.id))
 // Rep `markets` list is derived from the sub-account table so we never go
 // out of sync — adding a sub-account row is enough to wire a new (rep ×
 // market) pair into every chart.
-export const REPS = config.reps.map((rep) => ({
+export const ALL_REPS = config.reps.map((rep) => ({
   ...rep,
   markets: config.subaccounts
     .filter((s) => s.repId === rep.id)
     .map((s) => s.marketId),
 }));
+
+// Trainees with their own sub-account (Week 2) stay off the TV board, the
+// scorecard, the team targets and every rep list until they graduate (Luke,
+// Oct 20) — the build bakes the list in (vite.config.js __TRAINEE_REPS__,
+// from D1 users). ALL_REPS still has them (Settings › People, Sub-Accounts).
+/* global __TRAINEE_REPS__ */
+const TRAINEE_REPS = new Set(typeof __TRAINEE_REPS__ !== 'undefined' ? __TRAINEE_REPS__ : []);
+export const REPS = ALL_REPS.filter((r) => !TRAINEE_REPS.has(r.id));
 
 // Team targets scale with the roster: per-rep KPI × number of reps (people, not
 // sub-accounts). Every team target — opps opened, offers, contracts, deals

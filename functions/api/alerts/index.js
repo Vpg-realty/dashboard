@@ -15,6 +15,7 @@
 import { currentUser, json } from '../../../edge/auth.js';
 import { canUse, load, plan, counts, countFor, scopeOf, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
+import { refreshPods } from '../../../edge/pods.js';
 
 async function answer(db, user) {
   const data = await load(db, user);
@@ -22,6 +23,7 @@ async function answer(db, user) {
 }
 
 export async function onRequestGet(context) {
+  await refreshPods(context.env.DB);
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!canUse(user)) return json({ error: 'not set up yet' }, 403);
@@ -32,6 +34,7 @@ export async function onRequestGet(context) {
 const TICKS = new Set(['done', 'doneMany']);
 
 export async function onRequestPost(context) {
+  await refreshPods(context.env.DB);
   const viewed = await currentUser(context);
   if (!viewed) return json({ error: 'not signed in' }, 401);
   let b;
@@ -53,7 +56,7 @@ export async function onRequestPost(context) {
     // D1 takes at most 100 values per query.
     for (let i = 0; i < ids.length; i += 90) {
       const part = ids.slice(i, i + 90);
-      existing.push(...(await db.prepare(`SELECT id, holder, kind FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+      existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, done_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
     }
   }
   const now = new Date().toISOString();
