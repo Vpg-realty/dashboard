@@ -35,6 +35,7 @@ import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from 
 import { weekSeries, avgOf, crmTenths } from './trends.js';
 import TrendsView from './TrendsView.jsx';
 import { titleCase } from '../../shell/titleCase.js';
+import BandMark from '../../shell/BandMark.jsx';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
@@ -717,7 +718,8 @@ export default function ScorecardView() {
         </div>
 
         {/* 2 · Team strip */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
+        <div className="relative isolate flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
+          <BandMark />
           <div className="flex flex-col gap-1 flex-1 min-w-[18rem]">
             <span className="text-[14px] font-semibold text-[#d9cfbd] tracking-[0.06em]">TEAM</span>
             <span className="text-[30px] font-bold leading-tight">

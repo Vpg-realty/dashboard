@@ -15,6 +15,7 @@ import { azDate } from '../../scripts/scorecard-lib.mjs';
 import { ghlContactUrl, ghlConvUrl, ghlOppUrl, REPS } from '../data/config.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
+import BandMark from '../shell/BandMark.jsx';
 
 const KIND = {
   lead: { label: 'Lead spotted', tag: 'bg-violet-100 text-violet-800', icon: '✦', bg: 'bg-violet-100 text-violet-700' },
@@ -241,7 +242,8 @@ export default function AlertsView() {
 
   return (
     <div className="max-w-[1500px] mx-auto">
-      <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+      <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+        <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Alerts · {whoName}</div>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{who === 'me' ? 'Your Day' : `${whoName}'s Day`}</h1>

@@ -15,6 +15,7 @@ import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
 import ClearX from '../shell/ClearX.jsx';
 import { escClears } from '../shell/escClears.js';
+import BandMark from '../shell/BandMark.jsx';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
 // Many states (an owner's list): search one state at a time, so the page
@@ -141,7 +142,8 @@ export default function MyZips() {
     <div className="max-w-[1200px] mx-auto flex flex-col gap-5">
       {/* The standard navy band (Luke's site map, Oct 19); the rules open
           from ⓘ instead of a page of their own. */}
-      <div className="rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+      <div className="relative isolate rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+        <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Get Zips{me.owner ? ' · as yourself' : ''}</div>
           <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{(me.holds || []).length} zip{(me.holds || []).length === 1 ? '' : 's'} held · {left} request{left === 1 ? '' : 's'} left in {state || 'each state'} this week</h1>
@@ -225,7 +227,7 @@ export default function MyZips() {
 }
 
 // How zips are handed out, in a side drawer (the same list as Territory ›
-// Rules & Data Health; owners change the numbers there).
+// Zip Center's ⓘ; owners change the numbers there).
 function RulesDrawer({ items, onClose }) {
   const groups = [];
   for (const r of items) {

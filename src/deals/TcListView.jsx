@@ -25,6 +25,7 @@ import { shortDate, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
+import BandMark from '../shell/BandMark.jsx';
 
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : null);
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -411,7 +412,8 @@ export default function TcListView() {
   const title = view === 'all' ? 'Active Deals' : view === 'out' ? 'Closed Out' : flag?.label;
   return (
     <div className="max-w-[1500px] mx-auto">
-      <div className="rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+      <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
+        <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Deals · TC List</div>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Transaction Coordination</h1>

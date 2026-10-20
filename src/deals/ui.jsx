@@ -8,6 +8,7 @@ import { laToday } from '../utils/historyRange.js';
 import ClearX from '../shell/ClearX.jsx';
 import { escClears } from '../shell/escClears.js';
 import { titleCase } from '../shell/titleCase.js';
+import BandMark from '../shell/BandMark.jsx';
 
 const STATUS_STYLE = {
   PENDING: 'bg-amber-100 text-amber-900 ring-amber-300', ASSIGNED: 'bg-violet-100 text-violet-900 ring-violet-300', COMPLETE: 'bg-emerald-100 text-emerald-800 ring-emerald-300', CANCELLED: 'bg-red-100 text-red-800 ring-red-300',
@@ -25,7 +26,8 @@ export function GhlChip({ g }) {
 // like Pipeline's): eyebrow, title, a line under it, the controls on the right.
 export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
   return (
-    <div className="shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+    <div className="relative isolate shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
+      <BandMark />
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{eyebrow}</div>
         <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{titleCase(title)}</h1>
