@@ -261,7 +261,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   explains each card): the four number tiles are the same for every role,
   the TC included, in one order — Opps opened (week), Offers (week),
   Contracts (week), Closed (month). **Today at a Glance** (`TodayCard`:
-  Alerts to do → /alerts, Late, Due today, Closing this week → /calendar)
+  Alerts to do → /alerts; Late, Due today and Closing this week → Pipeline ›
+  Contracted Deals `/pipeline/all`, Luke Oct 20 — the card's "Calendar" link stays)
   replaces the Needs Attention list; This Week by Rep is gone for everyone
   (per-rep numbers live on Team Scorecards); Deal Tracker and Pipeline by
   Stage are owners only (the tracker card may go later); Wins sits under
