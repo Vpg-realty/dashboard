@@ -15,7 +15,7 @@
 //   - Wake Lock to keep the screen alive on supported browsers.
 
 import { useEffect, useReducer } from 'react';
-import { REPS, MARKETS, TIERS } from './config.js';
+import { REPS, ALL_REPS, MARKETS, TIERS } from './config.js';
 import { loadMe, canGrade, loadMyScorecard } from '../utils/dashApi.js';
 
 // File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
@@ -54,18 +54,23 @@ const placeholderPairs = REPS.flatMap((rep) =>
 // PAIRS is an exported array we mutate in place so existing imports keep
 // pointing at the live data without needing a Proxy or refactor.
 
+// Trainees' sub-accounts (not in REPS until they graduate — config.js) are
+// left out of every count, live and history (Luke, Oct 20).
+const ON_BOARD = new Set(REPS.map((r) => r.id));
+const onBoard = (list) => (list || []).filter((p) => ON_BOARD.has(p.repId));
+const boardEntries = (es) => (REPS.length === ALL_REPS.length ? es : es.map((e) => ({ ...e, pairs: onBoard(e.pairs) })));
 const initial = loadFromStorage();
-export const PAIRS = (initial?.pairs || placeholderPairs).map((p) => ({ ...p }));
+export const PAIRS = onBoard(initial?.pairs || placeholderPairs).map((p) => ({ ...p }));
 let lastSync = initial?.generatedAt || null;
 let lastError = null;
 let lastErrors = initial?.errors || [];
 let lastFailureAt = null;
-let HISTORY = loadHistoryFromStorage() || [];   // array of daily snapshot entries
+let HISTORY = boardEntries(loadHistoryFromStorage() || []);   // array of daily snapshot entries
 const subscribers = new Set();
 
 function replacePairs(newPairs) {
   PAIRS.length = 0;
-  for (const p of newPairs) PAIRS.push(p);
+  for (const p of onBoard(newPairs)) PAIRS.push(p);
 }
 
 function notify() {
@@ -101,7 +106,7 @@ async function fetchHistory() {
     if (!r.ok) return;
     const d = await r.json();
     if (Array.isArray(d?.entries)) {
-      HISTORY = d.entries;
+      HISTORY = boardEntries(d.entries);
       // Offline fallback only — cache the most recent 120 days so a year of
       // history can't blow the ~5 MB localStorage quota.
       try { localStorage.setItem(HISTORY_LS_KEY, JSON.stringify(HISTORY.slice(-120))); } catch { /* quota / private mode — ignore */ }

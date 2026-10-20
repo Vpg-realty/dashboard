@@ -14,10 +14,12 @@
 // viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
 import { load, loadProgram, plan, trainee, alertOps, canTrain } from '../../../edge/training.js';
+import { refreshPods } from '../../../edge/pods.js';
 
 const allowed = (u) => u?.role === 'trainee' || canTrain(u);
 
 export async function onRequestGet(context) {
+  await refreshPods(context.env.DB);
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!allowed(user)) return json({ error: 'trainees, owners and pod leads only' }, 403);
@@ -25,6 +27,7 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
+  await refreshPods(context.env.DB);
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!allowed(user) || user.viewAs) return json({ error: user.viewAs ? 'not while viewing as someone' : 'trainees, owners and pod leads only' }, 403);

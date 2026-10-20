@@ -6,10 +6,11 @@
 import { useState } from 'react';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { SCORE_PARTS, SCORE_BANDS, weekOfMonth, T, partOf } from './metrics.js';
-import { CRM_ITEMS, PODS, GRADE_ONE, GRADE_CUTS, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
+import { CRM_ITEMS, GRADE_ONE, GRADE_CUTS, MESSAGING_TWO, SHEET_WEIGHTS, MESSAGING_STANDARDS as STD, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../../../server/crm.js';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
+import { usePods } from '../../shell/pods.js';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 
@@ -210,6 +211,7 @@ function Messaging() {
 }
 
 function Week() {
+  const pods = usePods();
   return (
     <>
       <Item title="The week">
@@ -218,7 +220,7 @@ function Week() {
         <Row k="Review">A manager or owner (signed in with their own email) checks the grades, overrides any that are wrong, adds notes and saves. Saving records them as the reviewer, and every change is logged with who and when. Reps can see the scorecard but not the notes.</Row>
       </Item>
       <Item title="Pods">
-        {PODS.map((p) => <Row key={p.id} k={p.title}>{p.reps.length} reps · lead {p.lead.replace(/_.*/, '').replace(/^./, (c) => c.toUpperCase())}. The totals row adds the reps' numbers against the per-rep target × reps; pod score = average of its reps.</Row>)}
+        {pods.map((p) => <Row key={p.id} k={p.title}>{p.reps.length} reps · lead {p.lead.replace(/_.*/, '').replace(/^./, (c) => c.toUpperCase())}. The totals row adds the reps' numbers against the per-rep target × reps; pod score = average of its reps.</Row>)}
         <Row k="Pod leads">Scored the same way, kept out of the pod totals.</Row>
       </Item>
       <Item title="Trends">

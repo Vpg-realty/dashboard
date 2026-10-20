@@ -55,6 +55,27 @@ async function main() {
     fs.writeFileSync(path.join(ROOT, name), body);
   }
   console.log(`[private-files] loaded ${PRIVATE_FILES.length} files from D1`);
+
+  // Trainees with their own sub-account (Settings › People, "Their sub-account")
+  // stay off the TV board, the scorecard and the team targets until they
+  // graduate (Luke, Oct 20). build-snapshot puts the list in data.json
+  // (`trainees`), vite.config.js into the app (__TRAINEE_REPS__). Best effort:
+  // never stops the deploy (no file = nobody hidden).
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: "SELECT rep_id FROM users WHERE role = 'trainee' AND rep_id IS NOT NULL AND status != 'inactive'" }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const ids = (d.result?.[0]?.results || []).map((x) => x.rep_id).filter(Boolean);
+    fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, '.cache', 'trainee-reps.json'), JSON.stringify(ids));
+    console.log(`[private-files] trainees with a sub-account: ${ids.length}`);
+  } catch (err) {
+    console.log(`[private-files] trainee list not read (${err.message}) — nobody hidden`);
+  }
 }
 
 main().catch((err) => {

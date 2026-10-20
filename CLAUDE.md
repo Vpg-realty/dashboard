@@ -349,7 +349,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   `alerts_sync` keeps the last run): GHL tasks via `POST /locations/:id/
   tasks/search` (needs the key's **View Tasks** permission — a refused
   sub-account is listed in `alerts_sync.taskErrors`; finished or deleted in
-  GHL → "Done in GHL"; ticking one on the site doesn't tick it in GHL);
+  GHL → "Done in GHL"; since Oct 20 ticking / unticking one on the site
+  completes / reopens it in GHL — see Phase 6);
   check-ins from `_abandoned` (server/deals.js `extractAbandoned`, moved by
   build-snapshot to `.cache/alerts-feed.json`), one per 30 days counted from
   when Alerts started (`alerts_sync.since`, so the old backlog doesn't arrive
@@ -862,10 +863,10 @@ Overrides the Settings notes above where they differ.
   role 'none', `inactive: true`, "Your dashboard access has ended"), left out
   of View as, Alerts' people and the deal dropdowns; their zips are released
   (`release_reason` 'person inactive') and their open alerts move to their
-  pod lead (`PODS`) when they're set inactive; history stays. An owner can't
+  pod lead when they're set inactive; history stays. An owner can't
   be set inactive. **Pod lead** column = deal_lists.reportsTo by rep name
-  (the one place; saves at once; the pod override follows it). Scorecard
-  pods (`PODS` in scorecard-lib) are still in code.
+  (the one place; saves at once; the pod override and, since Oct 20, every
+  pod on the site follow it — Phase 6).
 - **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the
@@ -935,10 +936,47 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   graduating (`graduated_at`); removing a trainee removes their training
   records. Management › Training has no add form — owners get "+ Add a
   person" → Settings › People.
-- **Not yet**: a trainee's own GHL sub-account (Week 2) would put them on the
-  TV board and scorecard like any rep — exclude trainees there before their
-  Week 2 starts; Week 2 messages are self-reported until then; DocuSign is
-  manual (no API yet).
+- **A trainee's own sub-account** (Week 2; Phase 6, Oct 20): Settings ›
+  People's trainee row has "Own sub-account" (`users.rep_id`) under the
+  trainer. Until they graduate that rep is off the TV board, the scorecard,
+  the team targets and every rep list: scripts/load-private-files.mjs writes
+  `.cache/trainee-reps.json` (D1 users, role trainee with a rep_id, best
+  effort), vite.config.js bakes it in as `__TRAINEE_REPS__` → config.js
+  `REPS` leaves them out (`ALL_REPS` keeps them — People, Sub-Accounts),
+  liveStore drops their pairs (live and history), build-snapshot copies the
+  list to data.json `trainees`, which the Friday freeze and /api/my-scorecard
+  leave out. They keep shadowing their pod lead in the browser (`ownRep` in
+  dashApi). Graduating (role → team) puts them on the board with the next
+  deploy (~15 min). **Not yet**: Week 2 messages are self-reported; DocuSign
+  is manual (no API yet).
+
+## Phase 6 (Oct 20, Luke)
+
+- **Pods from Settings › People** — the "Pod lead" column (deal_lists.
+  reportsTo, by rep name) is the one place pods are set. `podsFrom`
+  (scorecard-lib) turns it into `[{id, title, lead, reps}]` (known leads keep
+  "Pod A" / "Pod B" — dupe alerts are keyed by the title; a new lead's pod is
+  "Pod <first name>"; reps in the sheet's order); `PODS` is only the
+  fallback. Server: `edge/pods.js` (`refreshPods` — one settings row, cached a
+  minute per worker; `getPods`), used by /api/me (sends `pods`), the alerts
+  API (pod scope), Settings › People (whose alerts go where on inactive,
+  trainers) and training (`leads()`); a deal_lists save calls `forgetPods`.
+  sync-alerts reads it once per run. Browser: `src/shell/pods.js` (`podsOf(me)`
+  / `usePods()`) for the Scorecard groups and filters, Trends, Coaching, the
+  score guide, View as, Home's pod rows and People's trainer / Pod lead
+  choices (any active manager with a rep, plus current leads). Pods change
+  on a page's next load. Usage: ≤ 1 row read per minute per worker for the
+  API, 1 per sync run.
+- **Trainees off the board** until they graduate — see Training.
+- **GHL task write-back**: ticking a GHL task on Alerts (Mark done or Select
+  all) completes it in GHL; unticking reopens it. `ghlTick` (edge/alerts.js)
+  queues it in `ghl_push` (field `task:<contactId>`, ghl_id = task id, value
+  done | open, deal_id `alert:<id>`) only on a real change of state;
+  scripts/push-ghl.mjs sends the latest per task (`PUT /contacts/:id/tasks/
+  :taskId/completed`), retried for a day; a refused one (the key needs
+  "contacts.write") shows in settings `ghl_push.lastError`. Tasks go even
+  when a run has no opportunity field ids (those wait). The only other GHL
+  write is the four tracker fields.
 
 ## Deal tracker (Luke, Oct 14)
 
@@ -2541,8 +2579,8 @@ that both can be deleted, and the secrets `GOOGLE_SERVICE_ACCOUNT_JSON` /
 - **Always `npm run build` locally before pushing** — Actions
   duration counts against everybody, so surface syntax errors first.
 - **Never test through GHL writes**. The dashboard only writes to GHL
-  through scripts/push-ghl.mjs (the four tracker fields, Oct 18); Alerts
-  only reads GHL tasks. If
+  through scripts/push-ghl.mjs (the four tracker fields, Oct 18, and GHL
+  tasks ticked on Alerts, Oct 20). If
   you need to test aggregation, mock a pair in code.
 - **Playwright-verify visual changes** after deploy. MCP Playwright
   tools are available; screenshot

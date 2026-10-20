@@ -8,7 +8,7 @@ import { listUsers, setViewAs } from '../utils/dashApi.js';
 import { ROLE_LABEL } from './sections.js';
 import Icon from './icons.jsx';
 import { REPS } from '../data/config.js';
-import { PODS } from '../../scripts/scorecard-lib.mjs';
+import { podsOf } from './pods.js';
 import { titleCase } from './titleCase.js';
 
 export function ViewAsBanner({ me }) {
@@ -37,14 +37,15 @@ export function ViewAsButton({ me }) {
   // Clear groups (Luke, Oct 14: "hard to read … categorize it clearly"):
   // owners, managers, acquisitions by pod, then the TC.
   const others = (users || []).filter((u) => u.email !== (me.realEmail || me.email));
-  const podOf = (u) => PODS.find((p) => p.reps.includes(u.rep_id));
-  const leadOf = (u) => PODS.find((p) => p.lead === u.rep_id);
+  const pods = podsOf(me);
+  const podOf = (u) => pods.find((p) => p.reps.includes(u.rep_id));
+  const leadOf = (u) => pods.find((p) => p.lead === u.rep_id);
   const team = others.filter((u) => u.role === 'team');
   const groups = [
     { key: 'owner', title: 'Owners', note: 'Everything', list: others.filter((u) => u.role === 'owner') },
     { key: 'manager', title: 'Managers', note: 'Their pod + Management', list: others.filter((u) => u.role === 'manager'), sub: (u) => (leadOf(u) ? `${leadOf(u).title} lead` : 'Manager') },
-    ...PODS.map((p) => ({ key: `pod${p.id}`, title: `Acquisitions · ${p.title}`, note: 'Their own numbers', list: team.filter((u) => podOf(u)?.id === p.id) })),
-    { key: 'nopod', title: PODS.length ? 'Acquisitions · no pod' : 'Acquisitions', note: 'Their own numbers', list: team.filter((u) => !podOf(u)) },
+    ...pods.map((p) => ({ key: `pod${p.id}`, title: `Acquisitions · ${p.title}`, note: 'Their own numbers', list: team.filter((u) => podOf(u)?.id === p.id) })),
+    { key: 'nopod', title: pods.length ? 'Acquisitions · no pod' : 'Acquisitions', note: 'Their own numbers', list: team.filter((u) => !podOf(u)) },
     { key: 'tc', title: 'Transaction coordinator', note: 'Deals, no commissions', list: others.filter((u) => u.role === 'tc'), sub: () => 'TC' },
     { key: 'trainee', title: 'Trainees', note: 'My Training', list: others.filter((u) => u.role === 'trainee'), sub: () => 'Trainee' },
   ].filter((g) => g.list.length);

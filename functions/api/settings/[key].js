@@ -7,6 +7,7 @@
 import { json } from '../../../edge/auth.js';
 import { owner, log, checkRules, checkLists, checkTeamChat, checkDiscordTest } from '../../../edge/settings.js';
 import { applyChange, toTimelines } from '../../../src/deals/rules.js';
+import { forgetPods } from '../../../edge/pods.js';
 
 const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'] };
 
@@ -35,6 +36,7 @@ export async function onRequestPut(context) {
     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
     .bind(k[0], JSON.stringify(body.value), now, user.name).run();
   await log(db, user, `settings.${k[0]}`, { before: before ? JSON.parse(before.value) : null, after: body.value });
+  if (k[0] === 'deal_lists') forgetPods();
   return json({ value: body.value, updatedAt: now, updatedBy: user.name });
 }
 

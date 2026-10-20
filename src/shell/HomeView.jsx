@@ -19,7 +19,7 @@ import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
-import { PODS } from '../../scripts/scorecard-lib.mjs';
+import { podsOf } from './pods.js';
 import { paceFraction, paceRatio, paceKey } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { nextStep } from '../deals/status.js';
@@ -219,7 +219,7 @@ export default function HomeView({ me }) {
   const scope = scopeReps(me);
   // A pod lead (Luke, Oct 16 / Oct 18): everything on Home split into their
   // own (`mine`) and their pod's reps (`podIds`, without the lead).
-  const pod = me?.role === 'manager' && me.rep_id ? PODS.find((x) => x.lead === me.rep_id) : null;
+  const pod = me?.role === 'manager' && me.rep_id ? podsOf(me).find((x) => x.lead === me.rep_id) : null;
   const podIds = pod ? pod.reps : null;
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));

@@ -33,12 +33,13 @@ let meLoading = null;
 let meDown = false;
 export const meFailed = () => meDown;
 const meListeners = new Set();
-// A trainee with no sub-account of their own yet sees their pod lead's
-// numbers and deals on Home and Pipeline — the rep they shadow (Luke, Oct
-// 19). Browser only: the server still knows them as themselves.
+// A trainee sees their pod lead's numbers and deals on Home and Pipeline —
+// the rep they shadow (Luke, Oct 19); their own sub-account (Week 2) is off
+// the board until they graduate (Oct 20), `ownRep` keeps it. Browser only:
+// the server still knows them as themselves.
 function shadowing(u) {
-  if (u?.role !== 'trainee' || u.rep_id || !u.training?.shadow) return u;
-  return { ...u, rep_id: u.training.shadow, shadowing: true };
+  if (u?.role !== 'trainee' || !u.training?.shadow) return u;
+  return { ...u, ownRep: u.rep_id || null, rep_id: u.training.shadow, shadowing: true };
 }
 // Resolves once with the signed-in person (or null); shared by every caller.
 export function loadMe() {

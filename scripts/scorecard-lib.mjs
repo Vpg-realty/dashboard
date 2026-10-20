@@ -50,6 +50,34 @@ export const PODS = [
 ];
 export const POD_LEADS = ['anthony', 'sam_mackenzie'];
 
+// Pods from Settings › People (Luke, Oct 20: set them in one place): the
+// "Pod lead" column is deal_lists.reportsTo {rep name: lead name}; names are
+// matched to subaccounts.json reps. PODS above is only the fallback when the
+// setting can't be read. Known leads keep their pod's name (Pod A / Pod B —
+// alerts are keyed by it); a new lead's pod is "Pod <first name>". Reps keep
+// the sheet's order, new ones after.
+const POD_NAMES = { anthony: { id: 'A', title: 'Pod A' }, sam_mackenzie: { id: 'B', title: 'Pod B' } };
+const SHEET_ORDER = PODS.flatMap((p) => p.reps);
+export function podsFrom(reportsTo, reps) {
+  if (!reportsTo || typeof reportsTo !== 'object' || !Array.isArray(reps)) return PODS;
+  const norm = (x) => String(x || '').trim().toLowerCase();
+  const idOf = (name) => reps.find((r) => norm(r.name) === norm(name))?.id || null;
+  const byLead = new Map();
+  for (const [rep, lead] of Object.entries(reportsTo)) {
+    const r = idOf(rep);
+    const l = idOf(lead);
+    if (!r || !l || r === l) continue;
+    if (!byLead.has(l)) byLead.set(l, []);
+    if (!byLead.get(l).includes(r)) byLead.get(l).push(r);
+  }
+  const rank = (id) => { const i = SHEET_ORDER.indexOf(id); return i < 0 ? 999 : i; };
+  return [...byLead].map(([lead, list]) => {
+    const name = POD_NAMES[lead] || { id: lead, title: `Pod ${String(reps.find((r) => r.id === lead)?.name || lead).split(' ')[0]}` };
+    return { ...name, lead, reps: list.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)) };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+}
+export const leadsOf = (pods) => pods.map((p) => p.lead);
+
 // The sheet's 5-item CRM checklist, 0 / 1 / 2 points each (Luke: 2 = all
 // good, 1 = 60%+, 0 = below that).
 export const CRM_ITEMS = [

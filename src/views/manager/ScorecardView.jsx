@@ -30,7 +30,8 @@ import { ScoreHelp } from './Score.jsx';
 import useMonthLog from './useMonthLog.js';
 import { addedContractsInRange } from './monthReview.js';
 import { T, metrics, teamMetrics, repPairs, scoreTone, paceTone, scoreParts, mostPointsLeft, rangeMetrics, addMetrics, STEPS, rate, pct, biggestLeak } from './metrics.js';
-import { PODS, POD_LEADS, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET, speedGrade, SPEED_GRADE_ONE, speedInCrm } from '../../../scripts/scorecard-lib.mjs';
+import { usePods } from '../../shell/pods.js';
+import { leadsOf, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET, speedGrade, SPEED_GRADE_ONE, speedInCrm } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
 import { weekSeries, avgOf, crmTenths } from './trends.js';
 import TrendsView from './TrendsView.jsx';
@@ -55,11 +56,12 @@ const HEAD = 'text-[15px] font-bold text-navy-700 leading-tight';
 
 // The groups shown, in the sheet's order; anyone else is under "No pod".
 // (TrendsView reads the same shape.)
-function groups() {
-  const inPods = new Set([...PODS.flatMap((p) => p.reps), ...POD_LEADS]);
+function groups(pods) {
+  const leads = leadsOf(pods);
+  const inPods = new Set([...pods.flatMap((p) => p.reps), ...leads]);
   return [
-    ...PODS.map((p) => ({ title: `${p.title.toUpperCase()} · ${repOf(p.lead).name}`, podId: p.id, podName: p.title, sub: `lead ${first(p.lead)}`, reps: p.reps.filter((id) => REPS.some((r) => r.id === id)), total: true })),
-    { title: 'POD LEADS', podName: 'Pod leads', sub: 'scored, not in pod totals', reps: POD_LEADS.filter((id) => REPS.some((r) => r.id === id)) },
+    ...pods.map((p) => ({ title: `${p.title.toUpperCase()} · ${repOf(p.lead).name}`, podId: p.id, podName: p.title, sub: `lead ${first(p.lead)}`, reps: p.reps.filter((id) => REPS.some((r) => r.id === id)), total: true })),
+    { title: 'POD LEADS', podName: 'Pod leads', sub: 'scored, not in pod totals', reps: leads.filter((id) => REPS.some((r) => r.id === id)) },
     { title: 'NO POD', podName: 'No pod', sub: '', reps: REPS.map((r) => r.id).filter((id) => !inPods.has(id)) },
   ].filter((g) => g.reps.length);
 }
@@ -554,9 +556,9 @@ function RepDrawer({ id, ids, onPick, onClose, crm }) {
   );
 }
 
-const FILTERS = [
+const filtersOf = (pods) => [
   { id: 'all', label: 'Everyone' },
-  ...PODS.map((p) => ({ id: p.id, label: p.title })),
+  ...pods.map((p) => ({ id: p.id, label: p.title })),
   { id: 'behind', label: 'Needs a 1-on-1' },
 ];
 
@@ -570,6 +572,8 @@ export default function ScorecardView() {
   // reps name"); ⌘K and the Coaching tab land here too.
   const peek = REPS.some((r) => r.id === query.get('rep')) ? query.get('rep') : null;
   const setPeek = (id) => setQuery({ rep: id || null }, { replace: false });
+  const pods = usePods();
+  const FILTERS = filtersOf(pods);
   const show = FILTERS.some((f) => f.id === query.get('show')) ? query.get('show') : 'all';
   const byScore = query.get('sort') === 'score';
   const [week, setWeek] = useState(cur.monday);
@@ -614,7 +618,7 @@ export default function ScorecardView() {
     const { crm, manual, note } = reviewFor(sc, week, id, draft, auto);
     return { id, n, crm, manual, auto, note, s: scoreWeek(n, crm, wom, week), prev: prevWeek?.reps?.[id]?.s.score ?? null };
   };
-  const gs = groups().map((g) => ({ ...g, rows: g.reps.map(rowOf).filter(Boolean) })).filter((g) => g.rows.length);
+  const gs = groups(pods).map((g) => ({ ...g, rows: g.reps.map(rowOf).filter(Boolean) })).filter((g) => g.rows.length);
   const allRows = gs.flatMap((g) => g.rows);
   const reviewedBy = reviewedByFor(sc, week, draft);
   const reviewedAt = sc.edits?.weeks?.[week]?.reviewedAt;
@@ -663,7 +667,7 @@ export default function ScorecardView() {
   if (trends) {
     return (
       <ManagerFrame title="Weekly Scorecard" subtitle="trends · week by week" right={pickers}>
-        <TrendsView sc={sc} groups={groups()} onPickRep={(id) => { setWeek(cur.monday); setPeek(id); }} />
+        <TrendsView sc={sc} groups={groups(pods)} onPickRep={(id) => { setWeek(cur.monday); setPeek(id); }} />
       </ManagerFrame>
     );
   }

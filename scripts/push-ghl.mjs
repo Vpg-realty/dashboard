@@ -11,6 +11,11 @@
 // Needs each sub-account's GHL key (PIT) to be allowed to edit opportunities
 // ("opportunities.write"); a refused write stays queued and is retried each
 // run for a day, with the reason shown on the deal.
+//
+// GHL tasks ticked / unticked on Alerts (Luke, Oct 20) ride the same queue:
+// field `task:<contactId>`, ghl_id = the task id, value done | open (edge/
+// alerts.js ghlTick) → PUT /contacts/:contactId/tasks/:taskId/completed. Needs
+// the key's "contacts.write" (edit contacts / tasks).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,13 +63,32 @@ export function planPush(rows) {
   return { updates: [...byOpp.values()], superseded };
 }
 
-export async function runPush({ query, fields, tokens, locationOf, put, now = new Date() }) {
+export async function runPush({ query, fields, tokens, locationOf, put, complete = null, now = new Date() }) {
   const iso = now.toISOString();
   const rows = (await query("SELECT * FROM ghl_push WHERE status = 'pending' ORDER BY id"))[0]?.results || [];
   const { updates, superseded } = planPush(rows);
   for (const id of superseded) await query("UPDATE ghl_push SET status = 'done', error = 'replaced by a later change', done_at = ? WHERE id = ?", [iso, id]);
   let sent = 0, failed = 0, lastError = null;
+  const settle = async (r, error) => {
+    if (!error) await query("UPDATE ghl_push SET status = 'done', error = NULL, done_at = ?, tries = tries + 1 WHERE id = ?", [iso, r.id]);
+    else await query('UPDATE ghl_push SET tries = tries + 1, error = ?, status = CASE WHEN tries + 1 >= ? THEN \'failed\' ELSE \'pending\' END WHERE id = ?', [error, MAX_TRIES, r.id]);
+    if (error) { failed += 1; lastError = error; } else sent += 1;
+  };
   for (const u of updates) {
+    // GHL tasks: one call each (the latest state per task — planPush).
+    const tasks = u.rows.filter((r) => String(r.field).startsWith('task:'));
+    for (const r of tasks) {
+      const locationId = locationOf(u.location);
+      const token = locationId && tokens[locationId];
+      let error = null;
+      if (!token) error = 'no GHL key for this sub-account';
+      else if (!complete) error = 'tasks not sent this run';
+      else { try { await complete(r.field.slice(5), u.ghlId, token, r.value === 'done'); } catch (e) { error = String(e.message || e).slice(0, 300); } }
+      await settle(r, error);
+    }
+    u.rows = u.rows.filter((r) => !String(r.field).startsWith('task:'));
+    if (!u.rows.length) continue;
+    if (!fields) continue; // no field ids this run — they wait for the next
     const ids = fields[u.location] || {};
     const locationId = locationOf(u.location);
     const token = locationId && tokens[locationId];
@@ -77,11 +101,7 @@ export async function runPush({ query, fields, tokens, locationOf, put, now = ne
     else {
       try { await put(u.ghlId, token, ok.map((r) => ({ id: ids[r.field], field_value: r.value }))); } catch (e) { error = String(e.message || e).slice(0, 300); }
     }
-    for (const r of ok) {
-      if (!error) await query("UPDATE ghl_push SET status = 'done', error = NULL, done_at = ?, tries = tries + 1 WHERE id = ?", [iso, r.id]);
-      else await query('UPDATE ghl_push SET tries = tries + 1, error = ?, status = CASE WHEN tries + 1 >= ? THEN \'failed\' ELSE \'pending\' END WHERE id = ?', [error, MAX_TRIES, r.id]);
-    }
-    if (error) { failed += ok.length; lastError = error; } else sent += ok.length;
+    for (const r of ok) await settle(r, error);
   }
   const status = { at: iso, sent, failed, waiting: rows.length, lastError };
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('ghl_push', ?, ?, 'GHL push') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(status), iso]);
@@ -94,9 +114,9 @@ async function main() {
   const token = secrets.CLOUDFLARE_API_TOKEN;
   const account = secrets.CLOUDFLARE_ACCOUNT_ID;
   if (!token || !account) { console.log('[ghl-push] no Cloudflare credentials here — skipped'); return; }
+  // Without this run's field ids, opportunity fields wait; tasks still go.
   const file = path.join(ROOT, '.cache', 'ghl-fields.json');
-  if (!fs.existsSync(file)) { console.log('[ghl-push] no field ids this run — skipped'); return; }
-  const { fields } = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const { fields } = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { fields: null };
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'subaccounts.json'), 'utf8'));
   const locationOf = (loc) => { const [rep, market] = String(loc).split('|'); return cfg.subaccounts.find((x) => x.repId === rep && x.marketId === market)?.locationId || null; };
   const query = async (sql, params) => {
@@ -119,7 +139,18 @@ async function main() {
       throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the change (${r.status}) — the sub-account's key needs permission to edit opportunities` : `GHL ${r.status}: ${t}`);
     }
   };
-  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put });
+  const complete = async (contactId, taskId, pit, completed) => {
+    const r = await fetch(`${GHL}/contacts/${encodeURIComponent(contactId)}/tasks/${encodeURIComponent(taskId)}/completed`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${pit}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed }),
+    });
+    if (!r.ok) {
+      const t = (await r.text()).slice(0, 200);
+      throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the task change (${r.status}) — the sub-account's key needs permission to edit contacts / tasks` : `GHL ${r.status}: ${t}`);
+    }
+  };
+  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put, complete });
   console.log(`[ghl-push] ${status.sent} sent · ${status.failed} not sent${status.lastError ? ` (${status.lastError})` : ''}`);
 }
 

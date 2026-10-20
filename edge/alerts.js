@@ -10,7 +10,7 @@
 // their pod lead and owners"), so it counts toward the red dot of all three;
 // everything else only toward its holder's. Nothing is written while viewing
 // as someone (currentUser makes the role 'none').
-import { PODS } from '../scripts/scorecard-lib.mjs';
+import { getPods } from './pods.js';
 
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Same address' };
 // Kinds that also ring the holder's pod lead and the owners.
@@ -19,7 +19,8 @@ export const ROLES = ['owner', 'manager', 'tc', 'team'];
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 
 export const holderOf = (u) => u?.rep_id || `u:${String(u?.email || '').split('@')[0].toLowerCase()}`;
-const podOf = (u) => (u?.role === 'manager' && u.rep_id ? PODS.find((p) => p.lead === u.rep_id) : null);
+// Pods from Settings › People (edge/pods.js; the API refreshes them first).
+const podOf = (u) => (u?.role === 'manager' && u.rep_id ? getPods().find((p) => p.lead === u.rep_id) : null);
 
 // The holders whose alerts this person may see (null = everyone) and the reps
 // whose spotted leads ring their bell.
@@ -110,6 +111,18 @@ export async function countFor(db, user, today) {
   return { counts: counts(rows, scope, seen?.seen_at || null, today), chime: seen ? !!seen.chime : chimeDefault(user) };
 }
 
+// A GHL task ticked (or unticked) on the site is completed (or reopened) in
+// GHL too (Luke, Oct 20): queued in ghl_push — field `task:<contactId>`,
+// ghl_id = the task id, value done | open — and written by
+// scripts/push-ghl.mjs, the site's one writer to GHL. Only a real change of
+// state is queued; a task GHL itself finished isn't sent back.
+export function ghlTick(x, done, user, now) {
+  if (x?.kind !== 'ghl' || !String(x.ext_id || '').startsWith('ghl:') || !x.contact || !x.sub) return [];
+  if (!!x.done_at === done) return [];
+  return [['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [`alert:${x.id}`, x.ext_id.slice(4), x.sub, `task:${x.contact}`, done ? 'done' : 'open', user.name, now, 'pending']]];
+}
+
 // body = { action, ... } → { error } or { run: [[sql, params], …] }
 export function plan(b, user, now = new Date().toISOString(), existing = null) {
   const scope = scopeOf(user);
@@ -137,11 +150,11 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   if (a === 'doneMany') {
     const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind !== 'lead');
     if (!list.length) return { error: 'Pick the alerts to tick off' };
-    return { ids: list.map((x) => x.id), run: list.map((x) => ['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, x.id]]) };
+    return { ids: list.map((x) => x.id), run: list.flatMap((x) => [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, x.id]], ...ghlTick(x, !!b.done, user, now)]) };
   }
   if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
   if (a === 'done') {
-    return { run: [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, b.id]]] };
+    return { run: [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, b.id]], ...ghlTick(existing, !!b.done, user, now)] };
   }
   if (a === 'verdict') {
     if (existing.kind !== 'lead') return { error: 'Only spotted leads take a verdict' };

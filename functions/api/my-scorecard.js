@@ -33,7 +33,9 @@ export async function onRequestGet(context) {
     context.env.DB.prepare('SELECT week, rep_id, crm FROM scorecard_edits').all().then((r) => r.results),
   ]);
   // The roster = every rep with a sub-account in this deploy's data.json.
-  const reps = [...new Set((data?.pairs || []).map((p) => p.repId))].map((id) => ({ id }));
+  // Trainees with their own sub-account stay out until they graduate (Oct 20).
+  const trainees = new Set(data?.trainees || []);
+  const reps = [...new Set((data?.pairs || []).map((p) => p.repId))].filter((id) => !trainees.has(id)).map((id) => ({ id }));
   const manual = new Map(editRows.map((e) => [`${e.week}|${e.rep_id}`, e.crm == null ? null : JSON.parse(e.crm)]));
   const manualFor = (w, monday, id) => {
     const k = `${monday}|${id}`;

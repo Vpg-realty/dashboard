@@ -13,16 +13,16 @@
 // their zips are released and their open alerts move to their pod lead.
 import { json } from '../../../edge/auth.js';
 import { owner, log, cleanUser } from '../../../edge/settings.js';
-import { LEADS, loadProgram, alertOps } from '../../../edge/training.js';
-import { PODS } from '../../../scripts/scorecard-lib.mjs';
+import { isLead, loadProgram, alertOps } from '../../../edge/training.js';
+import { refreshPods, getPods } from '../../../edge/pods.js';
 import { holderOf as zipHolder } from '../../../edge/zips.js';
 import { holderOf as alertHolder } from '../../../edge/alerts.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SELECT = `SELECT u.email, u.name, u.role, u.rep_id, u.status, u.start_date AS started, u.end_date AS ended, t.trainer, t.start_date AS start, t.graduated_at
     FROM users u LEFT JOIN training_people t ON t.email = u.email`;
-// The pod lead of a rep (scorecard-lib PODS), for their alerts.
-const leadOf = (repId) => PODS.find((p) => p.reps.includes(repId))?.lead || null;
+// The pod lead of a rep (Settings › People's Pod lead, edge/pods.js), for their alerts.
+const leadOf = (repId) => getPods().find((p) => p.reps.includes(repId))?.lead || null;
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);
@@ -34,6 +34,7 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const { res, user } = await owner(context);
   if (res) return res;
+  await refreshPods(context.env.DB);
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const p = cleanUser(body);
@@ -66,7 +67,7 @@ export async function onRequestPost(context) {
   if (p.role === 'trainee') {
     trainer = body.trainer || enrolled?.trainer;
     const start = body.start === undefined ? enrolled?.start_date || null : body.start || null;
-    if (!LEADS.some((l) => l.id === trainer)) return json({ error: 'pick their pod lead — their trainer and the rep they shadow' }, 400);
+    if (!isLead(trainer)) return json({ error: 'pick their pod lead — their trainer and the rep they shadow' }, 400);
     if (start && !DATE.test(start)) return json({ error: 'pick a start date' }, 400);
     run.push(db.prepare(`INSERT INTO training_people (email, trainer, start_date, created_by, created_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (email) DO UPDATE SET trainer = excluded.trainer, start_date = excluded.start_date, graduated_at = NULL, graduated_by = NULL`).bind(p.email, trainer, start, user.name, now));

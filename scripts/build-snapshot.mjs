@@ -212,6 +212,10 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
   console.log(`[snapshot] tracker feed: ${feed.length} GHL deals → .cache/ghl-tracker.json`);
 }
 
+// Trainees with their own sub-account (scripts/load-private-files.mjs): the
+// scorecard freeze and /api/my-scorecard leave them out (Luke, Oct 20).
+try { snapshot.trainees = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'trainee-reps.json'), 'utf8')); } catch { snapshot.trainees = []; }
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));
 
