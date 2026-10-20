@@ -11,6 +11,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { tokensFrom } from '../edge/alertsSync.js';
 
 function main() {
   if (!process.env.GITHUB_ACTIONS || !process.env.RUNNER_TEMP) return;
@@ -29,7 +30,10 @@ function main() {
   const file = path.join(process.env.RUNNER_TEMP, 'cf-deploy.json');
   // The Claude key too, so deploy-cloudflare.mjs can give it to the site's
   // server functions (the owners' chat) as an encrypted Pages secret.
-  fs.writeFileSync(file, JSON.stringify({ token, account, anthropic: secrets.ANTHROPIC_API_KEY || null }), { mode: 0o600 });
+  // And the GHL keys for the 2-minute Alerts worker (workers/alerts-live,
+  // Oct 20), which deploy-cloudflare.mjs sets as its encrypted secret.
+  const ghlKeys = tokensFrom(secrets, process.env.GHL_TOKENS);
+  fs.writeFileSync(file, JSON.stringify({ token, account, anthropic: secrets.ANTHROPIC_API_KEY || null, ghlKeys }), { mode: 0o600 });
   console.log('[cloudflare] credentials handed to the build step');
 }
 

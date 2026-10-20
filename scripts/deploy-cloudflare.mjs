@@ -82,6 +82,48 @@ async function syncClaudeKey(creds) {
   console.log(r?.success ? '[cloudflare] Claude key set on the Pages project (chat)' : `[cloudflare] could not set the Claude key: ${JSON.stringify(r?.errors || []).slice(0, 200)}`);
 }
 
+// The 2-minute Alerts worker (workers/alerts-live, Luke Oct 20). Deployed
+// only when its bundle changed, its secrets (GHL_KEYS, ANTHROPIC_API_KEY)
+// only when they changed — D1 settings 'alerts_live_deploy' keeps the two
+// fingerprints (never the values). A failure is retried after an hour and
+// never fails the deploy.
+const D1 = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
+const WORKER_CFG = 'workers/alerts-live/wrangler.toml';
+async function deployAlertsWorker(creds) {
+  const env = { CLOUDFLARE_API_TOKEN: creds.token, CLOUDFLARE_ACCOUNT_ID: creds.account, WRANGLER_SEND_METRICS: 'false' };
+  const d1 = async (sql, params) => {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${creds.account}/d1/database/${D1}/query`, {
+      method: 'POST', headers: { authorization: `Bearer ${creds.token}`, 'content-type': 'application/json' }, body: JSON.stringify(params ? { sql, params } : { sql }),
+    }).then((x) => x.json());
+    if (!r.success) throw new Error(`D1: ${JSON.stringify(r.errors || []).slice(0, 150)}`);
+    return r.result?.[0]?.results || [];
+  };
+  const prev = JSON.parse((await d1("SELECT value FROM settings WHERE key = 'alerts_live_deploy'"))[0]?.value || '{}');
+  const tmp = path.join(process.env.RUNNER_TEMP || root, 'alerts-live-bundle');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  run('npx', ['-y', 'wrangler@4', 'deploy', '--dry-run', '--outdir', tmp, '-c', WORKER_CFG], env, 180_000);
+  const bundle = crypto.createHash('sha256').update(fs.readFileSync(path.join(tmp, 'index.js'))).digest('hex').slice(0, 16);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  const keysJson = JSON.stringify(creds.ghlKeys || {});
+  const keys = crypto.createHash('sha256').update(`${keysJson}|${creds.anthropic || ''}`).digest('hex').slice(0, 16);
+  if (prev.bundle === bundle && prev.keys === keys) return;
+  if (prev.error && prev.tried === `${bundle}|${keys}` && Date.now() - Date.parse(prev.at) < 3600_000) return;
+  const save = (v) => d1("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('alerts_live_deploy', ?, ?, 'Deploy') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(v), new Date().toISOString()]);
+  try {
+    if (prev.bundle !== bundle) run('npx', ['-y', 'wrangler@4', 'deploy', '-c', WORKER_CFG], env, 180_000);
+    if (prev.keys !== keys) {
+      const file = path.join(process.env.RUNNER_TEMP || root, 'alerts-live-secrets.json');
+      fs.writeFileSync(file, JSON.stringify({ GHL_KEYS: keysJson, ...(creds.anthropic ? { ANTHROPIC_API_KEY: creds.anthropic } : {}) }), { mode: 0o600 });
+      try { run('npx', ['-y', 'wrangler@4', 'secret', 'bulk', file, '-c', WORKER_CFG], env, 120_000); } finally { fs.rmSync(file, { force: true }); }
+    }
+    await save({ bundle, keys, at: new Date().toISOString() });
+    console.log('[cloudflare] Alerts worker (every 2 minutes) deployed');
+  } catch (err) {
+    await save({ ...prev, error: String(err.message).slice(0, 200), tried: `${bundle}|${keys}`, at: new Date().toISOString() });
+    throw err;
+  }
+}
+
 async function main() {
   const file = process.env.RUNNER_TEMP && path.join(process.env.RUNNER_TEMP, 'cf-deploy.json');
   // The Access token handed over for the state loaders is no longer needed.
@@ -111,6 +153,7 @@ async function main() {
   run('npx', ['-y', 'wrangler@4', 'pages', 'deploy', 'dist-cf', '--project-name', PROJECT, '--branch', 'main', '--commit-dirty=true'],
     { CLOUDFLARE_API_TOKEN: creds.token, CLOUDFLARE_ACCOUNT_ID: creds.account, WRANGLER_SEND_METRICS: 'false' }, 300_000);
   console.log(`[cloudflare] published to https://${PROJECT}.pages.dev`);
+  try { await deployAlertsWorker(creds); } catch (err) { console.warn(`[cloudflare] Alerts worker not deployed: ${err.message}`); }
 }
 
 try { await main(); } catch (err) { console.warn(`[cloudflare] deploy skipped: ${err.message}`); }
