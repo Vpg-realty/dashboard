@@ -28,7 +28,7 @@ const norm = (s) => String(s ?? '').toLowerCase();
 
 export default function SearchSelect({
   value, onChange, options, pinned = [], clearable = true, placeholder = '—', inline = false, autoFocus = false,
-  disabled = false, sort = true, className = '', renderValue, searchable,
+  disabled = false, sort = true, className = '', renderValue, searchable, buttonClass,
 }) {
   const hasSearch = searchable ?? options.length + pinned.length >= SEARCH_FROM;
   const [open, setOpen] = useState(inline);
@@ -116,9 +116,9 @@ export default function SearchSelect({
     <div ref={box} className={`relative ${className}`}>
       <button type="button" disabled={disabled} autoFocus={autoFocus} onClick={() => setOpen((x) => !x)}
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); } }}
-        className="w-full h-8 flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200">
+        className={buttonClass || 'w-full h-8 flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200'}>
         <span className={`flex-1 min-w-0 truncate ${current ? '' : 'text-zinc-400'}`}>{renderValue ? renderValue(current) : current ? current.label : placeholder}</span>
-        <span className="text-[10px] text-zinc-400">▾</span>
+        <span className={`text-[10px] ${buttonClass ? '' : 'text-zinc-400'}`}>▾</span>
       </button>
       {open && createPortal(list, document.body)}
     </div>

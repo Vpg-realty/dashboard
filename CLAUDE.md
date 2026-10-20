@@ -605,7 +605,8 @@ style, the second mockup). `src/App.jsx` only picks the experience:
 - **Where It Leaks, by State** (My Scorecard, Luke Oct 19 — option C of the
   mock-ups, reworked the same day): `src/views/manager/FunnelByState.jsx`.
   `FunnelCard` — this month's funnel with each state a shade of navy (log-scale
-  bars), a state picker (All markets + each state; the legend and the leak
+  bars), a state picker in the header's tan corner (All markets + each
+  state, SearchSelect `buttonClass`; the legend and the leak
   list pick too), the team's three step rates on top, and between stages the
   step itself ("Convo → Opp 2%", green / amber / red vs the team, "team 3%")
   with a Biggest leak tag on the worst one. `LeakList` — one row per state:

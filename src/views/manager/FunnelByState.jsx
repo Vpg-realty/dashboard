@@ -44,12 +44,16 @@ export function FunnelCard({ states, total, teamRates, when, pick, setPick, untr
   const leak = worstStep(m, teamRates, na);
   return (
     <section className={`${card} flex flex-col ${className}`}>
-      <PanelHead title={`${sel ? sel.name : 'Your'} Funnel · ${when}`} sub={sel ? null : 'each state a shade'} />
+      <PanelHead title={`${sel ? sel.name : 'Your'} Funnel · ${when}`} sub={sel ? null : 'each state a shade'} right={(
+        // The state picker in the header's tan corner, like every card's
+        // controls (Luke, Oct 20).
+        <SearchSelect className="w-40" value={pick || 'ALL'} onChange={(v) => setPick(v && v !== 'ALL' ? v : null)} clearable={false}
+          buttonClass="w-full h-6 flex items-center gap-1.5 bg-transparent text-left text-[13px] font-semibold text-navy-900 focus:outline-none"
+          pinned={[{ value: 'ALL', label: 'All markets' }]} options={states.map((s) => ({ value: s.id, label: s.name }))} />
+      )} />
       <div className="px-5 pt-3.5 pb-4 flex-1 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <SearchSelect className="w-48" value={pick || 'ALL'} onChange={(v) => setPick(v && v !== 'ALL' ? v : null)} clearable={false}
-            pinned={[{ value: 'ALL', label: 'All markets' }]} options={states.map((s) => ({ value: s.id, label: s.name }))} />
-          <div className="ml-auto flex flex-wrap items-center gap-1.5 text-[12.5px]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
             <span className="font-semibold text-zinc-500 uppercase tracking-wide text-[11px]">Team {when}</span>
             {STEPS.map((s, i) => <span key={s.key} className="rounded-md bg-violet-50 text-violet-900 ring-1 ring-inset ring-violet-200 px-2 py-0.5 tabular-nums">{s.label} <b>{pct(teamRates[i])}</b></span>)}
           </div>
