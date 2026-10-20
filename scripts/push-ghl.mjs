@@ -24,6 +24,8 @@ const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GHL = 'https://services.leadconnectorhq.com';
 const MAX_TRIES = 96; // ~1 day of 15-minute runs
+// Deal status → the GHL stage it moves to (aggregate.js pushStages).
+const STATUS_STAGE = { ASSIGNED: 'assigned', COMPLETE: 'closed', CANCELLED: 'lost' };
 
 // PIT_<base32(locationId)> → { locationId: token } (same scheme as
 // build-snapshot.mjs), plus the legacy GHL_TOKENS blob.
@@ -92,14 +94,23 @@ export async function runPush({ query, fields, tokens, locationOf, put, complete
     const ids = fields[u.location] || {};
     const locationId = locationOf(u.location);
     const token = locationId && tokens[locationId];
-    const missing = u.rows.filter((r) => !ids[r.field]);
-    const ok = u.rows.filter((r) => ids[r.field]);
-    for (const r of missing) await query("UPDATE ghl_push SET status = 'failed', error = ?, done_at = ? WHERE id = ?", [`this sub-account has no ${r.field} field in GHL`, iso, r.id]);
+    // The deal status moves the opportunity's stage (Oct 20); the rest are
+    // custom fields.
+    const stageOf = (r) => ids.stages?.[STATUS_STAGE[r.value]] || null;
+    const has = (r) => (r.field === 'status' ? !!stageOf(r) && !!ids.stages?.pipelineId : !!ids[r.field]);
+    const missing = u.rows.filter((r) => !has(r));
+    const ok = u.rows.filter(has);
+    for (const r of missing) await query("UPDATE ghl_push SET status = 'failed', error = ?, done_at = ? WHERE id = ?", [r.field === 'status' ? `this sub-account's pipeline has no ${STATUS_STAGE[r.value] || r.value} stage` : `this sub-account has no ${r.field} field in GHL`, iso, r.id]);
     if (!ok.length) continue;
     let error = null;
     if (!token) error = 'no GHL key for this sub-account';
     else {
-      try { await put(u.ghlId, token, ok.map((r) => ({ id: ids[r.field], field_value: r.value }))); } catch (e) { error = String(e.message || e).slice(0, 300); }
+      const st = ok.find((r) => r.field === 'status');
+      const body = {
+        ...(ok.some((r) => r.field !== 'status') ? { customFields: ok.filter((r) => r.field !== 'status').map((r) => ({ id: ids[r.field], field_value: r.value })) } : {}),
+        ...(st ? { pipelineId: ids.stages.pipelineId, pipelineStageId: stageOf(st) } : {}),
+      };
+      try { await put(u.ghlId, token, body); } catch (e) { error = String(e.message || e).slice(0, 300); }
     }
     for (const r of ok) await settle(r, error);
   }
@@ -128,11 +139,11 @@ async function main() {
     if (!r.ok || !d.success) throw new Error(`D1 ${r.status} ${JSON.stringify(d.errors || [])}`);
     return d.result;
   };
-  const put = async (ghlId, pit, customFields) => {
+  const put = async (ghlId, pit, body) => {
     const r = await fetch(`${GHL}/opportunities/${encodeURIComponent(ghlId)}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${pit}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customFields }),
+      body: JSON.stringify(body),
     });
     if (!r.ok) {
       const t = (await r.text()).slice(0, 200);

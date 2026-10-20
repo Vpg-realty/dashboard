@@ -78,6 +78,18 @@ export function stageResolver(pipelines) {
   return { keyOf, rankOf: (o) => STAGE_RANK[keyOf(o)] || 0 };
 }
 
+// The stages a deal status set on the site moves the opportunity to (Luke,
+// Oct 20: Assigned, Closed, Cancelled → Lost): the pipeline that has an
+// Assigned (else a Closed) stage, with those stages' ids. Cancelled uses Lost,
+// else Abandoned.
+export function pushStages(pipelines) {
+  const keyed = (p) => Object.fromEntries((p.stages || []).map((s) => [stageKey(s.name), s.id]).filter(([k]) => k));
+  const p = (pipelines || []).find((x) => keyed(x).assigned) || (pipelines || []).find((x) => keyed(x).closed);
+  if (!p) return null;
+  const k = keyed(p);
+  return { pipelineId: p.id, assigned: k.assigned || null, closed: k.closed || null, lost: k.lost || k.abandoned || null };
+}
+
 export function aggregatePair({
   repId, marketId,
   opportunities, pipelines, oppCustomFields = null,
@@ -263,7 +275,7 @@ export function aggregatePair({
     _abandoned: abandonedOpps,
     // The custom field ids the site writes back to GHL (scripts/push-ghl.mjs,
     // Luke Oct 18) — moved to .cache/ghl-fields.json like _tracker.
-    _ghlFields: { address: fieldIds.address || null, coe: fieldIds.coe || null, ipEnd: fieldIds.ipEnd || null, title: extraIds.title || null },
+    _ghlFields: { address: fieldIds.address || null, coe: fieldIds.coe || null, ipEnd: fieldIds.ipEnd || null, title: extraIds.title || null, price: extraIds.price || null, stages: pushStages(pipelines) },
   };
 }
 

@@ -180,13 +180,14 @@ function AlertsLink() {
 
 // Today at a Glance (Luke, Oct 19 — replaces the Needs Attention list, which
 // repeated Alerts, Calendar and Active): four counts, each a link to where the
-// work is done.
-function TodayCard({ alertsOpen, late, dueToday, closingWeek, today }) {
+// work is done (Late, Due today and Closing this week → Pipeline › Contracted
+// Deals — Luke, Oct 20).
+function TodayCard({ alertsOpen, late, dueToday, closingWeek }) {
   const tiles = [
     ['Alerts to do', alertsOpen, '/alerts', 'text-navy-800'],
-    ['Late', late, '/calendar', 'text-[#B42318]'],
-    ['Due today', dueToday, `/calendar?day=${today}`, 'text-[#B54708]'],
-    ['Closing this week', closingWeek, '/calendar', 'text-emerald-700'],
+    ['Late', late, '/pipeline/all', 'text-[#B42318]'],
+    ['Due today', dueToday, '/pipeline/all', 'text-[#B54708]'],
+    ['Closing this week', closingWeek, '/pipeline/all', 'text-emerald-700'],
   ];
   return (
     <Card title="Today at a Glance" right={more('/calendar', 'Calendar')}>
@@ -304,7 +305,7 @@ export default function HomeView({ me }) {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className={`${showMoney || me?.role === 'owner' ? 'xl:col-span-2' : 'xl:col-span-3'} flex flex-col gap-6 min-w-0`}>
-        <TodayCard alertsOpen={alertCounts ? alertCounts.owe : null} late={late.length} dueToday={dueToday} closingWeek={closingWeek} today={today} />
+        <TodayCard alertsOpen={alertCounts ? alertCounts.owe : null} late={late.length} dueToday={dueToday} closingWeek={closingWeek} />
         <Card title="Wins this week · whole team">
           {wins.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>
