@@ -1,0 +1,19 @@
+# The 2-minute Alerts worker (Luke, Oct 20). Deployed by
+# scripts/deploy-cloudflare.mjs; secrets GHL_KEYS and ANTHROPIC_API_KEY are
+# set from the repo secrets there. Never deploy over the "valley-site" worker
+# (Luke's public website).
+name = "vpg-alerts-live"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+[triggers]
+crons = ["*/2 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vpg-dashboard"
+database_id = "9c2aec75-3ad8-4eb0-9ca9-4b061c25677a"
+
+[observability]
+enabled = true

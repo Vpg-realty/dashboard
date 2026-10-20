@@ -979,6 +979,29 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   when a run has no opportunity field ids (those wait). The only other GHL
   write is the four tracker fields.
 
+## Alerts every 2 minutes (Oct 20, Luke — "option 2")
+
+Alerts used to wait for the deploy (GHL tasks up to 15 min, spotted leads up
+to 3 h — the messaging pull). A Cloudflare Worker **`vpg-alerts-live`**
+(`workers/alerts-live/`, cron `*/2 * * * *`, D1 bound as `DB`, no public
+URL) now pulls every sub-account's open GHL tasks and the last 24 h of SMS
+(`analyzeMessaging` → `inbound`), judges new agent texts with Claude and
+fills Alerts directly: parts tasks / leads / dupes of `runAlerts`
+(`edge/alertsSync.js` — the one copy of the sync logic, shared with
+scripts/sync-alerts.mjs), status in settings `alerts_live`. It only reads
+GHL. The deploy's sync then does only 30-day check-ins and deal deadlines —
+and everything again when `alerts_live` is older than 10 minutes (worker
+down), so nothing is lost. **Deployed by the GitHub deploy**:
+deploy-cloudflare.mjs `deployAlertsWorker` (after the Pages upload, never
+fails the deploy) runs `wrangler deploy` only when the bundle changed and
+`wrangler secret bulk` (GHL_KEYS = the PITs from cloudflare-handoff,
+ANTHROPIC_API_KEY) only when the keys changed — hashes in settings
+`alerts_live_deploy` (with the last error; a failure retries after an
+hour). Needs the deploy token's **Workers Scripts: Edit** permission. Never
+deploy over Luke's `valley-site` Worker. Usage: ~720 runs a day, each a few
+small D1 reads (open alerts of the kinds it handles, settings) and writes
+only for changes — a few hundred thousand rows a month; 66 GHL calls a run.
+
 ## Deal tracker (Luke, Oct 14)
 
 The "2026 VPG Deal Tracker" Google Sheet now lives in the site: sidebar
