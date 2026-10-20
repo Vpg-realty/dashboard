@@ -35,12 +35,17 @@ export const canManagerEdit = (u) => u?.role === 'manager' && !!u.rep_id;
 // written back to the linked GHL opportunity (Luke, Oct 18; queue table
 // ghl_push, sent by scripts/push-ghl.mjs) — GHL's own later changes to them
 // never come back (only the stage does, edge/dealSync.js).
-export const GHL_PUSH_FIELDS = ['address', 'title', 'coe', 'ipEnd'];
+// Oct 20 (Luke): also the contracted price, and the deal status as the GHL
+// stage — Assigned → Assigned, Closed → Closed, Cancelled → Lost (Pending
+// isn't sent: it could be Under Contract or Dispo Active).
+export const GHL_PUSH_FIELDS = ['address', 'title', 'coe', 'ipEnd', 'price', 'status'];
+const PUSH_STATUS = new Set(['ASSIGNED', 'COMPLETE', 'CANCELLED']);
 const ipEndOf = (d) => (DATE.test(d?.accepted || '') && Number.isFinite(Number(d?.ddDays)) && d.ddDays !== '' && d.ddDays != null
   ? new Date(Date.parse(`${d.accepted}T12:00:00Z`) + Number(d.ddDays) * 86_400_000).toISOString().slice(0, 10) : null);
 export function ghlPushes(before, after) {
   const v = (d, f) => (f === 'ipEnd' ? ipEndOf(d) : d?.[f] ?? null);
-  return GHL_PUSH_FIELDS.map((f) => [f, v(before, f), v(after, f)]).filter(([, a, b]) => a !== b && b != null).map(([f, , b]) => ({ field: f, value: String(b) }));
+  const sendable = (f, b) => b != null && (f !== 'status' || PUSH_STATUS.has(b)) && (f !== 'price' || Number(b) > 0);
+  return GHL_PUSH_FIELDS.map((f) => [f, v(before, f), v(after, f)]).filter(([f, a, b]) => a !== b && sendable(f, b)).map(([f, , b]) => ({ field: f, value: String(b) }));
 }
 const repName = (u) => roster.reps.find((r) => r.id === u?.rep_id)?.name || null;
 // May this person see this deal? Owners / the TC: all; reps: open ones

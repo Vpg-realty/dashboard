@@ -1017,7 +1017,18 @@ the server strips them (`forTc`) and refuses edits to them.
   opportunities.write) stays queued and is retried for a day, the reason
   shown in the deal panel (`PushNote`); settings `ghl_push` keeps the last
   run. GHL's own later changes to these fields still never reach the site.
-  This is the dashboard's only write to GHL.
+  **Oct 20 (Luke)**: also the **contracted price** (custom field
+  `opportunity.contracted_price`; not sent while 0, e.g. mid-retrade) and the
+  **deal status as the GHL stage** — Assigned → Assigned, Closed → Closed,
+  Cancelled → Lost (else Abandoned); Pending isn't sent (it could be Under
+  Contract or Dispo Active). The stage ids come from the sub-account's
+  pipeline that has an Assigned (else Closed) stage (`pushStages` in
+  server/aggregate.js, in `_ghlFields.stages`); push-ghl.mjs sends the stage
+  and fields in one `PUT /opportunities/:id`. Only a change made on the site
+  is sent — the sync's own status changes from GHL aren't, so nothing loops
+  (the stage it moved comes back as the same status). Shown in the deal
+  panel's push note as "GHL stage → Assigned". GHL tasks ticked on Alerts
+  use the same queue (Phase 6).
 - **Rep deal panel** (Luke, Oct 14): reps and managers see only Contract,
   Title, EMD, Due diligence and Dispositions, plus the Zillow link and the
   **gross assignment** (Luke, Oct 14: "gross assignment fee columns can be
@@ -2580,8 +2591,8 @@ that both can be deleted, and the secrets `GOOGLE_SERVICE_ACCOUNT_JSON` /
 - **Always `npm run build` locally before pushing** — Actions
   duration counts against everybody, so surface syntax errors first.
 - **Never test through GHL writes**. The dashboard only writes to GHL
-  through scripts/push-ghl.mjs (the four tracker fields, Oct 18, and GHL
-  tasks ticked on Alerts, Oct 20). If
+  through scripts/push-ghl.mjs (tracker fields, the deal status as the GHL
+  stage, and GHL tasks ticked on Alerts — Oct 18–20). If
   you need to test aggregation, mock a pair in code.
 - **Playwright-verify visual changes** after deploy. MCP Playwright
   tools are available; screenshot

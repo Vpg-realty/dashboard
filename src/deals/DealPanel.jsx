@@ -134,14 +134,17 @@ function LinkList({ value, address, onUse, small }) {
 // The site writes its changes to the address, title / escrow, COE and IP end
 // back to GHL (Luke, Oct 18; scripts/push-ghl.mjs, every refresh): what's on
 // its way, what went, and what GHL refused (with why).
-const PUSH_LABEL = { address: 'Address', title: 'Title / escrow', coe: 'COE', ipEnd: 'IP end' };
+const PUSH_LABEL = { address: 'Address', title: 'Title / escrow', coe: 'COE', ipEnd: 'IP end', price: 'Contracted price', status: 'GHL stage' };
 function PushNote({ pushes, boxed }) {
   if (!pushes?.length) return null;
   const latest = new Map();
   for (const p of pushes) if (!latest.has(p.field)) latest.set(p.field, p);
   const rows = [...latest.values()];
   if (!rows.length) return null;
-  const val = (p) => (p.field === 'coe' || p.field === 'ipEnd' ? shortDate(p.value) : String(p.value).split('\n')[0]);
+  const STAGE_OF = { ASSIGNED: 'Assigned', COMPLETE: 'Closed', CANCELLED: 'Lost' };
+  const val = (p) => (p.field === 'coe' || p.field === 'ipEnd' ? shortDate(p.value)
+    : p.field === 'status' ? STAGE_OF[p.value] || p.value
+      : p.field === 'price' ? `$${Number(p.value).toLocaleString('en-US')}` : String(p.value).split('\n')[0]);
   const body = (
     <ul className="mt-1.5 grid gap-0.5 text-[12.5px]">
       {rows.map((p) => (
