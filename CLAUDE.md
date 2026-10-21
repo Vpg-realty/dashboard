@@ -2074,7 +2074,10 @@ start of last month (`_lost` on the pair, internal, stripped like
 `applyStickyCounts` an opp becomes a cancel when it was in the contract
 band (rank 5–7) on the previous run, is lost by status while its stage is
 still 5–7, or carries a `started` time (kept since Oct 7 — this backfilled
-the first cancels). Closed → Lost doesn't count. Each is logged once in
+the first cancels). Closed → Lost doesn't count, nor a deal dropped within 24 hours of going
+under contract (`QUICK_DROP_MS`, Luke Oct 21 — a lead dragged into Under
+Contract by mistake): that's no contract at all, so the contracts ceiling
+takes it back too. Each is logged once in
 opp-state `cancelled` (kept from the start of last month) and published as
 `pair.cancels` [{id, at, from, addr, value}] plus `cancelsWeek` /
 `cancelsMonth`, which go into history.json.
