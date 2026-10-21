@@ -224,7 +224,12 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // this was added. A deal that had already Closed doesn't count.
     const prevCancelled = prev?.cancelled || {};
     const cancelled = {};
-    for (const [id, c] of Object.entries(prevCancelled)) if (c.at >= keepFromMs && !excluded.has(id)) cancelled[id] = c;
+    for (const [id, c] of Object.entries(prevCancelled)) {
+      if (c.at < keepFromMs || excluded.has(id)) continue;
+      // Logged before the 24-hour rule (Oct 21) — drop those too.
+      if (c.startedAt > 0 && c.at - c.startedAt < QUICK_DROP_MS) continue;
+      cancelled[id] = c;
+    }
     for (const l of p._lost || []) {
       if (prevCancelled[l.id] || cancelled[l.id]) continue;
       const before = prevRanks ? prevRanks[l.id] : undefined;
