@@ -2144,7 +2144,7 @@ since Monday) — they were a rolling 7-day tier-total change.
 accepted this week?" — his WA sub-account's four deals that closed Aug–Oct 9
 had been counted again after a short pull): each run, a period's offers /
 contracts are capped at the deals that moved stage inside it (`t`) and now
-sit in that band or in Lost / Abandoned (contracts: deals that moved into the contract band plus contracts cancelled in the period — Oct 21, a lead abandoned this week no longer leaves room), plus hand-entered contracts in it —
+sit in that band or in Lost / Abandoned (contracts: deals that moved into the contract band plus contracts that both started and were cancelled in the period — Oct 21: an abandoned lead, or a contract from an earlier week cancelled this week, no longer leaves room), plus hand-entered contracts in it —
 so a count that's already wrong corrects itself on the next run. Checked in
 GHL: Sam had no deal reach Under Contract that week.
 
