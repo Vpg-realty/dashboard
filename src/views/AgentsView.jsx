@@ -3,7 +3,7 @@ import Panel from '../components/Panel.jsx';
 import RepStackBars from '../components/RepStackBars.jsx';
 import { REPS, MARKETS, TIERS } from '../data/config.js';
 import { STATE_DOT } from '../utils/marketShade.js';
-import { getPair, tierTotals, headline, historyDeltaTierSum, historyDeltaTierSumTotal, historyDaysBack } from '../data/source.js';
+import { getPair, tierTotals, headline } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
 // Luke (May 11): Active Agent Count (renamed from Total Agents, Oct 7) =
@@ -14,13 +14,11 @@ export default function AgentsView() {
   const head = headline();
   const tiers = tierTotals();
 
-  // Per-pair "added" — delta on T1+T2+T3 sum between today and 7 days ago.
-  // Falls back to the strict per-pair agentsAddedWeek when snapshot history
-  // isn't deep enough yet (we accumulate one entry per day).
-  const addedFor = (rep, m) => {
-    const delta = historyDeltaTierSum(rep.id, m, ACTIVE_TIERS, 7);
-    return delta != null ? delta : (getPair(rep.id, m)?.agentsAddedWeek ?? 0);
-  };
+  // Per-pair "added this week" = Tier 1–3 contacts created since Monday
+  // (Luke, Oct 21: every weekly number runs Monday–Sunday). It was a rolling
+  // 7-day change in the tier totals, so the bars didn't add up to the
+  // Monday-based headline above them.
+  const addedFor = (rep, m) => getPair(rep.id, m)?.agentsAddedWeek ?? 0;
   const tierTotal = tiers.reduce((a, t) => a + t.value, 0);
   const tierMax = Math.max(1, ...tiers.map((t) => t.value));
 
