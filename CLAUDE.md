@@ -2130,6 +2130,17 @@ Implementation is two layers:
    them onto the persisted totals. Week/month resets reseed from
    the current run.
 
+**Hardened Oct 21** (Luke: "calculated from Monday–Sunday every week"): a
+crossing counts in a week / month only if the opp's last stage change
+(`t` on `_oppRanks`) falls inside that period AND after the pair's last
+pull (`at` per pair in opp-state, 10 min slack) — so an opp missing from
+one run's ranks (a short pull) isn't counted again when it reappears; and a
+sub-account whose pull failed (an empty pair, no `_oppRanks`) keeps its
+previous state and numbers instead of wiping its ranks (which made the next
+run count every deal already in the band as new). The TV Agents tab's
+per-rep "Added This Week" bars are each pair's `agentsAddedWeek` (created
+since Monday) — they were a rolling 7-day tier-total change.
+
 If contracts ever appear inflated (e.g. Luke's "58 contracts when it
 should be much less"), the failure mode is usually one of:
 - `OFFER_OR_BEYOND` style fanout accidentally re-introduced
@@ -2599,7 +2610,8 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   corner to close it at once (Luke, Oct 14); the next queued one follows.
 - **Pace grading** (`utils/pace.js`, `KpiCard` `pace` prop): the
   Opportunities team boxes are graded against target × share of the
-  period gone (week = Mon–Fri 8am–6pm Arizona; month = calendar days),
+  period gone (week = the Monday–Sunday calendar week, Arizona, by the hour —
+  Luke, Oct 21; it was Mon–Fri 8am–6pm; month = calendar days),
   badge ON PACE / NEAR PACE / BEHIND PACE, black tick on the bar.
 
 ## Weekly scorecard export — retired (Luke, Oct 14)
