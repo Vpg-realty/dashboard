@@ -252,8 +252,12 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // leads abandoned this week left room): deals that moved into the band
     // in the period, plus contracts cancelled in it — not every lost lead.
     if (capContracts) {
-      contractsWeek = Math.min(contractsWeek, capContracts.movedW + cancelsWeek + capContracts.manualW);
-      contractsMonth = Math.min(contractsMonth, capContracts.movedM + cancelsMonth + capContracts.manualM);
+      // A cancel only leaves room when the contract itself started in the
+      // period (Spencer TN, Oct 21: a deal contracted earlier and cancelled
+      // this week kept a contract on this week's count).
+      const startedIn = (from) => cancelList.filter((c) => c.at >= from && (c.startedAt || 0) >= from).length;
+      contractsWeek = Math.min(contractsWeek, capContracts.movedW + startedIn(weekMs) + capContracts.manualW);
+      contractsMonth = Math.min(contractsMonth, capContracts.movedM + startedIn(monthMs) + capContracts.manualM);
     }
 
     // Strip the internal per-opp lists — they must never reach the browser.
