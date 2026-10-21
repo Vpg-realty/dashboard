@@ -184,13 +184,13 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // moved stage inside it and now sit in that band or were moved to
     // Lost / Abandoned, plus the hand-entered contracts in it. Fixes a
     // count that's already wrong on the next run.
+    let capContracts = null;
     if (curr.length && curr.every((o) => o.t != null)) {
       const moved = (from, band) => curr.filter((o) => o.t >= from && (band(o.r) || o.r === BAND_MAX)).length;
       const manualIn = (from) => manualContracts.filter((mc) => `${mc.rep}|${mc.mkt}` === key && Date.parse(mc.at) >= from).length;
       offersWeek = Math.min(offersWeek, moved(weekMs, inOfferBand) + manualIn(weekMs));
       offersMonth = Math.min(offersMonth, moved(monthMs, inOfferBand) + manualIn(monthMs));
-      contractsWeek = Math.min(contractsWeek, moved(weekMs, inContractBand) + manualIn(weekMs));
-      contractsMonth = Math.min(contractsMonth, moved(monthMs, inContractBand) + manualIn(monthMs));
+      capContracts = { manualW: manualIn(weekMs), manualM: manualIn(monthMs), movedW: curr.filter((o) => o.t >= weekMs && inContractBand(o.r)).length, movedM: curr.filter((o) => o.t >= monthMs && inContractBand(o.r)).length };
     }
 
     // "New deal" start times (Luke, Oct 7): the first time each opp reached
@@ -248,6 +248,13 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     const cancelList = Object.entries(cancelled).map(([id, c]) => ({ id, ...c })).sort((a, b) => a.at - b.at);
     const cancelsWeek = cancelList.filter((c) => c.at >= weekMs).length;
     const cancelsMonth = cancelList.filter((c) => c.at >= monthMs).length;
+    // Contracts' ceiling (Oct 21: Sam WA and Spencer TN kept 1 because
+    // leads abandoned this week left room): deals that moved into the band
+    // in the period, plus contracts cancelled in it — not every lost lead.
+    if (capContracts) {
+      contractsWeek = Math.min(contractsWeek, capContracts.movedW + cancelsWeek + capContracts.manualW);
+      contractsMonth = Math.min(contractsMonth, capContracts.movedM + cancelsMonth + capContracts.manualM);
+    }
 
     // Strip the internal per-opp lists — they must never reach the browser.
     // eslint-disable-next-line no-unused-vars
