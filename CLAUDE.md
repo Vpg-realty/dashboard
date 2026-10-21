@@ -2593,8 +2593,12 @@ tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 
 **Road to Hawaii** (Luke, Oct 21): the team's six-month goal — $1.5M net
 assignments, Oct 1 – Mar 31 (`TEAM_GOAL` in src/utils/teamGoal.js) — as an
-Aloha-themed bar on the left of every TV tab (`components/GoalRail.jsx`,
-TvMode only; hidden under xl width and in mock mode) on a moving tiki beach
+Aloha-themed bar on the left of every TV tab (`components/GoalRail.jsx`;
+hidden under xl width and in mock mode). **One frame for the board**
+(Luke, Oct 21: Team Overview must match the TV exactly, "no separation in
+code"): `components/BoardFrame.jsx` = Road to Hawaii + the tab's board, used
+by both TvMode and the app's Team Overview section (AppShell, section
+`board`) — change the board's frame there, never in one shell only on a moving tiki beach
 (Luke: "very tiki focused … funny to see"): sunset sky, drifting clouds,
 tiki sign between flickering torches, swaying palms, rolling waves with a
 flamingo float, a tiki head whose eyes glance around, a crab on the sand, a

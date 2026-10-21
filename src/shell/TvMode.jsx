@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Header from '../components/Header.jsx';
 import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
-import GoalRail from '../components/GoalRail.jsx';
+import BoardFrame from '../components/BoardFrame.jsx';
 import ViewNav from '../components/ViewNav.jsx';
 import ConversationsView from '../views/ConversationsView.jsx';
 import AgentsView from '../views/AgentsView.jsx';
@@ -127,14 +127,13 @@ export default function TvMode({ me }) {
       <AlertStrip />
       <CelebrationBanner />
 
-      <div className="flex-1 min-h-0 flex gap-4 px-4 lg:px-6 py-4">
-        <GoalRail />
-        <main key={shownView} className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          <div className="h-full animate-fadein">
+      <main className="flex-1 min-h-0 px-4 lg:px-6 py-4 overflow-hidden">
+        <BoardFrame>
+          <div key={shownView} className="h-full animate-fadein">
             <ActiveView />
           </div>
-        </main>
-      </div>
+        </BoardFrame>
+      </main>
 
       {canExit && (
         <button onClick={() => navigate('/')} className="fixed bottom-3 left-3 z-50 rounded-lg bg-white/90 border border-zinc-200 shadow-sm px-3 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
