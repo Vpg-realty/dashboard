@@ -78,6 +78,22 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
 
   for (const p of pairs) {
     const key = pairKey(p);
+    const prevEntry = prevState?.pairs?.[key];
+    // This sub-account's pull failed this run (an empty pair, no ranks; Oct
+    // 21): keep last run's state and numbers instead of wiping its ranks —
+    // otherwise the next run counts every deal already at Offer or Under
+    // Contract as new this week.
+    if (!Array.isArray(p._oppRanks) && prevEntry) {
+      const w = (n) => (weekReset ? 0 : n || 0);
+      const m = (n) => (monthReset ? 0 : n || 0);
+      const kept = { ...prevEntry, offersWeek: w(prevEntry.offersWeek), contractsWeek: w(prevEntry.contractsWeek), offersMonth: m(prevEntry.offersMonth), contractsMonth: m(prevEntry.contractsMonth) };
+      const cancels = Object.entries(prevEntry.cancelled || {}).map(([id, c]) => ({ id, ...c })).filter((c) => c.at >= keepFromMs).sort((a, b) => a.at - b.at);
+      // eslint-disable-next-line no-unused-vars
+      const { _oppRanks, _lost, ...clean } = p;
+      newPairs.push({ ...clean, offersWeek: kept.offersWeek, offersMonth: kept.offersMonth, contractsWeek: kept.contractsWeek, contractsMonth: kept.contractsMonth, cancelsWeek: cancels.filter((c) => c.at >= weekMs).length, cancelsMonth: cancels.filter((c) => c.at >= monthMs).length, cancels });
+      statePairs[key] = kept;
+      continue;
+    }
     const curr = p._oppRanks || [];
     const currMap = {};
     for (const o of curr) currMap[o.id] = o.r;
@@ -118,17 +134,26 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
         if (st >= monthMs) { undoContractsMonth++; undoOffersMonth++; }
       }
       // Count upward band crossings since the previous run.
-      let offerCross = 0;
-      let contractCross = 0;
+      // A crossing counts in a period only if the opp moved stage inside it
+      // (Oct 21: the week runs Monday–Sunday). An opp missing from the last
+      // run's ranks — a pull that came back short — would otherwise count
+      // as a new offer / contract although it got there weeks ago.
+      let offerW = 0, offerM = 0, contractW = 0, contractM = 0;
+      // Per pair: when its ranks were last pulled (a failed pull keeps the old).
+      const sinceLastRun = ((prev.at || Date.parse(prevState?.updatedAt)) - 10 * 60_000) || 0;
       for (const o of curr) {
         const before = prevRanks ? (prevRanks[o.id] ?? -1) : -1;
-        if (!inOfferBand(before) && inOfferBand(o.r)) offerCross++;
-        if (!inContractBand(before) && inContractBand(o.r)) contractCross++;
+        const t = o.t || now.getTime();
+        // …and only if it moved after the last run (10 min slack for the
+        // pull happening before that run saved its state).
+        if (t < sinceLastRun) continue;
+        if (!inOfferBand(before) && inOfferBand(o.r)) { if (t >= weekMs) offerW++; if (t >= monthMs) offerM++; }
+        if (!inContractBand(before) && inContractBand(o.r)) { if (t >= weekMs) contractW++; if (t >= monthMs) contractM++; }
       }
-      offersWeek = weekReset ? bcOffersWeek : Math.max(0, (prev.offersWeek || 0) - undoOffersWeek) + offerCross;
-      offersMonth = monthReset ? bcOffersMonth : Math.max(0, (prev.offersMonth || 0) - undoOffersMonth) + offerCross;
-      contractsWeek = weekReset ? bcContractsWeek : Math.max(0, (prev.contractsWeek || 0) - undoContractsWeek) + contractCross;
-      contractsMonth = monthReset ? bcContractsMonth : Math.max(0, (prev.contractsMonth || 0) - undoContractsMonth) + contractCross;
+      offersWeek = weekReset ? bcOffersWeek : Math.max(0, (prev.offersWeek || 0) - undoOffersWeek) + offerW;
+      offersMonth = monthReset ? bcOffersMonth : Math.max(0, (prev.offersMonth || 0) - undoOffersMonth) + offerM;
+      contractsWeek = weekReset ? bcContractsWeek : Math.max(0, (prev.contractsWeek || 0) - undoContractsWeek) + contractW;
+      contractsMonth = monthReset ? bcContractsMonth : Math.max(0, (prev.contractsMonth || 0) - undoContractsMonth) + contractM;
     }
 
     // Contracts the live count missed, found by hand in GHL
@@ -213,7 +238,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     // eslint-disable-next-line no-unused-vars
     const { _oppRanks, _lost, ...clean } = p;
     newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
-    statePairs[key] = { ranks: currMap, started, cancelled, manualAdded, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    statePairs[key] = { at: now.getTime(), ranks: currMap, started, cancelled, manualAdded, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {

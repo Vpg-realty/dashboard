@@ -137,8 +137,10 @@ export function aggregatePair({
     const stageName = stageById[o.pipelineStageId] || o.stage || '';
     const key = stageKey(stageName);
     const rank = STAGE_RANK[key] || 0;
-    if (o.id) oppRanks.push({ id: o.id, r: rank });
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
+    // t = when it last moved stage: stickyCounts only counts a crossing in a
+    // week / month it actually happened in (Oct 21).
+    if (o.id) oppRanks.push({ id: o.id, r: rank, t: stageChange });
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const created = ts(o.createdAt || o.dateAdded);
 
