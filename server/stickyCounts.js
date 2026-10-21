@@ -190,7 +190,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       const manualIn = (from) => manualContracts.filter((mc) => `${mc.rep}|${mc.mkt}` === key && Date.parse(mc.at) >= from).length;
       offersWeek = Math.min(offersWeek, moved(weekMs, inOfferBand) + manualIn(weekMs));
       offersMonth = Math.min(offersMonth, moved(monthMs, inOfferBand) + manualIn(monthMs));
-      capContracts = { manualW: manualIn(weekMs), manualM: manualIn(monthMs), movedW: curr.filter((o) => o.t >= weekMs && inContractBand(o.r)).length, movedM: curr.filter((o) => o.t >= monthMs && inContractBand(o.r)).length };
+      capContracts = { manualW: manualIn(weekMs), manualM: manualIn(monthMs) };
     }
 
     // "New deal" start times (Luke, Oct 7): the first time each opp reached
@@ -209,7 +209,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       if (prevStarted && prevStarted[o.id] != null) {
         started[o.id] = prevStarted[o.id];
       } else if (inContractBand(o.r)) {
-        started[o.id] = prevStarted ? (stageSinceById[o.id] || now.getTime()) : 0;
+        started[o.id] = prevStarted ? (stageSinceById[o.id] || o.t || now.getTime()) : 0;
       }
     }
     const deals = (p.deals || []).map((d) => ({ ...d, startedAt: started[d.id] || null }));
@@ -249,15 +249,19 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     const cancelsWeek = cancelList.filter((c) => c.at >= weekMs).length;
     const cancelsMonth = cancelList.filter((c) => c.at >= monthMs).length;
     // Contracts' ceiling (Oct 21: Sam WA and Spencer TN kept 1 because
-    // leads abandoned this week left room): deals that moved into the band
-    // in the period, plus contracts cancelled in it — not every lost lead.
+    // leads abandoned this week left room): deals that entered the band in
+    // the period, plus contracts cancelled in it — not every lost lead.
     if (capContracts) {
       // A cancel only leaves room when the contract itself started in the
       // period (Spencer TN, Oct 21: a deal contracted earlier and cancelled
       // this week kept a contract on this week's count).
       const startedIn = (from) => cancelList.filter((c) => c.at >= from && (c.startedAt || 0) >= from).length;
-      contractsWeek = Math.min(contractsWeek, capContracts.movedW + startedIn(weekMs) + capContracts.manualW);
-      contractsMonth = Math.min(contractsMonth, capContracts.movedM + startedIn(monthMs) + capContracts.manualM);
+      // Deals in the band count only when they first entered it in the
+      // period (`started`) — a move inside the band (Under Contract → Dispo
+      // → Assigned) this week left room for one more (Spencer TN, Oct 21).
+      const enteredIn = (from) => curr.filter((o) => inContractBand(o.r) && o.t >= from && (started[o.id] || 0) >= from).length;
+      contractsWeek = Math.min(contractsWeek, enteredIn(weekMs) + startedIn(weekMs) + capContracts.manualW);
+      contractsMonth = Math.min(contractsMonth, enteredIn(monthMs) + startedIn(monthMs) + capContracts.manualM);
     }
 
     // Strip the internal per-opp lists — they must never reach the browser.
