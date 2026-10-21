@@ -2594,7 +2594,13 @@ tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 **Road to Hawaii** (Luke, Oct 21): the team's six-month goal — $1.5M net
 assignments, Oct 1 – Mar 31 (`TEAM_GOAL` in src/utils/teamGoal.js) — as an
 Aloha-themed bar on the left of every TV tab (`components/GoalRail.jsx`,
-TvMode only; hidden under xl width and in mock mode). Headline = projected =
+TvMode only; hidden under xl width and in mock mode) on a moving tiki beach
+(Luke: "very tiki focused … funny to see"): sunset sky, drifting clouds,
+tiki sign between flickering torches, swaying palms, rolling waves with a
+flamingo float, a tiki head whose eyes glance around, a crab on the sand, a
+surfer riding the top of the bar, wave tops on the fills, a 🍹 at the goal
+and a funny line that changes every 8 s (`LINES`); animations are CSS
+`hi-*` in index.css (transforms only, off for reduced motion). Headline = projected =
 closed + open deals assigned with a VPG price, by COE in the stretch (the
 Finance outlook's rule, `goalTotals`); solid teal closed, striped aqua
 assigned, a yellow ✈️ pace line that climbs once a day (`goalPace`: goal ×
