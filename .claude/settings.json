@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Agent",
+      "WebFetch",
+      "WebSearch",
+      "mcp__Claude_GHL__list_locations",
+      "mcp__Claude_GHL__search_operations",
+      "mcp__Claude_GHL__describe_operation",
+      "mcp__Claude_GHL__execute_operation",
+      "mcp__github",
+      "mcp__Claude_Code_Remote"
+    ]
+  }
+}
