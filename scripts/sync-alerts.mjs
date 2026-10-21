@@ -41,6 +41,16 @@ async function main() {
   };
   const key = apiKey(secrets);
   const client = key ? new Anthropic({ apiKey: key }) : null;
+  // The board's counts per sub-account (Oct 21), so a Claude Code session can
+  // check them against GHL — the site's data files sit behind the login. One
+  // settings row per run.
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'data.json'), 'utf8'));
+    const counts = Object.fromEntries((data.pairs || []).map((p) => [`${p.repId}|${p.marketId}`,
+      [p.oppsOpenedWeek, p.offersWeek, p.contractsWeek, p.oppsOpenedMonth, p.offersMonth, p.contractsMonth, p.dealsClosedMonth].map((n) => n || 0)]));
+    await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('board_counts', ?, ?, 'deploy') ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+      [JSON.stringify({ at: data.generatedAt, cols: ['openedW', 'offersW', 'contractsW', 'openedM', 'offersM', 'contractsM', 'closedM'], counts }), new Date().toISOString()]);
+  } catch (err) { console.warn(`[alerts] board counts not saved: ${err.message}`); }
   const deals = (await query('SELECT id, data FROM deals WHERE deleted = 0'))[0].results.map((r) => ({ ...JSON.parse(r.data), id: r.id }));
   // The worker ran in the last 10 minutes → it has the tasks, leads and dupes.
   const live = JSON.parse((await query("SELECT value FROM settings WHERE key = 'alerts_live'"))[0]?.results?.[0]?.value || 'null');

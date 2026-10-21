@@ -2140,6 +2140,13 @@ previous state and numbers instead of wiping its ranks (which made the next
 run count every deal already in the band as new). The TV Agents tab's
 per-rep "Added This Week" bars are each pair's `agentsAddedWeek` (created
 since Monday) — they were a rolling 7-day tier-total change.
+**Ceiling** (Oct 21, Luke: "why does it say that sam has 4 contracts
+accepted this week?" — his WA sub-account's four deals that closed Aug–Oct 9
+had been counted again after a short pull): each run, a period's offers /
+contracts are capped at the deals that moved stage inside it (`t`) and now
+sit in that band or in Lost / Abandoned, plus hand-entered contracts in it —
+so a count that's already wrong corrects itself on the next run. Checked in
+GHL: Sam had no deal reach Under Contract that week.
 
 If contracts ever appear inflated (e.g. Luke's "58 contracts when it
 should be much less"), the failure mode is usually one of:

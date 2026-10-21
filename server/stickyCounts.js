@@ -178,6 +178,21 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     contractsWeek = Math.max(contractsWeek, bcContractsWeek);
     contractsMonth = Math.max(contractsMonth, bcContractsMonth);
 
+    // Ceiling (Oct 21: Sam's WA showed 4 contracts this week — four deals
+    // that closed in Aug–Oct, counted again after a short pull wiped the
+    // ranks): a period can't hold more offers / contracts than deals that
+    // moved stage inside it and now sit in that band or were moved to
+    // Lost / Abandoned, plus the hand-entered contracts in it. Fixes a
+    // count that's already wrong on the next run.
+    if (curr.length && curr.every((o) => o.t != null)) {
+      const moved = (from, band) => curr.filter((o) => o.t >= from && (band(o.r) || o.r === BAND_MAX)).length;
+      const manualIn = (from) => manualContracts.filter((mc) => `${mc.rep}|${mc.mkt}` === key && Date.parse(mc.at) >= from).length;
+      offersWeek = Math.min(offersWeek, moved(weekMs, inOfferBand) + manualIn(weekMs));
+      offersMonth = Math.min(offersMonth, moved(monthMs, inOfferBand) + manualIn(monthMs));
+      contractsWeek = Math.min(contractsWeek, moved(weekMs, inContractBand) + manualIn(weekMs));
+      contractsMonth = Math.min(contractsMonth, moved(monthMs, inContractBand) + manualIn(monthMs));
+    }
+
     // "New deal" start times (Luke, Oct 7): the first time each opp reached
     // the contract band (Under Contract or later), so the TV celebrates a
     // deal once — on Under Contract, or on DISPO Active if it skipped Under
