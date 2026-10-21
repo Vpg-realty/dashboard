@@ -32,7 +32,7 @@ import AlertStrip from '../components/AlertStrip.jsx';
 import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import SubAccountsView from '../settings/SubAccountsView.jsx';
 import { useDataStatus, refreshNow } from '../data/source.js';
-import { sectionsFor, resolve, hrefOf, navRole } from './sections.js';
+import { sectionsFor, resolve, hrefOf, navRole, extraFor } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
@@ -110,8 +110,9 @@ function useStoredFlag(key, initial) {
 export default function AppShell({ me }) {
   const { path, query } = useLocation();
   const role = navRole(me);
-  const { section, tab } = resolve(path, role);
-  const sections = sectionsFor(role);
+  const extra = extraFor(me);
+  const { section, tab } = resolve(path, role, extra);
+  const sections = sectionsFor(role, extra);
   const [palette, setPalette] = useState(false);
   const [collapsed, setCollapsed] = useStoredFlag('vpg.sidebarCollapsed', false);
   const [refreshing, setRefreshing] = useState(false);
@@ -292,7 +293,7 @@ export default function AppShell({ me }) {
       </nav>
 
       <CelebrationBanner />
-      <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} extra={extra} />
       {!me.viewAs && <Welcome me={me} />}
       {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id === 'zips' || tab?.id === 'holds' || tab?.id === 'health' ? 'zips' : 'territory'} />}
     </div>

@@ -430,6 +430,12 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   filter (`?show=`), search. D1 `suggestions` / `suggestion_comments`
   (`edge/suggestions.sql`, created Oct 15); API `functions/api/suggestions`
   (logic `edge/suggestions.js`), writes in `edit_log`, none while viewing as.
+  **Extra people** (Luke, Oct 21: Danni): owners add anyone else in
+  Settings › People › Suggestion Box Access — D1 settings `suggest_people`
+  `{emails}` (`checkSuggestPeople`); `canSuggestDb` (edge/suggestions.js)
+  lets them use the API, /api/me sends `suggest`, and `extraFor(me)` in
+  sections.js adds the section to their sidebar / ⌘K. One settings row read
+  per /api/me and per suggestions call — a few hundred reads a day.
 - **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
   the team's own page — `PipelineView` with optional `keep` (filter),
   `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
