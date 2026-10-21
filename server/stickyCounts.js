@@ -27,6 +27,7 @@ const OFFER_RANK = 3; // offer_submitted — see STAGE_RANK in aggregate.js
 const UC_RANK = 5;    // under_contract
 const CLOSED_RANK = 8;
 const STAGE_OF_RANK = { 5: 'under_contract', 6: 'dispo', 7: 'assigned' };
+const QUICK_DROP_MS = 24 * 60 * 60 * 1000; // contract → Lost / Abandoned faster than this = a mistake
 const BAND_MAX = 99;  // abandoned / lost sentinel — outside every band
 
 const inOfferBand = (r) => r >= OFFER_RANK && r < BAND_MAX;
@@ -235,6 +236,11 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       if (fromRank == null && !wasStarted) continue;
       const at = l.at || now.getTime();
       if (at < keepFromMs) continue;
+      // Dropped within a day of going under contract (Luke, Oct 21 — a lead
+      // dragged into Under Contract by mistake, then abandoned): never a
+      // contract, so not a cancel either; the ceiling below then takes the
+      // contract back.
+      if (prevStarted?.[l.id] > 0 && at - prevStarted[l.id] < QUICK_DROP_MS) continue;
       cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0, ...(prevStarted?.[l.id] > 0 ? { startedAt: prevStarted[l.id] } : {}) };
     }
     // Cancels entered by hand from the GHL check (manual-cancels.json):
