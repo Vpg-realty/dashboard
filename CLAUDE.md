@@ -2591,6 +2591,20 @@ tab (`TV_VIEWS`) but click-only since Oct 14 (Luke: the TV must not rotate
 to it); clicking it pauses the rotation like any manual pick. The Manager
 tabs (`MANAGER_VIEWS`) are click-only at the end of the nav (`NAV_VIEWS`).
 
+**Road to Hawaii** (Luke, Oct 21): the team's six-month goal — $1.5M net
+assignments, Oct 1 – Mar 31 (`TEAM_GOAL` in src/utils/teamGoal.js) — as an
+Aloha-themed bar on the left of every TV tab (`components/GoalRail.jsx`,
+TvMode only; hidden under xl width and in mock mode). Headline = projected =
+closed + open deals assigned with a VPG price, by COE in the stretch (the
+Finance outlook's rule, `goalTotals`); solid teal closed, striped aqua
+assigned, a yellow ✈️ pace line that climbs once a day (`goalPace`: goal ×
+days so far incl. today ÷ 182, Pacific dates), month-end gridlines, ahead /
+behind chip, "still to go … a month". The TV can't read the tracker's money,
+so `scripts/team-goal.mjs` (after sync-alerts in `npm run snapshot`; one
+read of the deals + 2 settings rows per run, ~30k reads a day; never fails
+the deploy) adds data.json `goal` {closed, closedN, lined, linedN, at};
+build-snapshot carries the last one over, liveStore `useTeamGoal`.
+
 TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
 - **Needs attention strip** (`components/AlertStrip.jsx`) under the tabs:
   IP ends today / tomorrow, DISPO deals whose IP ends within 2 days,

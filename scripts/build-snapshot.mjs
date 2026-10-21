@@ -216,6 +216,10 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
 // scorecard freeze and /api/my-scorecard leave them out (Luke, Oct 20).
 try { snapshot.trainees = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'trainee-reps.json'), 'utf8')); } catch { snapshot.trainees = []; }
 
+// Road to Hawaii totals (scripts/team-goal.mjs refreshes them later in the
+// chain); the last deploy's stay if that step can't reach D1.
+if (prev?.goal) snapshot.goal = prev.goal;
+
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));
 

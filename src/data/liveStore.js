@@ -64,6 +64,7 @@ export const PAIRS = onBoard(initial?.pairs || placeholderPairs).map((p) => ({ .
 let lastSync = initial?.generatedAt || null;
 let lastError = null;
 let lastErrors = initial?.errors || [];
+let GOAL = initial?.goal || null;   // Road to Hawaii totals (scripts/team-goal.mjs)
 let lastFailureAt = null;
 let HISTORY = boardEntries(loadHistoryFromStorage() || []);   // array of daily snapshot entries
 const subscribers = new Set();
@@ -159,8 +160,9 @@ async function fetchSnapshot() {
     lastSync = data.generatedAt || new Date().toISOString();
     lastError = null;
     lastErrors = Array.isArray(data.errors) ? data.errors : [];
+    GOAL = data.goal || GOAL;
     lastFailureAt = null;
-    saveToStorage({ generatedAt: lastSync, pairs: PAIRS, errors: lastErrors });
+    saveToStorage({ generatedAt: lastSync, pairs: PAIRS, errors: lastErrors, goal: GOAL });
     notify();
   } catch (err) {
     lastError = String(err?.message || err);
@@ -475,6 +477,13 @@ export function useDataUpdates() {
     subscribers.add(force);
     return () => subscribers.delete(force);
   }, []);
+}
+
+// The team goal's totals (TV's Road to Hawaii bar), or null before a deploy
+// has added them.
+export function useTeamGoal() {
+  useDataUpdates();
+  return GOAL;
 }
 
 // Status info for the header (last sync, error, mode).
