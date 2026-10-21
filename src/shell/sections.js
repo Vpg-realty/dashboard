@@ -170,7 +170,10 @@ export const SECTIONS = [
 
 // The sections this role sees, each with only the tabs it may open (a tab
 // without `roles` is open to everyone who sees the section).
-export const sectionsFor = (role) => SECTIONS.filter((s) => s.roles.includes(role))
+// `extra` = section ids granted to this person on top of their role (the
+// Suggestion Box for people owners add, /api/me `suggest`).
+export const extraFor = (me) => (me?.suggest ? ['suggestions'] : []);
+export const sectionsFor = (role, extra = []) => SECTIONS.filter((s) => s.roles.includes(role) || extra.includes(s.id))
   .map((s) => (s.tabs ? { ...s, tabs: s.tabs.filter((t) => !t.roles || t.roles.includes(role)) } : s));
 
 // '/board/pipeline' → { section, tab } for this role, falling back to the
@@ -208,11 +211,11 @@ const MOVED = {
   'finance/wires': { section: 'finance', tab: 'money' },
 };
 
-export function resolve(path, role) {
+export function resolve(path, role, extra = []) {
   let [sid, tid] = path.replace(/^\/+/, '').split('/');
   const one = MOVED[`${sid}/${tid}`];
   if (one) { sid = one.section; tid = one.tab; } else if (MOVED[sid]?.tabs) { tid = MOVED[sid].tabs[tid] || tid; sid = MOVED[sid].section; }
-  const allowed = sectionsFor(role);
+  const allowed = sectionsFor(role, extra);
   const section = allowed.find((s) => s.id === sid) || allowed[0] || SECTIONS[0];
   const tab = section.tabs ? section.tabs.find((t) => t.id === tid) || section.tabs[0] : null;
   return { section, tab };

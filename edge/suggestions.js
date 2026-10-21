@@ -9,7 +9,17 @@
 export const KINDS = { fix: 'Something is wrong', change: 'Change something', idea: 'New idea' };
 export const STATUSES = { new: 'New', review: 'Under review', approved: 'Approved', done: 'Done', declined: 'Not now' };
 export const ROLES = ['owner', 'manager', 'tc'];
-export const canSuggest = (u) => !!u && ROLES.includes(u.role);
+// Anyone else owners add by name (Luke, Oct 21: Danni) — D1 settings
+// `suggest_people` { emails: [...] }, set in Settings › People.
+export const canSuggest = (u, extra = []) => !!u && (ROLES.includes(u.role) || (u.role !== 'tv' && u.role !== 'none' && extra.includes(String(u.email || '').toLowerCase())));
+export async function suggestPeople(db) {
+  try {
+    const row = await db.prepare("SELECT value FROM settings WHERE key = 'suggest_people'").first();
+    return (row ? JSON.parse(row.value)?.emails || [] : []).map((e) => String(e).toLowerCase());
+  } catch { return []; }
+}
+// Who may open the Suggestion Box: the roles above, or an extra person.
+export const canSuggestDb = async (db, u) => !!u && (ROLES.includes(u.role) || canSuggest(u, await suggestPeople(db)));
 
 const ID = /^s[a-f0-9]{12}$/;
 const CID = /^c[a-f0-9]{12}$/;

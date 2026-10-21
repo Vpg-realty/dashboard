@@ -76,6 +76,45 @@ function DiscordTest() {
   );
 }
 
+// The Suggestion Box is owners, managers and the TC; owners can add anyone
+// else here (Luke, Oct 21: Danni). D1 settings `suggest_people`.
+const SUGGEST_ROLES = ['owner', 'manager', 'tc'];
+function SuggestAccess({ users }) {
+  const [emails, setEmails] = useState(null);
+  const [pick, setPick] = useState('');
+  const [msg, setMsg] = useState(null);
+  useEffect(() => { readSetting('suggest-people').then((r) => setEmails(r.value?.emails || [])).catch(() => setEmails([])); }, []);
+  if (!emails) return null;
+  const save = async (next, text) => {
+    setMsg(null);
+    try { await writeSetting('suggest-people', { emails: next }); setEmails(next); setMsg({ ok: true, text }); } catch (e) { setMsg({ ok: false, text: e.message }); }
+  };
+  const nameOf = (e) => users.find((u) => u.email.toLowerCase() === e)?.name || e;
+  const others = users.filter((u) => !SUGGEST_ROLES.includes(u.role) && u.role !== 'tv' && u.status !== 'inactive' && !emails.includes(u.email.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <Section title="Suggestion Box Access" sub="Owners, managers and the TC always have the Suggestion Box. Add anyone else here; it shows in their sidebar on their next page load.">
+      <div className="flex flex-wrap items-center gap-2">
+        {emails.length === 0 && <span className="text-[13px] text-zinc-500">Nobody added yet.</span>}
+        {emails.map((e) => (
+          <span key={e} className="inline-flex items-center gap-1.5 rounded-full border border-tan-300 bg-tan-50 pl-3 pr-1 py-0.5 text-[13px] text-navy-800">
+            {nameOf(e)}
+            <button onClick={() => save(emails.filter((x) => x !== e), `${nameOf(e)} removed.`)} aria-label={`Remove ${nameOf(e)}`} className="grid place-items-center w-5 h-5 rounded-full hover:bg-tan-200 text-zinc-500">×</button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select value={pick} onChange={(e) => setPick(e.target.value)} className={`${inputCls} max-w-xs`}>
+          <option value="">Add a person…</option>
+          {others.map((u) => <option key={u.email} value={u.email.toLowerCase()}>{u.name}</option>)}
+        </select>
+        <button disabled={!pick} onClick={() => { const n = nameOf(pick); save([...emails, pick], `${n} can use the Suggestion Box now.`); setPick(''); }} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-40">Add</button>
+      </div>
+      {msg && <div className={`mt-2 text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</div>}
+    </Section>
+  );
+}
+
 const repName = (id) => ALL_REPS.find((r) => r.id === id)?.name || id;
 // Trainers = the pod leads (Settings › People's Pod lead column → pods).
 const useLeads = () => usePods().map((p) => ({ id: p.lead, label: `${repName(p.lead)} · ${p.title}` }));
@@ -243,6 +282,7 @@ export default function PeopleView() {
           {title === 'Everyone' && leadMsg && <div className={`mt-2 text-[13px] ${leadMsg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{leadMsg.text}</div>}
         </Section>
       ))}
+      <SuggestAccess users={users} />
       <Section title="Add a person" sub="Anyone with a @valleypropertygroup.com email can sign in with an emailed code once they're on this list.">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1fr] gap-3 items-end">
           <label><span className="block text-[12.5px] text-zinc-600 mb-1">Full name</span><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} className={inputCls} placeholder="First and last name" /></label>

@@ -93,6 +93,14 @@ export function checkTeamChat(v) {
   return null;
 }
 
+// Extra people allowed in the Suggestion Box (Settings › People, Oct 21):
+// { emails: [company emails] }.
+export function checkSuggestPeople(v) {
+  const e = v?.emails;
+  if (!Array.isArray(e) || e.length > 100) return 'a list of emails';
+  return e.every((x) => /^[^\s@]+@valleypropertygroup\.com$/i.test(String(x))) ? null : 'company emails only';
+}
+
 // "Send a test alert" (Settings → People): { by } — the next deploy posts a
 // test to Discord and clears it (scripts/discord-alerts.mjs).
 export function checkDiscordTest(v) {
