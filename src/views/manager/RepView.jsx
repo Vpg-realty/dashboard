@@ -163,7 +163,6 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
       return mm;
     })(),
   })).sort((a, b) => b.m.convosM - a.m.convosM);
-  const funnel = [['Conversations', m.convosM], ['Opps', m.oppsM], ['Offers', m.offersM], ['Contracts', m.contractsM], ['Closed', m.closedM]];
   const na = (k) => !!m.untracked?.has(k);
   const show = (k, v) => (na(k) ? '—' : v);
   const when = range ? range.label.replace(/ so far.*$/, ' so far') : 'this month';
@@ -304,42 +303,9 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
         {self && !breakdown && <MyCrmCard pairs={pairs} monday={wk} crm={crm} manual={reviewFor(sc, wk, rep.id, null).manual} />}
         <RepProgress sc={sc} rep={rep} pointsOnly={solo} />
         <div className="grid grid-cols-[1.1fr_1.4fr] gap-3 min-h-0">
-          {/* Reps' Full Breakdown carries My Scorecard's funnel (Luke, Oct 19):
-              states as shades, a state picker, team rates on top. */}
-          {solo ? <FunnelCard states={markets} total={m} teamRates={teamRates} when={titleCase(when)} pick={pick} setPick={setPick} untracked={m.untracked} /> : (
-          <div className="rounded-xl bg-white border border-zinc-300/80 px-4 py-3 flex flex-col min-h-0">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Funnel · {when}</div>
-              <div className="text-lg font-bold">Where {first(rep)}'s deals drop off</div>
-              <div className="flex-1 min-h-0 flex flex-col justify-around">
-                {funnel.map(([label, v], i) => {
-                  const st = i > 0 ? STEPS[i - 1] : null;
-                  const isLeak = leak && st && st.key === leak.s.key;
-                  return (
-                    <div key={label}>
-                      {i > 0 && (
-                        <div className={`text-sm font-semibold pl-32 ${isLeak ? 'text-orange-700' : 'text-zinc-500'}`}>
-                          {st ? <>↓ {pct(rate(m, st))}{solo ? ' moved on' : <span className="font-normal"> (team {pct(teamRates[i - 1])})</span>}{isLeak ? (solo ? ' ⚠ your biggest drop' : ' ⚠ biggest leak') : ''}</> : <span className="font-normal text-zinc-400">↓ closings mostly come from earlier months' contracts</span>}
-                        </div>
-                      )}
-                      <div className="grid grid-cols-[8rem_1fr_3.5rem] items-center gap-2">
-                        <span className="text-base font-bold">{label}</span>
-                        <div className="h-[min(1.5rem,2.6vh)] rounded-md bg-zinc-100 overflow-hidden">
-                          {/* Sized against the biggest step shown and capped at 100% — a past
-                              week can have a closing but no conversations on
-                              record (Oct 12: Anthony, June 22–28, bar ran off
-                              the screen). Untracked steps get no bar. */}
-                          {!na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i]) && (
-                            <div className="h-full rounded-md" style={{ width: `${Math.min(100, Math.max(1.5, (v / Math.max(1, ...funnel.map(([, x], j) => (na(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][j]) ? 0 : x || 0)))) * 100))}%`, background: rep.color, opacity: 1 - i * 0.12 }} />
-                          )}
-                        </div>
-                        <span className="text-2xl font-extrabold tabular-nums text-right">{show(['convosM', 'oppsM', 'offersM', 'contractsM', 'closedM'][i], v)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* The same funnel card for reps and for managers' rep panel (Luke,
+              Oct 22: the reps' updates should show in Team Scorecards too). */}
+          <FunnelCard states={markets} total={m} teamRates={teamRates} when={titleCase(when)} pick={pick} setPick={setPick} untracked={m.untracked} whose={solo ? 'Your' : `${first(rep)}'s`} />
           <StateCard markets={markets} when={when} rep={rep} range={range} solo={solo} teamRate={teamRates[0]} />
         </div>
       </div>

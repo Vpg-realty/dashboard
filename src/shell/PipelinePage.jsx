@@ -13,6 +13,7 @@
 // their key date, two weeks at a time). Pipeline A look (Luke, Oct 16): the
 // navy band with the person filter, then the columns — Due this week first.
 // A state filter (`?st=`) and, for opportunities, a search narrow it down.
+import MarketChips from './MarketChips.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import SearchBox from './SearchBox.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -149,12 +150,6 @@ export default function PipelinePage({ mode = 'deals' }) {
     return <button key={v} type="button" onClick={() => pickWho(v === dflt ? null : v)} aria-pressed={on}
       className={`h-7 px-3 rounded-md text-[13px] font-semibold ${on ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{label}</button>;
   };
-  const chip = (id, label, n) => (
-    <button key={id || 'all'} type="button" onClick={() => setQuery({ st: id })} aria-pressed={st === id}
-      className={`h-7 px-2.5 rounded-full text-[12.5px] font-medium ring-1 ring-inset ${st === id ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:ring-navy-300'}`}>
-      {label}{n != null && <span className={`ml-1 tabular-nums ${st === id ? 'text-white/70' : 'text-zinc-400'}`}>{n}</span>}
-    </button>
-  );
 
   return (
     <div className="w-full max-w-[1720px] mx-auto flex flex-col gap-3 h-full min-h-0">
@@ -191,11 +186,8 @@ export default function PipelinePage({ mode = 'deals' }) {
         </div>
       </div>
       {states.length > 1 && (!scoped || oppScope) && (
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          <span className="text-[12.5px] text-zinc-500 mr-1">State</span>
-          {chip(null, 'All states')}
-          {states.map((m) => chip(m.id, MARKET_NAME[m.id] || m.id, counts[m.id]))}
-        </div>
+        <MarketChips className="shrink-0" value={st} onChange={(id) => setQuery({ st: id })}
+          options={states.map((m) => ({ id: m.id, label: MARKET_NAME[m.id] || m.id, count: counts[m.id] }))} />
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>
         {calBlocked ? (
