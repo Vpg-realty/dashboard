@@ -81,6 +81,20 @@ export const SECTIONS = [
     tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
   },
   {
+    // Luke, Oct 22: documents and calculators for everyone — the proof of
+    // funds letter, title agencies by market, the seller finance and
+    // multifamily calculators, and the calculations people saved
+    // (src/toolkit; data in D1, functions/api/toolkit).
+    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true,
+    tabs: [
+      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The current letter', title: 'Proof of funds', blurb: 'The letter to send with offers. Always download it from here — it’s replaced whenever a new one comes in.' },
+      { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
+      { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Goal: $300+ a month cash flow, down payment under 10%.' },
+      { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — current and stabilized NOI, cap rate, cash flow and cash-on-cash. Target: 10–12% cash-on-cash.' },
+      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Saved', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
+    ],
+  },
+  {
     // Territory (Oct 14: areas, states and zips in one place) is owners only
     // since Oct 19 (Luke's site map), laid out like Settings: a left rail with
     // the Map and the Manage pages (src/settings/Frame.jsx).

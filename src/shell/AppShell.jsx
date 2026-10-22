@@ -50,6 +50,11 @@ import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
 import RepsStates from '../territory/RepsStates.jsx';
 import MyZips from '../zips/MyZips.jsx';
 import AllZips from '../zips/AllZips.jsx';
+import ProofOfFunds from '../toolkit/ProofOfFunds.jsx';
+import TitleAgencies from '../toolkit/TitleAgencies.jsx';
+import SellerFinance from '../toolkit/SellerFinance.jsx';
+import Multifamily from '../toolkit/Multifamily.jsx';
+import MyCalcs from '../toolkit/MyCalcs.jsx';
 
 // Zip Center's views as Territory rail entries (Oct 22).
 const ZipBrowse = () => <AllZips view="browse" />;
@@ -62,6 +67,7 @@ const VIEWS = {
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView,
+  'tk-pof': ProofOfFunds, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
