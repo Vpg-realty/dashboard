@@ -16,7 +16,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import TimePicker from '../deals/TimePicker.jsx';
 import { REPS } from '../data/config.js';
-import { LEAD_TYPE, HINT_WORD, linkOf, marketOf, dupeRefs, refLink } from './kinds.js';
+import { LEAD_TYPE, HINT_WORD, linkOf, subTag, dupeRefs, refLink } from './kinds.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
@@ -83,20 +83,33 @@ function DueTag({ a, today }) {
   return <span className="rounded px-1.5 py-px text-[11px] font-semibold bg-zinc-100 text-zinc-600">{dayLabel(a.due)}{a.due_time ? ` · ${hm12(a.due_time)}` : ''}</span>;
 }
 
+// The "Sam · WA" box: the rep's first name and the sub-account's state, in
+// the rep's colour.
+function SubTag({ t, arrow }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {arrow && <span className="text-zinc-400 text-[12px]">→</span>}
+      <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[12.5px] font-bold text-navy-900 bg-white" style={{ borderColor: t.color }}>
+        <span className="w-2 h-2 rounded-full" style={{ background: t.color }} />{t.label}
+      </span>
+    </span>
+  );
+}
+
 function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
   const k = a.kind === 'dupe' && a.hint === 'potential' ? { ...KIND.dupe, label: 'Potential duplicate' } : KIND[a.kind] || KIND.task;
   const url = linkOf(a);
-  const whose = a.holder !== me ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
+  const whose = a.holder !== me && a.kind !== 'lead' && a.kind !== 'dupe' ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
   // Done for this person: their own tick, or closed for everyone.
   const mine = (a.marks || []).find((m) => m.who === me);
   const done = !!a.done_at || !!mine;
   const others = (a.marks || []).filter((m) => m.who !== me);
   const type = a.kind === 'lead' && a.verdict ? LEAD_TYPE[a.verdict] : null;
   const refs = dupeRefs(a);
-  // The market first in a lead's headline; a duplicate names every market
-  // its leads came from (Luke, Oct 22).
-  const market = a.kind === 'lead' ? marketOf(a.sub)
-    : a.kind === 'dupe' ? [...new Set(refs.map((r) => marketOf(r.sub)).filter(Boolean))].join(' + ') || null : null;
+  // The rep and sub-account it came from, as a box next to the address
+  // ("Sam · WA", Luke, later Oct 22); a duplicate shows one per rep.
+  const tags = a.kind === 'lead' ? [subTag(a.sub)].filter(Boolean)
+    : a.kind === 'dupe' ? refs.map((r) => subTag(r.sub)).filter(Boolean) : [];
   return (
     <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${type ? `border-l-4 ${type.row}` : ''} ${isNew && !done && !type ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-75' : ''}`}>
       {a.kind === 'lead' ? <span /> : sel ? (
@@ -110,7 +123,10 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
       <div className="min-w-0">
         {/* The address first (Luke, Oct 22), or that none was given. */}
         {(a.kind === 'lead' || a.kind === 'dupe') && (
-          <div className={`mb-0.5 text-[13.5px] font-bold ${a.addr ? 'text-navy-900' : 'text-zinc-500'}`}>📍 {a.addr || 'No address given'}</div>
+          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {tags.map((t, i) => <SubTag key={i} t={t} arrow={i > 0} />)}
+            <span className={`text-[13.5px] font-bold ${a.addr ? 'text-navy-900' : 'text-zinc-500'}`}>📍 {a.addr || 'No address given'}</span>
+          </div>
         )}
         <div className={`font-semibold text-navy-800 leading-snug ${done ? 'line-through decoration-zinc-400' : ''}`}>
           {isNew && !done && <span className="mr-1.5 rounded px-1.5 py-px text-[11px] font-bold bg-rose-600 text-white align-[1px]">NEW</span>}
@@ -118,7 +134,6 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
           {type && <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${type.chip}`}>{type.label}</span>}
           {a.kind === 'lead' && !a.verdict && HINT_WORD[a.hint] && <span title="Claude's guess — pick the type to teach it" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
-          {market && <span className="mr-1 text-navy-900">{market} ·</span>}
           {a.title}
         </div>
         <div className="mt-0.5 text-[12.5px] text-zinc-500">
@@ -147,7 +162,7 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
               <div key={`${r.rep}-${i}`} className="px-3 py-2 flex flex-wrap items-start gap-x-3 gap-y-1">
                 <div className="min-w-0 flex-1">
                   <div className="text-[12.5px] font-semibold text-navy-800">
-                    {i + 1}. {r.name}{r.pod ? ` (${r.pod})` : ''}{marketOf(r.sub) ? ` · ${marketOf(r.sub)}` : ''}
+                    {i + 1}. {subTag(r.sub) && <SubTag t={subTag(r.sub)} />} {r.pod ? <span className="font-normal text-zinc-600">{r.pod}</span> : null}
                     <span className="font-normal text-zinc-500"> · {new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(r.at))}</span>
                   </div>
                   {r.text && <div className="mt-0.5 text-[12.5px] text-zinc-700 whitespace-pre-line">“{r.text}”</div>}

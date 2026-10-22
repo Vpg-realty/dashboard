@@ -1186,10 +1186,14 @@ Overrides the Alerts notes above where they differ.
 - **Order** (Luke, later Oct 22: "organize lead alerts from earliest to
   latest top down"): leads and duplicates sort oldest first (after the due
   date), everything else newest first; Completed stays most recent first.
-- **Market in the headline** (Luke, later Oct 22): a lead's headline starts
-  with its market ("Arizona · Agent sent an address — …", `marketOf(sub)` in
-  src/alerts/kinds.js; Home's Today rows too); a duplicate names every
-  market its leads came from.
+- **Rep · sub-account box** (Luke, later Oct 22: "instead of the state …
+  a simple box … the name of the rep and which sub account it is coming from
+  — for instance 'Sam - WA'"): every lead shows a box in the rep's colour,
+  "Sam · WA" (`subTag(sub)` in src/alerts/kinds.js, `SubTag` in
+  AlertsView), beside the address; a duplicate shows one per rep ("Patrick ·
+  AZ → Danni · AZ") and again in Where It Happened. Home's Today rows read
+  "New lead · Sam · WA · <address>". The rep's name left the line under the
+  headline for leads / dupes (the box says it).
 - **Duplicates open in GHL** (Luke, later Oct 22: "open to GHL to show
   message of where this happened"): each dupe keeps its leads as JSON in
   `quote` — `[{rep, name, pod, at, sub, conv, contact, text}]`, written by
