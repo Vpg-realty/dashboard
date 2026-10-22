@@ -1297,6 +1297,73 @@ Overrides older My Scorecard / Full Breakdown notes.
 - **Sidebar**: Finance sits below Team Scorecards (Luke, Oct 22), not after
   Deals.
 
+## Toolkit (Luke, Oct 22)
+
+Sidebar **Toolkit** (everyone in the app — owners, managers, TC, reps,
+trainees; right under Get Zips; `src/toolkit/`, a rail section like
+Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
+`functions/api/toolkit` (writes in edit_log, none while viewing as).
+- **Proof of Funds** (`/toolkit/pof`): one letter at a time — D1
+  `toolkit_files` row `pof` (base64 PDF, ≤ 1.4 MB, with its expiry date).
+  Everyone downloads it (`GET /api/toolkit/pof`, `?inline=1` opens it; each
+  download logged `toolkit.pof.download`); owners upload a new one, which
+  replaces and deletes the old. The chip turns amber 5 days out and red once
+  expired. Owners get an Alerts task 5 days before it expires
+  (`pofReminders`, ext_id `pof:<expires>:<holder>`, made by the deploy's
+  sync-alerts — two small reads a run); a new upload closes the old letter's
+  reminders (`closeOldPof`).
+- **Title Agencies** (`/toolkit/title`, `?st=` the market): D1
+  `title_agencies` (state = full name, or `Other` = "All other states"),
+  loaded Oct 22 from Luke's list (18 agencies, 14 states + Other). Market
+  chips (`MarketChips`), search, Copy (name / contact / email / phone /
+  address), mailto / tel links. Owners, managers and the TC add, edit,
+  remove and ★ the one to use first per state (`prefer` — one per state); a
+  state with none shows "use the one for all other states". Never in the repo.
+- **Calculators** — the math is `src/toolkit/calc.js` (shared by the pages,
+  the server's saved summaries and Claude's context):
+  - **Seller Finance** (`/toolkit/seller`, Luke's spec): price, down payment
+    (must be under 10% — `DOWN_MAX_PCT`, red when not), seller financing =
+    price − down, rate, amortization, balloon, monthly taxes / insurance /
+    HOA, and for an investment rent + maintenance / vacancy %. Out: P&I,
+    total payment, cash flow vs the $300 goal (`CASH_FLOW_GOAL`), balance
+    at the balloon, total interest (to the balloon or the full term), the
+    seller's effective yield ((1 + r/12)^12 − 1) and equity by year (down +
+    principal paid, value held at the price).
+  - **Multifamily** (`/toolkit/multifamily`, Luke's TEAM_MF_Caclulator
+    sheet): units (rent now, market rent, sq ft), property tax / yr,
+    insurance, HOA, utilities, lawn, management / vacancy / maintenance % of
+    rent, down %, rate, term, rehab, closing % — current and stabilized
+    (market rents; a unit with none uses rent now) NOI, cap rate, mortgage,
+    cash flow, cash-on-cash = yearly cash flow ÷ (down + closing + rehab),
+    green ≥ 10% (`COC_TARGET`), amber 6–10%, red below. Rehab is its own
+    line (the sheet folded it into closing — same result). The sheet's
+    guidance shows under each field (`MF_HINTS`).
+  - Both: the bar under the calculator (`CalcFrame.jsx` CalcBar) — a name,
+    **Link to an opportunity** (`OppPicker`: opps.json + the board's
+    contracted deals, scoped like Home — reps theirs, pod leads their pod,
+    owners / TC everyone; opens in GHL), Discard, Save, Save a Copy, New,
+    **Download PDF** (`print.js`: a clean page, the browser's Save as PDF).
+    An unsaved draft stays on the device (localStorage `vpg.calc.<kind>`,
+    `useCalc.js`); `?calc=<id>` opens a saved one.
+- **My Calculations** (`/toolkit/saved`): D1 `calcs` (kind seller | mf,
+  inputs, summary, opp, rep_id, by). Each person sees their own; a pod lead
+  also their pod's reps (`refreshPods`) and their trainees
+  (`training_people.trainer`); owners everyone's (Luke, Oct 22: "saved
+  calculations by reps should be seen by pod leads and owners"). Mine /
+  My pod / Everyone, calculator chips, search; Open, Copy (a new draft),
+  Remove (whoever saved it, or an owner). Only the author (or an owner)
+  changes a saved one; others Save a Copy. Results coloured against the
+  goals; a down payment of 10%+ is flagged.
+- **Ask Claude about these numbers** (`CalcAsk.jsx`, both calculators): a
+  private thread per person (`chat_messages` thread `calc:<email>`),
+  `edge/calcChat.js` — a briefing with VPG's formulas plus the open
+  calculation worked out (`calcContext`), no other data, no tools; 25
+  questions an Arizona day (`CALC_DAILY`, Luke OK'd), cost counts toward the
+  chat's monthly cap (`chat_cap`); `GET/POST /api/toolkit/ask`.
+- Usage: a Toolkit page load reads the letter's details, the agencies (~20
+  rows) and the saved calculations (all rows, filtered by person) — a few
+  hundred loads a day is well under 1M reads a month.
+
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 
 - **Market chips** = `MarketChips` (src/shell/MarketChips.jsx): "All" then a

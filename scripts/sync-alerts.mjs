@@ -9,6 +9,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { runAlerts, judgeLeads, searchTasks, tokensFrom, ALL_PARTS } from '../edge/alertsSync.js';
+import { holderOf } from '../edge/alerts.js';
+import { pofReminders } from '../edge/toolkit.js';
 
 export { runAlerts, taskFields, planCheckins, judgeLeads, leadTitle, TASKS_FROM, MODEL } from '../edge/alertsSync.js';
 
@@ -60,6 +62,15 @@ async function main() {
     judge: client ? (batch, examples) => judgeLeads(client, batch, examples) : null,
     parts: liveOk ? { checkins: true, deals: true } : ALL_PARTS,
   });
+  // Toolkit: owners' reminder before the proof of funds letter expires (two
+  // small reads per run).
+  try {
+    const pof = (await query("SELECT expires FROM toolkit_files WHERE name = 'pof'"))[0]?.results?.[0];
+    if (pof?.expires) {
+      const owners = (await query("SELECT email, rep_id FROM users WHERE role = 'owner' AND status != 'inactive'"))[0].results.map(holderOf);
+      for (const r of pofReminders(pof.expires, owners)) await query(r.sql, r.args);
+    }
+  } catch (err) { console.warn(`[alerts] proof of funds reminder skipped: ${err.message}`); }
   if (liveOk) console.log(`[alerts] the 2-minute worker has GHL tasks and leads (last run ${live.at})`);
   const errs = Object.keys(status.taskErrors).length;
   console.log(`[alerts] GHL tasks ${status.tasks} (${status.tasksDone} done in GHL${status.tasksOld ? `, ${status.tasksOld} older than the fresh start removed` : ''}${errs ? `, ${errs} sub-accounts refused` : ''}) · deadlines +${status.deadlines || 0} · check-ins +${status.checkins} · texts judged ${status.judged}, leads +${status.leads}${status.leadError ? ` (${status.leadError})` : ''}`);
