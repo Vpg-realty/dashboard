@@ -7,7 +7,7 @@
 // and its Full Breakdown (any period).
 import { useState } from 'react';
 import { PanelHead } from '../../shell/Panel.jsx';
-import SearchSelect from '../../deals/SearchSelect.jsx';
+import MarketChips from '../../shell/MarketChips.jsx';
 import { STEPS, rate, pct } from './metrics.js';
 
 const SHADES = ['#1b385f', '#4a6a94', '#8aa3c4', '#b9c8dc', '#d9e2ee', '#eef2f8'];
@@ -35,7 +35,7 @@ function worstStep(m, teamRates, na) {
   return best;
 }
 
-export function FunnelCard({ states, total, teamRates, when, pick, setPick, untracked, className = '' }) {
+export function FunnelCard({ states, total, teamRates, when, pick, setPick, untracked, whose = 'Your', className = '' }) {
   const na = (k) => !!untracked?.has(k);
   const sel = states.find((s) => s.id === pick);
   const m = sel ? sel.m : total;
@@ -44,14 +44,12 @@ export function FunnelCard({ states, total, teamRates, when, pick, setPick, untr
   const leak = worstStep(m, teamRates, na);
   return (
     <section className={`${card} flex flex-col ${className}`}>
-      <PanelHead title={`${sel ? sel.name : 'Your'} Funnel · ${when}`} sub={sel ? null : 'each state a shade'} right={(
-        // The state picker in the header's tan corner, like every card's
-        // controls (Luke, Oct 20).
-        <SearchSelect className="w-40" value={pick || 'ALL'} onChange={(v) => setPick(v && v !== 'ALL' ? v : null)} clearable={false}
-          buttonClass="w-full h-6 flex items-center gap-1.5 bg-transparent text-left text-[13px] font-semibold text-navy-900 focus:outline-none"
-          pinned={[{ value: 'ALL', label: 'All markets' }]} options={states.map((s) => ({ value: s.id, label: s.name }))} />
-      )} />
+      <PanelHead title={`${sel ? sel.name : whose} Funnel · ${when}`} sub={sel ? null : 'each state a shade'} />
       <div className="px-5 pt-3.5 pb-4 flex-1 flex flex-col gap-3">
+        {/* Market chips like Pipeline / Calendar (Luke, Oct 22: a dropdown
+            was harder to use). */}
+        {states.length > 1 && <MarketChips value={pick} onChange={setPick} allLabel="All markets" label={null}
+          options={states.map((s) => ({ id: s.id, label: s.name }))} />}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
             <span className="font-semibold text-zinc-500 uppercase tracking-wide text-[11px]">Team {when}</span>

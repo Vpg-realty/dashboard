@@ -1148,6 +1148,23 @@ Overrides the Alerts notes above where they differ.
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.
+## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
+
+- **Market chips** = `MarketChips` (src/shell/MarketChips.jsx): "All" then a
+  round chip per state, the picked one navy — Pipeline / Calendar's row,
+  now also the funnel card (`FunnelCard`, FunnelByState.jsx) on My
+  Scorecard, Full Breakdown and the managers' rep panel. No dropdown for
+  picking a market; use this row on any new page that filters by state.
+- **The managers' rep panel** (Team Scorecards, a rep opened) shows the
+  same `FunnelCard` reps see (`whose` = "Axel's"), so the two views match;
+  the panel's canvas is 1280px tall to fit it.
+- **Team Scorecard** is the team tab's name (was Scorecard — Luke, Oct 22,
+  to tell it from My Scorecard; owners too).
+- **Managers' own scorecard** sits in Team Scorecards: tabs **My
+  Scorecard** (`/team/mine`) and **My Full Breakdown** (`/team/my-breakdown`)
+  — the same pages (`my-scorecard`, `my-breakdown`) with tab `roles:
+  ['manager']`; the My Scorecard sidebar entry is reps only now.
+
 ## Oct 22 round, phase 3 — no tabs inside tabs (Luke)
 
 - **Money In & Out**: the Money out / Money in switch, the tiles-as-tabs and

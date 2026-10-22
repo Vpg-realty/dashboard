@@ -546,7 +546,7 @@ function RepDrawer({ id, ids, onPick, onClose, crm }) {
           </span>
         </header>
         <div className="flex-1 min-h-0 overflow-auto p-4">
-          <div className="app-team h-[1060px] min-w-[1100px]">
+          <div className="app-team h-[1280px] min-w-[1100px]">
             <RepView key={id} repId={id} onPickRep={(x) => (x === '__team' ? onClose() : onPick(x))} onBack={onClose} />
           </div>
           {crm?.row && <DrawerCrm {...crm} />}

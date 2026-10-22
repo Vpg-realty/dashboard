@@ -114,7 +114,9 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: each rep sees their own scorecard (team average line, no
     // notes, no other rep's scores); a simple page with the full breakdown below.
-    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team', 'manager'],
+    // Managers see their own scorecard inside Team Scorecards (Luke, Oct 22),
+    // so this entry is the reps' only.
+    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team'],
     tabs: [
       { id: 'scorecard', label: 'This Week & Trend', view: 'my-scorecard', scroll: true },
       // Its own tab (Luke, Oct 15: the "Show the full breakdown" button was easy to miss).
@@ -127,7 +129,12 @@ export const SECTIONS = [
     // Scorecard's Where They Leak view now (old /team/coaching links redirect).
     id: 'team', label: 'Team Scorecards', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
-      { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
+      // "Team Scorecard" (Luke, Oct 22: tells it apart from My Scorecard).
+      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK },
+      // A manager's own scorecard, the same pages reps get (Luke, Oct 22: no
+      // third view, no separate sidebar entry).
+      { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager'] },
+      { id: 'my-breakdown', label: 'My Full Breakdown', view: 'my-breakdown', scroll: true, roles: ['manager'] },
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
