@@ -307,7 +307,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   differ: **one pace rule** (`paceRatio` / `paceKey` / `PACE_NEAR` in
   src/utils/pace.js, used by Home, the Team Scorecards cells, KpiCard / the
   TV boxes): green at or above the whole number "should be at N by now",
-  amber at 75%+, red below; words On pace / Near pace / Behind (finished
+  amber at 75%+ (85%+ and 0 = red since Oct 22, phase 4a), red below; words On pace / Near pace / Behind (finished
   periods Hit / Close / Missed). **Deals** is owners + TC only (reps and
   managers see their deals on Pipeline / Calendar; the API still answers
   them for Home's EMD pills). Active's tiles are All active / Assigned /
@@ -1059,6 +1059,14 @@ Overrides older notes where they differ.
 - **Sold volume** = the VPG assignment price of closed deals (Finance
   Overview, territory state card, the closed-deals map's tracker rows) —
   never the final assignment price.
+
+## Oct 22 round, phase 4a — KPI colours (Luke)
+
+One rule everywhere (`paceRatio` / `PACE_NEAR` in src/utils/pace.js — Home,
+Team Scorecards, My Scorecard, the Rep page, Month in Review, the TV /
+Team Overview boxes): **0 is always red**; green at or above "should be at N
+by now"; yellow at 85–99%; red below 85% (was 75%, and 0 used to count as on
+pace while nothing was due yet). Speed to lead keeps its own 75% standard.
 
 ## Oct 22 round, phase 3 — no tabs inside tabs (Luke)
 

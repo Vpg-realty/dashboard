@@ -17,8 +17,8 @@ export const formatNumber = (n) =>
 
 // Returns Tailwind text + bg classes for an against-target status.
 // status: 'on' | 'warn' | 'behind'
-// The site's one pace rule (utils/pace.js — Luke, Oct 19): at or above the
-// whole number it should be at = on, 75%+ = near, else behind.
+// The site's one pace rule (utils/pace.js — Luke, Oct 22): 0 = behind, at or
+// above the whole number it should be at = on, 85%+ = near, else behind.
 export const kpiStatus = (actual, target) => {
   const r = paceRatio(actual, target);
   const pct = r == null ? 1 : r;

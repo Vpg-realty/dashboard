@@ -42,7 +42,7 @@ function Avatar({ rep, size = 20 }) {
 
 // On pace / Near pace / Behind: label, badge colours, the box's tint (Luke,
 // Oct 14: highlight boxes by pace across the site) — the site's one rule,
-// utils/pace.js (Oct 19: 75% for near, the same red as the scorecards).
+// utils/pace.js (Oct 22: 0 is red, 85% for near, the same red as the scorecards).
 function paceBadge(ratio) {
   const k = paceKey(ratio);
   if (!k) return null;
