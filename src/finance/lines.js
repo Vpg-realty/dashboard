@@ -11,7 +11,7 @@
 // already says YES / N/A, then it was settled in the sheet (`sheet: true`).
 // An approved line whose commission has changed since (a price or rule was
 // edited) is flagged `changed` and needs approving again.
-import { payouts, isAssigned } from '../deals/math.js';
+import { payouts, isAssigned, isOpen } from '../deals/math.js';
 
 export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC' };
 export const METHODS = { ACH: 'ACH', CHECK: 'Check', WIRE: 'Wire', ZELLE: 'Zelle', OTHER: 'Other' };
@@ -163,6 +163,6 @@ export const partLabel = (p) => PARTS[p] || p;
 // by COE — paid when they close (a forecast; amounts can still change).
 export function upcoming(deals, rules) {
   return deals
-    .filter((d) => (up(d.status) === 'PENDING' || up(d.status) === 'ASSIGNED') && isAssigned(d) && typeof d.vpgAssign === 'number' && d.vpgAssign > 0)
+    .filter((d) => isOpen(d) && isAssigned(d) && typeof d.vpgAssign === 'number' && d.vpgAssign > 0)
     .flatMap((d) => payouts(d, rules).map((p) => ({ key: lineKey(d.id, p.part), dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount: cents(p.amount) })));
 }

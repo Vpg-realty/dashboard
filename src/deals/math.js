@@ -16,7 +16,7 @@ export const FIELDS = [
   ['ghlStage', 'GHL stage', 'contract', 'ghl'],
   // Next to the GHL stage (Luke, Oct 14: the GHL stage takes over the deal
   // status — the sync sets it on every stage move, people can still edit it).
-  ['status', 'Deal status', 'contract', 'list'],
+  ['status', 'Stage', 'contract', 'list'],
   ['acq', 'Acq. manager', 'contract', 'person'],
   ['coe', 'COE', 'contract', 'date'],
   ['accepted', 'Contract acceptance', 'contract', 'date'],
@@ -100,23 +100,35 @@ export const GROUPS = [
 const DASHES = new Set(['', '-', '—', '–']);
 export const isBlank = (v) => v == null || (typeof v === 'string' && DASHES.has(v.trim()));
 
-// Deal statuses (Luke, Oct 14: "everything [should] match the pipeline
-// stages"): Pending (under contract / dispo active), Assigned (NEW — a buyer
-// is lined up), Closed (stored COMPLETE, as in the sheet), Cancelled. The GHL
-// sync sets the status when GHL's stage moves (edge/dealSync.js
-// STAGE_STATUS); a person can still change it by hand. Pending and Assigned
-// are both OPEN deals (Active, Summary's pending / projected, alerts, reps'
-// view): `isOpen` is the one test for that.
-export const STATUS_KEYS = ['PENDING', 'ASSIGNED', 'COMPLETE', 'CANCELLED'];
-export const isOpen = (d) => { const s = String(d?.status ?? '').trim().toUpperCase(); return s === 'PENDING' || s === 'ASSIGNED'; };
-// GHL stage → deal status: by the sync's stage id, and by the `ghlStage`
-// mirror's label (what the deal shows).
-export const STAGE_STATUS = { under_contract: 'PENDING', dispo: 'PENDING', assigned: 'ASSIGNED', closed: 'COMPLETE', lost: 'CANCELLED' };
-const LABEL_STATUS = { 'UNDER CONTRACT': 'PENDING', 'DISPO ACTIVE': 'PENDING', ASSIGNED: 'ASSIGNED', CLOSED: 'COMPLETE', 'LOST / ABANDONED': 'CANCELLED', LOST: 'CANCELLED', ABANDONED: 'CANCELLED' };
+// Stage (Luke, Oct 22: "remove the deal status and have it only be the GHL
+// stage"): one field, the GHL stages — Under Contract, Dispo Active,
+// Assigned, Closed (stored COMPLETE, as in the sheet), Cancelled. Stored in
+// the deal's `status`. Deals saved before Oct 22 may still say PENDING (under
+// contract or dispo, never split): `stageOf` reads those as their GHL stage,
+// else Dispo Active — nothing is rewritten in D1. The GHL sync sets the
+// stage when GHL's stage moves (edge/dealSync.js STAGE_STATUS); a person can
+// still change it by hand, and that goes to GHL (edge/deals.js — except
+// Cancelled: the rep marks it Lost or Abandoned in GHL). Under Contract,
+// Dispo Active and Assigned are OPEN deals: `isOpen` is the one test.
+export const STATUS_KEYS = ['UNDER_CONTRACT', 'DISPO_ACTIVE', 'ASSIGNED', 'COMPLETE', 'CANCELLED'];
+const upS = (v) => String(v ?? '').trim().toUpperCase();
+const PENDING_KEYS = new Set(['PENDING', 'UNDER_CONTRACT', 'DISPO_ACTIVE']);
+// Before a buyer: Under Contract or Dispo Active (and the old PENDING).
+export const isPending = (d) => PENDING_KEYS.has(upS(d?.status));
+export const isOpen = (d) => isPending(d) || upS(d?.status) === 'ASSIGNED';
+export function stageOf(d) {
+  const s = upS(d?.status);
+  if (s !== 'PENDING') return s;
+  return upS(d?.ghlStage) === 'UNDER CONTRACT' ? 'UNDER_CONTRACT' : 'DISPO_ACTIVE';
+}
+// GHL stage → stage: by the sync's stage id, and by the `ghlStage` mirror's
+// label (what the deal shows).
+export const STAGE_STATUS = { under_contract: 'UNDER_CONTRACT', dispo: 'DISPO_ACTIVE', assigned: 'ASSIGNED', closed: 'COMPLETE', lost: 'CANCELLED' };
+const LABEL_STATUS = { 'UNDER CONTRACT': 'UNDER_CONTRACT', 'DISPO ACTIVE': 'DISPO_ACTIVE', ASSIGNED: 'ASSIGNED', CLOSED: 'COMPLETE', 'LOST / ABANDONED': 'CANCELLED', LOST: 'CANCELLED', ABANDONED: 'CANCELLED' };
 export const ghlStatus = (d) => LABEL_STATUS[String(d?.ghlStage ?? '').trim().toUpperCase()] || null;
 // The status a person set differs from what GHL's stage says (shown as a
 // "GHL: <stage>" hint on the status cell).
-export const statusDiffersFromGhl = (d) => { const g = ghlStatus(d); return !!g && g !== String(d?.status ?? '').trim().toUpperCase(); };
+export const statusDiffersFromGhl = (d) => { const g = ghlStatus(d); return !!g && g !== stageOf(d); };
 // Every way the tracker and GHL disagree on a deal (Luke, Oct 16: "if
 // something is out of sorts with the tracker … the top was in purple and
 // said it didn't match. this should be a note for every property"): the
@@ -127,7 +139,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export function ghlMismatches(d, g) {
   const out = [];
   const want = g ? STAGE_STATUS[g.stage] : ghlStatus(d);
-  const have = String(d?.status ?? '').trim().toUpperCase();
+  const have = stageOf(d);
   // Which side is behind (Luke, Oct 16: "under contract and dispo active in
   // GHL come before assigned, so everything is correct here" — the tracker
   // said Pending while GHL had it Assigned, and the note told him to move GHL
@@ -135,7 +147,7 @@ export function ghlMismatches(d, g) {
   // status here (GHL moved on, or GHL says Lost); `fix: 'ghl'` = move GHL
   // (the tracker is further along, or finished the deal).
   if (want && have && want !== have) {
-    const ORDER = { PENDING: 0, ASSIGNED: 1, COMPLETE: 2 };
+    const ORDER = { UNDER_CONTRACT: 0, DISPO_ACTIVE: 1, ASSIGNED: 2, COMPLETE: 3 };
     const fix = have === 'CANCELLED' ? 'ghl' : want === 'CANCELLED' || (ORDER[want] ?? 0) > (ORDER[have] ?? 0) ? 'tracker' : 'ghl';
     out.push({ key: 'status', tracker: have, ghl: want, stage: g ? g.stage : d.ghlStage, fix });
   }
@@ -222,7 +234,7 @@ export function pickRules(rules, deal) {
 // — so the fee applies from assignment on. PENDING in a rule means an open
 // deal (Pending or Assigned), as it did before the Assigned status existed,
 // so moving a deal to Assigned never drops a fee it already had.
-export const RULE_STATUSES = [['PENDING', 'Pending'], ['ASSIGNED', 'Assigned'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
+export const RULE_STATUSES = [['PENDING', 'Open (Under Contract / Dispo Active)'], ['ASSIGNED', 'Assigned'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
 export const isAssigned = (d) => is(d.status, 'ASSIGNED') || (!is(d.status, 'CANCELLED') && num(d.vpgAssign) > 0);
 export const statusMatches = (d, s) => (is(s, 'ASSIGNED') ? isAssigned(d) : is(s, 'PENDING') ? isOpen(d) : is(d.status, s));
 const statusIn = (d, list) => (list || []).some((s) => statusMatches(d, s));
@@ -234,7 +246,7 @@ const legacyDispo = (d) => is(d.status, 'COMPLETE') && !isBlank(d.dispoTeam);
 // The sheet's formulas, column by column (AE … AT, Q, V, W). `rules` and
 // `lists` come from D1. Returns the deal with every computed field filled.
 export function compute(deal, rules, lists) {
-  const d = { ...deal };
+  const d = { ...deal, status: deal.status == null ? deal.status : stageOf(deal) };
   const fx = deal.fixed || {};
   const set = (k, v) => { d[k] = k in fx ? fx[k] : v; };
   const r = pickRules(rules, deal);
@@ -245,7 +257,8 @@ export function compute(deal, rules, lists) {
   set('emdDue', addDays(d.accepted, 2));
   set('ddStart', addDays(d.accepted, 1));
   set('ddEnd', addDays(d.accepted, num(d.ddDays)));
-  set('netLoss', num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
+  // An Unknown final assignment price (Oct 22) leaves net loss % blank.
+  set('netLoss', String(d.finalAssign).toUpperCase() === 'UNKNOWN' ? null : num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
   set('grossAssign', cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
   set('tcFee', statusIn(d, r.tcFeeStatuses) ? num(r.tcFee) : 0);
   // VPG always sells the deal now (Luke, Oct 14): net = gross − additional

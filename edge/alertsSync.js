@@ -16,7 +16,7 @@
 //    or say a deal is coming. Each text is judged once (settings
 //    'lead_judged'); the team's answers go along as examples.
 //  - Same address to reps in different pods (dupes).
-import { addrKey } from '../src/deals/math.js';
+import { addrKey, isPending, isOpen } from '../src/deals/math.js';
 import { PODS, podsFrom } from '../scripts/scorecard-lib.mjs';
 
 export const GHL = 'https://services.leadconnectorhq.com';
@@ -256,10 +256,10 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       const holder = repIdOf(d.acq);
       if (!holder) continue;
       const end = ISO.test(d.ddEnd || '') ? d.ddEnd : ISO.test(d.accepted || '') && Number(d.ddDays) ? isoAdd(d.accepted, Number(d.ddDays)) : null;
-      if (up(d.status) === 'PENDING' && !['ASSIGNED', 'CLOSED'].includes(up(d.ghlStage)) && end && end >= today && end <= in2) {
+      if (isPending(d) && !['ASSIGNED', 'CLOSED'].includes(up(d.ghlStage)) && end && end >= today && end <= in2) {
         want.set(`deal:ip:${d.id}:${end}`, { holder, deal: d.id, due: end, title: `IP ends ${end === today ? 'today' : end === isoAdd(today, 1) ? 'tomorrow' : 'in 2 days'} — no buyer yet · ${d.address || 'a deal'}`, body: 'Find a buyer or cancel before the inspection period ends.' });
       }
-      if (['PENDING', 'ASSIGNED'].includes(up(d.status)) && ISO.test(d.coe || '') && d.coe < today) {
+      if (isOpen(d) && ISO.test(d.coe || '') && d.coe < today) {
         want.set(`deal:coe:${d.id}:${d.coe}`, { holder, deal: d.id, due: d.coe, title: `Past COE, still open · ${d.address || 'a deal'}`, body: 'Close it, move the COE, or cancel it in the tracker.' });
       }
     }

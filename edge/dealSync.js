@@ -88,7 +88,7 @@ export function newDealFrom(g, { repName, stateName }) {
     ghlStage: STAGE_LABEL[g.stage] || g.stage,
     acq: repName || null,
     state: stateName ? stateName.toUpperCase() : null,
-    status: STAGE_STATUS[g.stage] || 'PENDING',
+    status: STAGE_STATUS[g.stage] || 'DISPO_ACTIVE',
     dealType: DEAL_TYPE[String(g.dealType || '').toLowerCase()] || 'WHOLESALE',
     price: g.price ?? null,
     title: g.title || null,

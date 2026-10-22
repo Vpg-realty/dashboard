@@ -87,7 +87,7 @@ export function pushStages(pipelines) {
   const p = (pipelines || []).find((x) => keyed(x).assigned) || (pipelines || []).find((x) => keyed(x).closed);
   if (!p) return null;
   const k = keyed(p);
-  return { pipelineId: p.id, assigned: k.assigned || null, closed: k.closed || null, lost: k.lost || k.abandoned || null };
+  return { pipelineId: p.id, under_contract: k.under_contract || null, dispo: k.dispo || null, assigned: k.assigned || null, closed: k.closed || null, lost: k.lost || k.abandoned || null };
 }
 
 export function aggregatePair({

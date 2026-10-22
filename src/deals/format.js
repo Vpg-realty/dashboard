@@ -1,7 +1,7 @@
 // Formatting helpers for the Deals pages.
 import { isOpen } from './math.js';
 export const money = (n, { cents = false } = {}) => {
-  if (typeof n !== 'number' || !Number.isFinite(n)) return n == null || n === '' ? '—' : String(n);
+  if (typeof n !== 'number' || !Number.isFinite(n)) return n == null || n === '' ? '—' : String(n).toUpperCase() === 'UNKNOWN' ? 'Unknown' : String(n);
   if (n === 0) return '–';
   const s = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: cents ? 2 : 0, minimumFractionDigits: cents ? 2 : 0 }).format(Math.abs(n));
   return n < 0 ? `(${s})` : s;
@@ -24,7 +24,8 @@ const STATE_CODES = {
   TENNESSEE: 'TN', TEXAS: 'TX', UTAH: 'UT', VIRGINIA: 'VA', WASHINGTON: 'WA',
 };
 
-const STATUS_LABEL = { PENDING: 'Pending', ASSIGNED: 'Assigned', COMPLETE: 'Closed', CANCELLED: 'Cancelled' };
+// Stage names (Oct 22): the GHL stages; an old PENDING reads as before.
+const STATUS_LABEL = { UNDER_CONTRACT: 'Under Contract', DISPO_ACTIVE: 'Dispo Active', PENDING: 'Pending', ASSIGNED: 'Assigned', COMPLETE: 'Closed', CANCELLED: 'Cancelled' };
 export const statusLabel = (s) => STATUS_LABEL[String(s || '').toUpperCase()] || s || '—';
 
 export const selectCls = 'h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px] text-zinc-800 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100';

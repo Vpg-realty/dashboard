@@ -6,6 +6,7 @@
 // numbers vs the compare period, their place among the others, and every
 // deal counted for them in the period (status filter `?fs=`, CSV). A deal
 // opens the deal panel on top. Esc or × closes.
+import { isOpen } from './math.js';
 import { useEffect, useMemo } from 'react';
 import { useLocation, setQuery } from '../shell/router.js';
 import { usePeriod, inPeriod, DATE_BY } from './period.js';
@@ -17,7 +18,7 @@ import { stats, groupStats, KINDS, titleCase, pctTxt, n } from './summaryStats.j
 import { Stat, Delta } from './summaryUi.jsx';
 
 const FILTERS = [['all', 'All'], ['open', 'Open'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
-const isOpenStatus = (s) => s === 'PENDING' || s === 'ASSIGNED';
+const isOpenStatus = (s) => isOpen({ status: s });
 // What each kind of file shows as its own money column (owners).
 const OWN = { acq: ['Acq. commission', 'acqComm'], dispo: ['Dispo commission', 'dispoComm'], state: ['Net profit', 'netProfit'] };
 

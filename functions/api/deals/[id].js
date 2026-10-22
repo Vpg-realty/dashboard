@@ -7,7 +7,7 @@
 //        deal.ghlSub = the GHL sub-account it's linked to ({ location, rep,
 //        market }) or null.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks, canManagerEdit, MANAGER_KEYS, ghlPushes } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks, canManagerEdit, MANAGER_KEYS, ghlPushes, leadValuePush, getSetting } from '../../../edge/deals.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -61,7 +61,9 @@ export async function onRequestPatch(context) {
   const now = new Date().toISOString();
   // Address, title / escrow, COE or IP end changed → queue them for GHL
   // (every opportunity linked to this deal).
-  const pushes = ghlPushes(rowToDeal(row), out.deal);
+  // …and the lead value (net assignment) when it moved (Oct 22).
+  const [rules, lists] = await Promise.all([getSetting(db, 'deal_rules'), getSetting(db, 'deal_lists')]);
+  const pushes = [...ghlPushes(rowToDeal(row), out.deal), ...leadValuePush(rowToDeal(row), out.deal, rules, lists)];
   const links = pushes.length ? (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results : [];
   await db.batch([
     db.prepare('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(dataOf(out.deal), now, user.name, id),

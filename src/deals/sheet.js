@@ -17,6 +17,7 @@
 //     proper case as soft pills (values.js / pills.jsx), so a "No" on CFAR or
 //     EMD returned shows on its own pill instead of a filled cell.
 // The sheet's priority order is kept (first match wins).
+import { isPending } from './math.js';
 import { daysBetween } from './status.js';
 import { laToday } from '../utils/historyRange.js';
 
@@ -67,7 +68,7 @@ export function cellStyle(d, f, today = laToday()) {
   if (k === 'netLoss' && netLossHigh(d)) return ALERT;
   if (['acqComm', 'dispoComm', 'mgrComm', 'override', 'tcComm'].includes(k) && up(d.commPaid) === 'NO') return CHECK;
   if ((k === 'addlFees' || k === 'tcFee') && typeof d.addlFees === 'number' && d.addlFees > 0) return CHECK;
-  if ((k === 'ddEnd' || k === 'ddEndTime') && (st === 'PENDING' || st === 'ASSIGNED') && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
+  if ((k === 'ddEnd' || k === 'ddEndTime') && (isPending(d) || st === 'ASSIGNED') && /^\d{4}-\d{2}-\d{2}$/.test(d.ddEnd || '')) {
     const n = daysBetween(today, d.ddEnd);
     if (n === 0) return ALERT;
     if (n === 1) return SOON;

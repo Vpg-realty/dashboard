@@ -44,24 +44,35 @@ const parseNum = (t) => {
   const x = String(t).replace(/[$,\s]/g, '');
   return /^-?\d*\.?\d+$/.test(x) ? Number(x) : null;
 };
+// Final assignment price can be "Unknown" (Luke, Oct 22: a buyer who won't
+// share it) — stored as UNKNOWN, counts as filled in, typed or picked.
+export const UNKNOWN = 'UNKNOWN';
+const canUnknown = (f) => f.key === 'finalAssign';
 function NumberInput({ f, value, onChange, base, autoFocus, disabled }) {
-  const shown = typeof value === 'number' ? String(value) : '';
+  const unknown = canUnknown(f) && String(value || '').toUpperCase() === UNKNOWN;
+  const shown = typeof value === 'number' ? String(value) : unknown ? 'Unknown' : '';
   const [text, setText] = useState(shown);
   const [was, setWas] = useState(shown);
   if (shown !== was) { setWas(shown); if (parseNum(text) !== value) setText(shown); }
-  const bad = text.trim() && !isBlank(text) && parseNum(text) == null;
+  const bad = text.trim() && !isBlank(text) && parseNum(text) == null && !(canUnknown(f) && /^\s*unknown\s*$/i.test(text));
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1.5">
       {f.type === 'money' && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400">$</span>}
       <input type="text" inputMode="decimal" autoFocus={autoFocus} disabled={disabled} value={text} placeholder={typeof value === 'string' && value ? value : '—'}
         onChange={(e) => {
           const t = e.target.value;
           setText(t);
           if (isBlank(t)) onChange(null);
+          else if (canUnknown(f) && /^\s*unknown\s*$/i.test(t)) onChange(UNKNOWN);
           else { const n = parseNum(t); if (n != null) onChange(n); }
         }}
         title={bad ? 'Not a number — type digits, or "-" for no data' : undefined}
         className={`${base} tabular-nums ${f.type === 'money' ? 'pl-5' : ''} ${bad ? 'border-[#F5C2BD] ring-1 ring-[#F5C2BD]' : ''}`} />
+      {canUnknown(f) && !disabled && (
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { const next = unknown ? null : UNKNOWN; setText(next ? 'Unknown' : ''); onChange(next); }}
+          title="We don't know the final assignment price — counts as filled in" aria-pressed={unknown}
+          className={`shrink-0 h-8 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${unknown ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'}`}>Unknown</button>
+      )}
     </div>
   );
 }

@@ -344,7 +344,7 @@ export default function ActiveView() {
           </span>
         )}
         <Search value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
-        {ed && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
+        {ed && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       {/* Three tiles (Luke, Oct 19: "All / Assigned / Dispo Active"); EMD,
           past COE, closing soon and Needs info stay as sections and next steps. */}
