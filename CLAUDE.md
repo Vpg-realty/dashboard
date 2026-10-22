@@ -1186,6 +1186,19 @@ Overrides the Alerts notes above where they differ.
 - **Order** (Luke, later Oct 22: "organize lead alerts from earliest to
   latest top down"): leads and duplicates sort oldest first (after the due
   date), everything else newest first; Completed stays most recent first.
+- **Market in the headline** (Luke, later Oct 22): a lead's headline starts
+  with its market ("Arizona · Agent sent an address — …", `marketOf(sub)` in
+  src/alerts/kinds.js; Home's Today rows too); a duplicate names every
+  market its leads came from.
+- **Duplicates open in GHL** (Luke, later Oct 22: "open to GHL to show
+  message of where this happened"): each dupe keeps its leads as JSON in
+  `quote` — `[{rep, name, pod, at, sub, conv, contact, text}]`, written by
+  edge/alertsSync.js (older dupes are filled in without reopening) — and its
+  own `sub` / `conv` / `contact` = the holder's lead. The row's Open in GHL
+  goes to that conversation; a **Where It Happened** box lists every rep's
+  text with its own Open in GHL link (`dupeRefs` / `refLink`).
+- **Add a task** sits on the Tasks view only (Luke, later Oct 22: the other
+  views aren't task lists).
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.

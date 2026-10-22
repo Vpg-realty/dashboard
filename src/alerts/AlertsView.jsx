@@ -16,7 +16,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import TimePicker from '../deals/TimePicker.jsx';
 import { REPS } from '../data/config.js';
-import { LEAD_TYPE, HINT_WORD, linkOf } from './kinds.js';
+import { LEAD_TYPE, HINT_WORD, linkOf, marketOf, dupeRefs, refLink } from './kinds.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
@@ -92,6 +92,11 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
   const done = !!a.done_at || !!mine;
   const others = (a.marks || []).filter((m) => m.who !== me);
   const type = a.kind === 'lead' && a.verdict ? LEAD_TYPE[a.verdict] : null;
+  const refs = dupeRefs(a);
+  // The market first in a lead's headline; a duplicate names every market
+  // its leads came from (Luke, Oct 22).
+  const market = a.kind === 'lead' ? marketOf(a.sub)
+    : a.kind === 'dupe' ? [...new Set(refs.map((r) => marketOf(r.sub)).filter(Boolean))].join(' + ') || null : null;
   return (
     <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${type ? `border-l-4 ${type.row}` : ''} ${isNew && !done && !type ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-75' : ''}`}>
       {a.kind === 'lead' ? <span /> : sel ? (
@@ -113,6 +118,7 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
           {type && <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${type.chip}`}>{type.label}</span>}
           {a.kind === 'lead' && !a.verdict && HINT_WORD[a.hint] && <span title="Claude's guess — pick the type to teach it" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
+          {market && <span className="mr-1 text-navy-900">{market} ·</span>}
           {a.title}
         </div>
         <div className="mt-0.5 text-[12.5px] text-zinc-500">
@@ -131,7 +137,26 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
             ✓ Reviewed by {others.map((m) => m.name).join(', ')}{type ? ` · ${type.label}` : ''}
           </div>
         )}
-        {a.quote && <div className="mt-1.5 text-[13px] text-zinc-700 bg-violet-50 border-l-[3px] border-violet-400 rounded px-2.5 py-1.5 whitespace-pre-line">“{a.quote}”</div>}
+        {a.quote && a.kind !== 'dupe' && <div className="mt-1.5 text-[13px] text-zinc-700 bg-violet-50 border-l-[3px] border-violet-400 rounded px-2.5 py-1.5 whitespace-pre-line">“{a.quote}”</div>}
+        {/* Where it happened (Luke, Oct 22): each rep's text from the agent,
+            with its own link to that conversation in GHL. */}
+        {refs.length > 0 && (
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/60 divide-y divide-amber-100">
+            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-800">Where It Happened</div>
+            {refs.map((r, i) => (
+              <div key={`${r.rep}-${i}`} className="px-3 py-2 flex flex-wrap items-start gap-x-3 gap-y-1">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12.5px] font-semibold text-navy-800">
+                    {i + 1}. {r.name}{r.pod ? ` (${r.pod})` : ''}{marketOf(r.sub) ? ` · ${marketOf(r.sub)}` : ''}
+                    <span className="font-normal text-zinc-500"> · {new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(r.at))}</span>
+                  </div>
+                  {r.text && <div className="mt-0.5 text-[12.5px] text-zinc-700 whitespace-pre-line">“{r.text}”</div>}
+                </div>
+                {refLink(r) && <a href={refLink(r)} target="_blank" rel="noopener noreferrer" className="h-7 inline-flex items-center px-2.5 rounded-md border border-amber-300 bg-white text-navy-700 text-[12px] font-semibold hover:bg-amber-50 whitespace-nowrap">Open in GHL ↗</a>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="col-start-3 md:col-start-auto flex flex-wrap gap-1.5 md:justify-end">
         {/* Real / Not a lead teaches Claude what counts (the last 30 answers
@@ -368,7 +393,8 @@ export default function AlertsView() {
                 {list.map((a) => <Row key={a.id} a={a} isNew={isNew(a)} today={today} names={data.names} me={me} busy={busy} act={act} sel={sel} toggle={toggle} openDeal={dealPanel.open} />)}
               </div>
             ))}
-            {data && tab !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
+            {/* Only on Tasks (Luke, Oct 22: the other views aren't task lists). */}
+            {data && tab !== 'done' && view === 'tasks' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           <p className="mt-4 text-[12px] text-zinc-500">
             Where these come from: GHL tasks are the open tasks in your GHL sub-accounts — ticking one here completes it in GHL too with the next refresh (unticking reopens it), and one finished in GHL clears here. A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners. Pick the type (Hot / Warm / Cold / Wholesale / Not a lead): everyone sees it and it teaches Claude. Bank-owned and HUD homes arrive already marked Cold. The same agent texting the same rep again is a new lead only with a new address, or 2+ hours later when it isn’t the same property. Ticking an alert off or pressing Complete clears it for you only — the others see who reviewed it; it closes for everyone once everyone it rings has reviewed it (your own tasks and check-ins close when you tick them). Completed ones stay under Completed for 7 days.

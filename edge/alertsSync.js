@@ -381,7 +381,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   // and reopens it for everyone (its marks are cleared). One read per run.
   status.dupes = 0;
   if (want.dupes) {
-    const leadRows = await rows("SELECT holder, addr, agent, quote, created_at FROM alerts WHERE kind = 'lead' AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
+    const leadRows = await rows("SELECT holder, addr, agent, quote, sub, conv, contact, created_at FROM alerts WHERE kind = 'lead' AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
     const groups = []; // { key, hint, list }
     const byAddr = new Map();
     for (const l of leadRows) {
@@ -423,6 +423,12 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       const timeline = list.map((l) => `${tag(l)} ${when(l.created_at)}`).join(' → ');
       const what = list.find((l) => l.addr)?.addr || null;
       const label = g.hint === 'potential' ? 'Potential duplicate' : 'Duplicate lead';
+      // Where it happened (Luke, Oct 22: "open to GHL to show message of
+      // where this happened"): each rep's lead — rep, pod, market, when, the
+      // agent's text and its GHL conversation — kept as JSON in the dupe's
+      // `quote` (a dupe has no text of its own); the page lists them with an
+      // Open in GHL link each.
+      const refs = JSON.stringify(list.map((x) => ({ rep: x.holder, name: repName(x.holder), pod: podOf(x.holder)?.title || null, at: x.created_at, sub: x.sub || null, conv: x.conv || null, contact: x.contact || null, text: clip(x.quote || '', 240) })));
       for (const [pk, l] of podsIn) {
         const multi = podsIn.size > 1;
         const earlier = list.filter((x) => x.created_at < l.created_at && podOf(x.holder)?.title !== podOf(l.holder)?.title);
@@ -432,12 +438,15 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
             : `${label} — also sent to another pod — ${about}`;
         const ext = `dupe:${g.key}|${pk}`;
         const body = `${timeline} · ${g.hint === 'potential' ? 'same agent texted more than one rep — check if it’s the same property' : 'decide who works it'}`;
-        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, agent, hint, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, ?, ?, 'Alerts', ?)
-          ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, hint = excluded.hint, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
-        [newId(), ext, l.holder, title, body, what, l.agent || null, g.hint, iso]);
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, addr, agent, hint, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Alerts', ?)
+          ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, quote = excluded.quote, hint = excluded.hint, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
+        [newId(), ext, l.holder, title, body, refs, l.sub || null, l.conv || null, l.contact || null, what, l.agent || null, g.hint, iso]);
         if (r[0]?.meta?.changes) {
           status.dupes++;
           await query('DELETE FROM alert_marks WHERE alert_id = (SELECT id FROM alerts WHERE ext_id = ?)', [ext]);
+        } else {
+          // Dupes made before Oct 22 get their links without reopening.
+          await query('UPDATE alerts SET quote = ?, sub = ?, conv = ?, contact = ? WHERE ext_id = ? AND quote IS NOT ?', [refs, l.sub || null, l.conv || null, l.contact || null, ext, refs]);
         }
       }
     }
