@@ -10,7 +10,7 @@
 //      US Census geocoder (free, no key), trying once more without the unit
 //      number; not found → geo 'miss' (shown in the page's "not on the map").
 import { fileURLToPath } from 'node:url';
-import { addrKey } from '../src/deals/math.js';
+import { addrKey, soldPrice } from '../src/deals/math.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const GEO_PER_RUN = 60;
@@ -25,7 +25,7 @@ export function planTracker(deals, rows) {
   const add = []; const update = []; const remove = [];
   for (const d of closed) {
     // price = VPG's assignment price (Luke, Oct 22: sold volume counts only it).
-    const row = { id: `t_${d.id}`, address: String(d.address).trim(), addr_key: addrKey(d.address), sold: /^\d{4}-\d{2}-\d{2}$/.test(d.coe || '') ? d.coe : null, price: num(d.vpgAssign), deal_id: d.id };
+    const row = { id: `t_${d.id}`, address: String(d.address).trim(), addr_key: addrKey(d.address), sold: /^\d{4}-\d{2}-\d{2}$/.test(d.coe || '') ? d.coe : null, price: soldPrice(d), deal_id: d.id };
     const have = byDeal.get(d.id);
     if (have) {
       if (have.address !== row.address || have.sold !== row.sold || have.price !== row.price) update.push({ ...row, moved: have.address !== row.address });

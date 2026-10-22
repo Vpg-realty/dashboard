@@ -1065,7 +1065,20 @@ Overrides older notes where they differ.
   of a wrong date.
 - **Sold volume** = the VPG assignment price of closed deals (Finance
   Overview, territory state card, the closed-deals map's tracker rows) —
-  never the final assignment price.
+  not the final assignment price, nor the fee. `soldPrice` (math.js): older
+  sheet rows with no VPG price typed in (45 of 54 closed 2026 deals) fall
+  back to their final assignment price — without it 2026 read $2.13M
+  instead of ~$13.31M (Oct 22).
+- **Period picker stays put** (Luke, Oct 22): `PeriodBar` is one fixed
+  width — the Year / Quarter / Month / All / Custom switch first, one
+  fixed slot for the ‹ › stepper or the dates, then "by" and comparison
+  (always drawn; comparison greyed for All) — so nothing moves when the
+  kind changes.
+- **Finance Overview's month bars set the page** (Luke, Oct 22, replacing
+  Oct 19's `?mo=`): a click sets the period to that month (`?p=m:YYYY-MM`),
+  so the numbers, the picker and the closings list under the chart all
+  follow; the chart keeps the year with the month in tan; clicking it again
+  (or "Whole year ×") goes back to the year.
 
 ## Oct 22 round, phase 4a — KPI colours (Luke)
 

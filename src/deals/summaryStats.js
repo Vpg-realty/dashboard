@@ -1,9 +1,9 @@
 // The Deal Summary's numbers (Finance › Deal Summary and its person / state
 // files): the sheet's Dashboard-tab definitions. Contracts = deals dated in
-// the period, closed = COMPLETE, sold volume = final assignment price, gross /
+// the period, closed = COMPLETE, sold volume = VPG assignment prices (soldPrice), gross /
 // net assignment and net profit of closed deals, margin = net profit / gross.
 import { assigned as isAssigned, hasAssignPrice } from './status.js';
-import { isOpen } from './math.js';
+import { isOpen, soldPrice } from './math.js';
 
 export const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 export const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -27,7 +27,7 @@ export function stats(list) {
     decided, closeRate: decided ? closed.length / decided : 0,
     // Sold volume = the price VPG assigned each closed deal at (Luke, Oct 22 —
     // not the final assignment price, which can be Unknown).
-    volume: sumOf(closed, 'vpgAssign'), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
+    volume: closed.reduce((t, d) => t + soldPrice(d), 0), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
     // Avg net / closed = net assignment ÷ closings (Luke, Oct 16: "1 close at
     // 70k, but its being divided by 2" — it was net profit, after commissions).
     avgNet: closed.length ? sumOf(closed, 'netAssign') / closed.length : 0,

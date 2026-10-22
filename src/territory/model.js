@@ -7,6 +7,7 @@
 
 import { statusOf, seasonOf } from './status.js';
 import { CLOSE_RATE_OK } from '../deals/summaryStats.js';
+import { soldPrice } from '../deals/math.js';
 
 const norm = (s) => String(s || '').trim().toLowerCase();
 const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
@@ -77,7 +78,7 @@ export function buildModel({ terr, reps, pairs, weekAgo, deals }) {
       if (!st) continue;
       const t = st.tracker || (st.tracker = { contracts: 0, closed: 0, cancelled: 0, pending: 0, net: 0, profit: 0, gross: 0, volume: 0 });
       t.contracts += 1;
-      if (d.status === 'COMPLETE') { t.closed += 1; t.net += n(d.netAssign); t.profit += n(d.netProfit); t.gross += n(d.grossAssign); t.volume += n(d.vpgAssign); }
+      if (d.status === 'COMPLETE') { t.closed += 1; t.net += n(d.netAssign); t.profit += n(d.netProfit); t.gross += n(d.grossAssign); t.volume += soldPrice(d); }
       else if (d.status === 'CANCELLED') t.cancelled += 1;
       else t.pending += 1;
     }

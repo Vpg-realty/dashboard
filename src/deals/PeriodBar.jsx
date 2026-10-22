@@ -58,6 +58,10 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
             className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold ${kind === k ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{l}</button>
         ))}
       </span>
+      {/* One fixed-width slot for the stepper or the dates, and "by" /
+          comparison always drawn, so the bar is the same width whatever is
+          picked and the switch never moves (Luke, Oct 22). */}
+      <span className="w-[18.5rem] flex items-center">
       {(kind === 'y' || kind === 'q' || kind === 'm') && (
         <span className="inline-flex items-center rounded-lg ring-1 ring-tan-200 bg-white">
           <button type="button" className={arrow} onClick={() => setQuery({ p: stepKey(period.key, -1) })} aria-label="Previous">‹</button>
@@ -72,13 +76,16 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
           <input type="date" value={range[1]} min={range[0]} onChange={(e) => setR(1, e.target.value)} className={selectCls} aria-label="To" />
         </span>
       )}
+      {kind === 'all' && <span className="text-[13px] opacity-60">Every deal on file</span>}
+      </span>
       {showBy && (
         <SearchSelect className="w-44" value={by} onChange={(v) => v && setQuery({ by: v === 'coe' ? null : v })} clearable={false} sort={false} options={Object.entries(DATE_BY).map(([k, l]) => ({ value: k, label: `by ${l}` }))} />
       )}
-      {showCompare && period.from && (
-        <SearchSelect className="w-52" value={cmpKey || ''} onChange={(v) => setQuery({ cmp: v || null })} clearable={false} sort={false} options={[{ value: '', label: 'No comparison' }, { value: 'prev', label: 'vs previous period' }, { value: 'yoy', label: 'vs same period last year' }]} />
+      {showCompare && (
+        <span className={period.from ? '' : 'pointer-events-none opacity-50'} title={period.from ? (compare ? `Comparing with ${compare.label}` : undefined) : 'No comparison for All'} aria-disabled={!period.from || undefined}>
+          <SearchSelect className="w-52" value={period.from ? cmpKey || '' : ''} onChange={(v) => setQuery({ cmp: v || null })} clearable={false} sort={false} options={[{ value: '', label: 'No comparison' }, { value: 'prev', label: 'vs previous period' }, { value: 'yoy', label: 'vs same period last year' }]} />
+        </span>
       )}
-      {compare && <span className="text-xs opacity-70">Comparing with {compare.label}</span>}
     </div>
   );
 }
