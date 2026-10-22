@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { refreshNow } from '../data/source.js';
-import { hasPAT } from '../utils/githubApi.js';
 
 export default function Header({
   viewName,
@@ -86,7 +85,7 @@ function RefreshButton() {
     if (state === 'working') return;
     setState('working');
     try {
-      await refreshNow({ rebuild: hasPAT() });
+      await refreshNow({ rebuild: true });
       setState('done');
       setTimeout(() => setState('idle'), 2500);
     } catch {
@@ -112,9 +111,7 @@ function RefreshButton() {
     <button
       onClick={handleClick}
       disabled={state === 'working'}
-      title={hasPAT()
-        ? 'Pull the latest data from GHL now and republish the board'
-        : 'Re-pull the latest published snapshot now'}
+      title="Pull the latest data now (owners and managers also start a fresh GHL pull)"
       className={`px-3 py-1.5 rounded-md text-xs font-medium border transition flex items-center gap-1.5 disabled:opacity-70 ${tone}`}
     >
       <span className={`text-sm leading-none ${state === 'working' ? 'animate-spin' : ''}`}>⟳</span>

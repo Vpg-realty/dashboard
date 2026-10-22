@@ -253,18 +253,19 @@ export function start() {
 //
 // Always re-pulls the latest published snapshot immediately (cache-busted),
 // so the TV reflects whatever GitHub Pages currently serves. If `rebuild` is
-// true AND a GitHub PAT is configured in this browser (via the Sub-Accounts
-// panel), it also fires the Deploy workflow — a fresh GHL pull + republish —
+// true and the server may (owners / managers, a GitHub key saved in Settings ›
+// Sub-Accounts), it also fires the Deploy workflow — a fresh GHL pull + republish —
 // then polls for the new snapshot to land so the numbers actually move, not
 // just re-render the same data.
 //
 // Returns { rebuilt, lastSync, timedOut? } for the UI to react to.
 export async function refreshNow({ rebuild = false } = {}) {
   if (rebuild) {
-    const gh = await import('../utils/githubApi.js');
-    if (gh.hasPAT()) {
+    // The server starts the Deploy workflow with the GitHub key an owner
+    // saved in Settings › Sub-Accounts (Oct 22) — owners and managers only.
+    const { startDeploy } = await import('../utils/subaccountsApi.js');
+    if (await startDeploy()) {
       const before = lastSync;
-      await gh.triggerDeploy();
       // Poll up to ~120s for a newer snapshot to publish (build+deploy ≈ 60–90s).
       const deadline = Date.now() + 120_000;
       while (Date.now() < deadline) {

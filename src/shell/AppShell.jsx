@@ -153,7 +153,7 @@ export default function AppShell({ me }) {
   const View = tab ? VIEWS[tab.view] : null;
   const rep = query.get('rep');
   const pickRep = (id) => navigate(`/team/scorecard${id ? `?rep=${id}` : ''}`);
-  const refresh = async () => { setRefreshing(true); try { await refreshNow(); } finally { setRefreshing(false); } };
+  const refresh = async () => { setRefreshing(true); try { await refreshNow({ rebuild: true }); } finally { setRefreshing(false); } };
 
   const navItem = (s) => {
     const on = s.id === section.id;

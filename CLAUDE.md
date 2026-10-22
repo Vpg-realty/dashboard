@@ -158,8 +158,8 @@ Browser: `src/utils/dashApi.js` (`useMe`, `loadMe`, `canGrade`). On a local
 mock `/api/me` with Playwright `page.route` to see the manager tabs. Tests: the
 endpoints run in Node against node:sqlite with a locally signed JWT
 (forged / tampered / expired / wrong-app tokens rejected). Role-based tab
-visibility is the App shell below; the Sub-Accounts panel still uses its
-GitHub token for now.
+visibility is the App shell below. Since Oct 22 the Sub-Accounts panel and
+Refresh go through the server too (see phase 7).
 
 ## Site-wide building blocks — always use these (Luke, Oct 22)
 
@@ -1176,8 +1176,8 @@ Overrides the Alerts notes above where they differ.
   are never created anywhere else; **Market** = a state on file or "+ Add a
   new market" (name + code, a free colour); **GHL Location ID**; **API key**
   (the PIT). Add writes subaccounts.json and the PIT secret
-  (`PIT_<base32(locationId)>`) through the browser's GitHub key (⚙, once per
-  browser) and starts a deploy, as before.
+  (`PIT_<base32(locationId)>`) through the server's GitHub key (since Oct 22,
+  phase 7 — saved once for every owner) and starts a deploy.
 - A person not on the board yet gets a rep id from their name
   (`suggestRepId`, or the matching rep already in the file) and is linked in
   People (`saveUser` with `newRep: true` — `cleanUser` in edge/settings.js
@@ -1244,6 +1244,22 @@ Overrides older My Scorecard / Full Breakdown notes.
   gone (`/me/breakdown` → `/me/scorecard`, `/team/my-breakdown` →
   `/team/mine`); the sidebar entry is `solo`. Where They Leak now lives in
   Team Scorecard's rail (the team), the rep panel and Look Back (one person).
+
+- **Sub-Accounts and Refresh through the server** (Luke: "sub accounts —
+  agree, move"): no browser holds a GitHub key any more (`src/utils/
+  githubApi.js` and libsodium-wrappers are gone). An owner saves one
+  fine-grained key once in Settings › Sub-Accounts (⚙ GitHub Connection;
+  Contents, Secrets and Actions read / write on this repo) — D1 settings
+  `github_key`, checked against GitHub first, never sent back to a browser.
+  `functions/api/subaccounts.js` (owners; `deploy` also managers; never while
+  viewing as; logged in edit_log without either key): add / reassign / remove
+  write subaccounts.json with its sha and start the Deploy workflow
+  (`edge/github.js`); the GHL key goes in as the repo secret
+  `PIT_<base32(locationId)>`, sealed with tweetnacl + blakejs (libsodium's
+  sealed box, checked to open with libsodium). Refresh (app header and the TV
+  header) asks the server to start a deploy; without a key, or for anyone
+  else, it just re-reads the published data. Usage: one settings row per
+  call.
 
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 
@@ -2456,11 +2472,24 @@ should be much less"), the failure mode is usually one of:
 
 ## KPI targets
 
-All in `src/data/config.js`. Per-rep targets in `KPI_TARGETS`;
-team totals in `TEAM_TARGETS` = per-rep × `REPS.length`, so adding a
-rep automatically raises the team goal.
+**Settings › KPI Targets since Oct 22** (Luke: "move into settings";
+`src/settings/TargetsView.jsx`): owners change a per-rep target with the
+date it takes effect. D1 settings `kpi_targets` = `{ timelines: { key:
+[{ from, value, by, at }] } }` (`src/data/kpiTargets.js`: `KPI_FIELDS`,
+`DEFAULT_TARGETS` = the values below, `targetsOn(store, day)`,
+`applyTargetChange`, `checkTargets`); `POST /api/settings/kpi-targets
+{ change }` (owners, logged `settings.kpi_targets.change`).
+scripts/load-private-files.mjs writes `.cache/kpi-targets.json`, vite.config.js
+bakes it in as `__KPI_TIMELINES__`, so a change reaches every page and the TV
+with the next deploy (~15 min). `KPI_TARGETS` (config.js) = today's;
+`targetsFor(day)` and `rangeTargets` give a past period what it had; and
+`scoreWeek` (scorecard-lib) scores each week against the targets in effect
+that week (projected $ pace = revenue target ÷ 4 × week of month), so past
+scores never move. /api/my-scorecard reads them from D1 (`setKpiTargets`).
+Team totals in `TEAM_TARGETS` = per-rep × `REPS.length`, so adding a rep
+automatically raises the team goal.
 
-Current targets (Luke, Sept 23; opps + offers Sept 29):
+Defaults (Luke, Sept 23; opps + offers Sept 29):
 - Opps opened: 10 / rep / week
 - Offers: 5 / rep / week (monthly = 20 / rep, i.e. weekly × 4)
 - Contracts: 1 / rep / week, 4 / rep / month
