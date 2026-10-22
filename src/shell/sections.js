@@ -142,6 +142,8 @@ export const SECTIONS = [
       // old Overview page went), Payouts + Wires In are one page.
       { id: 'overview', label: 'Finance Overview', view: 'deals-summary', scroll: true },
       { id: 'money', label: 'Money In & Out', view: 'fin-money', scroll: true },
+      // Where VPG's earnest money is (Luke, Oct 22): out, at risk, closed not returned.
+      { id: 'em', label: 'Earnest Money', view: 'fin-em', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
     ],
   },
