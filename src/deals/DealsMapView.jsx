@@ -18,6 +18,7 @@ import { zillowUrl } from './math.js';
 import { useLocation, setQuery } from '../shell/router.js';
 import { PANEL_HEAD } from '../shell/panelStyle.js';
 import { laToday } from '../utils/historyRange.js';
+import { Tile } from '../shell/Tile.jsx';
 
 // The same projection the state shapes were made with (us-atlas
 // states-albers-10m: 975 × 610).
@@ -144,11 +145,11 @@ export default function DealsMapView() {
   const chip = (on) => `h-8 px-3 rounded-lg text-[13px] font-medium ring-1 ${on ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50'}`;
 
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <PageHead title="Closed deals map" sub={`Every deal we've closed${points.length ? ` since ${fullDate(points.map((p) => p.sold).filter(Boolean).sort()[0])}` : ''} — new closings are added automatically. Hover a dot for the details; click it to keep the card open.`} />
       <div className="grid grid-cols-3 gap-2.5 mb-3">
         {[['Closed sales', shown.length], ['States', states.length], ['Sold volume', money(volume)]].map(([l, val]) => (
-          <div key={l} className="px-4 py-3 rounded-xl border border-tan-200 bg-white"><div className="text-[12.5px] text-zinc-600 font-medium">{l}{year ? ` · ${year}` : ''}</div><div className="mt-1 text-[24px] leading-none font-semibold tabular-nums text-navy-800">{val}</div></div>
+          <Tile key={l} label={`${l}${year ? ` · ${year}` : ''}`} value={val} dot={l === 'Sold volume' ? 'green' : 'navy'} />
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">

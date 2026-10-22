@@ -228,7 +228,7 @@ export default function AllDealsView() {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0">
+    <div className="h-full w-full max-w-[1720px] mx-auto flex flex-col min-h-0">
       {/* Two rows (Luke, Oct 15: "very busy … hard to decipher"): the title
           with the column picker, colour key (small menus), Export and New deal;
           then one toolbar of search and filters. */}

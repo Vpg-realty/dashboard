@@ -8,6 +8,7 @@
 // off (Luke, Oct 19); opening the page only stops the pulse — what arrived
 // since the last visit keeps a NEW tag until the page is left. "Select all"
 // ticks many at once (leads take a Real / Not a lead answer instead).
+import { Tile } from '../shell/Tile.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, setQuery } from '../shell/router.js';
@@ -26,14 +27,14 @@ const KIND = {
   task: { label: 'Task', tag: 'bg-zinc-100 text-zinc-700', icon: '✎', bg: 'bg-zinc-100 text-zinc-600' },
   deal: { label: 'Deal deadline', tag: 'bg-red-100 text-[#B42318]', icon: '!', bg: 'bg-red-100 text-[#B42318]' },
   // Luke, Oct 19: the same address sent to more than one rep.
-  dupe: { label: 'Same address', tag: 'bg-orange-100 text-orange-800', icon: '⇄', bg: 'bg-orange-100 text-orange-700' },
+  dupe: { label: 'Duplicate lead', tag: 'bg-orange-100 text-orange-800', icon: '⇄', bg: 'bg-orange-100 text-orange-700' },
 };
 const SHARED = new Set(['lead', 'deal', 'dupe']);
 
 const RAIL = [
   { id: 'today', label: 'Today', sub: 'Leads, late and due today' },
   { id: 'leads', label: 'Leads Spotted', sub: 'Claude read agents’ texts' },
-  { id: 'dupes', label: 'Same Address', sub: 'Sent to more than one rep' },
+  { id: 'dupes', label: 'Duplicate Leads', sub: 'Same lead sent to more than one rep' },
   { id: 'tasks', label: 'Tasks', sub: 'From GHL and the site' },
   { id: 'checkins', label: 'Check-ins', sub: 'Abandoned 30+ days' },
 ];
@@ -239,7 +240,7 @@ export default function AlertsView() {
   const groups = view === 'today' ? [
     ['New since you last looked', shown.filter((a) => isNew(a))],
     ['Overdue', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today)],
-    ['Same address, more than one rep', shown.filter((a) => !isNew(a) && a.kind === 'dupe')],
+    ['Duplicate leads — more than one rep', shown.filter((a) => !isNew(a) && a.kind === 'dupe')],
     ['Leads to work', shown.filter((a) => !isNew(a) && a.kind === 'lead')],
     ['Due today', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today)],
     ['No due date', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !a.due)],
@@ -260,12 +261,12 @@ export default function AlertsView() {
   };
 
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Alerts · {whoName}</div>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{who === 'me' ? 'Your Day' : `${whoName}'s Day`}</h1>
+          <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{who === 'me' ? 'Your Day' : `${whoName}'s Day`}</h1>
           <p className="mt-1 text-[13.5px] text-white/75">{new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })} · tasks from GHL and the site, leads Claude spotted, and check-ins due</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {(pod || owner) && (
@@ -276,11 +277,9 @@ export default function AlertsView() {
               </div>
             )}
             {people.length > 0 && (
-              <select value={['me', 'pod', 'all'].includes(who) ? '' : who} onChange={(e) => setQuery({ who: e.target.value || null })}
-                className={`h-8 rounded-lg px-2 text-[13px] font-semibold ${['me', 'pod', 'all'].includes(who) ? 'bg-transparent text-white ring-1 ring-white/30' : 'bg-tan-500 text-navy-900'}`} aria-label="Pick a person">
-                <option value="">Pick a person…</option>
-                {people.sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => <option key={id} value={id}>{n}</option>)}
-              </select>
+              <SearchSelect value={['me', 'pod', 'all'].includes(who) ? '' : who} onChange={(v) => setQuery({ who: v || null })} clearable={false}
+                buttonClass={['me', 'pod', 'all'].includes(who) ? "h-[34px] min-w-[10rem] flex items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] font-semibold bg-transparent text-white ring-1 ring-inset ring-white/35 hover:bg-white/10" : "h-[34px] min-w-[10rem] flex items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] font-semibold bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]"}
+                pinned={[{ value: '', label: 'Pick a person…' }]} options={people.map(([id, n]) => ({ value: id, label: n }))} />
             )}
             <button type="button" onClick={() => setChime(!chime).catch((e) => setErr(e.message))} title="Play a short sound when a new alert arrives while the site is open (just for you)"
               className="h-8 px-3 rounded-lg text-[13px] font-semibold ring-1 ring-white/30 text-white/85 hover:bg-white/10">
@@ -290,10 +289,7 @@ export default function AlertsView() {
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           {[['New', newN, 'today'], ['Due today', dueToday, 'today'], ['Overdue', late, 'today'], ['Leads', count('leads'), 'leads']].map(([l, n, v]) => (
-            <button key={l} type="button" onClick={() => setQuery({ view: v === 'today' ? null : v })} className={`rounded-xl px-4 py-2 text-left min-w-[96px] ${l === 'New' && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
-              <div className={`text-[11px] font-semibold uppercase tracking-wide ${l === 'New' && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
-              <div className={`text-[22px] font-semibold tabular-nums leading-tight ${l === 'Overdue' && n ? 'text-rose-200' : ''}`}>{n}</div>
-            </button>
+            <Tile key={l} className="min-w-[120px]" label={l} value={n} dot={{ New: 'tan', 'Due today': 'amber', Overdue: 'red', Leads: 'violet' }[l]} tone={l === 'Overdue' && n ? 'text-[#B42318]' : undefined} onClick={() => setQuery({ view: v === 'today' ? null : v })} />
           ))}
         </div>
       </div>

@@ -1,12 +1,10 @@
 // Small shared pieces for the Deals pages.
+import SearchBox from '../shell/SearchBox.jsx';
 import StageChip from '../shell/StageChip.jsx';
-import Icon from '../shell/icons.jsx';
 import { statusLabel } from './format.js';
 import { TONES, dueTone, daysBetween } from './status.js';
 import { shortDate } from './format.js';
 import { laToday } from '../utils/historyRange.js';
-import ClearX from '../shell/ClearX.jsx';
-import { escClears } from '../shell/escClears.js';
 import { titleCase } from '../shell/titleCase.js';
 import BandMark from '../shell/BandMark.jsx';
 
@@ -30,7 +28,7 @@ export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
       <BandMark />
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{eyebrow}</div>
-        <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{titleCase(title)}</h1>
+        <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight leading-tight">{titleCase(title)}</h1>
         {sub && <div className="text-[12.5px] text-white/70 mt-0.5 [&_*]:!text-white/70">{sub}</div>}
       </div>
       {/* A navy primary button reads tan on the band, like Pipeline's picked switch. */}
@@ -39,17 +37,8 @@ export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
   );
 }
 
-export function Tile({ label, value, sub, tone, onClick, active, dot }) {
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag onClick={onClick} className={`text-left px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${onClick ? 'hover:bg-tan-50' : ''} ${active ? 'bg-navy-50 shadow-[inset_0_-2px_0_var(--color-tan-500)]' : ''}`}>
-      <div className="text-[13px] text-zinc-500 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOTS[dot]}`} />}{label}</div>
-      <div className={`mt-1.5 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${tone || 'text-navy-800'}`}>{value}</div>
-      {sub && <div className="mt-1.5 text-xs text-zinc-500 whitespace-nowrap">{sub}</div>}
-    </Tag>
-  );
-}
-const DOTS = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]', green: 'bg-[#15803D]', zinc: 'bg-zinc-400', navy: 'bg-navy-700' };
+// The deals pages' tile is the site's Tile (src/shell/Tile.jsx).
+export { Tile } from '../shell/Tile.jsx';
 
 // "Order is out of date — Re-sort" (Luke, Oct 14: rows don't jump while you
 // edit; this button is the "it's ok to sort now").
@@ -94,14 +83,9 @@ export function Loading({ s }) {
   return <div className="py-16 text-center text-zinc-400">Loading deals…</div>;
 }
 
+// The deals pages' search is the site's SearchBox (Oct 22).
 export function Search({ value, onChange, placeholder = 'Search address, rep, buyer…' }) {
-  return (
-    <label className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-zinc-200 bg-white text-zinc-400 focus-within:ring-2 focus-within:ring-navy-100 focus-within:border-navy-200 w-64 max-w-full">
-      <Icon name="search" size={14} />
-      <input value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={escClears(value, () => onChange(''))} placeholder={placeholder} className="flex-1 min-w-0 outline-none text-zinc-900 placeholder:text-zinc-400 bg-transparent" />
-      <ClearX value={value} onClear={() => onChange('')} />
-    </label>
-  );
+  return <SearchBox value={value} onChange={onChange} placeholder={placeholder} className="w-64" />;
 }
 
 

@@ -72,11 +72,11 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal }) {
   return (
     <div className="grid gap-4">
       {/* Luke, Oct 16: top row the deal flow, second row the money — VPG colours. */}
-      <Band dark eyebrow="Deal flow" note={`${now.pending} still open — not in the close rate`} cols="lg:grid-cols-4">
-        <BandStat dark label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
-        <BandStat dark label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-300" sub="sold and closed" />
-        <BandStat dark label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
-        <BandStat dark feature label="Close rate" value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
+      <Band eyebrow="Deal flow" note={`${now.pending} still open — not in the close rate`} cols="lg:grid-cols-4">
+        <BandStat accent="navy" label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
+        <BandStat accent="green" label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-300" sub="sold and closed" />
+        <BandStat accent="red" label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
+        <BandStat accent="tan" label="Close rate" value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
       </Band>
       <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
         <BandStat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />

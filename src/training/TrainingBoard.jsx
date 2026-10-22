@@ -6,6 +6,7 @@
 // attempts, daily logs, and trainer notes the trainee never sees.
 // New people (trainees included) are added in Settings › People — the one
 // place (Luke, Oct 19); their pod lead is their trainer and shadow rep.
+import { Tile } from '../shell/Tile.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
@@ -148,17 +149,17 @@ export default function TrainingBoard() {
   const open = trainees.find((t) => t.person.email === query.get('trainee'));
   const pick = (email) => setQuery({ trainee: email });
   return (
-    <div className="max-w-[1500px] mx-auto space-y-5">
+    <div className="max-w-[1720px] mx-auto space-y-5">
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Management · Training</div>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight">New Hires in Training</h1>
+          <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">New Hires in Training</h1>
           <p className="mt-1 text-[13.5px] text-white/75">Everyone in the program, where they are, and what’s waiting on you.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[['Waiting on you', mineWaiting.length, true], ['In training', active.length], ['Graduated', grads.length]].map(([l, n, hot]) => (
-            <div key={l} className={`rounded-xl px-4 py-2 ${hot && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10'}`}><div className={`text-[11px] font-semibold uppercase tracking-wide ${hot && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div></div>
+            <Tile key={l} className="min-w-[130px]" label={l} value={n} dot={hot && n ? 'amber' : 'navy'} />
           ))}
         </div>
         {me?.role === 'owner' && <a {...linkProps('/settings/people')} className="h-10 inline-flex items-center px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">+ Add a person</a>}

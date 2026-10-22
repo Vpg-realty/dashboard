@@ -5,6 +5,7 @@
 // as often as needed; daily logs are written here; paperwork, live sessions
 // and sign-offs wait on their trainer (their pod lead) or Jack / Luke.
 // Trainer notes and session ratings never come here.
+import { Tile } from '../shell/Tile.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
@@ -211,17 +212,17 @@ export default function MyTraining() {
   const phaseIdx = phases.findIndex((p) => p.id === status.phase);
   const name = firstName(me?.name || data.person.name);
   return (
-    <div className="max-w-[1500px] mx-auto space-y-5">
+    <div className="max-w-[1720px] mx-auto space-y-5">
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">My Training · {phases.find((p) => p.id === status.phase)?.name || 'Done'}</div>
-          <h1 className="mt-1 text-[26px] font-semibold tracking-tight">{status.current ? `Welcome to VPG, ${name}` : `You’ve graduated, ${name}`}</h1>
+          <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{status.current ? `Welcome to VPG, ${name}` : `You’ve graduated, ${name}`}</h1>
           <p className="mt-1 text-[14px] text-white/75">Your trainer is {trainer} — your pod lead and the rep you shadow in Week 1.{data.person.start_date ? ` Started ${new Date(`${data.person.start_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}.` : ''}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[['Progress', `${Math.round((status.done / Math.max(1, status.total)) * 100)}%`], ['Avg test', pct(avg)], ['Steps left', status.total - status.done]].map(([l, v]) => (
-            <div key={l} className="rounded-xl bg-white/10 px-4 py-2"><div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{v}</div></div>
+            <Tile key={l} className="min-w-[120px]" label={l} value={v} dot="navy" />
           ))}
         </div>
       </div>

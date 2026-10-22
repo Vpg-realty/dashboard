@@ -25,57 +25,45 @@ import MyCrmCard from './MyCrmCard.jsx';
 import { FunnelCard } from './FunnelByState.jsx';
 import { titleCase } from '../../shell/titleCase.js';
 import { T, first, metrics, repPairs, teamMetrics, rangeMetrics, addMetrics, rangeTargets, STEPS, rate, pct, biggestLeak, scoreParts, paceTone, convCls } from './metrics.js';
+import { Tile as SiteTile } from '../../shell/Tile.jsx';
+import { paceChip } from '../../shell/panelStyle.js';
 
 // `frac` = share of the period gone (pace); 1 for a finished period. `na` =
 // not recorded for the period (pre-Sept 14 history).
 // `sub` = the month under a week tile ({ v, t }, graded on month pace);
 // `subText` = a plain line in its place, so every tile is the same height.
+// Every tile here is the site's Tile (Oct 22), tinted by pace, with the bar
+// and the month under it.
+const PACE_TINT = { good: 'green', close: 'amber', bad: 'red' };
+const Bar = ({ v, t, color, at }) => (
+  <div className="relative h-1.5 rounded-full bg-white/70 ring-1 ring-inset ring-black/5 mt-2.5">
+    {v > 0 && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (v / t) * 100)}%`, background: color }} />}
+    {at != null && at < 1 && <div className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${at * 100}% - 1px)` }} />}
+  </div>
+);
 function Tile({ label, v, t, frac, money, na, sub, subText }) {
-  const want = t * frac;
-  // Whole tile in the pace colour, like the Team table cells.
   const tone = na ? null : paceTone(v, t, frac);
-  const word = !tone ? null : tone.key === 'good' ? (frac < 1 ? 'ON PACE' : 'HIT') : tone.key === 'close' ? (frac < 1 ? 'NEAR PACE' : 'CLOSE') : (frac < 1 ? 'BEHIND' : 'MISSED');
+  const word = !tone ? null : tone.key === 'good' ? (frac < 1 ? 'On pace' : 'Hit') : tone.key === 'close' ? (frac < 1 ? 'Near pace' : 'Close') : (frac < 1 ? 'Behind' : 'Missed');
+  const monthLine = sub && (() => {
+    if (sub.na) return `— ${sub.label || 'month'}`;
+    const f = (x) => (sub.money ? kMoney(x) : x);
+    return `${f(sub.v)}${sub.t ? ` / ${f(sub.t)}` : ''} ${sub.label || 'month'}`;
+  })();
   return (
-    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${tone ? tone.box : 'bg-white border-zinc-300/80'}`}>
-      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${tone ? tone.text : 'text-zinc-500'} opacity-80`}>{label}{money ? ` / ${kMoney(t).slice(1)}` : ''}</div>
-      <div className="flex items-baseline gap-1 mt-1 min-w-0">
-        <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums whitespace-nowrap leading-none ${tone ? tone.text : 'text-zinc-300'}`}>{na ? '—' : money ? kMoney(v) : v}</span>
-        {!money && <span className={`text-sm font-bold whitespace-nowrap ${tone ? tone.text : 'text-zinc-400'} opacity-60`}>/ {t}</span>}
-        {word && <span className={`ml-auto self-center text-[8.5px] font-extrabold px-1 py-0.5 rounded shrink-0 ${tone.badge}`}>{word}</span>}
-      </div>
-      <div className="relative h-1.5 rounded-full bg-white/70 mt-2">
-        {tone && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (v / t) * 100)}%`, background: tone.bar }} />}
-        {frac < 1 && <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${Math.min(100, (want / t) * 100)}% - 1px)` }} />}
-      </div>
-      {sub ? (() => {
-        if (sub.na) return <div className="text-[11px] text-zinc-400 mt-1.5 truncate">— {sub.label || 'month'}</div>;
-        const mt = paceTone(sub.v, sub.t, sub.frac ?? paceFraction('month'));
-        const f = (x) => (sub.money ? kMoney(x) : x);
-        return (
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <div className="relative flex-1 h-1 rounded-full bg-white/70 overflow-hidden"><div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (sub.v / sub.t) * 100)}%`, background: mt.bar }} /></div>
-            <span className="text-[11px] font-semibold text-zinc-600 tabular-nums whitespace-nowrap">{f(sub.v)}{sub.t ? `/${f(sub.t)}` : ''} {sub.label || 'month'}</span>
-          </div>
-        );
-      })() : <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{subText || '\u00a0'}</div>}
-    </div>
+    <SiteTile label={label} tint={tone ? PACE_TINT[tone.key] : undefined} badge={word && <span className={paceChip(word)}>{word}</span>}
+      value={na ? '—' : <>{money ? kMoney(v) : v}<span className="text-base font-medium text-zinc-500"> / {money ? kMoney(t) : t}</span></>}
+      sub={monthLine || subText}>
+      {tone && <Bar v={v} t={t} color={tone.bar} at={frac} />}
+    </SiteTile>
   );
 }
 
 // Cancelled contracts in a past period (no target): red when any.
 function CancelTile({ v, na, contracts, subText, label = 'Cancels' }) {
   const bad = !na && v > 0;
-  return (
-    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${bad ? 'bg-rose-100 border-rose-300' : 'bg-white border-zinc-300/80'}`}>
-      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${bad ? 'text-rose-800' : 'text-zinc-500'} opacity-80`}>{label}</div>
-      <div className="flex items-baseline gap-1 mt-1">
-        <span className={`text-[min(1.875rem,3.4vh)] font-extrabold tabular-nums leading-none ${bad ? 'text-rose-800' : na ? 'text-zinc-300' : 'text-zinc-900'}`}>{na ? '—' : v}</span>
-        {!na && <span className={`text-sm font-bold ${bad ? 'text-rose-800' : 'text-zinc-400'} opacity-60`}>vs {contracts} contract{contracts === 1 ? '' : 's'}</span>}
-      </div>
-      <div className="h-1.5 mt-2" />
-      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{na ? 'counted from Oct 7' : subText || 'under contract → Abandoned / Lost'}</div>
-    </div>
-  );
+  return <SiteTile label={label} tint={bad ? 'red' : undefined} tone={bad ? 'text-rose-800' : undefined}
+    value={na ? '—' : <>{v}<span className="text-base font-medium text-zinc-500"> vs {contracts} contract{contracts === 1 ? '' : 's'}</span></>}
+    sub={na ? 'counted from Oct 7' : subText || 'under contract → Abandoned / Lost'} />;
 }
 
 // Speed to response for a week (Luke, Oct 14: "no numbers on his response
@@ -84,20 +72,14 @@ function CancelTile({ v, na, contracts, subText, label = 'Cancels' }) {
 // checked (or not on record for a past week).
 function SpeedTile({ ok, total, subText, missing = 'not checked yet' }) {
   const r = total ? ok / total : null;
-  const tone = total == null ? null : r == null || r >= SPEED_TARGET ? ['bg-emerald-100 border-emerald-300', 'text-emerald-800', '#059669'] : r >= SPEED_TARGET * 0.75 ? ['bg-amber-100 border-amber-300', 'text-amber-900', '#d97706'] : ['bg-rose-100 border-rose-300', 'text-rose-800', '#e11d48'];
+  const key = total == null ? null : r == null || r >= SPEED_TARGET ? 'good' : r >= SPEED_TARGET * 0.75 ? 'close' : 'bad';
+  const bar = { good: '#059669', close: '#d97706', bad: '#e11d48' }[key];
   return (
-    <div className={`rounded-xl border px-2.5 py-2.5 min-w-0 overflow-hidden ${tone ? tone[0] : 'bg-white border-zinc-300/80'}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) · target ${Math.round(SPEED_TARGET * 100)}%`}>
-      <div className={`text-[10px] uppercase tracking-[0.06em] font-bold whitespace-nowrap truncate ${tone ? tone[1] : 'text-zinc-500'} opacity-80`}>Speed ≤{ANSWER_WITHIN_MIN} min · week</div>
-      <div className="flex items-baseline gap-1 mt-1 min-w-0">
-        <span className={`font-extrabold tabular-nums whitespace-nowrap leading-none ${tone ? `text-[min(1.875rem,3.4vh)] ${tone[1]}` : 'text-base text-zinc-400'}`}>{total == null ? missing : r == null ? '—' : `${Math.round(r * 100)}%`}</span>
-        {total != null && <span className={`text-sm font-bold whitespace-nowrap ${tone[1]} opacity-60`}>{total ? `${ok} of ${total}` : 'no texts'}</span>}
-      </div>
-      <div className="relative h-1.5 rounded-full bg-white/70 mt-2">
-        {r > 0 && <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: tone[2] }} />}
-        <div className="absolute -top-1 -bottom-1 w-[2px] rounded bg-zinc-900" style={{ left: `calc(${SPEED_TARGET * 100}% - 1px)` }} />
-      </div>
-      <div className="text-[11px] text-zinc-500 mt-1.5 truncate">{subText}</div>
-    </div>
+    <SiteTile label={`Speed ≤${ANSWER_WITHIN_MIN} min · week`} tint={PACE_TINT[key]} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) · target ${Math.round(SPEED_TARGET * 100)}%`}
+      value={total == null ? '—' : r == null ? '—' : <>{Math.round(r * 100)}%<span className="text-base font-medium text-zinc-500"> {total ? `${ok} of ${total}` : 'no texts'}</span></>}
+      sub={total == null ? missing : subText}>
+      {key && <Bar v={r || 0} t={1} color={bar} at={SPEED_TARGET} />}
+    </SiteTile>
   );
 }
 
@@ -287,7 +269,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
             month: the week's number on top, the month underneath. A past
             period: that period's total against its target. */}
         {weekView ? (
-          <div className={`grid gap-3 ${self ? 'grid-cols-6' : 'grid-cols-7'}`}>
+          <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
             <Tile label="Opps opened · week" v={wkN.opps} t={wkT.opps} frac={wkFrac} na={na('oppsM') && !!range} sub={monthSub('oppsM', T.oppsOpenedPerWeek * 4)} />
             <Tile label="Offers · week" v={wkN.offers} t={wkT.offers} frac={wkFrac} na={na('offersM') && !!range} sub={monthSub('offersM', T.offersPerWeek * 4)} />
             <Tile label="Contracts · week" v={wkN.contracts} t={wkT.contracts} frac={wkFrac} na={na('contractsM') && !!range} sub={monthSub('contractsM', T.contractsPerMonth)} />
@@ -310,7 +292,7 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
             <SpeedTile ok={speed.ok} total={speed.total} subText={speedSub} missing={range ? '—' : 'not checked yet'} />
           </div>
         ) : (
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
             <Tile label="Opps opened" v={m.oppsM} t={t.opps} frac={frac} na={na('oppsM')} subText={when} />
             <Tile label="Offers" v={m.offersM} t={t.offers} frac={frac} na={na('offersM')} subText={when} />
             <Tile label="Contracts" v={m.contractsM} t={t.contracts} frac={frac} na={na('contractsM')} subText={when} />

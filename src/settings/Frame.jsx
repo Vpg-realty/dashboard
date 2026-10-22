@@ -16,11 +16,11 @@ export default function SettingsFrame({ section, tab, children }) {
     if (g) g.tabs.push(t); else groups.push({ name: t.group, tabs: [t] });
   }
   return (
-    <div className={section.id === 'settings' ? 'max-w-[1500px] mx-auto' : 'max-w-[1720px] mx-auto'}>
+    <div className="max-w-[1720px] mx-auto">
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-5 shadow-sm">
         <BandMark />
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{section.label} · {tab.label}</div>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{titleCase(tab.title || tab.label)}</h1>
+        <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{titleCase(tab.title || tab.label)}</h1>
         {tab.blurb && <p className="mt-1 text-[13.5px] text-white/75 max-w-[760px]">{tab.blurb}</p>}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">

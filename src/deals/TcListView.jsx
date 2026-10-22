@@ -13,6 +13,7 @@
 // out is a tile on top (`?only=out`). Ticks and tasks: D1 via /api/tc, with who
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
+import { Tile } from '../shell/Tile.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
@@ -412,20 +413,17 @@ export default function TcListView() {
   const flag = TC_FLAGS.find((f) => f.id === view);
   const title = view === 'all' ? 'Active Deals' : view === 'out' ? 'Closed Out' : flag?.label;
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 mb-4 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Deals · TC List</div>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Transaction Coordination</h1>
+          <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">Transaction Coordination</h1>
           <p className="mt-1 text-[13.5px] text-white/75">{new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })} · click a deal to open its checklist and tasks</p>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           {[['Deals due today', count('due'), 'due'], ['Active deals', cards.length, 'all'], ['Closing ≤ 7 days', count('closing'), 'closing']].map(([l, n, v]) => (
-            <button key={v} type="button" onClick={() => go(v)} className={`rounded-xl px-4 py-2 text-left ${view === v ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
-              <div className={`text-[11px] font-semibold uppercase tracking-wide ${view === v ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
-              <div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div>
-            </button>
+            <Tile key={v} className="min-w-[150px]" label={l} value={n} dot={v === 'due' && n ? 'red' : 'navy'} onClick={() => go(v)} active={view === v} />
           ))}
         </div>
       </div>

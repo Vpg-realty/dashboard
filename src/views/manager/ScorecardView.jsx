@@ -16,6 +16,7 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
+import { Tile } from '../../shell/Tile.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
@@ -702,7 +703,7 @@ export default function ScorecardView() {
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
             <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">MANAGEMENT · SCORECARD</span>
-            <h1 className="m-0 text-[30px] leading-tight font-bold text-navy-700">Week of {weekLabel} <span className="text-[19px] font-medium text-zinc-500">{subtitle}</span></h1>
+            <h1 className="m-0 text-2xl md:text-[30px] leading-tight font-semibold text-navy-700">Week of {weekLabel} <span className="text-[19px] font-medium text-zinc-500">{subtitle}</span></h1>
             <span className="text-[13.5px] text-zinc-600">
               {reviewedBy ? <>Reviewed by <b className="text-navy-700">{reviewedBy}</b>{reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</> : 'Not reviewed yet'} · {graded} of {N} reps fully graded
             </span>
@@ -736,11 +737,7 @@ export default function ScorecardView() {
             </span>
           </div>
           {stats.map(([label, v, sub]) => (
-            <div key={label} className="flex flex-col gap-0.5 min-w-[8.5rem] pl-5 border-l border-[#3c5a82]">
-              <span className="text-[14px] font-semibold text-[#d9cfbd]">{label}</span>
-              <span className="text-[24px] font-bold tabular-nums leading-tight">{v}</span>
-              <span className="text-[12.5px] text-[#d9cfbd]/90">{sub}</span>
-            </div>
+            <Tile key={label} className="min-w-[10rem]" label={label} value={v} sub={sub} dot="navy" />
           ))}
         </div>
 

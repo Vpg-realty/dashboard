@@ -5,13 +5,14 @@
 // header's "Suggest a change" button, ?from=) and comments on any of them;
 // owners move each one New → Under review → Approved → Done, or Not now, with
 // an answer everyone sees. API: functions/api/suggestions (edge/suggestions.js).
+import SearchBox from '../shell/SearchBox.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { call, useMe } from '../utils/dashApi.js';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
 import { PanelHead } from '../shell/Panel.jsx';
 import { primaryCls, btnCls } from '../deals/format.js';
-import ClearX from '../shell/ClearX.jsx';
+import { Tile } from '../shell/Tile.jsx';
 
 const KINDS = [['fix', 'Something is wrong'], ['change', 'Change something'], ['idea', 'New idea']];
 const KIND_PILL = { fix: 'bg-[#FDF1F0] text-[#B42318] ring-[#F5C2BD]', change: 'bg-[#EFF5FF] text-[#1D4ED8] ring-[#C7D9FB]', idea: 'bg-violet-50 text-violet-800 ring-violet-200' };
@@ -198,17 +199,13 @@ export default function SuggestionsView() {
     .filter((s) => (show === 'all' ? true : show === 'open' ? ['new', 'review', 'approved'].includes(s.status) : s.status === show))
     .filter((s) => !needle || `${s.title} ${s.body || ''} ${s.created_by} ${AREA[s.area] || ''}`.toLowerCase().includes(needle));
   const tile = (k, label, n, tone) => (
-    <button key={k} type="button" onClick={() => setQuery({ show: k === 'open' ? null : k })} aria-pressed={show === k}
-      className={`text-left px-4 py-3 rounded-xl border ${show === k ? 'border-navy-700 ring-1 ring-navy-700 bg-navy-50' : 'border-tan-200 bg-white hover:border-navy-300'}`}>
-      <div className="text-[12.5px] text-zinc-600 font-medium">{label}</div>
-      <div className={`mt-1 text-[26px] leading-none font-semibold tabular-nums ${n ? tone : 'text-zinc-300'}`}>{n}</div>
-    </button>
+    <Tile key={k} label={label} value={n} tone={n ? tone : undefined} onClick={() => setQuery({ show: k === 'open' ? null : k })} active={show === k} />
   );
   return (
-    <div className="max-w-[1100px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div className="min-w-0">
-          <h1 className="text-[22px] font-semibold tracking-tight text-navy-700">Suggestion Box</h1>
+          <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight text-navy-700">Suggestion Box</h1>
           <div className="text-zinc-500 text-[13.5px]">Ideas and fixes for the site from owners, managers and the TC. Owners review each one and answer here.</div>
         </div>
         {!writing && !me?.viewAs && <button type="button" onClick={() => setQuery({ new: '1' })} className={`${primaryCls} ml-auto`}>+ New suggestion</button>}
@@ -222,10 +219,7 @@ export default function SuggestionsView() {
         {tile('done', 'Done', count('done'), 'text-[#15803D]')}
         {tile('all', 'All', all.length, 'text-navy-800')}
       </div>
-      <div className="relative mb-3 max-w-[420px]">
-        <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder="Search suggestions…" className="w-full h-9 rounded-lg border border-zinc-200 bg-white pl-3 pr-8 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-navy-100" />
-        <ClearX value={q} onClear={() => setQ('')} />
-      </div>
+      <div className="mb-3"><SearchBox value={q} onChange={setQ} placeholder="Search suggestions…" className="w-80" /></div>
       <div className="grid gap-2.5">
         {shown.map((s) => <Card key={s.id} s={s} comments={byId.get(s.id) || []} me={me} onChange={setData} />)}
         {shown.length === 0 && <div className="py-12 text-center text-zinc-500 rounded-xl border border-dashed border-tan-200 bg-white">{all.length ? 'Nothing here.' : 'No suggestions yet — be the first.'}</div>}

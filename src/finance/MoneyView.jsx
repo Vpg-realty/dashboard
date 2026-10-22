@@ -22,7 +22,7 @@ export default function MoneyView() {
       className={`h-8 px-4 rounded-md text-[13.5px] font-semibold ${side === v ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{label}</button>
   );
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <FinanceHead eyebrow="Money In & Out" title="Payouts and Wires" sub="Commissions going out and wires coming in, in one place. Everything you mark here is saved on the deal sheet."
         right={<span role="group" aria-label="Money in or out" className="inline-flex gap-0.5 rounded-lg bg-black/30 p-[3px]">{seg('out', 'Money out · Payouts')}{seg('in', 'Money in · Wires')}</span>} />
       {s.deals?.length > 0 && <CompanyOutlook deals={s.deals} rules={s.rules} wires />}

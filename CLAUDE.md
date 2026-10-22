@@ -161,6 +161,34 @@ endpoints run in Node against node:sqlite with a locally signed JWT
 visibility is the App shell below; the Sub-Accounts panel still uses its
 GitHub token for now.
 
+## Site-wide building blocks — always use these (Luke, Oct 22)
+
+Luke: "always use when pushing or creating a new page … when one tile
+changes, all tiles follow". Every new page and every change uses these; if
+one can't fit a page, tell Luke instead of making a one-off.
+- **Number tile** = `Tile` (`src/shell/Tile.jsx`) — the approved Deals ›
+  Active tile: white rounded box, tan border, coloured `dot` + plain label,
+  28px number, one line under it. Options: `onClick` / `active` (tab or
+  filter, navy ring when picked), `filter` (greyed at 0, "Show only these"),
+  `tint` green / amber / red (pace), `badge` (a pace chip at the right of the
+  label), `children` (a pace bar or delta under the number). `BrandTile`,
+  Finance's `MoneyTile`, `Stat` / `BandStat` (Finance Overview), the deals
+  `Tile` and every page's former tile draw through it. Not the TV board's
+  boxes (KpiCard) — the TV keeps its look.
+- **Search box** = `SearchBox` (`src/shell/SearchBox.jsx`, the Pipeline /
+  Calendar style; `dark` on a navy band) — magnifier, ×, Esc clears. The
+  deals `Search` wraps it. ⌘K keeps its own palette input.
+- **Dropdown** = `SearchSelect` (`src/deals/SearchSelect.jsx`); an "All …" /
+  "Pick …" choice is a `pinned` option, `buttonClass` restyles the button
+  (the navy-band person pickers). Left as native selects on purpose: the
+  CRM grade chips in the Scorecard rows and the coloured status pickers on
+  Territory (SheetView / StateControls) — Luke to decide.
+- **Page title** = Home's size: `text-2xl md:text-[30px] font-semibold`
+  (every page band's h1, ManagerFrame, Settings / Territory Frame).
+- **Page width** = Deals › Active's: `max-w-[1720px] mx-auto` on every page
+  (All Deals and Pipeline included); one padding and the scrollbar's room
+  kept by AppShell (see Oct 22 phase 1).
+
 ## App shell (Luke, Oct 14)
 
 Luke: "super easy to navigate", like a professional app (Linear / Stripe
@@ -397,7 +425,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   alerts off (actions done / doneMany only — `TICKS` in functions/api/alerts;
   saved under the owner's own name, the page answers as the viewed person);
   every other write is still refused while viewing as. **Same Address**
-  (kind `dupe`, rail entry under Leads Spotted): the spotted leads of the
+  (kind `dupe`, rail entry under Leads Spotted — renamed **Duplicate Leads** Oct 22): the spotted leads of the
   last 30 days (`DUPE_DAYS`) grouped by `addrKey`; two or more reps → one
   alert per address (ext_id `dupe:<key>`), held by the rep who got it first,
   ringing their pod lead and the owners like leads (`SHARED` kinds in
@@ -624,7 +652,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   its By State table dropped Convo→Opp. Fix These lists every flagged item (a
   long list scrolls) and the Messaging row shows each check (ends in a
   question / Never-send / AI review: n of m vs its standard).
-- **Brand tile = the site's one number tile** (Luke, Oct 19: "a tile
+- **Brand tile** (Oct 19; since Oct 22 a name for `Tile` — see Site-wide building blocks) (Luke, Oct 19: "a tile
   template that we will use across the entire site"): `BrandTile`
   (src/shell/BrandTile.jsx): white card, tan border, tan eyebrow with a status
   dot (`accent` navy / green / red / amber / sky / violet / tan / grey), big
@@ -992,6 +1020,8 @@ Overrides older notes where they differ.
   their states in that mode's colours with a navy outline, the rest pale
   (`NOT_THEIRS`, mapColors.js); "Number of reps" keeps navy = theirs. The
   state card's outline sits beside the title (it covered it), its tiles wrap.
+  Hover clears as the cursor leaves a state (Oct 22: it stayed lit after
+  the cursor left the map).
 - **Inspection Period wording**: the deal fields read IP days / IP start /
   IP end / IP end time, the group "Inspection Period"; next steps and keys
   say "IP ends …" (no more "DD" on screen; the keys stay `dd*`).

@@ -8,6 +8,7 @@
 // become Acquisitions when they graduate. Saved straight to D1. Since Oct 19
 // (site map): Role + Status (Training / Active / Inactive) with Started and
 // Ended dates, and the Pod lead column — the one place for "reports to".
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { ALL_REPS } from '../data/config.js';
 import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
@@ -104,10 +105,7 @@ function SuggestAccess({ users }) {
         ))}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select value={pick} onChange={(e) => setPick(e.target.value)} className={`${inputCls} max-w-xs`}>
-          <option value="">Add a person…</option>
-          {others.map((u) => <option key={u.email} value={u.email.toLowerCase()}>{u.name}</option>)}
-        </select>
+        <SearchSelect className="w-64" value={pick || ''} onChange={(v) => setPick(v || '')} clearable={false} pinned={[{ value: '', label: 'Add a person…' }]} options={others.map((u) => ({ value: u.email.toLowerCase(), label: u.name }))} />
         <button disabled={!pick} onClick={() => { const n = nameOf(pick); save([...emails, pick], `${n} can use the Suggestion Box now.`); setPick(''); }} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-40">Add</button>
       </div>
       {msg && <div className={`mt-2 text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</div>}
@@ -128,22 +126,13 @@ function RepOrLead({ d, setD, disabled }) {
     // board, the scorecard and the team targets until they graduate (Oct 20).
     return (
       <div className="flex flex-col gap-1">
-        <select value={d.trainer || ''} disabled={disabled} onChange={(e) => setD({ ...d, trainer: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Pod lead">
-          <option value="">Pick their pod lead…</option>
-          {LEADS.map((l) => <option key={l.id} value={l.id}>Trainer: {l.label}</option>)}
-        </select>
-        <select value={d.rep_id || ''} disabled={disabled} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Their sub-account" title="Their own GHL sub-account, once they have one — off the TV board and scorecard until they graduate">
-          <option value="">No sub-account yet</option>
-          {ALL_REPS.map((r) => <option key={r.id} value={r.id}>Own sub-account: {r.name}</option>)}
-        </select>
+        <SearchSelect value={d.trainer || ''} disabled={disabled} onChange={(v) => setD({ ...d, trainer: v || null })} clearable={false} pinned={[{ value: '', label: 'Pick their pod lead…' }]} options={LEADS.map((l) => ({ value: l.id, label: `Trainer: ${l.label}` }))} />
+        <SearchSelect value={d.rep_id || ''} disabled={disabled} onChange={(v) => setD({ ...d, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: 'No sub-account yet' }]} options={ALL_REPS.map((r) => ({ value: r.id, label: `Own sub-account: ${r.name}` }))} />
       </div>
     );
   }
   return (
-    <select value={d.rep_id || ''} disabled={disabled} onChange={(e) => setD({ ...d, rep_id: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Rep on the board">
-      <option value="">{d.role === 'team' || d.role === 'manager' ? NO_REP : '— none —'}</option>
-      {ALL_REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-    </select>
+    <SearchSelect value={d.rep_id || ''} disabled={disabled} onChange={(v) => setD({ ...d, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: d.role === 'team' || d.role === 'manager' ? NO_REP : '— none —' }]} options={ALL_REPS.map((r) => ({ value: r.id, label: r.name }))} />
   );
 }
 
@@ -191,14 +180,10 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames }) {
       <td className={cell}><input value={d.name} disabled={self} onChange={(e) => setD({ ...d, name: e.target.value })} className={`${inputCls} disabled:bg-zinc-50`} />
         <span className="block mt-0.5 text-zinc-500 text-[12px] truncate max-w-[220px]" title={u.email}>{u.email}{self && <span className="ml-1.5 rounded bg-tan-100 px-1 py-0.5 text-[10.5px] text-navy-700 font-semibold">you</span>}</span></td>
       <td className={cell}>
-        <select value={d.role} disabled={self} onChange={(e) => setD({ ...d, role: e.target.value, status: e.target.value === 'owner' ? 'active' : d.status === 'training' && e.target.value !== 'team' ? 'active' : d.status })} className={`${inputCls} disabled:bg-zinc-50`}>
-          {ROLES.filter((r) => r !== 'trainee').map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
-        </select>
+        <SearchSelect value={d.role} disabled={self} onChange={(v) => v && setD({ ...d, role: v, status: v === 'owner' ? 'active' : d.status === 'training' && v !== 'team' ? 'active' : d.status })} clearable={false} sort={false} options={ROLES.filter((r) => r !== 'trainee').map((r) => ({ value: r, label: ROLE_LABEL[r] || r }))} />
       </td>
       <td className={cell}>
-        <select value={d.status} disabled={self} onChange={(e) => setD({ ...d, status: e.target.value })} className={`${inputCls} disabled:bg-zinc-50 font-semibold ring-1 ring-inset ${STATUS_TONE[d.status]}`}>
-          {statuses.map((x) => <option key={x} value={x}>{STATUS_LABEL[x]}</option>)}
-        </select>
+        <SearchSelect value={d.status} disabled={self} onChange={(v) => v && setD({ ...d, status: v })} clearable={false} sort={false} buttonClass={`w-full h-8 flex items-center gap-1.5 rounded-md px-2 text-left text-[13px] font-semibold ring-1 ring-inset disabled:opacity-60 ${STATUS_TONE[d.status]}`} options={statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] }))} />
       </td>
       <td className={cell}><input type="date" value={d.started || ''} disabled={self} onChange={(e) => setD({ ...d, started: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Started" /></td>
       <td className={cell}><input type="date" value={d.ended || ''} disabled={self} onChange={(e) => setD({ ...d, ended: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Ended" /></td>
@@ -209,10 +194,7 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames }) {
       </td>
       <td className={cell}>
         {lead === null ? <span className="text-zinc-400">—</span> : (
-          <select value={lead} onChange={(e) => setLead(rn, e.target.value)} className={inputCls} aria-label="Pod lead">
-            <option value="">No pod lead</option>
-            {leadNames.filter((n) => n !== rn).map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
+          <SearchSelect value={lead || ''} onChange={(v) => setLead(rn, v || '')} clearable={false} pinned={[{ value: '', label: 'No pod lead' }]} options={leadNames.filter((n) => n !== rn).map((n) => ({ value: n, label: n }))} />
         )}
       </td>
       <td className="py-2 text-right whitespace-nowrap">
@@ -288,7 +270,7 @@ export default function PeopleView() {
           <label><span className="block text-[12.5px] text-zinc-600 mb-1">Full name</span><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} className={inputCls} placeholder="First and last name" /></label>
           <label><span className="block text-[12.5px] text-zinc-600 mb-1">Company email</span><input value={add.email} onChange={(e) => setAdd({ ...add, email: e.target.value })} className={inputCls} placeholder="name@valleypropertygroup.com" /></label>
           <label><span className="block text-[12.5px] text-zinc-600 mb-1">Role</span>
-            <select value={add.role} onChange={(e) => setAdd({ ...add, role: e.target.value })} className={inputCls}>{addRoles.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}</select></label>
+            <SearchSelect value={add.role} onChange={(v) => v && setAdd({ ...add, role: v })} clearable={false} sort={false} options={addRoles.map((r) => ({ value: r, label: ROLE_LABEL[r] || r }))} /></label>
         </div>
         {add.role === 'team' && (
           <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-2.5 cursor-pointer">
@@ -299,11 +281,11 @@ export default function PeopleView() {
         <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
           {enrolling ? <>
             <label><span className="block text-[12.5px] text-zinc-600 mb-1">Pod lead — trains them, and they shadow them in Week 1</span>
-              <select value={add.trainer} onChange={(e) => setAdd({ ...add, trainer: e.target.value })} className={inputCls}><option value="">Pick a pod lead…</option>{LEADS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}</select></label>
+              <SearchSelect value={add.trainer || ''} onChange={(v) => setAdd({ ...add, trainer: v || '' })} clearable={false} pinned={[{ value: '', label: 'Pick a pod lead…' }]} options={LEADS.map((l) => ({ value: l.id, label: l.label }))} /></label>
             <label><span className="block text-[12.5px] text-zinc-600 mb-1">Start date</span><input type="date" value={add.start} onChange={(e) => setAdd({ ...add, start: e.target.value })} className={inputCls} /></label>
           </> : (
             <label className="md:col-span-2"><span className="block text-[12.5px] text-zinc-600 mb-1">Rep on the board</span>
-              <select value={add.rep_id || ''} onChange={(e) => setAdd({ ...add, rep_id: e.target.value || null })} className={inputCls}><option value="">{NO_REP}</option>{ALL_REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+              <SearchSelect value={add.rep_id || ''} onChange={(v) => setAdd({ ...add, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: NO_REP }]} options={ALL_REPS.map((r) => ({ value: r.id, label: r.name }))} />
               <span className="block mt-1 text-[12px] text-zinc-500">A new rep isn't on the board until their GHL sub-account is added (Sub-Accounts, bottom of the sidebar) — then link them here.</span></label>
           )}
           <button onClick={create} disabled={!add.name.trim() || !add.email.trim() || (enrolling && !add.trainer)} className="h-9 px-5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{enrolling ? 'Add and enroll' : 'Add'}</button>

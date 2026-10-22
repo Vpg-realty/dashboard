@@ -12,7 +12,7 @@
 // as someone (currentUser makes the role 'none').
 import { getPods } from './pods.js';
 
-export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Same address' };
+export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
 // Kinds that also ring the holder's pod lead and the owners.
 const SHARED = new Set(['lead', 'deal', 'dupe']);
 export const ROLES = ['owner', 'manager', 'tc', 'team'];
