@@ -175,6 +175,12 @@ one can't fit a page, tell Luke instead of making a one-off.
   Finance's `MoneyTile`, `Stat` / `BandStat` (Finance Overview), the deals
   `Tile` and every page's former tile draw through it. Not the TV board's
   boxes (KpiCard) — the TV keeps its look.
+- **Band counters** are their own kind, not `Tile` (Luke, Oct 22: "these
+  will be classified as different tiles than the others"): the small
+  translucent boxes inside a navy page band — Alerts (New / Due today /
+  Overdue / Leads), TC List, My Training, Management › Training —
+  `rounded-xl bg-white/10 px-4 py-2`, white/60 uppercase label, 22px number,
+  tan when picked or hot. Keep them that way on every navy band.
 - **Search box** = `SearchBox` (`src/shell/SearchBox.jsx`, the Pipeline /
   Calendar style; `dark` on a navy band) — magnifier, ×, Esc clears. The
   deals `Search` wraps it. ⌘K keeps its own palette input.

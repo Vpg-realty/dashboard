@@ -6,7 +6,6 @@
 // attempts, daily logs, and trainer notes the trainee never sees.
 // New people (trainees included) are added in Settings › People — the one
 // place (Luke, Oct 19); their pod lead is their trainer and shadow rep.
-import { Tile } from '../shell/Tile.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
@@ -159,7 +158,7 @@ export default function TrainingBoard() {
         </div>
         <div className="flex flex-wrap gap-2">
           {[['Waiting on you', mineWaiting.length, true], ['In training', active.length], ['Graduated', grads.length]].map(([l, n, hot]) => (
-            <Tile key={l} className="min-w-[130px]" label={l} value={n} dot={hot && n ? 'amber' : 'navy'} />
+            <div key={l} className={`rounded-xl px-4 py-2 ${hot && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10'}`}><div className={`text-[11px] font-semibold uppercase tracking-wide ${hot && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div></div>
           ))}
         </div>
         {me?.role === 'owner' && <a {...linkProps('/settings/people')} className="h-10 inline-flex items-center px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">+ Add a person</a>}
