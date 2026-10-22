@@ -24,13 +24,19 @@ const podOf = (u) => (u?.role === 'manager' && u.rep_id ? getPods().find((p) => 
 
 // The holders whose alerts this person may see (null = everyone) and the reps
 // whose spotted leads ring their bell.
+// `keys` = the alert_marks rows that count as this person's own review: an
+// owner's review of a shared alert is the owners' together (Luke, Oct 22:
+// "if jack grades it it should be moved to reviewed for lucas as well").
+export const OWNERS = 'owners';
 export function scopeOf(u) {
   const me = holderOf(u);
-  if (u.role === 'owner') return { me, see: null, leads: null };
+  if (u.role === 'owner') return { me, see: null, leads: null, keys: [me, OWNERS] };
   const pod = podOf(u);
   const see = [me, ...(pod?.reps || [])];
-  return { me, see, leads: see };
+  return { me, see, leads: see, keys: [me] };
 }
+// The alert_marks `who` this person's review is saved under.
+const markWho = (x, user, scope) => (user.role === 'owner' && SHARED.has(x.kind) ? OWNERS : scope.me);
 const inScope = (scope, holder) => !scope.see || scope.see.includes(holder);
 
 const ID = /^a[a-f0-9]{12}$/;
@@ -64,10 +70,10 @@ export async function load(db, user, now = new Date()) {
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).
-    db.prepare('SELECT alert_id, who, name, at FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
+    db.prepare('SELECT alert_id, who, name, at, grade FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
   ]);
   const byAlert = new Map();
-  for (const m of marks.results) byAlert.set(m.alert_id, [...(byAlert.get(m.alert_id) || []), { who: m.who, name: m.name, at: m.at }]);
+  for (const m of marks.results) byAlert.set(m.alert_id, [...(byAlert.get(m.alert_id) || []), { who: m.who, name: m.name, at: m.at, grade: m.grade || null }]);
   const names = {};
   for (const p of people.results) names[holderOf(p)] = p.name;
   // Who this person can hand a task to: themself; a pod lead also their
@@ -75,6 +81,7 @@ export async function load(db, user, now = new Date()) {
   const assignable = people.results.map((p) => ({ id: holderOf(p), name: p.name })).filter((p) => p.id === scope.me || (inScope(scope, p.id) && user.role !== 'team' && user.role !== 'tc'));
   return {
     me: scope.me,
+    mine: scope.keys,
     pod: podOf(user) ? { title: podOf(user).title, reps: podOf(user).reps } : null,
     seenAt: seen?.seen_at || null,
     chime: seen ? !!seen.chime : chimeDefault(user),
@@ -104,7 +111,7 @@ export function counts(alerts, scope, seenAt, today, nowHM = null, mine = null) 
   for (const a of alerts) {
     if (a.done_at || !rings(a, scope)) continue;
     // Ticked off by this person (their own mark) — gone from their dot.
-    if (mine ? mine.has(a.id) : (a.marks || []).some((m) => m.who === scope.me)) continue;
+    if (mine ? mine.has(a.id) : (a.marks || []).some((m) => scope.keys.includes(m.who))) continue;
     open++;
     if (!seenAt || a.created_at > seenAt) unseen++;
     if (a.kind !== 'lead' && a.due && a.due < today) overdue++;
@@ -131,7 +138,7 @@ export async function countFor(db, user, today, nowHM = azHM()) {
     db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     // What this person has ticked off themself (index alert_marks_who).
-    db.prepare('SELECT alert_id FROM alert_marks WHERE who = ?').bind(scope.me).all(),
+    db.prepare(`SELECT alert_id FROM alert_marks WHERE who IN (${scope.keys.map(() => '?').join(', ')})`).bind(...scope.keys).all(),
   ]);
   const rows = [...mine.results, ...leads.results.filter((a) => a.holder !== scope.me)];
   const myMarks = new Set(marked.results.map((m) => m.alert_id));
@@ -155,10 +162,18 @@ function tick(x, done, user, scope, now) {
   if (!personal(x, scope)) {
     return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now)];
   }
-  if (done) return [['INSERT INTO alert_marks (alert_id, who, name, at) VALUES (?, ?, ?, ?) ON CONFLICT (alert_id, who) DO UPDATE SET name = excluded.name, at = excluded.at', [x.id, scope.me, user.name, now]]];
-  return [['DELETE FROM alert_marks WHERE alert_id = ? AND who = ?', [x.id, scope.me]],
-    ["UPDATE alerts SET done_at = NULL, done_by = NULL WHERE id = ? AND done_by = 'Everyone reviewed'", [x.id]]];
+  if (done) return [['INSERT INTO alert_marks (alert_id, who, name, at) VALUES (?, ?, ?, ?) ON CONFLICT (alert_id, who) DO UPDATE SET name = excluded.name, at = excluded.at', [x.id, markWho(x, user, scope), user.name, now]]];
+  return unmark(x, scope);
 }
+// Take this person's review back (an owner's: the owners').
+const unmark = (x, scope) => [[`DELETE FROM alert_marks WHERE alert_id = ? AND who IN (${scope.keys.map(() => '?').join(', ')})`, [x.id, ...scope.keys]],
+  ["UPDATE alerts SET done_at = NULL, done_by = NULL WHERE id = ? AND done_by = 'Everyone reviewed'", [x.id]]];
+// The lead's type for everyone = the latest grade given (the row's colour).
+const latestGrade = (id) => [`UPDATE alerts SET
+  verdict = (SELECT grade FROM alert_marks WHERE alert_id = ? AND grade IS NOT NULL ORDER BY at DESC LIMIT 1),
+  verdict_by = (SELECT name FROM alert_marks WHERE alert_id = ? AND grade IS NOT NULL ORDER BY at DESC LIMIT 1),
+  verdict_at = (SELECT at FROM alert_marks WHERE alert_id = ? AND grade IS NOT NULL ORDER BY at DESC LIMIT 1)
+  WHERE id = ?`, [id, id, id, id]];
 
 // Who an alert rings: its holder, and for leads / deadlines / duplicates
 // also the holder's pod lead and the owners (`owners` = their holderOf).
@@ -177,7 +192,9 @@ export async function closeReviewed(db, list, now) {
     const part = ids.slice(i, i + 90);
     marks.push(...(await db.prepare(`SELECT alert_id, who FROM alert_marks WHERE alert_id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
   }
-  const done = list.filter((x) => ringers(x, owners).every((w) => marks.some((m) => m.alert_id === x.id && m.who === w)));
+  // An owner is covered by their own mark or the owners' shared one.
+  const has = (x, w) => marks.some((m) => m.alert_id === x.id && (m.who === w || (m.who === OWNERS && owners.includes(w))));
+  const done = list.filter((x) => ringers(x, owners).every((w) => has(x, w)));
   if (done.length) await db.batch(done.map((x) => db.prepare("UPDATE alerts SET done_at = ?, done_by = 'Everyone reviewed' WHERE id = ? AND done_at IS NULL").bind(now, x.id)));
 }
 
@@ -213,21 +230,27 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   }
   if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
   if (a === 'done') {
-    // A lead is completed only once it has a lead type (Luke, Oct 22).
-    if (b.done && existing.kind === 'lead' && !existing.verdict) return { error: 'Pick the lead type first (Hot, Warm, Cold, Wholesale or Not a lead)' };
+    // A lead is reviewed by picking its type (Luke, Oct 22: "complete button
+    // would not be needed anymore").
+    if (existing.kind === 'lead') return { error: 'Pick the lead type (Hot, Warm, Cold, Wholesale or Not a lead) — that marks it reviewed' };
     return { check: b.done && personal(existing, scope) ? [existing] : [], run: tick(existing, !!b.done, user, scope, now) };
   }
   if (a === 'verdict') {
-    if (existing.kind !== 'lead') return { error: 'Only spotted leads take a verdict' };
-    // Hot / Warm / Cold / Wholesale / Not a lead (Luke, Oct 22) — one answer
-    // for everyone (the row takes its colour for all who see it).
+    if (existing.kind !== 'lead') return { error: 'Only spotted leads take a lead type' };
     if (![...LEAD_TYPES, null].includes(b.verdict ?? null)) return { error: 'Unknown lead type' };
     const v = b.verdict ?? null;
-    // The answer teaches Claude what counts as a lead (the last 30 go along
-    // as examples); it no longer closes the alert — "Complete" does (Luke,
-    // Oct 19).
-    return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ? WHERE id = ?',
-      [v, v ? user.name : null, v ? now : null, b.id]]] };
+    // Grading = reviewing (Luke, Oct 22): the grade is this person's (an
+    // owner's: the owners'), saved on their mark — the lead moves to their
+    // Reviewed tab, the others see "Reviewed by <name> · <type>" and still
+    // grade it themselves. The latest grade colours the row for everyone and
+    // teaches Claude (the last 30 go along as examples). No grade = back to
+    // Active.
+    if (!v) return { run: [...unmark(existing, scope), latestGrade(b.id)] };
+    return { check: [existing], run: [
+      ['INSERT INTO alert_marks (alert_id, who, name, at, grade) VALUES (?, ?, ?, ?, ?) ON CONFLICT (alert_id, who) DO UPDATE SET name = excluded.name, at = excluded.at, grade = excluded.grade',
+        [b.id, markWho(existing, user, scope), user.name, now, v]],
+      ['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ? WHERE id = ?', [v, user.name, now, b.id]],
+    ] };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };

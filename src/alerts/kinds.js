@@ -1,6 +1,6 @@
 // Shared by the Alerts page and Home's Today at a Glance: the lead type
 // colours (Luke, Oct 22) and where an alert opens in GHL.
-import { ghlContactUrl, ghlConvUrl, ghlOppUrl, ALL_MARKETS, ALL_REPS } from '../data/config.js';
+import { ghlContactUrl, ghlConvUrl, ghlOppUrl, ALL_REPS } from '../data/config.js';
 
 export const LEAD_TYPE = {
   hot: { label: 'Hot lead', on: 'bg-red-600 text-white', row: 'border-l-red-600 bg-red-50/60', chip: 'bg-red-100 text-red-800' },

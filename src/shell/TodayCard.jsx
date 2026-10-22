@@ -42,7 +42,8 @@ const first = (name) => String(name || '').split(' ')[0];
 function alertRows(data, role, today) {
   if (!data?.alerts) return [];
   const me = data.me;
-  const doneForMe = (a) => !!a.done_at || (a.marks || []).some((m) => m.who === me);
+  const keys = data.mine || [me];
+  const doneForMe = (a) => !!a.done_at || (a.marks || []).some((m) => keys.includes(m.who));
   const rows = [];
   let review = 0;
   for (const a of data.alerts) {
@@ -67,7 +68,7 @@ function alertRows(data, role, today) {
   }
   if (review && (role === 'owner' || role === 'manager')) {
     rows.push({ id: 'review', group: 'today', sort: '', chip: 'Leads', chipCls: 'bg-violet-100 text-violet-800',
-      title: `${review} lead${review === 1 ? '' : 's'} your team got · not reviewed by you yet`, sub: 'Pick the type or complete them in Alerts', to: '/alerts', action: 'Review' });
+      title: `${review} lead${review === 1 ? '' : 's'} your team got · not reviewed by you yet`, sub: 'Grade them in Alerts', to: '/alerts', action: 'Review' });
   }
   return rows;
 }
