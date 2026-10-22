@@ -4,10 +4,13 @@ import { STATE_DOT } from '../utils/marketShade.js';
 import { PAIRS } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
 import { pickColor, suggestRepId, suggestMarketCode } from '../utils/autoColor.js';
+import { settingsUsers, saveUser } from '../utils/dashApi.js';
+import { PanelHead } from '../shell/Panel.jsx';
+import SearchSelect from '../deals/SearchSelect.jsx';
 import {
   hasPAT, getStoredPAT, setStoredPAT,
   validatePAT, readConfig, addSubAccount,
-  reassignSubAccount, renameRep, addRep, deleteRep, deleteSubAccount,
+  reassignSubAccount, deleteSubAccount,
 } from '../utils/githubApi.js';
 
 // Sub-Accounts panel. Modes:
@@ -26,7 +29,7 @@ import {
 // `inline` (Oct 19): drawn as a page in Settings › Sub-Accounts instead of a
 // pop-up.
 export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotErrors, inline = false }) {
-  const [mode, setMode] = useState('view');     // 'view' | 'add' | 'reps' | 'settings'
+  const [mode, setMode] = useState('view');     // 'view' | 'settings'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);   // { tone, text }
   const [patPresent, setPatPresent] = useState(hasPAT());
@@ -83,35 +86,16 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {mode === 'view' && (
+            <AddForm busy={busy} setBusy={setBusy} setStatus={setStatus} patPresent={patPresent} onNeedsPAT={() => setMode('settings')} />
+          )}
+          {mode === 'view' && (
             <ViewMode
               snapshotErrors={snapshotErrors}
               dataStatus={dataStatus}
-              onAddClick={() => setMode('add')}
-              onManageRepsClick={() => setMode('reps')}
               patPresent={patPresent}
               busy={busy}
               setBusy={setBusy}
               setStatus={setStatus}
-              onNeedsPAT={() => setMode('settings')}
-            />
-          )}
-          {mode === 'add' && (
-            <AddMode
-              busy={busy}
-              setBusy={setBusy}
-              setStatus={setStatus}
-              setMode={setMode}
-              patPresent={patPresent}
-              onNeedsPAT={() => setMode('settings')}
-            />
-          )}
-          {mode === 'reps' && (
-            <RepsMode
-              busy={busy}
-              setBusy={setBusy}
-              setStatus={setStatus}
-              setMode={setMode}
-              patPresent={patPresent}
               onNeedsPAT={() => setMode('settings')}
             />
           )}
@@ -138,7 +122,7 @@ const TONES = {
 
 // --- VIEW MODE -----------------------------------------------------------
 
-function ViewMode({ snapshotErrors, onAddClick, onManageRepsClick, patPresent, busy, setBusy, setStatus, onNeedsPAT }) {
+function ViewMode({ snapshotErrors, patPresent, busy, setBusy, setStatus, onNeedsPAT }) {
   const [editingLoc, setEditingLoc] = useState(null);
 
   const errorsByLoc = useMemo(() => {
@@ -167,29 +151,13 @@ function ViewMode({ snapshotErrors, onAddClick, onManageRepsClick, patPresent, b
           <Pill tone="zinc"    label={`${tally.placeholder || 0} pending`} />
           <Pill tone="rose"    label={`${tally.error || 0} errors`} />
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onManageRepsClick}
-            className="px-3 py-2 rounded-lg text-sm font-medium bg-zinc-100 text-zinc-800 border border-zinc-300 hover:bg-zinc-200 transition"
-            title="Add / rename / delete reps"
-          >
-            Manage Reps
-          </button>
-          <button
-            onClick={onAddClick}
-            className="px-3.5 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition flex items-center gap-1.5"
-          >
-            <span className="text-base leading-none">+</span>
-            Add Sub-Account
-          </button>
-        </div>
       </div>
 
       {/* PAT not configured warning */}
       {!patPresent && (
         <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-700 border-amber-500/30">
-          ⚠ GitHub PAT not configured. Add one in <span className="font-semibold">⚙ Settings</span> to enable
-          real one-click sub-account edits, adds, and rep management.
+          ⚠ GitHub isn’t connected in this browser yet. Connect it once with <span className="font-semibold">⚙</span> (top
+          right) — adding, moving or removing a sub-account saves through it.
         </div>
       )}
 
@@ -386,182 +354,110 @@ function CopyableLocationId({ locationId }) {
   );
 }
 
-// --- ADD MODE ------------------------------------------------------------
+// --- ADD FORM ------------------------------------------------------------
+// Luke, Oct 22: "an easy way to add a single sub account with the api and
+// location id, then assign it a market and rep … if it is a new market then
+// we get to add a new market … we cannot add a new rep if the rep is not
+// listed on the people page". One row on top of the page: Rep (people from
+// Settings › People only), Market (or "+ Add a new market"), GHL Location ID,
+// API key. A person not on the board yet becomes a rep here (their name and
+// a free colour) and is linked to it in People.
+const NEW_MARKET = '__new';
+const REP_ROLES = ['team', 'manager', 'trainee', 'owner'];
 
-function AddMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) {
-  const existingRepIds = REPS.map((r) => r.id);
-  const existingMarketIds = MARKETS.map((m) => m.id);
-
-  const [repMode, setRepMode] = useState(existingRepIds[0] ? 'existing' : 'new');
-  const [repId, setRepId] = useState(existingRepIds[0] || '');
-  const [newRepName, setNewRepName] = useState('');
-
-  const [marketMode, setMarketMode] = useState(existingMarketIds[0] ? 'existing' : 'new');
-  const [marketId, setMarketId] = useState(existingMarketIds[0] || '');
+function AddForm({ busy, setBusy, setStatus, patPresent, onNeedsPAT }) {
+  const [people, setPeople] = useState(null);
+  const [who, setWho] = useState('');
+  const [marketId, setMarketId] = useState('');
   const [newMarketName, setNewMarketName] = useState('');
   const [newMarketCode, setNewMarketCode] = useState('');
-
   const [locationId, setLocationId] = useState('');
   const [pitToken, setPitToken] = useState('');
+  useEffect(() => { settingsUsers().then((d) => setPeople(d.users || [])).catch(() => setPeople([])); }, []);
 
-  // Auto-suggest a 2-letter code from the market name. Passes the current
-  // MARKETS list so the suggestion never collides with an existing code —
-  // "Missouri" cleanly resolves to "MO" (USPS) instead of bumping to "MX"
-  // because its first two letters ("MI") collide with Michigan.
-  useEffect(() => {
-    if (marketMode === 'new' && newMarketName && !newMarketCode) {
-      setNewMarketCode(suggestMarketCode(newMarketName, MARKETS.map((m) => m.id)));
-    }
-  }, [newMarketName, marketMode, newMarketCode]);
-
-  const repColor = useMemo(() => {
-    if (repMode === 'existing') return REPS.find((r) => r.id === repId)?.color || '#52525b';
-    return pickColor(suggestRepId(newRepName) || 'new_rep', REPS.map((r) => r.color));
-  }, [repMode, repId, newRepName]);
-
-  const marketColor = useMemo(() => {
-    if (marketMode === 'existing') return MARKETS.find((m) => m.id === marketId)?.color || '#52525b';
-    return pickColor(newMarketCode || newMarketName || 'new_market', MARKETS.map((m) => m.color));
-  }, [marketMode, marketId, newMarketCode, newMarketName]);
-
-  const finalRepId = repMode === 'existing' ? repId : suggestRepId(newRepName);
-  const finalMarketId = marketMode === 'existing' ? marketId : (newMarketCode || suggestMarketCode(newMarketName, MARKETS.map((m) => m.id)));
-
-  const canSubmit =
-    locationId.trim().length >= 8 &&
-    pitToken.trim().length >= 8 &&
-    (repMode === 'existing' ? !!repId : newRepName.trim().length >= 2) &&
-    (marketMode === 'existing' ? !!marketId : (newMarketName.trim().length >= 2 && (newMarketCode || '').length >= 2));
+  const list = (people || []).filter((u) => REP_ROLES.includes(u.role) && (u.status || 'active') !== 'inactive' && (u.role !== 'owner' || u.rep_id));
+  const person = list.find((u) => u.email === who) || null;
+  const newMarket = marketId === NEW_MARKET;
+  const code = (newMarketCode || suggestMarketCode(newMarketName, MARKETS.map((m) => m.id))).toUpperCase();
+  const loc = locationId.trim();
+  const taken = loc && SUBACCOUNTS.find((s) => s.locationId === loc);
+  const repIdOf = (u) => u.rep_id || suggestRepId(u.name);
+  const already = person && !newMarket && marketId && SUBACCOUNTS.find((s) => s.repId === repIdOf(person) && s.marketId === marketId);
+  const codeTaken = newMarket && MARKETS.some((m) => m.id === code);
+  const ready = person && (newMarket ? newMarketName.trim().length >= 2 && code.length >= 2 && !codeTaken : !!marketId)
+    && loc.length >= 8 && !taken && pitToken.trim().length >= 8;
 
   const submit = async () => {
-    if (!canSubmit || busy) return;
-    if (!patPresent) {
-      setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
-      onNeedsPAT();
-      return;
-    }
+    if (!ready || busy) return;
+    if (!patPresent) { setStatus({ tone: 'amber', text: 'Connect GitHub first (⚙ at the top right) — it stores the API key as a secret.' }); onNeedsPAT(); return; }
     setBusy(true);
-    setStatus({ tone: 'blue', text: 'Reading subaccounts.json from GitHub…' });
     try {
+      setStatus({ tone: 'blue', text: 'Reading the sub-account list…' });
       const { config, sha } = await readConfig();
-      // Bail if locationId already exists.
-      if ((config.subaccounts || []).find((s) => s.locationId === locationId.trim())) {
-        throw new Error(`locationId ${locationId.trim()} is already configured`);
-      }
-      const newMarket = marketMode === 'new'
-        ? { id: finalMarketId, name: newMarketName.trim(), color: marketColor }
-        : null;
-      const newRep = repMode === 'new'
-        ? { id: finalRepId, name: newRepName.trim(), color: repColor }
-        : null;
-      setStatus({ tone: 'blue', text: 'Writing config + secret + triggering deploy…' });
-      await addSubAccount({
-        config, sha,
-        newMarket, newRep,
-        subaccount: { repId: finalRepId, marketId: finalMarketId, locationId: locationId.trim() },
-        pitToken: pitToken.trim(),
-      });
-      setStatus({
-        tone: 'emerald',
-        text: `Wired up ${finalRepId} · ${finalMarketId}. Deploy triggered — refresh the TV in ~3 min and the new sub-account will be live.`,
-      });
-      // Reset form, return to view mode.
-      setLocationId('');
-      setPitToken('');
-      setNewRepName('');
-      setNewMarketName('');
-      setNewMarketCode('');
-      setTimeout(() => setMode('view'), 1500);
+      if ((config.subaccounts || []).some((x) => x.locationId === loc)) throw new Error(`location ID ${loc} is already connected`);
+      const repId = repIdOf(person);
+      const known = (config.reps || []).find((r) => r.id === repId);
+      const newRep = known ? null : { id: repId, name: person.name, color: pickColor(repId, (config.reps || []).map((r) => r.color)) };
+      const market = newMarket ? { id: code, name: newMarketName.trim(), color: pickColor(code, (config.markets || []).map((m) => m.color)) } : null;
+      setStatus({ tone: 'blue', text: 'Saving the sub-account and its API key, then starting a refresh…' });
+      await addSubAccount({ config, sha, newMarket: market, newRep, subaccount: { repId, marketId: newMarket ? code : marketId, locationId: loc }, pitToken: pitToken.trim() });
+      // Tie the person to their rep in People (their first sub-account).
+      if (!person.rep_id) await saveUser({ email: person.email, name: person.name, role: person.role, rep_id: repId, newRep: true });
+      setStatus({ tone: 'emerald', text: `Added ${person.name} · ${newMarket ? newMarketName.trim() : MARKETS.find((m) => m.id === marketId)?.name}. It shows on the board after the refresh that just started (a few minutes).` });
+      setLocationId(''); setPitToken(''); setNewMarketName(''); setNewMarketCode(''); setMarketId('');
+      if (!person.rep_id) setPeople((ps) => ps.map((u) => (u.email === person.email ? { ...u, rep_id: repId } : u)));
     } catch (err) {
-      setStatus({ tone: 'rose', text: `Failed: ${err.message}` });
+      setStatus({ tone: 'rose', text: `Not added: ${err.message}` });
     } finally {
       setBusy(false);
     }
   };
 
+  const lbl = 'block text-[12.5px] font-semibold text-navy-800 mb-1';
+  const box = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-navy-100';
   return (
-    <div className="space-y-5">
-      <div>
-        <button onClick={() => setMode('view')} className="text-xs text-zinc-500 hover:text-zinc-800 transition">← Back to list</button>
-        <h3 className="text-base font-semibold text-zinc-900 mt-1">Add New Sub-Account</h3>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          Wires it into <span className="text-zinc-800">subaccounts.json</span>, writes the PIT to a per-location
-          GitHub Secret, and triggers a deploy. All from this form.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Rep */}
-        <Section label="Rep">
-          <ToggleRow value={repMode} onChange={setRepMode} options={[
-            { id: 'existing', label: 'Existing' },
-            { id: 'new', label: 'New rep' },
-          ]} />
-          {repMode === 'existing' ? (
-            <select value={repId} onChange={(e) => setRepId(e.target.value)} className={INPUT}>
-              {REPS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          ) : (
-            <Field placeholder="e.g. Casey Smith" value={newRepName} onChange={setNewRepName} />
-          )}
-          <ColorPreview color={repColor} label={repMode === 'existing' ? 'Rep color' : 'Auto-assigned color'} />
-        </Section>
-
-        {/* Market */}
-        <Section label="Market">
-          <ToggleRow value={marketMode} onChange={setMarketMode} options={[
-            { id: 'existing', label: 'Existing' },
-            { id: 'new', label: 'New market' },
-          ]} />
-          {marketMode === 'existing' ? (
-            <select value={marketId} onChange={(e) => setMarketId(e.target.value)} className={INPUT}>
-              {MARKETS.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.id})</option>)}
-            </select>
-          ) : (
-            <div className="grid grid-cols-[1fr_80px] gap-2">
-              <Field placeholder="Missouri" value={newMarketName} onChange={setNewMarketName} />
-              <Field placeholder="MO" value={newMarketCode} onChange={(v) => setNewMarketCode(v.toUpperCase().slice(0, 4))} mono />
-            </div>
-          )}
-          <ColorPreview color={marketColor} label={marketMode === 'existing' ? 'Market color' : 'Auto-assigned color'} />
-        </Section>
-      </div>
-
-      <Section label="GHL Location ID">
-        <Field
-          mono
-          value={locationId}
-          onChange={setLocationId}
-          placeholder="20-char string from GHL → Settings → Business Profile"
-        />
-      </Section>
-      <Section label="Private Integration Token (PIT)">
-        <Field
-          mono
-          type="password"
-          value={pitToken}
-          onChange={setPitToken}
-          placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (sent encrypted; stored as a per-location GitHub Secret)"
-        />
-      </Section>
-
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-300">
-        <button onClick={() => setMode('view')} className="px-4 py-2 rounded-lg text-sm text-zinc-800 hover:bg-zinc-100 border border-zinc-300 transition">
-          Cancel
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden mb-5">
+      <PanelHead title="Add a Sub-Account" note="Rep from Settings › People · market · the GHL location ID and API key" />
+      <div className="p-5 grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1.2fr_auto] items-end">
+        <div>
+          <span className={lbl}>Rep</span>
+          <SearchSelect value={who} onChange={(v) => setWho(v || '')} placeholder={people ? 'Pick a person' : 'Loading people…'} clearable={false}
+            options={list.map((u) => ({ value: u.email, label: `${u.name}${u.rep_id ? '' : ' · not on the board yet'}` }))} />
+        </div>
+        <div>
+          <span className={lbl}>Market</span>
+          <SearchSelect value={marketId} onChange={(v) => setMarketId(v || '')} placeholder="Pick a state" clearable={false}
+            pinned={[{ value: NEW_MARKET, label: '+ Add a new market' }]} options={MARKETS.map((m) => ({ value: m.id, label: `${m.name} (${m.id})` }))} />
+        </div>
+        <label>
+          <span className={lbl}>GHL Location ID</span>
+          <input value={locationId} onChange={(e) => setLocationId(e.target.value)} placeholder="GHL › Settings › Business Profile" className={`${box} font-mono`} />
+        </label>
+        <label>
+          <span className={lbl}>API key (Private Integration Token)</span>
+          <input type="password" value={pitToken} onChange={(e) => setPitToken(e.target.value)} placeholder="pit-…" autoComplete="off" className={`${box} font-mono`} />
+        </label>
+        <button type="button" onClick={submit} disabled={!ready || busy}
+          className={`h-8 px-5 rounded-md text-[13.5px] font-semibold ${ready && !busy ? 'bg-navy-700 text-white hover:bg-navy-800' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}>
+          {busy ? 'Adding…' : 'Add'}
         </button>
-        <button
-          onClick={submit}
-          disabled={!canSubmit || busy}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            canSubmit && !busy
-              ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'
-              : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
-          }`}
-        >
-          {busy ? 'Adding…' : 'Add Sub-Account'}
-        </button>
+        {newMarket && (
+          <div className="md:col-span-2 xl:col-span-5 grid gap-3 sm:grid-cols-[1fr_8rem] max-w-xl">
+            <label><span className={lbl}>New market name</span><input value={newMarketName} onChange={(e) => setNewMarketName(e.target.value)} placeholder="e.g. Missouri" className={box} /></label>
+            <label><span className={lbl}>Code</span><input value={newMarketCode || (newMarketName ? code : '')} onChange={(e) => setNewMarketCode(e.target.value.toUpperCase().slice(0, 4))} placeholder="MO" className={`${box} font-mono`} /></label>
+          </div>
+        )}
+        {(taken || already || codeTaken || (person && !person.rep_id)) && (
+          <div className="md:col-span-2 xl:col-span-5 text-[13px] flex flex-col gap-1">
+            {taken && <span className="text-rose-700">That location ID is already connected ({REPS.find((r) => r.id === taken.repId)?.name || taken.repId} · {taken.marketId}).</span>}
+            {already && <span className="text-amber-700">{person.name} already has a {MARKETS.find((m) => m.id === marketId)?.name} sub-account — this adds a second one.</span>}
+            {codeTaken && <span className="text-rose-700">{code} is already used by {MARKETS.find((m) => m.id === code)?.name} — pick it from the list or use another code.</span>}
+            {person && !person.rep_id && <span className="text-zinc-600">{person.name} isn’t on the board yet — this puts them on it and links them in People.</span>}
+          </div>
+        )}
+        <p className="md:col-span-2 xl:col-span-5 text-[12.5px] text-zinc-500">Someone missing from Rep? Add them in Settings › People first. The API key is stored as an encrypted GitHub secret and never shown again.</p>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -585,33 +481,6 @@ function Field({ value, onChange, placeholder, mono, type = 'text' }) {
       placeholder={placeholder}
       className={`${INPUT} ${mono ? 'font-mono' : ''}`}
     />
-  );
-}
-
-function ToggleRow({ value, onChange, options }) {
-  return (
-    <div className="inline-flex rounded-md border border-zinc-300 overflow-hidden text-xs">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => onChange(o.id)}
-          className={`px-3 py-1.5 transition ${
-            value === o.id
-              ? 'bg-zinc-200 text-zinc-900'
-              : 'bg-white text-zinc-500 hover:text-zinc-800'
-          }`}
-        >{o.label}</button>
-      ))}
-    </div>
-  );
-}
-
-function ColorPreview({ color, label }) {
-  return (
-    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-      <span className="w-4 h-4 rounded-full border border-zinc-400" style={{ background: color }} />
-      <span className="truncate">{label} · <span className="font-mono text-zinc-600">{color}</span></span>
-    </div>
   );
 }
 
@@ -698,264 +567,6 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
             {busy ? 'Validating…' : 'Save PAT'}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// --- REPS MODE -----------------------------------------------------------
-// Manage the rep roster: rename an existing rep, add a new one, delete a
-// rep that has zero sub-accounts assigned. Every action is a real GitHub
-// commit against subaccounts.json + a deploy dispatch.
-
-function RepsMode({ busy, setBusy, setStatus, setMode, patPresent, onNeedsPAT }) {
-  // Editing state per rep so multiple aren't renamed at once.
-  const [editingRepId, setEditingRepId] = useState(null);
-  const [draftName, setDraftName] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [showAddRep, setShowAddRep] = useState(false);
-
-  const subCountByRep = useMemo(() => {
-    const m = {};
-    for (const s of SUBACCOUNTS) m[s.repId] = (m[s.repId] || 0) + 1;
-    return m;
-  }, []);
-
-  const requirePAT = () => {
-    if (patPresent) return true;
-    setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
-    onNeedsPAT();
-    return false;
-  };
-
-  const startRename = (rep) => {
-    setEditingRepId(rep.id);
-    setDraftName(rep.name);
-  };
-
-  const saveRename = async (rep) => {
-    if (busy) return;
-    if (!draftName.trim() || draftName.trim() === rep.name) { setEditingRepId(null); return; }
-    if (!requirePAT()) return;
-    setBusy(true);
-    setStatus({ tone: 'blue', text: `Renaming ${rep.id} → "${draftName.trim()}"…` });
-    try {
-      await renameRep(rep.id, draftName.trim());
-      setStatus({ tone: 'emerald', text: `Renamed. Deploy triggered — TV updates in ~3 min.` });
-      setEditingRepId(null);
-    } catch (err) {
-      setStatus({ tone: 'rose', text: `Rename failed: ${err.message}` });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const doDelete = async (rep) => {
-    if (busy) return;
-    if (!requirePAT()) return;
-    setBusy(true);
-    setStatus({ tone: 'blue', text: `Deleting rep ${rep.id}…` });
-    try {
-      await deleteRep(rep.id);
-      setStatus({ tone: 'emerald', text: `Deleted ${rep.name}. Deploy triggered.` });
-      setConfirmDeleteId(null);
-    } catch (err) {
-      setStatus({ tone: 'rose', text: `Delete failed: ${err.message}` });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <button onClick={() => setMode('view')} className="text-xs text-zinc-500 hover:text-zinc-800 transition">← Back to sub-accounts</button>
-          <h3 className="text-base font-semibold text-zinc-900 mt-1">Manage Reps</h3>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Rename, add, or delete team members. Deletes require the rep to have <span className="text-zinc-800">zero</span> sub-accounts
-            first — reassign their subs in the sub-accounts list, then come back here.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddRep((v) => !v)}
-          className={`px-3 py-2 rounded-md text-sm font-medium border transition shrink-0 ${
-            showAddRep
-              ? 'bg-zinc-800 text-white border-zinc-800'
-              : 'bg-emerald-500 text-zinc-950 border-emerald-500 hover:bg-emerald-400'
-          }`}
-        >
-          {showAddRep ? 'Cancel add' : '+ Add Rep'}
-        </button>
-      </div>
-
-      {showAddRep && (
-        <AddRepInline
-          busy={busy}
-          setBusy={setBusy}
-          setStatus={setStatus}
-          requirePAT={requirePAT}
-          onDone={() => setShowAddRep(false)}
-        />
-      )}
-
-      <div className="rounded-lg border border-zinc-300 overflow-hidden">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2.5 bg-zinc-100 border-b border-zinc-300 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-          <div>Rep</div>
-          <div className="text-right">Sub-accounts</div>
-          <div className="text-right">Actions</div>
-        </div>
-        <div className="divide-y divide-zinc-200">
-          {REPS.map((rep) => {
-            const count = subCountByRep[rep.id] || 0;
-            const isEditing = editingRepId === rep.id;
-            const isConfirming = confirmDeleteId === rep.id;
-            return (
-              <div key={rep.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 items-center min-w-0">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: rep.color }} />
-                  {isEditing ? (
-                    <input
-                      value={draftName}
-                      onChange={(e) => setDraftName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveRename(rep);
-                        if (e.key === 'Escape') setEditingRepId(null);
-                      }}
-                      autoFocus
-                      className={INPUT + ' py-1 text-sm'}
-                    />
-                  ) : (
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-zinc-900 truncate">{rep.name}</div>
-                      <div className="text-[11px] font-mono text-zinc-500 truncate">{rep.id}</div>
-                    </div>
-                  )}
-                </div>
-                <div className="text-right text-xs text-zinc-700 tabular-nums shrink-0">
-                  {count} {count === 1 ? 'sub' : 'subs'}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={() => setEditingRepId(null)}
-                        className="px-2.5 py-1 rounded text-[11px] text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
-                        disabled={busy}
-                      >Cancel</button>
-                      <button
-                        onClick={() => saveRename(rep)}
-                        disabled={busy || !draftName.trim() || draftName.trim() === rep.name}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium bg-emerald-500 text-zinc-950 hover:bg-emerald-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >{busy ? 'Saving…' : 'Save name'}</button>
-                    </>
-                  ) : isConfirming ? (
-                    <>
-                      <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="px-2.5 py-1 rounded text-[11px] text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
-                        disabled={busy}
-                      >Cancel</button>
-                      <button
-                        onClick={() => doDelete(rep)}
-                        disabled={busy}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium bg-rose-600 text-white border border-rose-600 hover:bg-rose-500 disabled:opacity-60"
-                      >{busy ? 'Deleting…' : 'Yes, delete'}</button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => startRename(rep)}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-100"
-                        disabled={busy}
-                      >Rename</button>
-                      <button
-                        onClick={() => setConfirmDeleteId(rep.id)}
-                        disabled={busy || count > 0}
-                        title={count > 0 ? `Cannot delete — reassign this rep's ${count} sub-account(s) first` : 'Delete rep'}
-                        className="px-2.5 py-1 rounded text-[11px] font-medium text-rose-700 border border-rose-300 hover:bg-rose-50 disabled:text-zinc-400 disabled:border-zinc-200 disabled:cursor-not-allowed"
-                      >Delete</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AddRepInline({ busy, setBusy, setStatus, requirePAT, onDone }) {
-  const [name, setName] = useState('');
-  const [id, setId] = useState('');
-  const suggestedId = suggestRepId(name);
-  const finalId = id.trim() || suggestedId;
-  const color = useMemo(() => pickColor(finalId || 'new_rep', REPS.map((r) => r.color)), [finalId]);
-  const canSubmit = name.trim().length >= 2 && finalId.length >= 2 && !REPS.find((r) => r.id === finalId);
-
-  const submit = async () => {
-    if (!canSubmit || busy) return;
-    if (!requirePAT()) return;
-    setBusy(true);
-    setStatus({ tone: 'blue', text: `Adding rep ${finalId}…` });
-    try {
-      await addRep({ id: finalId, name: name.trim(), color });
-      setStatus({ tone: 'emerald', text: `Added ${name.trim()}. Deploy triggered — TV updates in ~3 min.` });
-      setName(''); setId('');
-      onDone();
-    } catch (err) {
-      setStatus({ tone: 'rose', text: `Add failed: ${err.message}` });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-emerald-300 bg-emerald-50/60 p-4 space-y-3">
-      <div className="text-[11px] uppercase tracking-[0.18em] text-emerald-700 font-semibold">Add new rep</div>
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-3">
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">Full name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Casey Smith"
-            className={INPUT}
-            disabled={busy}
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] uppercase tracking-[0.18em] text-zinc-500 mb-1">ID (auto)</label>
-          <input
-            value={id}
-            onChange={(e) => setId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-            placeholder={suggestedId || 'auto'}
-            className={INPUT + ' font-mono'}
-            disabled={busy}
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={submit}
-            disabled={!canSubmit || busy}
-            className={`w-full px-3 py-2 rounded-md text-sm font-medium border transition ${
-              canSubmit && !busy
-                ? 'bg-emerald-500 text-zinc-950 border-emerald-500 hover:bg-emerald-400'
-                : 'bg-zinc-100 text-zinc-400 border-zinc-300 cursor-not-allowed'
-            }`}
-          >
-            {busy ? 'Adding…' : 'Add rep'}
-          </button>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-        <span className="w-4 h-4 rounded-full border border-zinc-400" style={{ background: color }} />
-        <span>Auto-assigned color · <span className="font-mono text-zinc-600">{color}</span></span>
-        {REPS.find((r) => r.id === finalId) && (
-          <span className="text-rose-700 ml-2">✗ id already in use</span>
-        )}
       </div>
     </div>
   );
