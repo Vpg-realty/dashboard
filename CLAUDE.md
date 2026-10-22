@@ -1207,6 +1207,33 @@ Overrides the Alerts notes above where they differ.
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.
+## Alerts — grading = reviewing (Luke, later Oct 22)
+
+Overrides the lead-type / Complete / Completed notes above where they differ.
+- **No Today list** — the rail is Leads Spotted (the default), Duplicate
+  Leads, Tasks, Check-ins, Upcoming; New / Due today / Overdue counters open
+  Leads / Tasks.
+- **Grading a lead is the review**: each person picks the type themself
+  (Hot / Warm / Cold / Wholesale / Not a lead). Their pick is saved on their
+  own `alert_marks` row (`grade`, added Oct 22 with ALTER TABLE) and moves the
+  lead to their **Reviewed · last 7 days** tab (the Completed tab, renamed);
+  only their own pick shows as pressed, a second click takes it back to
+  Active. The others see "✓ Reviewed by <name> · <type>" and the row in the
+  latest grade's colour (`alerts.verdict` = the latest grade, which also
+  teaches Claude), but it stays open for them until they grade it. No
+  Complete button (the API refuses `done` on a lead).
+- **Owners share one review**: an owner's mark on a lead / duplicate / deal
+  deadline is saved as `who = 'owners'` (`OWNERS`, `scopeOf().keys` in
+  edge/alerts.js), so Jack grading it moves it to Reviewed for Luke too;
+  `closeReviewed` counts it for every owner. /api/alerts sends `mine` (the
+  keys that count as this person's review) for the page and Home's Today.
+- **Claude's proposed grade** (`alerts.hint`, from the lead judge's `type`)
+  always shows as "Claude: hot lead"; bank-owned / HUD homes come proposed as
+  Cold (no longer pre-set as the grade).
+- **Lead type filter** on Leads Spotted (`?type=`, the MarketChips row): on
+  Active it filters by Claude's proposed grade, on Reviewed by ours (your
+  grade, else the latest given).
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in

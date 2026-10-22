@@ -51,9 +51,10 @@ CREATE TABLE IF NOT EXISTS alert_seen (
 -- everyone once everyone it rings has a mark (edge/alerts.js closeReviewed).
 CREATE TABLE IF NOT EXISTS alert_marks (
   alert_id TEXT NOT NULL,
-  who TEXT NOT NULL,            -- holderOf: a rep id or u:<email name>
+  who TEXT NOT NULL,            -- holderOf: a rep id or u:<email name>, or 'owners' (an owner's review of a shared alert)
   name TEXT,
   at TEXT NOT NULL,
+  grade TEXT,                   -- a lead's type from this person (Oct 22; ALTER TABLE on live D1)
   PRIMARY KEY (alert_id, who)
 );
 CREATE INDEX IF NOT EXISTS alert_marks_who ON alert_marks (who);
