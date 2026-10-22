@@ -39,12 +39,12 @@ export const FIELDS = [
   ['emdDue', 'EMD due date', 'emd', 'date', 'calc'],
   ['emdSent', 'EMD sent on', 'emd', 'date'],
   ['emdPaidBy', 'EMD paid by', 'emd', 'list'],
-  ['ddDays', '# of days', 'dd', 'number'],
-  ['ddStart', 'Start', 'dd', 'date', 'calc'],
-  ['ddEnd', 'End', 'dd', 'date', 'calc'],
+  ['ddDays', 'IP days', 'dd', 'number'],
+  ['ddStart', 'IP start', 'dd', 'date', 'calc'],
+  ['ddEnd', 'IP end', 'dd', 'date', 'calc'],
   // Luke, Oct 14: a time picker + time zone (ddTime.js). New values are
   // "HH:MM"; older free text ("5PM EDT") is read as it stands.
-  ['ddEndTime', 'End time', 'dd', 'time'],
+  ['ddEndTime', 'IP end time', 'dd', 'time'],
   ['ddEndTz', 'Time zone', 'dd', 'list'],
   // "Dispo team" is gone (Luke, Oct 14: VPG always sells the deal) — the
   // stored value is only still read by compute() for closed deals.
@@ -92,7 +92,7 @@ export const SECRET_KEYS = FIELDS.filter((f) => f.secret).map((f) => f.key);
 export const CALC_KEYS = FIELDS.filter((f) => f.calc).map((f) => f.key);
 
 export const GROUPS = [
-  ['contract', 'Contract'], ['title', 'Title'], ['emd', 'EMD'], ['dd', 'Due Diligence'],
+  ['contract', 'Contract'], ['title', 'Title'], ['emd', 'EMD'], ['dd', 'Inspection Period'],
   ['dispo', 'Dispositions'], ['money', 'Financials'], ['pay', 'Commissions & Profit'], ['notes', 'Notes & Links'],
 ];
 

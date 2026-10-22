@@ -83,32 +83,41 @@ export function rings(a, scope) {
 // or late, a spotted lead not answered yet, or a task with no date. Future-
 // dated ones join on their day. `unseen` = arrived since they last opened
 // Alerts (the chime and the pulse); overdue = due before today.
-export function counts(alerts, scope, seenAt, today) {
-  let unseen = 0, overdue = 0, open = 0, owe = 0, leads = 0;
+// A task with a due time (Luke, Oct 22) joins the red dot when that time
+// comes on its day (Arizona `nowHM`, "HH:MM"); `dueNow` counts those that
+// have come due — the browser chimes when it goes up.
+export function counts(alerts, scope, seenAt, today, nowHM = null) {
+  let unseen = 0, overdue = 0, open = 0, owe = 0, leads = 0, dueNow = 0;
   for (const a of alerts) {
     if (a.done_at || !rings(a, scope)) continue;
     open++;
     if (!seenAt || a.created_at > seenAt) unseen++;
     if (a.kind !== 'lead' && a.due && a.due < today) overdue++;
-    if (SHARED.has(a.kind) || !a.due || a.due <= today) owe++;
+    const later = a.due === today && a.due_time && nowHM && a.due_time > nowHM;
+    if (a.due === today && a.due_time && nowHM && !later) dueNow++;
+    if (SHARED.has(a.kind) || !a.due || (a.due <= today && !later)) owe++;
     if (a.kind === 'lead') leads++;
   }
   // Two badges (Luke, Oct 19): red = leads not completed yet, blue = the rest.
-  return { unseen, overdue, open, owe, leads, tasks: owe - leads };
+  return { unseen, overdue, open, owe, leads, tasks: owe - leads, dueNow };
 }
+
+// Arizona's clock as "HH:MM" (the due times are Arizona's).
+export const azHM = (d = new Date()) => new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Phoenix', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
+const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // The red dot alone (polled every minute): only this person's open alerts and
 // the open spotted leads, through the holder / kind indexes — never the whole
 // table (Oct 19: the full list on every poll used up D1's daily reads).
-export async function countFor(db, user, today) {
+export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
   const [mine, leads, seen] = await Promise.all([
-    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
-    db.prepare("SELECT holder, kind, due, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
+    db.prepare("SELECT holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
+    db.prepare("SELECT holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
   ]);
   const rows = [...mine.results, ...leads.results.filter((a) => a.holder !== scope.me)];
-  return { counts: counts(rows, scope, seen?.seen_at || null, today), chime: seen ? !!seen.chime : chimeDefault(user) };
+  return { counts: counts(rows, scope, seen?.seen_at || null, today, nowHM), chime: seen ? !!seen.chime : chimeDefault(user) };
 }
 
 // A GHL task ticked (or unticked) on the site is completed (or reopened) in
@@ -138,12 +147,13 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     const title = clip(b.title, 200);
     if (!title) return { error: 'Write the task first' };
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
+    if (b.dueTime && (!HM.test(b.dueTime) || !b.due)) return { error: 'Pick a due date for the time' };
     const to = b.to || scope.me;
     if (to !== scope.me && (user.role === 'team' || user.role === 'tc' || !inScope(scope, to))) return { error: 'You can only add tasks for yourself' + (podOf(user) ? ' or your pod' : '') };
     if (!/^[\w:.-]{1,60}$/.test(to)) return { error: 'Pick who it is for' };
     const id = newId();
-    return { id, run: [['INSERT INTO alerts (id, holder, kind, title, body, due, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, to, 'task', title, clip(b.body, 1000) || null, b.due || null, user.name, now]]] };
+    return { id, run: [['INSERT INTO alerts (id, holder, kind, title, body, due, due_time, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, to, 'task', title, clip(b.body, 1000) || null, b.due || null, (b.due && b.dueTime) || null, user.name, now]]] };
   }
   // Tick (or untick) several at once (Luke, Oct 19: "select all"). Spotted
   // leads take a Real / Not a lead answer instead, so they're left out.
@@ -168,8 +178,9 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
+    if (b.dueTime && (!HM.test(b.dueTime) || !b.due)) return { error: 'Pick a due date for the time' };
     if (existing.kind === 'ghl') return { error: 'Change a GHL task’s date in GHL' };
-    return { run: [['UPDATE alerts SET due = ? WHERE id = ?', [b.due || null, b.id]]] };
+    return { run: [['UPDATE alerts SET due = ?, due_time = ? WHERE id = ?', [b.due || null, (b.due && b.dueTime) || null, b.id]]] };
   }
   if (a === 'remove') {
     if (existing.kind !== 'task') return { error: 'Only tasks added on the site can be removed — tick it instead' };

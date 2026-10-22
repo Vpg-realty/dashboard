@@ -328,7 +328,7 @@ export default function ActiveView() {
     { label: 'COE', get: (d) => edit('coe', d, coeChip(d)) },
     { label: 'Days', right: true, get: daysCell },
     { label: 'EMD', get: emd },
-    { label: 'DD end', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? TONE_TEXT[n < 0 ? 'red' : 'amber'] : ''}>{d.ddEnd ? shortDate(d.ddEnd) : '—'}{d.ddEnd && d.ddEndTime ? <span className="ml-1 text-[12px] font-normal text-zinc-500">{showEndTime(d)}</span> : null}</span>; } },
+    { label: 'IP end', get: (d) => { const n = ISO.test(d.ddEnd || '') ? days(today, d.ddEnd) : null; return <span className={n != null && n <= 3 ? TONE_TEXT[n < 0 ? 'red' : 'amber'] : ''}>{d.ddEnd ? shortDate(d.ddEnd) : '—'}{d.ddEnd && d.ddEndTime ? <span className="ml-1 text-[12px] font-normal text-zinc-500">{showEndTime(d)}</span> : null}</span>; } },
     { label: 'Title', get: (d) => edit('title', d, firstLine(d.title)), cls: 'max-w-[190px] truncate text-zinc-700' },
     { label: 'Contract', right: true, get: (d) => edit('price', d, money(d.price)) },
   ];

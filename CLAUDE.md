@@ -985,6 +985,44 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   when a run has no opportunity field ids (those wait). The only other GHL
   write is the four tracker fields.
 
+## Oct 22 round, phase 1 (Luke)
+
+Overrides older notes where they differ.
+- **Territory map, one rep picked**: every Colour by mode still works —
+  their states in that mode's colours with a navy outline, the rest pale
+  (`NOT_THEIRS`, mapColors.js); "Number of reps" keeps navy = theirs. The
+  state card's outline sits beside the title (it covered it), its tiles wrap.
+- **Inspection Period wording**: the deal fields read IP days / IP start /
+  IP end / IP end time, the group "Inspection Period"; next steps and keys
+  say "IP ends …" (no more "DD" on screen; the keys stay `dd*`).
+- **Alerts**: owners open on Everyone (Mine = only what's assigned to
+  them). 30-day check-ins name the property address field only ("No address
+  provided" — never the opp's name; open ones are retitled by the sync,
+  `checkinTitle`) and open the agent's contact page (the conversation), not
+  the opportunity. Site tasks take an optional **due time** (Arizona,
+  `alerts.due_time`, added Oct 22 with ALTER TABLE): sorted date then time,
+  a timed task joins the red dot when its time comes and the browser chimes
+  (`counts.dueNow`).
+- **Calendar** has tabs again — Month (`/calendar/month`) / Two Weeks
+  (`/calendar/weeks`) — so it doesn't jump coming from Pipeline.
+- **No page shifts**: every app page uses the same padding (the board keeps
+  its TV frame) and keeps the scrollbar's room (`scrollbar-gutter`), so
+  All Deals / Active and Zip Center's views line up.
+- **Missing colours**: navy-300 / 400 and tan-300 / 800 were used but never
+  defined (Finance's other month bars vanished when one was picked) — now in
+  index.css `@theme`.
+- **Rails** (Finance, TC List, Alerts, Settings / Territory) show their
+  labels in proper case (`titleCase`).
+- **Last talked** (Pipeline › Opportunities): the latest real conversation
+  — a connected call either way, or a text answering the other side's text
+  from the 3 days before (`lastConversation` in server/crm.js, opp field
+  `lastTalk`, CRM_VERSION 5). Missed calls and one-way texts don't count; a
+  contact whose messages couldn't be read (one retry) shows no chip instead
+  of a wrong date.
+- **Sold volume** = the VPG assignment price of closed deals (Finance
+  Overview, territory state card, the closed-deals map's tracker rows) —
+  never the final assignment price.
+
 ## Alerts every 2 minutes (Oct 20, Luke — "option 2")
 
 Alerts used to wait for the deploy (GHL tasks up to 15 min, spotted leads up

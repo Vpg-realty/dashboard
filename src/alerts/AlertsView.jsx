@@ -12,10 +12,12 @@ import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, setQuery } from '../shell/router.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
+import TimePicker from '../deals/TimePicker.jsx';
 import { ghlContactUrl, ghlConvUrl, ghlOppUrl, REPS } from '../data/config.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
+import { titleCase as properCase } from '../shell/titleCase.js';
 
 const KIND = {
   lead: { label: 'Lead spotted', tag: 'bg-violet-100 text-violet-800', icon: '✦', bg: 'bg-violet-100 text-violet-700' },
@@ -50,6 +52,8 @@ const PICK = {
   done: (a) => !!a.done_at,
 };
 
+// Soonest first, a timed task before an untimed one on the same day.
+const dueKey = (a) => `${a.due || '9999'} ${a.due_time || '99:99'}`;
 const dayLabel = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
 function ago(iso) {
@@ -59,18 +63,27 @@ function ago(iso) {
 
 function linkOf(a) {
   if (a.kind === 'lead') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
-  if (a.kind === 'checkin') return ghlOppUrl(a.sub, a.opp) || ghlContactUrl(a.sub, a.contact);
+  // Check-ins open the agent's conversation (the contact page), not the
+  // opportunity (Luke, Oct 22).
+  if (a.kind === 'checkin') return ghlContactUrl(a.sub, a.contact) || ghlOppUrl(a.sub, a.opp);
   if (a.kind === 'ghl') return ghlContactUrl(a.sub, a.contact);
   return null;
 }
 
+const hm12 = (t) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+const azNowHM = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Phoenix', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+
 function DueTag({ a, today }) {
   if (a.done_at || a.kind === 'lead' || a.kind === 'dupe' || !a.due) return null;
+  if (a.due_time && a.due === today) {
+    const past = a.due_time <= azNowHM();
+    return <span className={`rounded px-1.5 py-px text-[11px] font-bold ${past ? 'bg-red-100 text-[#B42318]' : 'bg-amber-100 text-amber-800'}`}>{past ? 'Due' : 'Today'} {hm12(a.due_time)}</span>;
+  }
   if (a.kind === 'deal' && a.due >= today) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-red-100 text-[#B42318]">{a.due === today ? 'Today' : dayLabel(a.due)}</span>;
   const d = daysBetween(a.due, today);
   if (d > 0) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-[#4c0519] text-white">{d}d late</span>;
   if (d === 0) return <span className="rounded px-1.5 py-px text-[11px] font-bold bg-amber-100 text-amber-800">Today</span>;
-  return <span className="rounded px-1.5 py-px text-[11px] font-semibold bg-zinc-100 text-zinc-600">{dayLabel(a.due)}</span>;
+  return <span className="rounded px-1.5 py-px text-[11px] font-semibold bg-zinc-100 text-zinc-600">{dayLabel(a.due)}{a.due_time ? ` · ${hm12(a.due_time)}` : ''}</span>;
 }
 
 function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
@@ -134,7 +147,7 @@ function RailButton({ on, label, sub, n, red, onClick }) {
     <button type="button" onClick={onClick} aria-current={on ? 'page' : undefined}
       className={`shrink-0 lg:w-full text-left rounded-xl px-3 py-2 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[14px] font-semibold whitespace-nowrap">{label}</span>
+        <span className="text-[14px] font-semibold whitespace-nowrap">{properCase(label)}</span>
         {n != null && <span className={`text-[12px] font-semibold tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : n ? `bg-tan-100 ${red ? 'text-[#B42318]' : 'text-zinc-600'}` : 'text-zinc-300'}`}>{n}</span>}
       </div>
       {sub && <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>}
@@ -145,11 +158,12 @@ function RailButton({ on, label, sub, n, red, onClick }) {
 function AddTask({ assignable, me, act, busy }) {
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
+  const [time, setTime] = useState('');
   const [to, setTo] = useState(me);
   const add = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
-    if (await act({ action: 'add', title, due: due || null, to })) { setTitle(''); setDue(''); }
+    if (await act({ action: 'add', title, due: due || null, dueTime: (due && time) || null, to })) { setTitle(''); setDue(''); setTime(''); }
   };
   return (
     <form onSubmit={add} className="flex flex-wrap gap-2 px-4 md:px-5 py-3 border-t border-tan-100 bg-tan-50/60">
@@ -160,6 +174,8 @@ function AddTask({ assignable, me, act, busy }) {
           options={assignable.map((p) => ({ value: p.id, label: p.id === me ? 'For me' : `For ${p.name}` }))} />
       )}
       <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]" aria-label="Due date" />
+      {/* A due time (Luke, Oct 22): the alert rings when it comes. */}
+      {due && <div className="w-36"><TimePicker value={time} onChange={setTime} placeholder="Time (optional)" /></div>}
       <button type="submit" disabled={busy || !title.trim()} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold text-[13.5px] hover:bg-navy-800 disabled:opacity-50">Add task</button>
     </form>
   );
@@ -199,7 +215,10 @@ export default function AlertsView() {
   const me = data?.me;
   const pod = data?.pod;
   const owner = data && data.assignable.length > 1 && !pod;
-  const who = query.get('who') || 'me';
+  // Owners open on Everyone (Luke, Oct 22: Mine only lists what's assigned
+  // to them); everyone else on Mine.
+  const defWho = owner ? 'all' : 'me';
+  const who = query.get('who') || defWho;
   const view = query.get('view') || 'today';
   const scoped = useMemo(() => {
     const all = data?.alerts || [];
@@ -213,7 +232,7 @@ export default function AlertsView() {
   const shown = scoped.filter((a) => PICK[view](a, today)).sort((x, y) => (
     view === 'done' ? (y.done_at > x.done_at ? 1 : -1)
       : (x.kind === 'lead') !== (y.kind === 'lead') ? (x.kind === 'lead' ? -1 : 1)
-        : (x.due || '9999') !== (y.due || '9999') ? ((x.due || '9999') < (y.due || '9999') ? -1 : 1)
+        : dueKey(x) !== dueKey(y) ? (dueKey(x) < dueKey(y) ? -1 : 1)
           : (y.created_at > x.created_at ? 1 : -1)));
 
   // Today's list in groups: new since the last look, late, due today, the rest.
@@ -252,7 +271,7 @@ export default function AlertsView() {
             {(pod || owner) && (
               <div className="inline-flex rounded-lg bg-navy-900/60 p-0.5" role="group" aria-label="Whose alerts">
                 {[['me', 'Mine'], ...(pod ? [['pod', pod.title]] : []), ...(owner ? [['all', 'Everyone']] : [])].map(([id, l]) => (
-                  <button key={id} type="button" onClick={() => setQuery({ who: id === 'me' ? null : id })} className={`h-7 px-3 rounded-md text-[13px] font-semibold ${who === id ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white'}`}>{l}</button>
+                  <button key={id} type="button" onClick={() => setQuery({ who: id === defWho ? null : id })} className={`h-7 px-3 rounded-md text-[13px] font-semibold ${who === id ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white'}`}>{l}</button>
                 ))}
               </div>
             )}

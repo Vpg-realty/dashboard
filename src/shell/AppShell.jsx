@@ -273,7 +273,11 @@ export default function AppShell({ me }) {
 
         {section.id === 'board' && <AlertStrip />}
 
-        <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : tab?.scroll ? 'overflow-y-auto px-4 md:px-6 py-5 pb-24 md:pb-8' : 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4'}`}>
+        {/* Every page sits at the same place (Luke, Oct 22: All Deals and Active,
+            Zip Center's tabs shifted): one padding for app pages (the board
+            keeps its tighter frame, like the TV) and the scrollbar's room
+            always kept, so a long page doesn't shift the content left. */}
+        <main key={canonical} className={`flex-1 min-h-0 ${section.id === 'board' ? '' : '[scrollbar-gutter:stable]'} ${section.id === 'home' ? 'overflow-y-auto px-4 md:px-8 py-6 pb-24 md:pb-8' : tab?.scroll ? 'overflow-y-auto px-4 md:px-6 py-5 pb-24 md:pb-8' : section.id === 'board' ? 'overflow-auto md:overflow-hidden p-3 md:p-4 pb-20 md:pb-4' : 'overflow-auto md:overflow-hidden px-4 md:px-6 py-5 pb-20 md:pb-5'}`}>
           {section.id === 'home' ? <HomeView me={me} /> : section.rail && tab ? <SettingsFrame section={section} tab={tab}><View /></SettingsFrame> : tab?.scroll ? <View /> : (
             <div className={`h-(--ph) min-w-(--pw) md:h-full md:min-w-0 ${section.id === 'team' || section.id === 'me' ? 'app-team' : ''}`} style={{ '--ph': `${tab?.phone?.h || 900}px`, '--pw': `${tab?.phone?.w || 0}px` }}>
               {section.id === 'board'

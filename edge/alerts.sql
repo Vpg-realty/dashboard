@@ -24,7 +24,10 @@ CREATE TABLE IF NOT EXISTS alerts (
   verdict_at TEXT,
   -- the property address a lead / same-address alert is about (Oct 19;
   -- added to the live table with ALTER TABLE alerts ADD COLUMN addr TEXT)
-  addr TEXT
+  addr TEXT,
+  -- a task's due time, "HH:MM" Arizona (Oct 22; added to the live table
+  -- with ALTER TABLE alerts ADD COLUMN due_time TEXT)
+  due_time TEXT
 );
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
 -- Oct 19: the sync and the red-dot poll scanned the whole table every time

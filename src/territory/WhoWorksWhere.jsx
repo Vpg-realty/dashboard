@@ -74,17 +74,17 @@ function YearToDate({ st, tracker, owner }) {
   const anyGhl = YTD_FIELDS.some(([k]) => y[k].since);
   return (
     <div>
-      <div className="flex items-baseline gap-2 mb-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 mb-2">
         <h4 className="text-[15px] font-semibold text-navy-800">How {y.year} is going in {st.state}</h4>
         <span className="text-[12px] text-zinc-500">whole team · from GHL</span>
       </div>
       {anyGhl ? (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
           {YTD_FIELDS.map(([k, , label]) => {
             const v = y[k].value;
             const tone = !y[k].since ? 'text-zinc-300' : k === 'cancels' ? (v ? 'text-red-700' : 'text-zinc-400') : k === 'closed' || k === 'revenue' ? 'text-emerald-700' : 'text-navy-800';
             return (
-              <div key={k} className="relative rounded-xl border border-tan-200 bg-white px-3 pt-3 pb-2 overflow-hidden">
+              <div key={k} className="relative min-w-0 rounded-xl border border-tan-200 bg-white px-3 pt-3 pb-2 overflow-hidden">
                 <span className="absolute inset-x-0 top-0 h-1" style={{ background: STATE_ACCENT[k] }} />
                 <div className="text-[12px] text-zinc-500 font-medium">{label}</div>
                 <div className={`text-[22px] font-semibold tabular-nums leading-tight ${tone}`}>{y[k].since ? (k === 'revenue' ? money(v) : v.toLocaleString()) : '—'}</div>
@@ -122,21 +122,27 @@ function StateDetail({ st, tracker, owner }) {
   const dispoRep = REPS.find((r) => r.name.split(' ')[0].toLowerCase() === String(st.dispo || '').split(' ')[0].toLowerCase());
   return (
     <div className="flex flex-col">
-      <div className="relative overflow-hidden bg-navy-700 text-white px-5 pt-5 pb-4">
-        {shape && (
-          <svg viewBox={shape.box} className="absolute -right-4 -top-2 h-[150px] w-[190px] opacity-[0.18]" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-            <path d={shape.d} fill="#ad9b7a" stroke="#ffffff" strokeWidth="0.6" />
-          </svg>
-        )}
-        <div className="relative">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Valley Property Group · Market</div>
-          <div className="mt-1 flex items-baseline gap-2.5">
-            <h3 className="text-[26px] font-semibold tracking-tight">{st.state}</h3>
-            <span className="text-[14px] font-semibold text-white/50">{st.abbr}</span>
+      <div className="bg-navy-700 text-white px-5 pt-5 pb-4">
+        {/* The state's outline sits beside the title, not behind it (Luke,
+            Oct 22: it covered the name and chips on narrower screens). */}
+        <div>
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Valley Property Group · Market</div>
+              <div className="mt-1 flex items-baseline gap-2.5">
+                <h3 className="text-[26px] font-semibold tracking-tight truncate">{st.state}</h3>
+                <span className="text-[14px] font-semibold text-white/50">{st.abbr}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5"><StatusChip st={st} /><SeasonChip st={st} /><Legal v={st.legal} /></div>
+            </div>
+            {shape && (
+              <svg viewBox={shape.box} className="shrink-0 h-[84px] w-[96px] opacity-40" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+                <path d={shape.d} fill="#ad9b7a" stroke="#ffffff" strokeWidth="0.6" />
+              </svg>
+            )}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5"><StatusChip st={st} /><SeasonChip st={st} /><Legal v={st.legal} /></div>
           <div className="mt-4 text-[11.5px] font-semibold uppercase tracking-wide text-white/60">Who's on it</div>
-          <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="mt-1.5 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-2">
             {st.ghl.map((r) => <Person key={r.id} rep={REPS.find((x) => x.id === r.id) || r} role="Acquisitions · month" sub={repStats(r.id)} />)}
             {st.dispo ? <Person rep={dispoRep || { name: st.dispo, color: '#ad9b7a' }} role="Dispo" sub={st.dispoBackup ? `backup ${st.dispoBackup}` : null} />
               : <div className="rounded-xl bg-red-500/20 ring-1 ring-inset ring-red-300/40 px-3 py-2 text-[13px] font-medium text-red-100">No dispo rep on the sheet</div>}
@@ -150,7 +156,7 @@ function StateDetail({ st, tracker, owner }) {
         <YearToDate st={st} tracker={tracker} owner={owner} />
         <div>
           <h4 className="text-[15px] font-semibold text-navy-800 mb-2">This Market at a Glance</h4>
-          <div className="grid grid-cols-2 gap-2 text-[13.5px]">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 text-[13.5px]">
             <Fact l="This month" v={`${st.act.opps} opps · ${st.act.offers} offers · ${st.act.contracts} contracts`} />
             <Fact l="New conversations · last 7 days" v={st.act.convos7.toLocaleString()} />
             <Fact l="Counties · zips on the sheet" v={`${st.counties} · ${st.zips.toLocaleString()}`} />
@@ -186,7 +192,7 @@ function RepDetail({ row, flags, onState }) {
     </div>
   );
 }
-const Fact = ({ l, v }) => <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2"><div className="text-[11.5px] font-medium text-zinc-500">{l}</div><div className="font-semibold text-navy-900 mt-0.5">{v}</div></div>;
+const Fact = ({ l, v }) => <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2"><div className="text-[11.5px] font-medium text-zinc-500">{l}</div><div className="font-semibold text-navy-900 mt-0.5 break-words">{v}</div></div>;
 
 export default function WhoWorksWhere() {
   const { m, status, error, tracker, owner } = useTerritoryModel();

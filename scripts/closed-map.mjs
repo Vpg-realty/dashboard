@@ -24,7 +24,8 @@ export function planTracker(deals, rows) {
   const sheetKeys = new Set(rows.filter((r) => r.source === 'sheet').map((r) => r.addr_key).filter(Boolean));
   const add = []; const update = []; const remove = [];
   for (const d of closed) {
-    const row = { id: `t_${d.id}`, address: String(d.address).trim(), addr_key: addrKey(d.address), sold: /^\d{4}-\d{2}-\d{2}$/.test(d.coe || '') ? d.coe : null, price: num(d.finalAssign) ?? num(d.vpgAssign), deal_id: d.id };
+    // price = VPG's assignment price (Luke, Oct 22: sold volume counts only it).
+    const row = { id: `t_${d.id}`, address: String(d.address).trim(), addr_key: addrKey(d.address), sold: /^\d{4}-\d{2}-\d{2}$/.test(d.coe || '') ? d.coe : null, price: num(d.vpgAssign), deal_id: d.id };
     const have = byDeal.get(d.id);
     if (have) {
       if (have.address !== row.address || have.sold !== row.sold || have.price !== row.price) update.push({ ...row, moved: have.address !== row.address });

@@ -43,7 +43,7 @@ import { laToday } from '../utils/historyRange.js';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 const OVERVIEW = ['address', 'ghlStage', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
-const GROUP_LABEL = { contract: 'Contract Info', title: 'Title', emd: 'EMD', dd: 'Due Diligence', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
+const GROUP_LABEL = { contract: 'Contract Info', title: 'Title', emd: 'EMD', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
 // How a value reads in the table (Luke, Oct 14: proper case throughout;
 // dropdown values worth scanning as pills, people as their coloured chip).
 // Empty or a dash reads "—" (no data); an entered 0 reads $0.00 (Luke, Oct 14).

@@ -462,7 +462,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                         const tone = need.has('ddEnd') || need.has('ddStart') ? 'need' : !isNew && !ro && (flagged.has('ddEnd') || flagged.has('ddStart')) && step.tone !== 'green' ? 'check' : 'plain';
                         return (
                           <div key="dd-dates" id="deal-f-ddEnd" className={`col-span-3 min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`}>
-                            <span id="deal-f-ddStart" className="sr-only">Due diligence dates</span>
+                            <span id="deal-f-ddStart" className="sr-only">Inspection period dates</span>
                             {tone !== 'plain' && <span className={`inline-block mb-1 rounded px-1 text-[10.5px] font-semibold ${tone === 'need' ? 'bg-[#FDECEA] text-[#B42318]' : 'bg-[#FEF0C7] text-[#B54708]'}`}>{tone === 'need' ? 'needed' : 'check this'}</span>}
                             <DdTimeline d={merged} />
                             {!fro('ddDays') && (
@@ -473,7 +473,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                                   <input type="date" value={merged.ddEnd || ''} min={merged.accepted} onChange={(e) => { const v = e.target.value; if (ISO.test(v)) setField('ddDays', Math.round((Date.parse(v) - Date.parse(merged.accepted)) / 86_400_000)); }}
                                     className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-navy-800" />
                                 ) : <span className="text-zinc-400">set the contract acceptance date first</span>}
-                                <span className="text-zinc-400">sets the DD days · sent to GHL on save</span>
+                                <span className="text-zinc-400">sets the IP days · sent to GHL on save</span>
                               </div>
                             )}
                           </div>

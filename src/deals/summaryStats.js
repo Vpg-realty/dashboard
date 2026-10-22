@@ -25,7 +25,9 @@ export function stats(list) {
   return {
     contracts: list.length, closed: closed.length, cancelled, pending: pending.length,
     decided, closeRate: decided ? closed.length / decided : 0,
-    volume: sumOf(closed, 'finalAssign'), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
+    // Sold volume = the price VPG assigned each closed deal at (Luke, Oct 22 —
+    // not the final assignment price, which can be Unknown).
+    volume: sumOf(closed, 'vpgAssign'), gross, net: sumOf(closed, 'netAssign'), profit, margin: gross ? profit / gross : 0,
     // Avg net / closed = net assignment ÷ closings (Luke, Oct 16: "1 close at
     // 70k, but its being divided by 2" — it was net profit, after commissions).
     avgNet: closed.length ? sumOf(closed, 'netAssign') / closed.length : 0,
