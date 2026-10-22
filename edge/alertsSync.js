@@ -85,7 +85,17 @@ Not a lead:
 - a property that is already listed on the MLS and the agent is just pointing at it with no off-market angle, unless they ask for an offer,
 - small talk, scheduling, thanks, "no deals right now", "sold", questions about VPG, or anything vague with no property and no promise of one.
 
-When the team has answered earlier alerts, follow those examples: they show what this team counts as a lead.
+When the team has answered earlier alerts, follow those examples: they show what this team counts as a lead and how good each kind of lead is.
+
+For every lead also suggest its type (the team decides; learn from their answers):
+- "hot": an address with a seller ready to move, or the agent asks for an offer now,
+- "warm": a real opportunity that isn't ready yet (a deal promised, an address with no urgency),
+- "cold": a long shot — bank-owned (REO), HUD homes, listed properties, vague hopes,
+- "wholesale": the agent looks like another wholesaler or investor passing on a contract or assignment (a "potential wholesale"),
+- "not": you flagged it but it probably isn't a lead.
+Set bank_hud true when the property is bank-owned / REO / a HUD home (it is still a lead, a cold one).
+
+Some items show an EARLIER LEAD this same agent already sent this same rep. Set same_as_earlier true when the new text is about that same property (a follow-up, more details, a price), false when it is clearly a different property, null when you can't tell. Without an earlier lead, null.
 
 Return one verdict per item. For a lead: kind "address" (an address was sent) or "coming" (a deal is promised), the address as written (or null), and a summary of at most 12 words with no names or phone numbers.`;
 
@@ -102,8 +112,11 @@ const LEAD_SCHEMA = {
           kind: { anyOf: [{ type: 'string', enum: ['address', 'coming'] }, { type: 'null' }] },
           address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
           summary: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          type: { anyOf: [{ type: 'string', enum: ['hot', 'warm', 'cold', 'wholesale', 'not'] }, { type: 'null' }] },
+          bank_hud: { type: 'boolean' },
+          same_as_earlier: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
         },
-        required: ['id', 'lead', 'kind', 'address', 'summary'],
+        required: ['id', 'lead', 'kind', 'address', 'summary', 'type', 'bank_hud', 'same_as_earlier'],
         additionalProperties: false,
       },
     },
@@ -115,9 +128,10 @@ const LEAD_SCHEMA = {
 export async function judgeLeads(client, batch, examples) {
   const ids = batch.map((_, i) => `t${i + 1}`);
   const ex = examples.length
-    ? `The team's answers on earlier alerts:\n${examples.map((e) => `- ${e.verdict === 'real' ? 'REAL LEAD' : 'NOT A LEAD'}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}\n\n`
+    ? `The team's answers on earlier alerts:\n${examples.map((e) => `- ${VERDICT_WORD[e.verdict] || 'LEAD'}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}\n\n`
     : '';
-  const body = batch.map((t, i) => `<item id="${ids[i]}">\n${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
+  const earlier = (t) => (t.earlier ? `EARLIER LEAD from this agent to this rep, ${Math.max(1, Math.round((t.at - t.earlier.at) / 3600000))} h before: "${String(t.earlier.quote || '').replace(/\s+/g, ' ').slice(0, 300)}"${t.earlier.addr ? ` (address: ${t.earlier.addr})` : ''}\n` : '');
+  const body = batch.map((t, i) => `<item id="${ids[i]}">\n${earlier(t)}${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
@@ -136,6 +150,31 @@ export async function judgeLeads(client, batch, examples) {
     if (i >= 0) out[batch[i].id] = v;
   }
   return out;
+}
+
+const VERDICT_WORD = { hot: 'HOT LEAD', warm: 'WARM LEAD', cold: 'COLD LEAD', wholesale: 'WHOLESALE', not: 'NOT A LEAD', real: 'REAL LEAD' };
+const REPEAT_MS = 2 * 3600000;
+// Same agent: their phone, else the contact (one sub-account).
+const agentKey = (x) => (x.phone || x.agent ? `p:${x.phone || x.agent}` : x.contact ? `c:${x.contact}` : null);
+// Two texts saying much the same (word overlap) — a forwarded lead.
+const words = (t) => new Set(String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length > 2));
+export function similar(a, b) {
+  const x = words(a); const y = words(b);
+  if (!x.size || !y.size) return false;
+  let n = 0;
+  for (const w of x) if (y.has(w)) n++;
+  return n / Math.max(x.size, y.size) >= 0.6;
+}
+// The repeat-lead rule (Luke, Oct 22): the same agent to the same rep is a
+// new lead when a new address appears, or 2+ hours after their last lead and
+// Claude doesn't think it's the same property (unsure → flag; better a
+// second alert than a missed lead).
+export function isRepeat(v, m, earlier) {
+  if (!earlier) return false;
+  const k = v.address ? addrKey(v.address) : null;
+  if (k && k !== (earlier.addr ? addrKey(earlier.addr) : null)) return false;
+  if (m.at - earlier.at < REPEAT_MS) return true;
+  return v.same_as_earlier === true;
 }
 
 export const leadTitle = (v) => (v.kind === 'address' && v.address ? `Agent sent an address — ${String(v.address).slice(0, 120)}` : v.kind === 'address' ? 'Agent sent an address' : 'Agent says a deal is coming');
@@ -284,8 +323,22 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       for (const m of feed.subs?.[s.key]?.inbound || []) if (!judged[m.id]) todo.push({ ...m, sub: s });
   }
   todo.sort((a, b) => b.at - a.at);
+  // The last 30 days of leads, read once: the repeat rule and duplicates.
+  // (Only when there's something to judge — the 2-minute worker runs often.)
+  const recent = todo.length && judge ? await rows("SELECT holder, agent, contact, addr, quote, created_at FROM alerts WHERE kind = 'lead' AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]) : [];
+  const earlierOf = (m) => {
+    const k = agentKey(m);
+    let best = null;
+    for (const l of recent) {
+      const at = Date.parse(l.created_at);
+      if (l.holder !== m.sub.repId || agentKey(l) !== k || at >= m.at) continue;
+      if (!best || at > best.at) best = { at, addr: l.addr, quote: l.quote };
+    }
+    return best;
+  };
   if (todo.length && judge) {
     const examples = await rows("SELECT quote, verdict FROM alerts WHERE kind = 'lead' AND verdict IS NOT NULL ORDER BY verdict_at DESC LIMIT 30");
+    for (const m of todo) m.earlier = agentKey(m) ? earlierOf({ ...m, sub: m.sub }) : null;
     for (let i = 0; i < Math.min(todo.length, LEAD_MAX_PER_RUN); i += LEAD_PER_CALL) {
       const batch = todo.slice(i, i + LEAD_PER_CALL);
       let verdicts;
@@ -296,63 +349,98 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         judged[m.id] = now;
         status.judged++;
         if (!v.lead) continue;
-        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
+        if (isRepeat(v, m, m.earlier)) { status.repeats = (status.repeats || 0) + 1; continue; }
+        const addr = v.kind === 'address' && v.address ? clip(v.address, 160) : null;
+        const at = new Date(m.at).toISOString();
+        // Bank-owned / HUD (Luke, Oct 22): still a lead, but marked Cold and
+        // checked off straight away.
+        const auto = v.bank_hud ? ['cold', 'Claude (bank / HUD owned)', iso, iso, 'Auto: bank / HUD owned — cold'] : [null, null, null, null, null];
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
           ON CONFLICT (ext_id) DO NOTHING`,
-        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), v.kind === 'address' && v.address ? clip(v.address, 160) : null, new Date(m.at).toISOString()]);
-        if (r[0]?.meta?.changes) status.leads++;
+        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at]);
+        if (r[0]?.meta?.changes) {
+          status.leads++;
+          recent.push({ holder: m.sub.repId, agent: m.phone || null, contact: m.contact || null, addr, quote: m.body, created_at: at });
+        }
       }
     }
   } else if (todo.length) status.leadError = 'no Claude key here';
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('lead_judged', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(judged), iso]);
   }
-  // Same address sent to more than one rep (Luke, Oct 19): the spotted leads
-  // of the last 30 days grouped by address (addrKey: house number + street
-  // word); two or more reps → one 'dupe' alert per pod involved (ext_id
-  // dupe:<key>|<pod>), held by that pod's first rep on it, so each pod lead
-  // (and the owners) hears that another pod's rep already has it — every rep
-  // named with their pod and when they got it. A rep in no pod is a pod of
-  // their own (owners only). A new rep on it updates the alert and reopens a
-  // ticked one. One read of the recent leads per run.
+  // Duplicates (Luke, Oct 19, reworked Oct 22) — two labels, one alert per
+  // pod involved (ext_id dupe:<key>|<pod>), held by that pod's first rep on
+  // it, so each pod lead (and the owners) hears another pod's rep has it,
+  // with every rep, their pod and when:
+  //  - Duplicate lead (`hint` duplicate): the same address (addrKey) sent to
+  //    reps in the last 30 days, or the same agent (phone) sending reps
+  //    nearly the same message (word overlap) within 7 days;
+  //  - Potential duplicate (`hint` potential): the same agent texting leads
+  //    to reps in more than one sub-account within 7 days with no address
+  //    and different messages.
+  // A rep in no pod is a pod of their own. A new rep on it updates the alert
+  // and reopens it for everyone (its marks are cleared). One read per run.
   status.dupes = 0;
   if (want.dupes) {
-    const leadRows = await rows("SELECT holder, addr, created_at FROM alerts WHERE kind = 'lead' AND addr IS NOT NULL AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
+    const leadRows = await rows("SELECT holder, addr, agent, quote, created_at FROM alerts WHERE kind = 'lead' AND created_at >= ?", [new Date(now - DUPE_DAYS * DAY).toISOString()]);
+    const groups = []; // { key, hint, list }
     const byAddr = new Map();
     for (const l of leadRows) {
-      const k = addrKey(l.addr);
+      const k = l.addr ? addrKey(l.addr) : null;
       if (k) byAddr.set(k, [...(byAddr.get(k) || []), l]);
-  }
-  const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
-  // Pods from Settings › People (deal_lists.reportsTo; one row per run).
-  const rt = (await rows("SELECT json_extract(value, '$.reportsTo') AS r FROM settings WHERE key = 'deal_lists'"))[0]?.r;
-  const pods = rt && reps.length ? podsFrom(JSON.parse(rt), reps) : PODS;
-  const podOf = (id) => pods.find((p) => p.lead === id || p.reps.includes(id));
-  const when = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
-  for (const [k, ls] of byAddr) {
-    const first = new Map();
-    for (const l of ls.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) if (!first.has(l.holder)) first.set(l.holder, l);
-    if (first.size < 2) continue;
-    const list = [...first.values()];
-    const pods = new Map();
-    for (const l of list) {
-      const p = podOf(l.holder);
-      const pk = p ? p.title : `solo:${l.holder}`;
-      if (!pods.has(pk)) pods.set(pk, l);
     }
-    const tag = (l) => { const p = podOf(l.holder); return p ? `${repName(l.holder)} (${p.title})` : repName(l.holder); };
-    const timeline = list.map((l) => `${tag(l)} ${when(l.created_at)}`).join(' → ');
-    for (const [pk, l] of pods) {
-      const multi = pods.size > 1;
-      const earlier = list.filter((x) => x.created_at < l.created_at && podOf(x.holder)?.title !== podOf(l.holder)?.title);
-      const title = !multi ? `Duplicate lead — sent to ${list.length} reps — ${clip(list[0].addr, 120)}`
-        : earlier.length ? `Already received by another pod — ${clip(l.addr, 120)}`
-          : `Also sent to another pod — ${clip(l.addr, 120)}`;
-      const ext = `dupe:${k}|${pk}`;
-      const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, 'Alerts', ?)
-        ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
-      [newId(), ext, l.holder, title, `${timeline} · decide who works it`, l.addr, iso]);
-      if (r[0]?.meta?.changes) status.dupes++;
+    for (const [k, ls] of byAddr) groups.push({ key: k, hint: 'duplicate', list: ls });
+    const week = new Date(now - 7 * DAY).toISOString();
+    const byAgent = new Map();
+    for (const l of leadRows) if (l.agent && l.created_at >= week) byAgent.set(l.agent, [...(byAgent.get(l.agent) || []), l]);
+    for (const [ph, ls] of byAgent) {
+      if (new Set(ls.map((l) => l.holder)).size < 2) continue;
+      // Different addresses = different properties; an address already
+      // grouped above is covered there.
+      const keys = new Set(ls.map((l) => (l.addr ? addrKey(l.addr) : null)).filter(Boolean));
+      if (keys.size > 1 || (keys.size === 1 && ls.every((l) => l.addr))) continue;
+      const cross = ls.some((x) => ls.some((y) => y.holder !== x.holder && similar(x.quote, y.quote)));
+      const first = ls.reduce((m, l) => (l.created_at < m ? l.created_at : m), ls[0].created_at).slice(0, 10);
+      groups.push({ key: `agent:${ph}:${first}`, hint: cross ? 'duplicate' : 'potential', list: ls });
     }
-  }
+    const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
+    // Pods from Settings › People (deal_lists.reportsTo; one row per run).
+    const rt = (await rows("SELECT json_extract(value, '$.reportsTo') AS r FROM settings WHERE key = 'deal_lists'"))[0]?.r;
+    const pods = rt && reps.length ? podsFrom(JSON.parse(rt), reps) : PODS;
+    const podOf = (id) => pods.find((p) => p.lead === id || p.reps.includes(id));
+    const when = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+    for (const g of groups) {
+      const first = new Map();
+      for (const l of g.list.sort((a, b) => (a.created_at < b.created_at ? -1 : 1))) if (!first.has(l.holder)) first.set(l.holder, l);
+      if (first.size < 2) continue;
+      const list = [...first.values()];
+      const podsIn = new Map();
+      for (const l of list) {
+        const p = podOf(l.holder);
+        const pk = p ? p.title : `solo:${l.holder}`;
+        if (!podsIn.has(pk)) podsIn.set(pk, l);
+      }
+      const tag = (l) => { const p = podOf(l.holder); return p ? `${repName(l.holder)} (${p.title})` : repName(l.holder); };
+      const timeline = list.map((l) => `${tag(l)} ${when(l.created_at)}`).join(' → ');
+      const what = list.find((l) => l.addr)?.addr || null;
+      const label = g.hint === 'potential' ? 'Potential duplicate' : 'Duplicate lead';
+      for (const [pk, l] of podsIn) {
+        const multi = podsIn.size > 1;
+        const earlier = list.filter((x) => x.created_at < l.created_at && podOf(x.holder)?.title !== podOf(l.holder)?.title);
+        const about = what ? clip(what, 120) : 'same agent, no address';
+        const title = !multi ? `${label} — sent to ${list.length} reps — ${about}`
+          : earlier.length ? `${label} — already received by another pod — ${about}`
+            : `${label} — also sent to another pod — ${about}`;
+        const ext = `dupe:${g.key}|${pk}`;
+        const body = `${timeline} · ${g.hint === 'potential' ? 'same agent texted more than one rep — check if it’s the same property' : 'decide who works it'}`;
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, agent, hint, created_by, created_at) VALUES (?, ?, ?, 'dupe', ?, ?, ?, ?, ?, 'Alerts', ?)
+          ON CONFLICT (ext_id) DO UPDATE SET title = excluded.title, body = excluded.body, hint = excluded.hint, done_at = NULL, done_by = NULL WHERE alerts.body IS NOT excluded.body`,
+        [newId(), ext, l.holder, title, body, what, l.agent || null, g.hint, iso]);
+        if (r[0]?.meta?.changes) {
+          status.dupes++;
+          await query('DELETE FROM alert_marks WHERE alert_id = (SELECT id FROM alerts WHERE ext_id = ?)', [ext]);
+        }
+      }
+    }
   }
   // Only the deploy's own run sets `since` (when Alerts started).
   if (statusKey !== 'alerts_sync') delete status.since;

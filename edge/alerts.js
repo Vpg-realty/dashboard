@@ -37,9 +37,18 @@ const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 const clip = (x, n) => String(x ?? '').trim().slice(0, n);
-// Done items stay on the list for a day (Luke, Oct 19: "the done category
-// should clear out every 24 hours").
-const KEEP_DONE_MS = 24 * 3600000;
+// Completed items stay a week (Luke, Oct 22: "weekly storage under done vs.
+// just 24 hours … good for reps to reference back to"; it was a day).
+const KEEP_DONE_MS = 7 * 86400000;
+// Each person ticks an alert off for themself (Luke, Oct 22: an owner or
+// manager ticking it shouldn't make it vanish for the rep, nor the rep's for
+// them): D1 alert_marks (alert_id, who = holderOf, name, at). Others see
+// "Reviewed by <name>". An alert closes for everyone (done_at, "Everyone
+// reviewed") once everyone it rings has marked it. The one exception: the
+// holder ticking their own task / GHL task / check-in (nobody else is rung
+// by it) closes it outright — and a GHL task goes back to GHL.
+export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
+const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
 // Oct 19); everyone can turn it on or off for themself.
 const chimeDefault = (u) => !(u.role === 'owner' || u.role === 'manager');
@@ -50,11 +59,15 @@ export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
   const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
   const where = scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '';
-  const [rows, seen, people] = await Promise.all([
+  const [rows, seen, people, marks] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
+    // Everyone's marks of the last two months (index alert_marks_at).
+    db.prepare('SELECT alert_id, who, name, at FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
   ]);
+  const byAlert = new Map();
+  for (const m of marks.results) byAlert.set(m.alert_id, [...(byAlert.get(m.alert_id) || []), { who: m.who, name: m.name, at: m.at }]);
   const names = {};
   for (const p of people.results) names[holderOf(p)] = p.name;
   // Who this person can hand a task to: themself; a pod lead also their
@@ -67,7 +80,7 @@ export async function load(db, user, now = new Date()) {
     chime: seen ? !!seen.chime : chimeDefault(user),
     names,
     assignable: assignable.sort((a, b) => (a.id === scope.me ? -1 : b.id === scope.me ? 1 : a.name.localeCompare(b.name))),
-    alerts: rows.results,
+    alerts: rows.results.map((a) => ({ ...a, marks: byAlert.get(a.id) || [] })),
   };
 }
 
@@ -86,10 +99,12 @@ export function rings(a, scope) {
 // A task with a due time (Luke, Oct 22) joins the red dot when that time
 // comes on its day (Arizona `nowHM`, "HH:MM"); `dueNow` counts those that
 // have come due — the browser chimes when it goes up.
-export function counts(alerts, scope, seenAt, today, nowHM = null) {
+export function counts(alerts, scope, seenAt, today, nowHM = null, mine = null) {
   let unseen = 0, overdue = 0, open = 0, owe = 0, leads = 0, dueNow = 0;
   for (const a of alerts) {
     if (a.done_at || !rings(a, scope)) continue;
+    // Ticked off by this person (their own mark) — gone from their dot.
+    if (mine ? mine.has(a.id) : (a.marks || []).some((m) => m.who === scope.me)) continue;
     open++;
     if (!seenAt || a.created_at > seenAt) unseen++;
     if (a.kind !== 'lead' && a.due && a.due < today) overdue++;
@@ -111,13 +126,16 @@ const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 // table (Oct 19: the full list on every poll used up D1's daily reads).
 export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
-  const [mine, leads, seen] = await Promise.all([
-    db.prepare("SELECT holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
-    db.prepare("SELECT holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
+  const [mine, leads, seen, marked] = await Promise.all([
+    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
+    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
+    // What this person has ticked off themself (index alert_marks_who).
+    db.prepare('SELECT alert_id FROM alert_marks WHERE who = ?').bind(scope.me).all(),
   ]);
   const rows = [...mine.results, ...leads.results.filter((a) => a.holder !== scope.me)];
-  return { counts: counts(rows, scope, seen?.seen_at || null, today, nowHM), chime: seen ? !!seen.chime : chimeDefault(user) };
+  const myMarks = new Set(marked.results.map((m) => m.alert_id));
+  return { counts: counts(rows, scope, seen?.seen_at || null, today, nowHM, myMarks), chime: seen ? !!seen.chime : chimeDefault(user) };
 }
 
 // A GHL task ticked (or unticked) on the site is completed (or reopened) in
@@ -130,6 +148,37 @@ export function ghlTick(x, done, user, now) {
   if (!!x.done_at === done) return [];
   return [['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [`alert:${x.id}`, x.ext_id.slice(4), x.sub, `task:${x.contact}`, done ? 'done' : 'open', user.name, now, 'pending']]];
+}
+
+// The statements for one tick / untick by this person.
+function tick(x, done, user, scope, now) {
+  if (!personal(x, scope)) {
+    return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now)];
+  }
+  if (done) return [['INSERT INTO alert_marks (alert_id, who, name, at) VALUES (?, ?, ?, ?) ON CONFLICT (alert_id, who) DO UPDATE SET name = excluded.name, at = excluded.at', [x.id, scope.me, user.name, now]]];
+  return [['DELETE FROM alert_marks WHERE alert_id = ? AND who = ?', [x.id, scope.me]],
+    ["UPDATE alerts SET done_at = NULL, done_by = NULL WHERE id = ? AND done_by = 'Everyone reviewed'", [x.id]]];
+}
+
+// Who an alert rings: its holder, and for leads / deadlines / duplicates
+// also the holder's pod lead and the owners (`owners` = their holderOf).
+export function ringers(a, owners) {
+  if (!SHARED.has(a.kind)) return [a.holder];
+  const lead = getPods().find((p) => p.reps.includes(a.holder))?.lead;
+  return [...new Set([a.holder, lead, ...owners].filter(Boolean))];
+}
+// After personal ticks: close for everyone the alerts everyone has reviewed.
+export async function closeReviewed(db, list, now) {
+  if (!list.length) return;
+  const owners = (await db.prepare("SELECT email, rep_id FROM users WHERE role = 'owner' AND status != 'inactive'").all()).results.map(holderOf);
+  const ids = list.map((x) => x.id);
+  const marks = [];
+  for (let i = 0; i < ids.length; i += 90) {
+    const part = ids.slice(i, i + 90);
+    marks.push(...(await db.prepare(`SELECT alert_id, who FROM alert_marks WHERE alert_id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+  }
+  const done = list.filter((x) => ringers(x, owners).every((w) => marks.some((m) => m.alert_id === x.id && m.who === w)));
+  if (done.length) await db.batch(done.map((x) => db.prepare("UPDATE alerts SET done_at = ?, done_by = 'Everyone reviewed' WHERE id = ? AND done_at IS NULL").bind(now, x.id)));
 }
 
 // body = { action, ... } → { error } or { run: [[sql, params], …] }
@@ -160,15 +209,17 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   if (a === 'doneMany') {
     const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind !== 'lead');
     if (!list.length) return { error: 'Pick the alerts to tick off' };
-    return { ids: list.map((x) => x.id), run: list.flatMap((x) => [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, x.id]], ...ghlTick(x, !!b.done, user, now)]) };
+    return { ids: list.map((x) => x.id), check: b.done ? list.filter((x) => personal(x, scope)) : [], run: list.flatMap((x) => tick(x, !!b.done, user, scope, now)) };
   }
   if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
   if (a === 'done') {
-    return { run: [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [b.done ? user.name : null, b.done ? now : null, b.id]], ...ghlTick(existing, !!b.done, user, now)] };
+    return { check: b.done && personal(existing, scope) ? [existing] : [], run: tick(existing, !!b.done, user, scope, now) };
   }
   if (a === 'verdict') {
     if (existing.kind !== 'lead') return { error: 'Only spotted leads take a verdict' };
-    if (!['real', 'not', null].includes(b.verdict ?? null)) return { error: 'Unknown verdict' };
+    // Hot / Warm / Cold / Wholesale / Not a lead (Luke, Oct 22) — one answer
+    // for everyone (the row takes its colour for all who see it).
+    if (![...LEAD_TYPES, null].includes(b.verdict ?? null)) return { error: 'Unknown lead type' };
     const v = b.verdict ?? null;
     // The answer teaches Claude what counts as a lead (the last 30 go along
     // as examples); it no longer closes the alert — "Complete" does (Luke,
