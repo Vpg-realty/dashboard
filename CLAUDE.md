@@ -1183,6 +1183,9 @@ Overrides the Alerts notes above where they differ.
   old `?view=done` links land there); the rail filters inside either tab.
   Completed keeps 7 days (`KEEP_DONE_MS`). The band counters keep their
   own style (see Site-wide building blocks).
+- **Order** (Luke, later Oct 22: "organize lead alerts from earliest to
+  latest top down"): leads and duplicates sort oldest first (after the due
+  date), everything else newest first; Completed stays most recent first.
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.

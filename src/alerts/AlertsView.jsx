@@ -47,6 +47,7 @@ const LATER = [
 
 // Which list an alert is in — Active and Completed (top tabs, Oct 22) share
 // the rail: today = everything in Completed.
+const SHARED_ORDER = new Set(['lead', 'dupe']);
 const PICK = {
   today: (a, t, done) => done || SHARED.has(a.kind) || !a.due || a.due <= t,
   leads: (a) => a.kind === 'lead',
@@ -254,7 +255,10 @@ export default function AlertsView() {
     tab === 'done' ? (doneAt(y) > doneAt(x) ? 1 : -1)
       : (x.kind === 'lead') !== (y.kind === 'lead') ? (x.kind === 'lead' ? -1 : 1)
         : dueKey(x) !== dueKey(y) ? (dueKey(x) < dueKey(y) ? -1 : 1)
-          : (y.created_at > x.created_at ? 1 : -1)));
+          // Leads and duplicates oldest first, top down (Luke, Oct 22:
+          // "organize lead alerts from earliest to latest"); the rest newest first.
+          : SHARED_ORDER.has(x.kind) && SHARED_ORDER.has(y.kind) ? (x.created_at > y.created_at ? 1 : -1)
+            : (y.created_at > x.created_at ? 1 : -1)));
 
   // Today's list in groups: new since the last look, late, due today, the rest.
   const groups = view === 'today' && tab === 'active' ? [
