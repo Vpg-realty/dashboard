@@ -1116,8 +1116,9 @@ Overrides the Alerts notes above where they differ.
   it as the row's colour and a chip, and it teaches Claude (the last 30 go
   along as examples). **Complete** stays. Claude's own guess shows as a
   hint chip ("Claude: potential wholesale", `alerts.hint`).
-- **Bank-owned / HUD** homes (Claude's `bank_hud`) arrive marked Cold and
-  already checked off ("Auto: bank / HUD owned — cold").
+- **Bank-owned / HUD** homes (Claude's `bank_hud`) arrive marked Cold
+  (verdict by "Claude (bank / HUD owned)") but stay open — each person
+  completes them (Luke, Oct 22; may change later).
 - Every lead and duplicate starts with the **address** (📍), or "No
   address given".
 - **Repeat texts**: the same agent (phone, `alerts.agent` = last 10 digits,

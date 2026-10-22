@@ -352,9 +352,9 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         if (isRepeat(v, m, m.earlier)) { status.repeats = (status.repeats || 0) + 1; continue; }
         const addr = v.kind === 'address' && v.address ? clip(v.address, 160) : null;
         const at = new Date(m.at).toISOString();
-        // Bank-owned / HUD (Luke, Oct 22): still a lead, but marked Cold and
-        // checked off straight away.
-        const auto = v.bank_hud ? ['cold', 'Claude (bank / HUD owned)', iso, iso, 'Auto: bank / HUD owned — cold'] : [null, null, null, null, null];
+        // Bank-owned / HUD (Luke, Oct 22): still a lead, marked Cold but left
+        // open — each person completes it themself.
+        const auto = v.bank_hud ? ['cold', 'Claude (bank / HUD owned)', iso, null, null] : [null, null, null, null, null];
         const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
           ON CONFLICT (ext_id) DO NOTHING`,
         [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at]);
