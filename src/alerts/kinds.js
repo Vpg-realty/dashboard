@@ -1,6 +1,6 @@
 // Shared by the Alerts page and Home's Today at a Glance: the lead type
 // colours (Luke, Oct 22) and where an alert opens in GHL.
-import { ghlContactUrl, ghlConvUrl, ghlOppUrl } from '../data/config.js';
+import { ghlContactUrl, ghlConvUrl, ghlOppUrl, ALL_MARKETS } from '../data/config.js';
 
 export const LEAD_TYPE = {
   hot: { label: 'Hot lead', on: 'bg-red-600 text-white', row: 'border-l-red-600 bg-red-50/60', chip: 'bg-red-100 text-red-800' },
@@ -12,7 +12,23 @@ export const LEAD_TYPE = {
 };
 export const HINT_WORD = { hot: 'hot lead', warm: 'warm lead', cold: 'cold lead', wholesale: 'potential wholesale', not: 'maybe not a lead' };
 
+// The market a lead came from, by its sub-account ("<repId>|<marketId>") —
+// shown first in a lead's headline (Luke, Oct 22: "include which market the
+// lead is coming from in the headline").
+export const marketOf = (sub) => {
+  const id = String(sub || '').split('|')[1];
+  return id ? ALL_MARKETS.find((m) => m.id === id)?.name || id : null;
+};
+// A duplicate's leads, one per rep (edge/alertsSync.js keeps them as JSON in
+// `quote`): [{ rep, name, pod, at, sub, conv, contact, text }].
+export const dupeRefs = (a) => {
+  if (a.kind !== 'dupe' || !a.quote) return [];
+  try { const r = JSON.parse(a.quote); return Array.isArray(r) ? r : []; } catch { return []; }
+};
+export const refLink = (r) => ghlConvUrl(r.sub, r.conv) || ghlContactUrl(r.sub, r.contact);
+
 export function linkOf(a) {
+  if (a.kind === 'dupe') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
   if (a.kind === 'lead') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
   // Check-ins open the agent's conversation (the contact page), not the
   // opportunity (Luke, Oct 22).
