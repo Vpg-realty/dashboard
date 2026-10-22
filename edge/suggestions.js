@@ -26,12 +26,27 @@ const CID = /^c[a-f0-9]{12}$/;
 const newId = (p) => `${p}${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 const clip = (x, n) => String(x ?? '').trim().slice(0, n);
 
-export async function load(db) {
+// Who sees what (Luke, later Oct 22: "suggestions made by each person only
+// visible to themselves. owners see all suggestions, but … noted on who
+// submitted them"): owners every suggestion with its author, everyone else
+// only their own (and the comments on them).
+export const seesAll = (u) => u?.role === 'owner';
+const mine = (u) => String(u?.email || '').toLowerCase();
+export const canSee = (u, row) => !!row && (seesAll(u) || String(row.created_email || '').toLowerCase() === mine(u));
+
+export async function load(db, user) {
+  if (seesAll(user)) {
+    const [s, c] = await Promise.all([
+      db.prepare('SELECT * FROM suggestions ORDER BY created_at DESC').all(),
+      db.prepare('SELECT * FROM suggestion_comments ORDER BY at').all(),
+    ]);
+    return { suggestions: s.results, comments: c.results, all: true };
+  }
   const [s, c] = await Promise.all([
-    db.prepare('SELECT * FROM suggestions ORDER BY created_at DESC').all(),
-    db.prepare('SELECT * FROM suggestion_comments ORDER BY at').all(),
+    db.prepare('SELECT * FROM suggestions WHERE lower(created_email) = ? ORDER BY created_at DESC').bind(mine(user)).all(),
+    db.prepare('SELECT c.* FROM suggestion_comments c JOIN suggestions s ON s.id = c.sid WHERE lower(s.created_email) = ? ORDER BY c.at').bind(mine(user)).all(),
   ]);
-  return { suggestions: s.results, comments: c.results };
+  return { suggestions: s.results, comments: c.results, all: false };
 }
 
 // body = { action, ... } → { error } or { run: [ [sql, params], … ] }
@@ -48,7 +63,9 @@ export function plan(b, user, now = new Date().toISOString(), existing = null, c
     return { id, run: [['INSERT INTO suggestions (id, title, body, kind, area, page, status, created_by, created_email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [id, title, clip(b.body, 4000) || null, kind, area, page, 'new', user.name, user.email, now, now]]] };
   }
-  if (!ID.test(String(b?.id || '')) || !existing) return { error: 'That suggestion is gone' };
+  // Someone else's suggestion is invisible to anyone but owners — so it can't
+  // be commented on, changed or removed either.
+  if (!ID.test(String(b?.id || '')) || !canSee(user, existing)) return { error: 'That suggestion is gone' };
   if (a === 'comment') {
     const body = clip(b.body, 2000);
     if (!body) return { error: 'Write a comment first' };
@@ -73,14 +90,14 @@ export function plan(b, user, now = new Date().toISOString(), existing = null, c
       [b.status, note, b.status === 'new' ? null : user.name, b.status === 'new' ? null : now, now, b.id]]] };
   }
   if (a === 'edit') {
-    if (existing.created_email !== user.email && user.role !== 'owner') return { error: 'Only whoever wrote it (or an owner) can change it' };
+    if (!seesAll(user) && !canSee(user, existing)) return { error: 'Only whoever wrote it (or an owner) can change it' };
     const title = clip(b.title, 140);
     if (!title) return { error: 'Give it a short title' };
     const kind = KINDS[b.kind] ? b.kind : existing.kind;
     return { run: [['UPDATE suggestions SET title = ?, body = ?, kind = ?, updated_at = ? WHERE id = ?', [title, clip(b.body, 4000) || null, kind, now, b.id]]] };
   }
   if (a === 'remove') {
-    if (existing.created_email !== user.email && user.role !== 'owner') return { error: 'Only whoever wrote it (or an owner) can remove it' };
+    if (!seesAll(user) && !canSee(user, existing)) return { error: 'Only whoever wrote it (or an owner) can remove it' };
     return { run: [['DELETE FROM suggestion_comments WHERE sid = ?', [b.id]], ['DELETE FROM suggestions WHERE id = ?', [b.id]]] };
   }
   return { error: 'Unknown action' };

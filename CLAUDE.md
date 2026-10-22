@@ -489,6 +489,15 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   lets them use the API, /api/me sends `suggest`, and `extraFor(me)` in
   sections.js adds the section to their sidebar / ⌘K. One settings row read
   per /api/me and per suggestions call — a few hundred reads a day.
+  **Private since later Oct 22** (Luke: "suggestions made by each person only
+  visible to themselves. owners see all suggestions, but … noted on who
+  submitted them … editable by the person who submitted them"): `load(db,
+  user)` returns every suggestion to owners and only the person's own (and
+  their comments) to everyone else; `canSee` makes someone else's suggestion
+  "gone" for comment / edit / remove. An open card shows "Submitted by <name>
+  · <email>" and the author's (or an owner's) **✎ Edit** (title, details,
+  kind) and Remove at the top. Overrides "everyone … sees and comments on
+  every suggestion" above.
 - **Pipeline** (`PipelinePage.jsx`, Luke Oct 14): the board's Pipeline as
   the team's own page — `PipelineView` with optional `keep` (filter),
   `onOpen` (cards clickable) and `still` (no TV auto-scroll); the board
