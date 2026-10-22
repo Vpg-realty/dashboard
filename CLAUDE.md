@@ -1396,23 +1396,28 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   "N cap · N% CoC". **COE** in the offer message defaults to 14 days from
   the day it's drafted (Arizona), a weekend moved to Monday (`coeDefault`
   in offer.js) — saved when the message is created, editable.
-- **Your Read & Claude's Review** (Luke, later Oct 22: "a quick claude
-  review of the underwriting … I still want them to have to think for
-  themselves"; `ReviewCard.jsx` under both calculators): the rep's own call
-  (Go / Adjust the terms / Pass) and why — encouraged, not required — then
-  "Get Claude's Review" (`POST /api/toolkit/review`, `reviewCalc` in
-  edge/calcChat.js, structured output): a verdict (strong / workable /
-  stretch / pass), whether it agrees with the rep's read, questions to check
-  before offering (never answered — Claude has no market data), numbers that
-  look off, and 1–2 levers with numbers. **Drafts too** (Luke: most
-  properties don't work and aren't saved); kept in the calculation's inputs
-  (`readCall`, `read`, `review` = JSON with `sig` = `numbersSig` of the
-  numbers — a review shows "numbers changed" when they move), so a saved one
-  shows the rep's read and the review to pod leads and owners (My
-  Calculations: "Their call: Go · Claude: workable"). Shares the 25 a day
-  with Ask Claude (`askedToday` counts threads `calc:` + `calcreview:<email>`);
-  each review is logged in chat_messages (thread `calcreview:<email>`) for
-  the monthly cap. About 2¢ a review.
+- **Claude's Take** (Luke, later Oct 22 — replaced the rep's own read and
+  the Ask Claude chat the same day: "draft a response on your thoughts about
+  the deal, why, and thoughts on how to make it a better deal … providing
+  them with reasoning"): `ClaudeTake.jsx`, right under the result tiles of
+  both calculators, a navy-bordered card with a ✦ header and the verdict
+  (strong / workable / stretch / pass). "Get Claude's Take" (`POST
+  /api/toolkit/review`, `reviewCalc` in edge/calcChat.js, structured output)
+  gives the take, **Why** (reasoning tied to the numbers and goals), **How to
+  Make It a Better Deal** (change → effect, and why it works) and **Check
+  Before You Offer** (questions Claude never answers — no market data).
+  Works on drafts; kept in the calculation's `review` input (JSON with `sig`
+  = `numbersSig`, "the numbers changed" when they move), so a saved one
+  shows it to pod leads and owners (My Calculations: "Claude's take:
+  Workable"); older takes in the first shape still render. 25 a day per
+  person (`CALC_DAILY`, `askedToday`), each logged in chat_messages (thread
+  `calcreview:<email>`) for the monthly cap. About 2¢ a take.
+  `functions/api/toolkit/ask.js` and CalcAsk.jsx are gone.
+- **Layout** (Luke, later Oct 22): top tabs **Documents** (Proof of Funds,
+  Title Agencies) and **Calculators** (Seller Finance, Multifamily, My
+  Calculations), the picked group's pages in the left rail — `groupTabs` on
+  the section (AppShell draws one top tab per `group`; settings/Frame.jsx
+  lists only that group in the rail). Get Zips stays its own sidebar entry.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All
@@ -1426,6 +1431,16 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
 - Usage: a Toolkit page load reads the letter's details, the agencies (~20
   rows) and the saved calculations (all rows, filtered by person) — a few
   hundred loads a day is well under 1M reads a month.
+
+## Scorecards — one sidebar entry (Luke, later Oct 22)
+
+"rename the team / my scorecards to just scorecards … internal tabs can
+distinguish": section `team` is **Scorecards** for owners, managers and reps
+— tabs My Scorecard (`/team/mine`, reps + managers; This Week, the trend and
+Look Back = the old Full Breakdown), Team Scorecard (`/team/scorecard`),
+Month in Review and Training (owners + managers). The reps' separate My
+Scorecard entry (section `me`) is gone; `/me/…` links land on
+`/team/mine` (`MOVED.me`). Overrides the notes below where they differ.
 
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 

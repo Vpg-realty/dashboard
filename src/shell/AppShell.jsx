@@ -118,6 +118,10 @@ function useStoredFlag(key, initial) {
   return [v, set];
 }
 
+// A `groupTabs` rail section (Toolkit, Oct 22): one top tab per group (it
+// opens the group's first page); the rail lists the picked group's pages.
+const groupHeads = (tabs) => tabs.filter((t, n) => tabs.findIndex((x) => x.group === t.group) === n);
+
 export default function AppShell({ me }) {
   const { path, query } = useLocation();
   const role = navRole(me);
@@ -260,14 +264,14 @@ export default function AppShell({ me }) {
           </div>
         </header>
 
-        {section.tabs && !section.rail && !section.solo && (
+        {section.tabs && (!section.rail || section.groupTabs) && !section.solo && (
           <div className="shrink-0 flex gap-1 px-3 md:px-4 border-b border-zinc-100 overflow-x-auto">
-            {section.tabs.map((t) => {
-              const on = t.id === tab.id;
+            {(section.groupTabs ? groupHeads(section.tabs) : section.tabs).map((t) => {
+              const on = section.groupTabs ? t.group === tab?.group : t.id === tab.id;
               return (
                 <a key={t.id} {...linkProps(hrefOf(section, t))}
                   className={`relative whitespace-nowrap px-2.5 py-3 font-medium ${on ? 'text-navy-700' : 'text-zinc-500 hover:text-navy-700'}`}>
-                  {t.label}
+                  {section.groupTabs ? t.group : t.label}
                   {on && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded bg-navy-700" />}
                 </a>
               );

@@ -9,9 +9,8 @@ import Panel from '../shell/Panel.jsx';
 import Tile from '../shell/Tile.jsx';
 import { CalcBar, Field, LinkedOpp, Toggle, Notes } from './CalcFrame.jsx';
 import { useCalc, money, pct } from './useCalc.js';
-import CalcAsk from './CalcAsk.jsx';
 import OfferMessage from './OfferMessage.jsx';
-import ReviewCard from './ReviewCard.jsx';
+import ClaudeTake from './ClaudeTake.jsx';
 import { printCalc } from './print.js';
 import { seller, solveSeller, notesFor, SELLER_DEFAULTS, SELLER_HINTS, CASH_FLOW_GOAL, DOWN_MAX_PCT, REFI_LTV_MAX, num } from './calc.js';
 
@@ -98,6 +97,7 @@ export default function SellerFinance() {
             <Tile dot="tan" label="Seller’s Yield" value={s.ready ? pct(s.yieldPct, 2) : '—'} sub="a year, on what they carry" />
             <Tile dot="tan" label="All-In Monthly Costs" value={s.ready && s.investment ? money(s.costs) : '—'} sub="maint./vacancy, mgmt, reserve" />
           </div>
+          <ClaudeTake c={c} kind="seller" ready={s.ready} />
           <Notes notes={notes} />
           {solve && (
             <Panel title="What It Takes" sub="Recommended, not required" bodyClass="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -130,9 +130,7 @@ export default function SellerFinance() {
         </div>
       </div>
       <CalcBar c={c} kind="seller" onPdf={pdf} />
-      <ReviewCard c={c} kind="seller" ready={s.ready} />
       <OfferMessage c={c} kind="seller" />
-      <CalcAsk calc={{ kind: 'seller', title: c.form.title, inputs: i }} />
     </div>
   );
 }

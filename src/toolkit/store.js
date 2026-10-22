@@ -45,5 +45,3 @@ export function fileToBase64(file) {
   });
 }
 
-export const calcAskLoad = () => call('toolkit/ask');
-export const calcAsk = (question, calc) => call('toolkit/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question, calc }) });

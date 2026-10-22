@@ -10,9 +10,8 @@ import Panel from '../shell/Panel.jsx';
 import Tile from '../shell/Tile.jsx';
 import { CalcBar, Field, LinkedOpp, Toggle, Notes } from './CalcFrame.jsx';
 import { useCalc, money, pct } from './useCalc.js';
-import CalcAsk from './CalcAsk.jsx';
 import OfferMessage from './OfferMessage.jsx';
-import ReviewCard from './ReviewCard.jsx';
+import ClaudeTake from './ClaudeTake.jsx';
 import { printCalc } from './print.js';
 import { multifamily, solveMf, notesFor, MF_DEFAULTS, MF_HINTS, COC_TARGET, CAP_TARGET, DSCR_MIN, cocTone, num } from './calc.js';
 
@@ -133,6 +132,7 @@ export default function Multifamily() {
             <Tile dot={!m.ready || m.current.dscr == null ? 'grey' : m.dscrOk ? 'green' : 'red'} label="Debt Coverage" value={m.ready && m.current.dscr != null ? `${m.current.dscr.toFixed(2)}×` : '—'} sub={m.cash ? 'cash buyer' : `lenders want ${DSCR_MIN}×+`} />
             <Tile shade="navy" label="Buyer’s Cash In" value={m.price ? money(m.cashIn) : '—'} sub="down + closing + rehab + fee" />
           </div>
+          <ClaudeTake c={c} kind="mf" ready={m.ready} />
           <Notes notes={notes} />
           {solve && (
             <Panel title="What We Can Pay" sub={`For an ${CAP_TARGET} cap and ${COC_TARGET}% cash-on-cash on current rents · our fee stays ${money(m.fee)}`} bodyClass="p-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -150,9 +150,7 @@ export default function Multifamily() {
         </div>
       </div>
       <CalcBar c={c} kind="mf" onPdf={pdf} />
-      <ReviewCard c={c} kind="mf" ready={m.ready} />
       <OfferMessage c={c} kind="mf" />
-      <CalcAsk calc={{ kind: 'mf', title: c.form.title, inputs: i }} />
     </div>
   );
 }

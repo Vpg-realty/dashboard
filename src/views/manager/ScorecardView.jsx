@@ -723,7 +723,7 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
         {/* 1 · Title, pickers, filters */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">MANAGEMENT · SCORECARD</span>
+            <span className="text-[13px] font-semibold text-tan-600 tracking-[0.06em]">SCORECARDS · TEAM SCORECARD</span>
             <h1 className="m-0 text-2xl md:text-[30px] leading-tight font-semibold text-navy-700">Week of {weekLabel} <span className="text-[19px] font-medium text-zinc-500">{subtitle}</span></h1>
             <span className="text-[13.5px] text-zinc-600">
               {reviewedBy ? <>Reviewed by <b className="text-navy-700">{reviewedBy}</b>{reviewedAt ? ` · saved ${new Date(reviewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</> : 'Not reviewed yet'} · {graded} of {N} reps fully graded

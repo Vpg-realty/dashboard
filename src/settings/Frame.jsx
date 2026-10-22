@@ -11,7 +11,9 @@ import BandMark from '../shell/BandMark.jsx';
 
 export default function SettingsFrame({ section, tab, children }) {
   const groups = [];
-  for (const t of section.tabs) {
+  // `groupTabs` (Toolkit): the groups are the top tabs, so the rail shows
+  // only this group's pages.
+  for (const t of section.groupTabs ? section.tabs.filter((x) => x.group === tab.group) : section.tabs) {
     const g = groups.find((x) => x.name === t.group);
     if (g) g.tabs.push(t); else groups.push({ name: t.group, tabs: [t] });
   }
@@ -27,7 +29,7 @@ export default function SettingsFrame({ section, tab, children }) {
         <nav aria-label={`${section.label} pages`} className="lg:sticky lg:top-0 self-start flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
           {groups.map((g) => (
             <div key={g.name} className="contents lg:flex lg:flex-col lg:gap-1">
-              <div className="hidden lg:block px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">{g.name}</div>
+              {!section.groupTabs && <div className="hidden lg:block px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">{g.name}</div>}
               {g.tabs.map((t) => {
                 const on = t.id === tab.id;
                 return (
