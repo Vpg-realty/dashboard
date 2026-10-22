@@ -1,8 +1,8 @@
 // Toolkit › Seller Finance (Luke's spec, Oct 22; round 2 the same day): the
 // purchase details, the investment's costs (maintenance / vacancy,
 // management, a repair reserve) and the buyer's cash in (down, closing, our
-// fee, rehab). Out: the payment, cash flow and cash-on-cash against the
-// recommended $300 a month / 10%, the balloon and whether it can be
+// fee, rehab). Out: the payment, cash flow against the recommended $300 a
+// month (Luke: the ideal), cash-on-cash for reference, the balloon and whether it can be
 // refinanced, equity, the seller's yield, and the most the seller can be paid
 // for each goal. The one rule: the down payment under 10%.
 import Panel from '../shell/Panel.jsx';
@@ -12,7 +12,7 @@ import { useCalc, money, pct } from './useCalc.js';
 import CalcAsk from './CalcAsk.jsx';
 import OfferMessage from './OfferMessage.jsx';
 import { printCalc } from './print.js';
-import { seller, solveSeller, notesFor, SELLER_DEFAULTS, SELLER_HINTS, CASH_FLOW_GOAL, COC_TARGET, DOWN_MAX_PCT, REFI_LTV_MAX, num } from './calc.js';
+import { seller, solveSeller, notesFor, SELLER_DEFAULTS, SELLER_HINTS, CASH_FLOW_GOAL, DOWN_MAX_PCT, REFI_LTV_MAX, num } from './calc.js';
 
 export default function SellerFinance() {
   const c = useCalc('seller', SELLER_DEFAULTS);
@@ -22,7 +22,6 @@ export default function SellerFinance() {
   const notes = notesFor('seller', i);
   const f = (k, label, extra = {}) => <Field label={label} value={i[k]} onChange={(v) => c.setInput(k, v)} readOnly={!c.canEdit} hint={SELLER_HINTS[k]} {...extra} />;
   const cfTint = !s.investment || !s.ready ? undefined : s.cashFlowOk ? 'green' : s.cashFlow >= CASH_FLOW_GOAL * 0.7 ? 'amber' : 'red';
-  const cocTint = s.coc == null || !s.ready ? undefined : s.cocOk ? 'green' : s.coc >= COC_TARGET * 0.6 ? 'amber' : 'red';
   const maxEq = Math.max(1, ...s.equity.map((e) => e.equity));
   const step = Math.max(1, Math.ceil(s.equity.length / 10));
   const bars = s.equity.filter((e, n) => (n + 1) % step === 0 || n === s.equity.length - 1);
@@ -40,7 +39,7 @@ export default function SellerFinance() {
         ] },
         { title: 'Results', rows: [
           ['Principal & interest', `${money(s.pi, true)} / mo`], ['Total monthly payment', `${money(s.total, true)} / mo`, true],
-          ...(s.investment ? [['Cash flow', `${money(s.cashFlow)} / mo (recommended $${CASH_FLOW_GOAL}+)`, true], ['Cash-on-cash', `${pct(s.coc)} (recommended ${COC_TARGET}%+)`, true]] : []),
+          ...(s.investment ? [['Cash flow', `${money(s.cashFlow)} / mo (recommended $${CASH_FLOW_GOAL}+)`, true], ['Cash-on-cash', pct(s.coc)]] : []),
           ['Balance at balloon', s.balloon ? money(s.balloonDue) : 'no balloon'],
           ...(s.refi ? [['Refinance at the balloon', `${pct(s.refi.ltv, 0)} of the value · ${money(s.refi.pmt)} / mo at ${s.refi.rate}%`]] : []),
           ['Total interest paid', `${money(s.interest)} over ${s.interestYears} years`], ['Seller’s effective yield', pct(s.yieldPct, 2)],
@@ -89,8 +88,8 @@ export default function SellerFinance() {
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
             <Tile dot={cfTint || 'grey'} tint={cfTint} label="Cash Flow" value={s.ready && s.investment ? money(s.cashFlow) : '—'}
               sub={!s.investment ? 'add the rent to see it' : `a month · recommended $${CASH_FLOW_GOAL}+`} />
-            <Tile dot={cocTint || 'grey'} tint={cocTint} label="Cash-on-Cash" value={s.ready && s.coc != null ? pct(s.coc) : '—'}
-              sub={s.coc == null ? 'needs rent and cash in' : `recommended ${COC_TARGET}%+`} />
+            <Tile dot="navy" label="Cash-on-Cash" value={s.ready && s.coc != null ? pct(s.coc) : '—'}
+              sub={s.coc == null ? 'needs rent and cash in' : 'for reference'} />
             <Tile dot="navy" label="Total Payment" value={s.ready ? money(s.total) : '—'} sub={`P&I ${s.ready ? money(s.pi) : '—'} + taxes, ins., HOA`} />
             <Tile dot="navy" label="Buyer’s Cash In" value={s.ready ? money(s.cashIn) : '—'} sub="down + closing + fee + rehab" />
             <Tile dot="tan" label="Balance at Balloon" value={s.ready && s.balloon ? money(s.balloonDue) : '—'} sub={s.balloon ? `due after ${s.balloon} years` : 'no balloon'} />
@@ -100,11 +99,10 @@ export default function SellerFinance() {
           </div>
           <Notes notes={notes} />
           {solve && (
-            <Panel title="What It Takes" sub="Recommended, not required" bodyClass="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Panel title="What It Takes" sub="Recommended, not required" bodyClass="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <SolveBox label={`Highest price for $${CASH_FLOW_GOAL}+ a month`} value={solve.priceForCashFlow} now={s.price} />
-              <SolveBox label={`Highest price for ${COC_TARGET}%+ cash-on-cash`} value={solve.priceForCoc} now={s.price} />
               <SolveBox label={`Highest rate for $${CASH_FLOW_GOAL}+ a month`} value={solve.rateForCashFlow} now={s.rate} rate />
-              <p className="sm:col-span-3 text-[12px] text-zinc-500">Price keeps the same down-payment share; everything else as entered.</p>
+              <p className="sm:col-span-2 text-[12px] text-zinc-500">Price keeps the same down-payment share; everything else as entered.</p>
             </Panel>
           )}
           {s.refi && (

@@ -9,7 +9,7 @@ import SearchSelect from '../deals/SearchSelect.jsx';
 import { Field } from './CalcFrame.jsx';
 import { useToolkit } from './store.js';
 import { US_STATES, NAME_OF } from './states.js';
-import { offerMessage, missingFor, signerFor } from './offer.js';
+import { offerMessage, missingFor, signerFor, coeDefault, coeText } from './offer.js';
 
 const agencyLine = (a) => [a.name, [a.contact, a.email, a.phone].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
 
@@ -25,13 +25,15 @@ export default function OfferMessage({ c, kind }) {
   }, [tk.agencies, state]);
   const suggested = (options.find((o) => o.preferred) || options[0])?.line || '';
   const title = i.title || suggested;
-  const filled = { ...i, state, title };
+  const coe = i.coe || coeDefault();
+  const filled = { ...i, state, title, coe };
   const [msg, setMsg] = useState(null);
   const [copied, setCopied] = useState(false);
   const missing = missingFor(kind, filled);
   const make = () => {
     if (!i.state && state) c.setInput('state', state);
     if (!i.title && title) c.setInput('title', title);
+    if (!i.coe) c.setInput('coe', coe);
     setMsg(offerMessage(kind, filled));
     setCopied(false);
   };
@@ -47,8 +49,8 @@ export default function OfferMessage({ c, kind }) {
         <Field label="EMD" value={i.emd} onChange={(v) => c.setInput('emd', v)} pre="$" readOnly={ro} hint=" " />
         <Field label="Inspection period" value={i.ipDays} onChange={(v) => c.setInput('ipDays', v)} post="days" readOnly={ro} hint=" " />
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">COE
-          <input value={i.coe || ''} readOnly={ro} onChange={(e) => c.setInput('coe', e.target.value)} placeholder="e.g. Nov 30, 2026 or 30 days" className="h-10 rounded-lg border border-zinc-200 px-2.5 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-navy-100" />
-          <span className="text-[11.5px] font-normal text-tan-600">A date or a number of days</span>
+          <input value={i.coe || ''} readOnly={ro} onChange={(e) => c.setInput('coe', e.target.value)} placeholder={coeText(coe)} className="h-10 rounded-lg border border-zinc-200 px-2.5 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-navy-100" />
+          <span className="text-[11.5px] font-normal text-tan-600">{i.coe ? 'Type a date or a number of days' : `${coeText(coe)} — 14 days out, weekends move to Monday`}</span>
         </label>
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Title company
           <SearchSelect value={options.find((o) => o.line === title)?.value || null} disabled={ro || !options.length} clearable={false}

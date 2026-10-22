@@ -1379,6 +1379,18 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   bisection): the highest price for each goal (and seller finance's highest
   rate for $300), multifamily's "Max we can contract at" for 10% with our
   fee unchanged. Claude's briefing (edge/calcChat.js) matches.
+- **Round 3 (Luke, later Oct 22)** — overrides round 2 where it differs:
+  our assignment fee defaults to **$10,000** (editable) on both; seller
+  finance is judged on **$300+ a month** only (cash-on-cash shown for
+  reference; What It Takes = highest price and highest rate for $300);
+  multifamily is about **cap rate and cash-on-cash** — an **8 cap**
+  (`CAP_TARGET`) and 10% cash-on-cash on current rents (the $3,000 a year
+  goal is gone; the Cap Rate tile replaced it); "Max we can contract at" =
+  the lower of the highest price for an 8 cap and for 10% (`solveMf`
+  `max`, also `priceForCap` / `priceForCoc`); the saved list shows
+  "N cap · N% CoC". **COE** in the offer message defaults to 14 days from
+  the day it's drafted (Arizona), a weekend moved to Monday (`coeDefault`
+  in offer.js) — saved when the message is created, editable.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All
