@@ -11,7 +11,7 @@
 //     edits: { weeks: { monday: { reps: { me: { crm } } } } },
 //     live: { monday, teamAvg } }
 import { currentUser, json } from '../../edge/auth.js';
-import { azDate, weekInfo, scoreWeek, mergeCrm, freezeNumbers } from '../../scripts/scorecard-lib.mjs';
+import { azDate, weekInfo, scoreWeek, mergeCrm, freezeNumbers, setKpiTargets } from '../../scripts/scorecard-lib.mjs';
 
 async function asset(context, path) {
   const r = await context.env.ASSETS.fetch(new URL(path, context.request.url));
@@ -26,12 +26,16 @@ export async function onRequestGet(context) {
   const repId = user.rep_id;
   if (!repId) return json({ error: 'no rep linked to this login' }, 404);
 
-  const [data, mgr, sc, editRows] = await Promise.all([
+  const [data, mgr, sc, editRows, targets] = await Promise.all([
     asset(context, '/data.json'),
     asset(context, '/data-mgr.json'),
     asset(context, '/scorecards.json'),
     context.env.DB.prepare('SELECT week, rep_id, crm FROM scorecard_edits').all().then((r) => r.results),
+    // KPI targets from Settings (Oct 22) — the team average uses the same
+    // targets as the page.
+    context.env.DB.prepare("SELECT value FROM settings WHERE key = 'kpi_targets'").first().catch(() => null),
   ]);
+  setKpiTargets(targets?.value ? JSON.parse(targets.value) : null);
   // The roster = every rep with a sub-account in this deploy's data.json.
   // Trainees with their own sub-account stay out until they graduate (Oct 20).
   const trainees = new Set(data?.trainees || []);

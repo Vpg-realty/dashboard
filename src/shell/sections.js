@@ -171,6 +171,7 @@ export const SECTIONS = [
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
       { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
+      { id: 'targets', label: 'KPI Targets', view: 'settings-targets', scroll: true, group: 'Team', sub: 'Opps, offers, contracts, revenue', title: 'KPI targets', blurb: 'The per-rep targets the board, the TV and the scorecards are graded on. Each change has a start date, so earlier weeks keep their scores.' },
       // Oct 19 (Luke's site map): Pods and TC Pay folded into Commissions (who
       // reports to whom is People's Pod lead column), Dropdown Lists gone (the
       // lists come from People, Sub-Accounts, the code and past deals), and

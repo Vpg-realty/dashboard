@@ -1,14 +1,16 @@
-// Per-rep KPI targets — locked from May 4 feedback round with Luke (VPG).
-// Weekly metrics reset Mon–Sun; monthly metrics reset on the 1st.
-// Team targets (TEAM_TARGETS, defined below) scale these by the rep count.
-export const KPI_TARGETS = {
-  oppsOpenedPerWeek: 10,      // per rep · per week (Luke, Sept 29)
-  offersPerWeek: 5,           // per rep · per week (Luke, Sept 29 — was 10)
-  contractsPerWeek: 1,        // per rep · per week (Luke, Sept 23)
-  contractsPerMonth: 4,       // per rep · per month (Luke, Sept 23 — was 8)
-  dealsClosedPerMonth: 2,     // per rep · per month
-  revenuePerRepMonth: 25_000, // per rep · per month (Master revenue tile)
-};
+// Per-rep KPI targets — set by owners in Settings › KPI Targets since Oct 22
+// (D1 settings `kpi_targets`, each target with a start date; src/data/
+// kpiTargets.js). The build bakes them in (vite.config.js __KPI_TIMELINES__),
+// so a change reaches every page and the TV with the next refresh. Weekly
+// metrics reset Mon–Sun; monthly ones on the 1st. Team targets
+// (TEAM_TARGETS, below) scale these by the rep count.
+import { targetsOn } from './kpiTargets.js';
+/* global __KPI_TIMELINES__ */
+export const KPI_TIMELINES = typeof __KPI_TIMELINES__ !== 'undefined' ? __KPI_TIMELINES__ : null;
+export const KPI_TARGETS = targetsOn(KPI_TIMELINES);
+// The targets in effect on a day ('YYYY-MM-DD' or ms) — a past period is
+// judged against what it had.
+export const targetsFor = (day) => targetsOn(KPI_TIMELINES, day);
 
 // Single source of truth — see subaccounts.json at the repo root. Both the
 // browser (this file) and the build-time snapshot (server/config.js) derive

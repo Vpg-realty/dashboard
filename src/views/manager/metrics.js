@@ -1,7 +1,7 @@
 // Shared numbers for the Manager views (Luke, Oct 8: Team and Rep —
 // click-only, never on the TV). Everything comes from
 // the live pairs + history; nothing is estimated.
-import { REPS, KPI_TARGETS } from '../../data/config.js';
+import { REPS, KPI_TARGETS, targetsFor } from '../../data/config.js';
 import { PAIRS, historyEntries } from '../../data/source.js';
 import { paceFraction, paceRatio, PACE_NEAR } from '../../utils/pace.js';
 import { laToday, pairConvosMonth, computeRange, periodTargets } from '../../utils/historyRange.js';
@@ -71,6 +71,7 @@ export const addMetrics = (list) => {
 // the monthly ones, custom ranges the weekly ones scaled by length (closed
 // deals and revenue scale the monthly target by weeks / 4).
 export function rangeTargets(range, days) {
+  const T = range.from ? targetsFor(range.from) : KPI_TARGETS;   // what the period had
   const p = periodTargets(range.kind, days, T);
   const weeks = range.kind === 'month' ? 4 : range.kind === 'week' ? 1 : days / 7;
   return {

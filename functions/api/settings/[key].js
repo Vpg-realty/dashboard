@@ -8,8 +8,9 @@ import { json } from '../../../edge/auth.js';
 import { owner, log, checkRules, checkLists, checkTeamChat, checkDiscordTest, checkSuggestPeople } from '../../../edge/settings.js';
 import { applyChange, toTimelines } from '../../../src/deals/rules.js';
 import { forgetPods } from '../../../edge/pods.js';
+import { applyTargetChange, checkTargets } from '../../../src/data/kpiTargets.js';
 
-const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'] };
+const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'], 'kpi-targets': ['kpi_targets', checkTargets] };
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);
@@ -40,9 +41,32 @@ export async function onRequestPut(context) {
   return json({ value: body.value, updatedAt: now, updatedBy: user.name });
 }
 
+// KPI targets (Oct 22): POST { change: { key, from, value } } or { key, from,
+// remove: true } — one target from a date; nothing stored yet = the defaults
+// in src/data/kpiTargets.js. Reaches the pages with the next deploy.
+async function changeTarget(context, user) {
+  let body;
+  try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
+  const db = context.env.DB;
+  const before = await db.prepare("SELECT value FROM settings WHERE key = 'kpi_targets'").first();
+  const old = before ? JSON.parse(before.value) : { timelines: {} };
+  const now = new Date().toISOString();
+  const next = applyTargetChange(old, body?.change, user.name, now);
+  if (next.error) return json({ error: next.error }, 400);
+  const err = checkTargets(next);
+  if (err) return json({ error: err }, 400);
+  await db.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('kpi_targets', ?, ?, ?)
+    ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
+    .bind(JSON.stringify(next), now, user.name).run();
+  const c = body.change;
+  await log(db, user, 'settings.kpi_targets.change', { key: c.key, from: c.from, ...(c.remove ? { remove: true } : { value: c.value ?? null }), before: old.timelines?.[c.key] || null, after: next.timelines[c.key] });
+  return json({ value: next, updatedAt: now, updatedBy: user.name });
+}
+
 export async function onRequestPost(context) {
   const { res, user } = await owner(context);
   if (res) return res;
+  if (context.params.key === 'kpi-targets') return changeTarget(context, user);
   if (context.params.key !== 'deal-rules') return json({ error: 'unknown setting' }, 404);
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }

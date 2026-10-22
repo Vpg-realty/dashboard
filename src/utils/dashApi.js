@@ -89,6 +89,7 @@ export const readSetting = (key) => call(`settings/${key}`);
 export const writeSetting = (key, value) => call(`settings/${key}`, jsonBody('PUT', { value }));
 // One commission rule from a start date: { key, from, value } or { key, from, remove: true }.
 export const changeRule = (change) => call('settings/deal-rules', jsonBody('POST', { change }));
+export const changeTarget = (change) => call('settings/kpi-targets', jsonBody('POST', { change }));
 
 // --- Owners' Claude chat (functions/api/chat) ----------------------------------
 // The server picks the conversation (owners' shared one, or the rep's own);
