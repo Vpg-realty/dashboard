@@ -1158,6 +1158,8 @@ Overrides the Alerts notes above where they differ.
 - **The managers' rep panel** (Team Scorecards, a rep opened) shows the
   same `FunnelCard` reps see (`whose` = "Axel's"), so the two views match;
   the panel's canvas is 1280px tall to fit it.
+- **Team Scorecard** is the team tab's name (was Scorecard — Luke, Oct 22,
+  to tell it from My Scorecard; owners too).
 - **Managers' own scorecard** sits in Team Scorecards: tabs **My
   Scorecard** (`/team/mine`) and **My Full Breakdown** (`/team/my-breakdown`)
   — the same pages (`my-scorecard`, `my-breakdown`) with tab `roles:

@@ -21,7 +21,7 @@ export default function TeamHub() {
   const toRep = (id) => setQuery({ view: null, rep: id });
   return (
     <div className={`h-full ${RAIL_GRID_COMPACT}`}>
-      <SideRail compact label="Scorecard views" value={view} onPick={(id) => setQuery({ view: id === 'scores' ? null : id })} groups={[{ title: 'Scorecard', items: VIEWS }]} />
+      <SideRail compact label="Team Scorecard views" value={view} onPick={(id) => setQuery({ view: id === 'scores' ? null : id })} groups={[{ title: 'Team Scorecard', items: VIEWS }]} />
       <div className="min-w-0 min-h-0 h-full">
         {view === 'leak' ? <CoachingView onPickRep={toRep} /> : <ScorecardView key={view} trendsView={view === 'trends'} onPickRep={toRep} />}
       </div>

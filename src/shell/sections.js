@@ -129,7 +129,8 @@ export const SECTIONS = [
     // Scorecard's Where They Leak view now (old /team/coaching links redirect).
     id: 'team', label: 'Team Scorecards', icon: 'team', roles: ['owner', 'manager'],
     tabs: [
-      { id: 'scorecard', label: 'Scorecard', view: 'mgr-team', phone: DESK },
+      // "Team Scorecard" (Luke, Oct 22: tells it apart from My Scorecard).
+      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK },
       // A manager's own scorecard, the same pages reps get (Luke, Oct 22: no
       // third view, no separate sidebar entry).
       { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager'] },
