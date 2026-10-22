@@ -83,8 +83,13 @@ async function messagesFor(locationId, token, contactIds, startMs) {
   let lastErr = null;
   for (let i = 0; i < ids.length; i += 5) {
     const batch = ids.slice(i, i + 5);
-    const res = await Promise.all(batch.map((c) => listContactMessagesSince(locationId, token, c, startMs).catch((err) => { failed++; lastErr = err; return []; })));
-    batch.forEach((c, j) => { out[c] = res[j]; });
+    // One retry; a contact still unread is left out (undefined), so its
+    // card shows no "last talked" rather than a wrong one (Oct 22).
+    const one = (c) => listContactMessagesSince(locationId, token, c, startMs)
+      .catch(() => new Promise((r) => setTimeout(r, 1500)).then(() => listContactMessagesSince(locationId, token, c, startMs)))
+      .catch((err) => { failed++; lastErr = err; return null; });
+    const res = await Promise.all(batch.map(one));
+    batch.forEach((c, j) => { if (res[j]) out[c] = res[j]; });
   }
   if (ids.length && failed === ids.length) return { error: String(lastErr?.message || lastErr).slice(0, 200) };
   return out;
@@ -224,7 +229,7 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
         if (contact) {
           for (const x of pair.opps || []) {
             const v = contact[x.id];
-            if (v) { x.lastRep = v[0] || 0; x.lastAgent = v[1] || 0; }
+            if (v) { x.lastRep = v[0] || 0; x.lastAgent = v[1] || 0; if (v.length > 2) x.lastTalk = v[2] || 0; }
           }
         }
 

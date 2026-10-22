@@ -19,6 +19,7 @@ import SummaryFile from './SummaryFile.jsx';
 import useDealPanel from './useDealPanel.jsx';
 import { stats, groupStats, KINDS, MONTH, titleCase, pctTxt } from './summaryStats.js';
 import { Delta, RateCell, Band, BandStat } from './summaryUi.jsx';
+import { titleCase as properCase } from '../shell/titleCase.js';
 
 const VIEWS = [
   ['overview', 'Company overview', 'The period at a glance'],
@@ -40,7 +41,7 @@ function Rail({ view, counts }) {
           <button key={k} type="button" onClick={() => setQuery({ view: k === 'overview' ? null : k })} aria-current={on ? 'page' : undefined}
             className={`shrink-0 text-left rounded-xl px-3 py-2.5 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[14px] font-semibold whitespace-nowrap">{label}</span>
+              <span className="text-[14px] font-semibold whitespace-nowrap">{properCase(label)}</span>
               {counts[k] != null && <span className={`text-[12px] tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : 'bg-tan-100 text-zinc-600'}`}>{counts[k]}</span>}
             </div>
             <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>
@@ -78,7 +79,7 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal }) {
         <BandStat dark feature label="Close rate" value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
       </Band>
       <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
-        <BandStat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="final assignment prices" />
+        <BandStat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
         <BandStat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
         <BandStat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
         {owner && <BandStat feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}

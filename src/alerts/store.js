@@ -15,11 +15,15 @@ const listeners = new Set();
 const emit = () => listeners.forEach((f) => f({ counts, chime, data }));
 let timer = null;
 let lastUnseen = null;
+let lastDueNow = null;
 
 function take(r) {
   if (r.counts) {
-    if (lastUnseen != null && r.counts.unseen > lastUnseen && chime && !viewingAs()) playChime();
+    // New alerts, or a task whose due time just came (Luke, Oct 22).
+    const up = (lastUnseen != null && r.counts.unseen > lastUnseen) || (lastDueNow != null && (r.counts.dueNow || 0) > lastDueNow);
+    if (up && chime && !viewingAs()) playChime();
     lastUnseen = r.counts.unseen;
+    lastDueNow = r.counts.dueNow || 0;
     counts = r.counts;
   }
   if (typeof r.chime === 'boolean') chime = r.chime;

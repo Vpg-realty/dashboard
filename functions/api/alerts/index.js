@@ -1,10 +1,10 @@
 // GET  /api/alerts            → { me, pod, seenAt, chime, names, assignable, alerts, counts }
 // GET  /api/alerts?count=1    → { counts, chime }   (the sidebar's red dot, polled)
-// POST /api/alerts { action: 'add', title, body?, due?, to? }   a task (pod leads / owners can assign)
+// POST /api/alerts { action: 'add', title, body?, due?, dueTime?, to? }   a task (pod leads / owners can assign)
 //                  { action: 'done', id, done }                 tick / untick
 //                  { action: 'doneMany', ids, done }            tick / untick several (not leads)
 //                  { action: 'verdict', id, verdict }           a spotted lead: real | not | null
-//                  { action: 'due', id, due }                   move a date (not GHL tasks)
+//                  { action: 'due', id, due, dueTime? }               move a date (not GHL tasks)
 //                  { action: 'remove', id }                     a site task
 //                  { action: 'seen' }                           opened Alerts — clears the red dot
 //                  { action: 'chime', on }                      this person's sound on / off
@@ -13,13 +13,13 @@
 // edit_log (not seen / chime) and refused while viewing as someone — except
 // an owner ticking alerts off (done / doneMany), saved under the owner's name.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan, counts, countFor, scopeOf, MANY_MAX } from '../../../edge/alerts.js';
+import { canUse, load, plan, counts, countFor, scopeOf, azHM, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 import { refreshPods } from '../../../edge/pods.js';
 
 async function answer(db, user) {
   const data = await load(db, user);
-  return { ...data, counts: counts(data.alerts, scopeOf(user), data.seenAt, azDate()) };
+  return { ...data, counts: counts(data.alerts, scopeOf(user), data.seenAt, azDate(), azHM()) };
 }
 
 export async function onRequestGet(context) {

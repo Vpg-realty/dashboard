@@ -162,7 +162,9 @@ export function extractAbandoned({ opportunities, stageOf, fieldIds, cap = 1500 
     out.push({
       id: o.id,
       at,
-      address: String(customValue(o, fieldIds.address) || o.name || '').replace(/\s*-\s*$/, '').trim().slice(0, 140),
+      // The property address field only — never the opp's name, which is
+      // usually the agent's (Luke, Oct 22).
+      address: String(customValue(o, fieldIds.address) || '').replace(/\s*-\s*$/, '').trim().slice(0, 140),
       contact: o.contactId || o.contact?.id || null,
       who: String(o.contact?.name || o.contact?.contactName || '').slice(0, 60) || null,
     });

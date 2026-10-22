@@ -554,9 +554,11 @@ function LastTalk({ o }) {
   if (o.lastRep == null && o.lastAgent == null) return null;
   const day = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Phoenix' });
   const ago = (n) => (n === 0 ? 'today' : `${n}d ago`);
-  const d = o.repAgo == null ? o.agentAgo : o.agentAgo == null ? o.repAgo : Math.min(o.repAgo, o.agentAgo);
+  // Since Oct 22 the chip is the last real conversation (a connected call
+  // or a two-way text, `lastTalk`); older data falls back to either side.
+  const d = o.lastTalk !== undefined ? o.talkAgo : o.repAgo == null ? o.agentAgo : o.agentAgo == null ? o.repAgo : Math.min(o.repAgo, o.agentAgo);
   const tone = d == null || d > 7 ? 'border-red-200 bg-red-50 text-red-700' : d > 3 ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  const title = `Rep's last text or call: ${o.lastRep ? `${day(o.lastRep)} (${ago(o.repAgo)})` : `none in ${LOOKBACK_DAYS} days`}\nAgent's last message: ${o.lastAgent ? `${day(o.lastAgent)} (${ago(o.agentAgo)})` : `none in ${LOOKBACK_DAYS} days`}`;
+  const title = `${o.lastTalk !== undefined ? `Last conversation (a connected call or a two-way text): ${o.lastTalk ? day(o.lastTalk) : `none in ${LOOKBACK_DAYS} days`}\n` : ''}Rep's last text or call: ${o.lastRep ? `${day(o.lastRep)} (${ago(o.repAgo)})` : `none in ${LOOKBACK_DAYS} days`}\nAgent's last message: ${o.lastAgent ? `${day(o.lastAgent)} (${ago(o.agentAgo)})` : `none in ${LOOKBACK_DAYS} days`}`;
   return (
     <span title={title} className={`shrink-0 rounded border px-1 py-px text-[11px] font-semibold leading-none whitespace-nowrap ${tone}`}>
       {d == null ? `No talk ${LOOKBACK_DAYS}d+` : d === 0 ? 'Talked today' : `Talked ${d}d ago`}
@@ -637,9 +639,10 @@ const dayLong = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US'
 // Clicking a day — a day heading in Two weeks, a date in Month — opens that
 // day's list on the right. All in the link: ?m=2026-11&day=2026-11-04 (Two weeks: ?cal=weeks).
 function CalendarBoard({ deals, today }) {
-  const { query } = useLocation();
-  // Month is the default (Luke, Oct 19); ?cal=weeks for Two weeks.
-  const mode = query.get('cal') === 'weeks' ? 'weeks' : 'month';
+  const { path, query } = useLocation();
+  // Month / Two Weeks are the Calendar's tabs since Oct 22 (/calendar/weeks;
+  // older ?cal=weeks links still open Two weeks).
+  const mode = /\/calendar\/weeks/.test(path) || query.get('cal') === 'weeks' ? 'weeks' : 'month';
   const [w, setW] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
@@ -647,10 +650,6 @@ function CalendarBoard({ deals, today }) {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(query.get('day') || '') ? query.get('day') : null;
   const openDay = (d) => setQuery({ day: d });
   const btn = 'h-8 px-3 rounded-md text-[13px] font-semibold text-navy-900 bg-tan-500 hover:bg-tan-400 shadow-[0_1px_2px_rgba(0,0,0,0.25)]';
-  const modeBtn = (m, label) => (
-    <button type="button" aria-pressed={mode === m} onClick={() => setQuery({ cal: m === 'weeks' ? 'weeks' : null, m: null })}
-      className={`h-7 px-3 rounded-md text-[13px] font-semibold ${mode === m ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 hover:bg-tan-100'}`}>{label}</button>
-  );
   // The key sits at the page foot (Luke, Oct 19: keys at the bottom, top clear).
   const legend = (
     <span className="flex flex-wrap items-center gap-3 px-1 text-[12px] text-zinc-500">
@@ -661,7 +660,7 @@ function CalendarBoard({ deals, today }) {
       <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border border-dashed border-zinc-300 bg-white" />not the date the stage runs on</span>
     </span>
   );
-  const toggle = <span role="group" aria-label="Calendar view" className="inline-flex gap-0.5 rounded-lg bg-white ring-1 ring-tan-200 p-[3px]">{modeBtn('month', 'Month')}{modeBtn('weeks', 'Two weeks')}</span>;
+  const toggle = null;
   return (
     <div className="flex flex-col gap-3">
       {mode === 'month'

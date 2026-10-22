@@ -28,7 +28,7 @@ async function load() {
       // afternoon read "today" the next morning when this counted 24-hour
       // spans); 0 from the build = nothing in the lookback → null here.
       const ago = (ms) => (ms ? Math.max(0, Math.round((dayNum(now) - dayNum(ms)))) : null);
-      return { ...o, repId: p.repId, marketId: p.marketId, days: since ? Math.max(0, Math.floor((now - since) / DAY)) : null, repAgo: ago(o.lastRep), agentAgo: ago(o.lastAgent) };
+      return { ...o, repId: p.repId, marketId: p.marketId, days: since ? Math.max(0, Math.floor((now - since) / DAY)) : null, repAgo: ago(o.lastRep), agentAgo: ago(o.lastAgent), talkAgo: ago(o.lastTalk) };
     }));
     emit({ status: 'ready', opps, at: data.generatedAt || null, error: null });
   } catch (e) {

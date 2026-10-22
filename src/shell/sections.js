@@ -49,8 +49,13 @@ export const SECTIONS = [
     // Luke, Oct 16: "make calendar an entire category … can live fully
     // separate" — its own sidebar entry with no tab bar (`solo`); IP ends
     // (with their time) and closings, from the tracker when it has the deal.
-    id: 'calendar', label: 'Calendar', icon: 'calendar', roles: PEOPLE, solo: true,
-    tabs: [{ id: 'all', label: 'Calendar', view: 'team-pipeline-cal', scroll: true }],
+    // Oct 22 (Luke: the page jumped when you came from Pipeline): a tab bar
+    // like Pipeline's — Month / Two Weeks — instead of `solo`.
+    id: 'calendar', label: 'Calendar', icon: 'calendar', roles: PEOPLE,
+    tabs: [
+      { id: 'month', label: 'Month', view: 'team-pipeline-cal', scroll: true },
+      { id: 'weeks', label: 'Two Weeks', view: 'team-pipeline-cal', scroll: true },
+    ],
   },
   {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
@@ -199,7 +204,8 @@ const MOVED = {
   'territory/reps': { section: 'territory', tab: 'coverage' },
   'board/pipeline': { section: 'pipeline', tab: 'all' },
   'team/coaching': { section: 'team', tab: 'scorecard' },
-  'pipeline/calendar': { section: 'calendar', tab: 'all' },
+  'pipeline/calendar': { section: 'calendar', tab: 'month' },
+  'calendar/all': { section: 'calendar', tab: 'month' },
   // CRM Review (Oct 16) folded back into the Scorecard the same day (Luke).
   'team/crm': { section: 'team', tab: 'scorecard' },
   'deals/summary': { section: 'finance', tab: 'overview' },

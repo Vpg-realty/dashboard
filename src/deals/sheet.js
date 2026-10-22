@@ -83,6 +83,6 @@ export function cellStyle(d, f, today = laToday()) {
 // The colour key above the table, in plain words.
 export const SHEET_LEGEND = [
   [{ background: '#FFFFFF' }, 'Pending deal'], [ASSIGNED, 'Assigned deal'], [GREEN, 'Closed deal'], [CANCELLED, 'Cancelled deal'],
-  [ALERT, 'DD ends today · net profit below zero · net loss over 20%'], [SOON, 'DD ends tomorrow'],
+  [ALERT, 'IP ends today · net profit below zero · net loss over 20%'], [SOON, 'IP ends tomorrow'],
   [CHECK, 'Check: extra fees · commission not paid'],
 ];

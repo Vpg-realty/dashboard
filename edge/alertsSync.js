@@ -56,6 +56,7 @@ export function taskFields(t) {
 }
 
 // --- 30-day check-ins -------------------------------------------------------
+export const checkinTitle = (o) => `Check back with the agent — ${o.address || 'No address provided'}`;
 
 // Abandoned opps → the check-in each one is due (the latest 30-day mark that
 // fell on or after `sinceMs`). Pure.
@@ -215,7 +216,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       if (openExt.has(c.ext)) continue;
       const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, sub, opp, contact, due, created_by, created_at) VALUES (?, ?, ?, 'checkin', ?, ?, ?, ?, ?, ?, 'Alerts', ?)
         ON CONFLICT (ext_id) DO NOTHING`,
-      [newId(), c.ext, s.repId, `Check back with the agent — ${c.address || 'abandoned lead'}`, `Abandoned ${shortDate(c.at)} (${c.n * CHECKIN_DAYS} days)${c.who ? ` · ${c.who}` : ''}`, s.key, c.opp, c.contact || null, azDate(c.dueMs), iso]);
+      [newId(), c.ext, s.repId, checkinTitle(c), `Abandoned ${shortDate(c.at)} (${c.n * CHECKIN_DAYS} days)${c.who ? ` · ${c.who}` : ''}`, s.key, c.opp, c.contact || null, azDate(c.dueMs), iso]);
       if (r[0]?.meta?.changes) {
         status.checkins++;
         for (const a of open) {
@@ -224,6 +225,14 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
           closed.add(a.id);
         }
       }
+    }
+    // Titles written before Oct 22 could carry the agent's name as the
+    // address: put the property address (or "No address provided") on them.
+    const byOpp = new Map((f.abandoned || []).map((o) => [o.id, o]));
+    for (const a of open) {
+      const o = byOpp.get(a.opp);
+      if (!o || closed.has(a.id) || a.title === checkinTitle(o)) continue;
+      await query('UPDATE alerts SET title = ? WHERE id = ?', [checkinTitle(o), a.id]);
     }
     for (const a of open) if (!closed.has(a.id) && !still.has(a.opp)) await query("UPDATE alerts SET done_by = 'No longer Abandoned in GHL', done_at = ? WHERE id = ?", [iso, a.id]);
   }

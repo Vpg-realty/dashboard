@@ -34,7 +34,7 @@ export default function SettingsFrame({ section, tab, children }) {
                   <a key={t.id} {...linkProps(hrefOf(section, t))} aria-current={on ? 'page' : undefined}
                     className={`shrink-0 flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${on ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 bg-white lg:bg-transparent ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
                     <span className="min-w-0">
-                      <span className="block text-[14px] font-semibold whitespace-nowrap">{t.label}</span>
+                      <span className="block text-[14px] font-semibold whitespace-nowrap">{titleCase(t.label)}</span>
                       <span className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{t.sub}</span>
                     </span>
                   </a>

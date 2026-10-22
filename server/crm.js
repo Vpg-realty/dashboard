@@ -24,7 +24,8 @@
 //
 // Published per pair as `crm` = { at, pipeline, notes, followups }, each
 // { total, badN, bad: [{ id, addr, why }] } (bad lists capped at 25), plus
-// `contact` = { oppId: [last rep touch ms, last agent message ms] } (0 = none
+// `contact` = { oppId: [last rep touch ms, last agent message ms, last two-way
+// conversation ms] } (0 = none
 // in the lookback) for the Pipeline's Opportunities cards (Luke, Oct 16:
 // "when the last time they spoke to the agent is"). Grades (2 = all good, 1 = 60%+,
 // 0 = below) are worked out per rep in scripts/scorecard-lib.mjs.
@@ -35,7 +36,7 @@ import { isManualOutbound } from './messaging.js';
 const DAY = 86400000;
 // Bump when the checks change so the cached result (reused for 55 min) is
 // recomputed on the next deploy.
-export const CRM_VERSION = 4;
+export const CRM_VERSION = 5;
 export const STALE_DAYS = 5;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
 // Messages are read back this far: covers the staleness check and
@@ -85,6 +86,32 @@ export function isTouch(m) {
   return isManualOutbound(m);
 }
 
+// When the rep last really talked with the agent (Luke, Oct 22: "a two-way
+// text or a connected inbound / outbound call; unanswered calls don't
+// count"): the latest connected call, or the latest text that answers the
+// other side's text from the 3 days before it (a rep text after the agent's,
+// or the agent's after the rep's). 0 = none in the messages given.
+const REPLY_WINDOW = 3 * DAY;
+export function lastConversation(msgs) {
+  let last = 0, rep = 0, agent = 0;
+  const list = (msgs || []).map((m) => ({ m, t: ts(m.dateAdded) })).filter((x) => x.t).sort((a, b) => a.t - b.t);
+  for (const { m, t } of list) {
+    if (m.messageType === 'TYPE_CALL') {
+      if (m.meta?.call?.status === 'completed' || m.status === 'completed') last = Math.max(last, t);
+      continue;
+    }
+    if (/^TYPE_ACTIVITY|EMAIL/.test(m.messageType || '')) continue;
+    if (isManualOutbound(m)) {
+      if (agent && t - agent <= REPLY_WINDOW) last = Math.max(last, t);
+      rep = t;
+    } else if (m.direction === 'inbound') {
+      if (rep && t - rep <= REPLY_WINDOW) last = Math.max(last, t);
+      agent = t;
+    }
+  }
+  return last;
+}
+
 // Business milliseconds (Mon–Fri, Arizona days) between two times.
 export function businessMs(from, to) {
   if (to <= from) return 0;
@@ -123,9 +150,13 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     const created = ts(o.createdAt) || ts(o.dateAdded);
     const notes = humanNotes(o).filter((n) => n.at >= created - DAY);
     const touches = (messages?.[o.contactId] || []).filter(isTouch).map((m) => ts(m.dateAdded)).filter(Boolean).sort((a, b) => a - b);
-    if (out.contact) {
-      const fromAgent = (messages[o.contactId] || []).filter((m) => m.direction === 'inbound').map((m) => ts(m.dateAdded));
-      out.contact[o.id] = [touches.length ? touches[touches.length - 1] : 0, Math.max(0, ...fromAgent)];
+    // A contact whose messages couldn't be read is left out (the card shows
+    // nothing rather than a wrong date — Oct 22). Unanswered calls aren't
+    // the agent talking.
+    if (out.contact && Array.isArray(messages[o.contactId])) {
+      const all = messages[o.contactId];
+      const fromAgent = all.filter((m) => m.direction === 'inbound' && !(m.messageType === 'TYPE_CALL' && !isTouch(m))).map((m) => ts(m.dateAdded));
+      out.contact[o.id] = [touches.length ? touches[touches.length - 1] : 0, Math.max(0, ...fromAgent), lastConversation(all)];
     }
 
     // 1 Pipeline

@@ -13,11 +13,11 @@
 // up and down under the cursor, which landed on the neighbour, which resized
 // the bar again — a flicker loop. Overlays and labels never take the mouse.
 import { useEffect, useState } from 'react';
-import { REP_SCALE, LEGAL, OFF, fillFor, darkFill, STATUS_LOOK, SEASON_LOOK } from './mapColors.js';
+import { REP_SCALE, LEGAL, OFF, NOT_THEIRS, fillFor, darkFill, STATUS_LOOK, SEASON_LOOK } from './mapColors.js';
 import { statusOf, seasonOf } from './status.js';
 
 export function MapLegend({ mode, focusRep }) {
-  const items = focusRep ? [['#1b385f', 'Their states'], ['#dde5f0', 'Other reps'], ['#f6f3ec', 'No reps']]
+  const items = focusRep && mode === 'reps' ? [['#1b385f', 'Their states'], ['#dde5f0', 'Other reps'], ['#f6f3ec', 'No reps']]
     : mode === 'winter' ? Object.values(SEASON_LOOK).map((v) => [v.fill, `${v.icon ? `${v.icon} ` : ''}${v.label}`])
       : mode === 'status' ? Object.entries(STATUS_LOOK).map(([k, v]) => [v.fill, k])
       : mode === 'legal' ? Object.entries(LEGAL).map(([k, v]) => [v, k])
@@ -25,6 +25,8 @@ export function MapLegend({ mode, focusRep }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-600">
       {items.map(([c, l]) => <span key={l} className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm ring-1 ring-black/10" style={{ background: c }} />{l}</span>)}
+      {focusRep && mode !== 'reps' && <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm ring-2 ring-navy-700" style={{ background: '#fff' }} />Their states (outlined)</span>}
+      {focusRep && mode !== 'reps' && <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm ring-1 ring-black/10" style={{ background: NOT_THEIRS }} />Not their states</span>}
       <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm ring-1 ring-black/10" style={{ background: OFF }} />Not on the sheet</span>
     </div>
   );
@@ -81,6 +83,9 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
         })}
         {/* Outlines go on top of every state, or the neighbours drawn later
             would cover half of the border. */}
+        {focusRep && mode !== 'reps' && <g pointerEvents="none" fill="none" stroke="#1b385f" strokeWidth="2" strokeLinejoin="round">
+          {geo.states.filter((s) => byAbbr.get(s.id)?.ghl.some((r) => r.id === focusRep)).map((s) => <path key={`o${s.id}`} d={s.d} />)}
+        </g>}
         {hoverShape && hover.id !== selected && <path d={hoverShape.d} fill="none" stroke="#ad9b7a" strokeWidth="3" strokeLinejoin="round" pointerEvents="none" />}
         {selectedShape && <g pointerEvents="none" fill="none" strokeLinejoin="round">
           <path d={selectedShape.d} stroke="#ffffff" strokeWidth="5.5" />

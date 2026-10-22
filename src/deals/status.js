@@ -52,8 +52,8 @@ export function nextStep(d, today = laToday(), now = Date.now()) {
   if (ip) return { text: ip.text, tone: ip.tone, fields: ['ddEnd', 'ddEndTime'], ip };
   if (!emdIn(d)) return { text: 'EMD pending — no payer listed', tone: 'red', fields: ['emdPaidBy'] };
   if (String(d.emdPaidBy).toUpperCase() === 'VPG') return { text: 'EMD at risk — VPG only', tone: 'red', fields: ['emdPaidBy'] };
-  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `DD ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd'] };
-  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — DD expired', tone: 'amber', fields: ['ddEnd'] };
+  if (!asg && toDd != null && toDd >= 0 && toDd <= 3) return { text: `IP ends in ${toDd}d — assign or extend`, tone: 'amber', fields: ['ddEnd'] };
+  if (!asg && toDd != null && toDd < 0) return { text: 'Find buyer — IP expired', tone: 'amber', fields: ['ddEnd'] };
   if (!asg) // Dispositions fields aren't asked for before a deal is assigned (Luke, Oct 15).
   if (!asg) return { text: 'Find buyer', tone: 'blue', fields: [] };
   // Marked Assigned (in GHL or by hand) but no assignment price yet: the sold
