@@ -184,7 +184,7 @@ one can't fit a page, tell Luke instead of making a one-off.
   (`src/shell/BandCounter.jsx`; `filter` / `active` / `hot` / `warn` / `sub`)
   on Alerts (New / Due today / Overdue / Leads), TC List and the Deals pages
   (Active's All / Assigned / Dispo Active filters and the Map's counts sit in
-  the PageHead band via `counters` — Luke, Oct 22: "mirror the tiles seen on
+  the PageHead band's right side via `counters`, like Alerts — Luke, Oct 22: "mirror the tiles seen on
   alerts … faded in the header blue box"), My Training, Management ›
   Training, the Team Scorecards strip (kept at its larger size) —
   `rounded-xl bg-white/10 px-4 py-2`, white/60 uppercase label, 22px number,

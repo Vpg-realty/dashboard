@@ -34,8 +34,14 @@ export function PageHead({ title, sub, right, eyebrow = 'Deals', counters }) {
         {sub && <div className="text-[12.5px] text-white/70 mt-0.5 [&_*]:!text-white/70">{sub}</div>}
       </div>
       {/* A navy primary button reads tan on the band, like Pipeline's picked switch. */}
-      {right && <div className="ml-auto flex flex-wrap items-center gap-2 [&_.bg-navy-700]:!bg-tan-500 [&_.bg-navy-700]:!text-navy-900 [&_.bg-navy-700]:font-semibold [&_.bg-navy-700:hover]:!bg-tan-400">{right}</div>}
-      {counters && <div className="basis-full flex flex-wrap gap-2">{counters}</div>}
+      {/* Controls on the right, the counters under them on the right too —
+          where Alerts has its counters (Luke, Oct 22: "match the alerts"). */}
+      {(right || counters) && (
+        <div className="ml-auto flex flex-col items-end gap-2">
+          {right && <div className="flex flex-wrap items-center justify-end gap-2 [&_.bg-navy-700]:!bg-tan-500 [&_.bg-navy-700]:!text-navy-900 [&_.bg-navy-700]:font-semibold [&_.bg-navy-700:hover]:!bg-tan-400">{right}</div>}
+          {counters && <div className="flex flex-wrap justify-end gap-2">{counters}</div>}
+        </div>
+      )}
     </div>
   );
 }
