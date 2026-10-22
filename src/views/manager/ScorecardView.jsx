@@ -50,6 +50,19 @@ const speedWhy = (n) => (n.speedTotal == null ? 'Speed: no messaging check has r
   : !n.speedTotal ? 'Speed: no agent texts in business hours — 2'
     : `Speed: ${n.speedOk} of ${n.speedTotal} agent texts answered within 15 min (${Math.round((n.speedOk / n.speedTotal) * 100)}%)\n2 at ${Math.round(SPEED_T * 100)}%+ (team standard), 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+, 0 below\nGraded automatically — the sixth CRM item (CRM out of 12).`);
 
+// A rep's notes from the four weeks before `week`, newest first (the panel's
+// Manager Notes; who signed each week as reviewed).
+function earlierNotes(sc, week, id) {
+  const weeks = [...new Set([...Object.keys(sc.weeks || {}), ...Object.keys(sc.edits?.weeks || {})])].filter((w) => w < week).sort().reverse();
+  const out = [];
+  for (const w of weeks) {
+    const note = reviewFor(sc, w, id, null).note;
+    if (note) out.push({ week: w, label: sc.weeks?.[w]?.label || w, note, by: reviewedByFor(sc, w, null) });
+    if (out.length === 4) break;
+  }
+  return out;
+}
+
 // Columns: rep · score · contracts · offers · opps · projected $ · CRM · speed · next move · chevron.
 const GRID = { gridTemplateColumns: 'minmax(10rem,1.1fr) 7.5rem repeat(3,minmax(6.5rem,0.9fr)) minmax(10rem,1.1fr) 18.5rem 11rem 1.25rem' };
 const HEAD = 'text-[15px] font-bold text-navy-700 leading-tight';
@@ -204,99 +217,6 @@ function nextMove(n, crm, wom, week) {
 const NoteIcon = ({ note }) => (
   <svg viewBox="0 0 16 16" className="w-4 h-4 shrink-0 text-tan-600" fill="none" stroke="currentColor" strokeWidth="1.6" aria-label="Has a note"><title>{note}</title><path d="M3 2.5h7l3 3v8H3z" /><path d="M10 2.5v3h3M5.5 8h5M5.5 10.5h3.5" /></svg>
 );
-
-// The five CRM chips with the grade dropdowns, as before.
-function CrmChips({ row, canEdit, onCrm }) {
-  const { id, crm, manual, auto, n } = row;
-  const sg = n ? speedGrade(n.speedOk, n.speedTotal) : null;
-  return (
-    <div className="flex gap-2">
-      {CRM_ITEMS.map((it, i) => {
-        const isAuto = manual?.[i] == null && auto?.grades?.[i] != null;
-        const d = auto?.detail?.[it.key];
-        const why = d ? `\nAutomatic: ${autoLine(d)}${d.bad?.length ? `\n${d.bad.slice(0, 6).map((b) => `• ${b.addr} — ${b.why}`).join('\n')}` : ''}` : '';
-        const val = crm?.[i] ?? null;
-        return (
-          <div key={it.key} className="flex flex-col items-center gap-1 w-[4.6rem]">
-            <span
-              title={`${it.label} — ${it.help}${isAuto ? `\nA = graded automatically from GHL.${why}` : manual?.[i] != null ? `\nSet by a manager${d ? ` (automatic: ${auto.grades[i]} — ${autoLine(d)})` : ''}` : ''}${canEdit ? '\nPick a grade from the list (or Automatic).' : ''}`}
-              className={`relative w-12 h-11 rounded-lg flex items-center justify-center text-[20px] font-bold ${chip(val)} ${canEdit ? 'hover:ring-2 hover:ring-navy-500 cursor-pointer' : 'cursor-default'}`}
-            >
-              {val ?? '–'}
-              {isAuto && <span className="absolute top-0.5 right-1 text-[10px] font-bold opacity-80">A</span>}
-              {canEdit && <span className="absolute bottom-0 right-1 text-[10px] opacity-70">▾</span>}
-              {/* Dropdown (Luke, Oct 12: "select the number instead of
-                  clicking … removes the risk of accidentally clicking it"):
-                  an invisible native select over the chip. */}
-              {canEdit && (
-                <select
-                  aria-label={`${it.label} grade for ${first(id)}`}
-                  value={manual?.[i] == null ? 'auto' : String(manual[i])}
-                  onChange={(e) => onCrm(id, i, e.target.value === 'auto' ? null : Number(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                >
-                  <option value="auto">Automatic{auto?.grades?.[i] != null ? ` (${auto.grades[i]})` : ''}</option>
-                  <option value="2">2 — all good</option>
-                  <option value="1">1 — about 60%</option>
-                  <option value="0">0 — below 60%</option>
-                </select>
-              )}
-            </span>
-            <span className="text-[12px] leading-tight text-center text-zinc-600">{it.short}</span>
-          </div>
-        );
-      })}
-      {n && (
-        <div className="flex flex-col items-center gap-1 w-[4.6rem]">
-          <span title={speedWhy(n)} className={`relative w-12 h-11 rounded-lg flex items-center justify-center text-[20px] font-bold cursor-default ${chip(sg)}`}>
-            {sg ?? '–'}
-            {n.speedTotal != null && <span className="absolute top-0.5 right-1 text-[10px] font-bold opacity-80">A</span>}
-          </span>
-          <span className="text-[12px] leading-tight text-center text-zinc-600">Speed</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// What the automatic CRM checks found (the old CRM-total popover, inline).
-function Issues({ auto, manual }) {
-  if (!auto) return <div className="text-[14px] text-zinc-500">No automatic checks for this week.</div>;
-  return (
-    <div className="max-h-72 overflow-y-auto pr-1">
-      {CRM_ITEMS.map((it, i) => {
-        const d = auto.detail?.[it.key];
-        return (
-          <div key={it.key} className="py-1.5 border-t border-tan-100 first:border-0">
-            <div className="flex items-center gap-2 text-[14px]">
-              <span className={`w-6 h-6 rounded text-[12px] font-bold flex items-center justify-center ${chip(auto.grades[i])}`}>{auto.grades[i] ?? '–'}</span>
-              <span className="font-semibold text-navy-800">{it.short}</span>
-              {!d?.parts && <span className="text-zinc-500 text-[13px]">{d ? autoLine(d) : it.key === 'messaging' ? 'no texts checked yet' : 'not available'}</span>}
-              {manual?.[i] != null && <span className="ml-auto text-[12px] text-navy-600 font-semibold">manager: {manual[i]}</span>}
-            </div>
-            {d?.parts && (
-              <div className="ml-8 mt-0.5 grid grid-cols-[1fr_auto] gap-x-3 text-[13px]">
-                {d.parts.map((x) => (
-                  <div key={x.key} className="contents">
-                    <span className="text-zinc-600">{x.label}{x.target ? ` · standard ${Math.round(x.target * 100)}%` : ''}{x.pending ? ` · ${x.pending} waiting for review` : ''}</span>
-                    <span className={`tabular-nums font-semibold text-right ${x.share == null ? 'text-zinc-400' : x.share >= 1 ? 'text-emerald-700' : x.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{x.total ? `${Math.round((x.ok / x.total) * 100)}% · ${x.ok}/${x.total}` : '—'}</span>
-                  </div>
-                ))}
-                {d.share != null && <span className="col-span-2 mt-0.5 pt-0.5 border-t border-tan-100 text-zinc-500">Standards met on average: <b className="text-zinc-800">{Math.round(d.share * 100)}%</b> → 2 at 90%+, 1 at 60%+</span>}
-              </div>
-            )}
-            {d?.bad?.length > 0 && (
-              <ul className="mt-0.5 ml-8 text-[13px] text-zinc-600 space-y-0.5">
-                {d.bad.map((b) => { const url = issueUrl(b); return <li key={b.id + b.why} className="truncate">• {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="underline decoration-zinc-300 underline-offset-2 hover:decoration-current">{b.addr} ↗</a> : b.addr} — <span className="text-rose-700">{b.why}</span></li>; })}
-                {(d.badN ?? d.total - d.ok) > d.bad.length && <li className="text-zinc-400">… and {(d.badN ?? d.total - d.ok) - d.bad.length} more</li>}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function Row({ row, rank, wom, week, frac, canEdit, showNotes, onCrm, onOpen }) {
   const { id, n, crm, note, s, prev } = row;
@@ -471,18 +391,48 @@ export function LeakCard({ ids, week, isLive, onPickRep }) {
   );
 }
 
-// The CRM scores at the foot of the rep's panel (Luke, Oct 16: the panel is
-// the one place to open a rep — "the only thing that is missing … are the
-// crm scores"): the scorecard week's six grade chips (managers pick grades
-// here), what the automatic checks found, and the week's note. Edits go into
-// the same draft as the table, saved with Save here or on the page.
-function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard }) {
-  const { id, auto, manual, note, s } = row;
+// The CRM scores at the foot of the rep's panel (Luke, Oct 16; reworked Oct
+// 22 from the approved mock-up — "hard to read … hard to scroll through the
+// grades"): six grade boxes across the top that jump to what they found; a
+// full-width card per check that found something, listing every finding (no
+// scroll box), its grade picker in the card's header; the all-good checks on
+// one line; Manager Notes its own section with the earlier weeks beside it.
+// Edits go into the same draft as the table, saved with Save here or on the
+// page.
+function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard, full, earlier = [] }) {
+  const { id, manual, note, s, n, crm } = row;
+  const auto = full || row.auto;
+  const [showGood, setShowGood] = useState(false);
+  const sg = n ? speedGrade(n.speedOk, n.speedTotal) : null;
+  const items = CRM_ITEMS.map((it, i) => {
+    const d = auto?.detail?.[it.key];
+    const bad = d?.badN ?? (d?.total != null ? d.total - d.ok : d?.bad?.length || 0);
+    const grade = manual?.[i] ?? auto?.grades?.[i] ?? crm?.[i] ?? null;
+    return { ...it, i, d, grade, bad, set: manual?.[i] != null, auto: auto?.grades?.[i] ?? null, open: grade != null && grade < 2 };
+  });
+  const speed = { key: 'speed', short: 'Speed to Lead', grade: sg, open: sg != null && sg < 2 };
+  const good = [...items, speed].filter((x) => !x.open);
+  const anchor = (k) => `crm-${k}-${id}`;
+  const jump = (k) => document.getElementById(anchor(k))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const tone = (g) => (g == null ? 'border-tan-200 bg-white' : g === 2 ? 'border-tan-200 bg-white' : g === 1 ? 'border-amber-300 bg-amber-50' : 'border-rose-200 bg-rose-50');
+  const ink = (g) => (g == null ? 'text-zinc-400' : g === 2 ? 'text-emerald-700' : g === 1 ? 'text-amber-700' : 'text-rose-700');
+  const pick = (x) => canEdit && (
+    <label className="ml-auto flex items-center gap-2 text-[13px] text-white/80">Grade
+      <select aria-label={`${x.label} grade for ${first(id)}`} value={x.set ? String(manual[x.i]) : 'auto'} onChange={(e) => onCrm(id, x.i, e.target.value === 'auto' ? null : Number(e.target.value))}
+        className="h-8 rounded-lg bg-tan-500 text-navy-900 font-semibold px-2 border-0 focus:outline-2 focus:outline-white">
+        <option value="auto">Automatic{x.auto != null ? ` (${x.auto})` : ''}</option>
+        <option value="2">2 — all good</option>
+        <option value="1">1 — about 60%</option>
+        <option value="0">0 — below 60%</option>
+      </select>
+    </label>
+  );
+  const head = 'flex flex-wrap items-center gap-3 px-5 py-3 bg-navy-700 text-white';
   return (
-    <section className="mt-4 min-w-[1100px] rounded-2xl bg-white border border-tan-200 overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3 bg-navy-700 text-white">
-        <h3 className="text-[16px] font-semibold">CRM Scores · Week of {weekLabel}</h3>
-        <span className="rounded-md bg-tan-500 text-navy-900 px-2 py-0.5 text-[13px] font-bold tabular-nums">{s.crmKnown ? `${s.crmHave} / ${2 * s.crmKnown}` : 'not graded yet'}</span>
+    <section className="mt-4 min-w-[1100px] flex flex-col gap-3">
+      <div className={`${head} rounded-2xl`}>
+        <h3 className="text-[17px] font-semibold">CRM Scores · {first(id)} · Week of {weekLabel}</h3>
+        <span className="rounded-md bg-tan-500 text-navy-900 px-2 py-0.5 text-[13px] font-bold tabular-nums">{s.crmKnown ? `${s.crmHave} of ${2 * s.crmKnown} points` : 'not graded yet'}</span>
         {canEdit && (dirty || error) && (
           <span className="ml-auto flex items-center gap-2 text-[13px]">
             <span className={error ? 'text-rose-200 font-semibold' : 'text-white/80'}>{error || 'Unsaved changes'}</span>
@@ -491,26 +441,111 @@ function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, s
           </span>
         )}
       </div>
-      <div className="p-5 grid gap-6" style={{ gridTemplateColumns: showNotes ? 'auto minmax(0,1.4fr) minmax(0,1fr)' : 'auto minmax(0,1fr)' }}>
-        <div className="flex flex-col gap-2">
-          <CrmChips row={row} canEdit={canEdit} onCrm={onCrm} />
-          {canEdit && <span className="text-[12.5px] text-zinc-500">Pick a grade from a box (or Automatic). A = graded automatically.</span>}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[14px] font-bold text-navy-700 mb-1">What the automatic checks found</div>
-          <Issues auto={auto} manual={manual} />
-        </div>
-        {showNotes && (
-          <div className="min-w-0 flex flex-col gap-1">
-            <div className="text-[14px] font-bold text-navy-700">Note</div>
-            {canEdit ? (
-              <textarea key={`${id}:${note}`} defaultValue={note} placeholder="Add a note for this week"
-                onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
-                className="min-h-24 text-[14px] leading-snug rounded-lg border border-tan-200 bg-white px-3 py-2 focus:outline-2 focus:outline-navy-500" />
-            ) : <div className="text-[14px] text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">No note</span>}</div>}
+
+      <nav aria-label="CRM checks" className="grid grid-cols-6 gap-2.5">
+        {[...items, speed].map((x) => (
+          <button key={x.key} type="button" onClick={() => (x.open ? jump(x.key) : setShowGood(true))} className={`text-left rounded-xl border px-3.5 py-3 flex flex-col gap-1 hover:ring-2 hover:ring-navy-300 ${tone(x.grade)}`}>
+            <span className="text-[13px] font-bold text-navy-900">{x.short}</span>
+            <span className="flex items-baseline gap-2">
+              <span className={`text-[28px] leading-none font-bold tabular-nums ${ink(x.grade)}`}>{x.grade ?? '–'}</span>
+              <span className="text-[12px] text-zinc-500">{x.key === 'speed' ? (n?.speedTotal ? `Auto · ${Math.round((n.speedOk / n.speedTotal) * 100)}%` : 'Auto') : x.set ? 'Set by a manager' : x.auto != null ? 'Auto' : 'Not graded'}</span>
+            </span>
+            <span className={`text-[12px] font-semibold ${ink(x.grade)}`}>{x.grade == null ? 'Not checked yet' : !x.open ? 'All good' : x.bad ? `${x.bad} to fix ↓` : 'See why ↓'}</span>
+          </button>
+        ))}
+      </nav>
+
+      {items.filter((x) => x.open).map((x) => (
+        <section key={x.key} id={anchor(x.key)} className="scroll-mt-4 rounded-xl bg-white border border-tan-200 overflow-hidden">
+          <div className={head}>
+            <h4 className="text-[16px] font-semibold">{x.short} · {x.grade} of 2</h4>
+            <span className="text-[13px] text-white/70">{x.d ? autoLine(x.d) : x.help}</span>
+            {pick(x)}
           </div>
-        )}
-      </div>
+          {x.d?.parts && (
+            <div className="px-5 py-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[14px] border-b border-tan-100">
+              {x.d.parts.map((p) => (
+                <div key={p.key} className="contents">
+                  <span className="text-zinc-700">{p.label}{p.target ? ` · standard ${Math.round(p.target * 100)}%` : ''}{p.pending ? ` · ${p.pending} waiting for review` : ''}</span>
+                  <span className={`tabular-nums font-semibold text-right ${p.share == null ? 'text-zinc-400' : p.share >= 1 ? 'text-emerald-700' : p.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{p.total ? `${Math.round((p.ok / p.total) * 100)}% · ${p.ok} of ${p.total}` : '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {x.d?.bad?.length > 0 ? (
+            <ul className="divide-y divide-tan-100">
+              {x.d.bad.map((b) => {
+                const url = issueUrl(b);
+                return (
+                  <li key={b.id + b.why} className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-5 py-2.5">
+                    <span className="flex-[1_1_260px] min-w-0 text-[15px] font-semibold text-navy-900">{b.addr}</span>
+                    <span className="flex-[1_1_320px] min-w-0 text-[13.5px] text-zinc-600">{b.why}</span>
+                    {url && <a href={url} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-navy-700 hover:underline">{'conv' in b ? 'Open conversation ↗' : 'Open in GHL ↗'}</a>}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : !x.d?.parts && <div className="px-5 py-3 text-[14px] text-zinc-500">{x.set ? `Set to ${x.grade} by a manager${x.auto != null ? ` (automatic: ${x.auto})` : ''}.` : 'Nothing listed for this check.'}</div>}
+        </section>
+      ))}
+      {speed.open && (
+        <section id={anchor('speed')} className="scroll-mt-4 rounded-xl bg-white border border-tan-200 overflow-hidden">
+          <div className={head}><h4 className="text-[16px] font-semibold">Speed to Lead · {sg} of 2</h4><span className="text-[13px] text-white/70">graded automatically</span></div>
+          <div className="px-5 py-3 text-[14px] text-zinc-700 whitespace-pre-line">{speedWhy(n)}</div>
+        </section>
+      )}
+
+      {good.length > 0 && (
+        <div className="rounded-xl border border-dashed border-tan-300 bg-white">
+          <button type="button" onClick={() => setShowGood(!showGood)} className="w-full text-left px-4 py-3 text-[14px] font-semibold text-emerald-700">
+            {good.map((x) => x.short).join(', ').replace(/, ([^,]*)$/, ' and $1')}: {good.some((x) => x.grade == null) ? 'all good or not checked yet' : 'all good this week'} <span className="text-zinc-400 font-normal">· {showGood ? 'hide' : 'show'}</span>
+          </button>
+          {showGood && (
+            <div className="px-4 pb-3 flex flex-col gap-2">
+              {good.map((x) => (
+                <div key={x.key} id={anchor(x.key)} className="flex flex-wrap items-center gap-3 text-[13.5px]">
+                  <span className={`w-7 h-7 rounded-md flex items-center justify-center font-bold ${chip(x.grade)}`}>{x.grade ?? '–'}</span>
+                  <b className="text-navy-900">{x.short}</b>
+                  <span className="text-zinc-600">{x.key === 'speed' ? (n ? speedWhy(n).split('\n')[0] : '') : x.d ? autoLine(x.d) : x.help}</span>
+                  {x.key !== 'speed' && canEdit && (
+                    <select aria-label={`${x.label} grade for ${first(id)}`} value={x.set ? String(manual[x.i]) : 'auto'} onChange={(e) => onCrm(id, x.i, e.target.value === 'auto' ? null : Number(e.target.value))}
+                      className="ml-auto h-8 rounded-lg ring-1 ring-tan-300 bg-white text-navy-900 font-semibold px-2">
+                      <option value="auto">Automatic{x.auto != null ? ` (${x.auto})` : ''}</option>
+                      <option value="2">2 — all good</option>
+                      <option value="1">1 — about 60%</option>
+                      <option value="0">0 — below 60%</option>
+                    </select>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showNotes && (
+        <section className="rounded-xl bg-white border border-tan-200 overflow-hidden">
+          <div className={head}><h4 className="text-[16px] font-semibold">Manager Notes</h4><span className="text-[13px] text-white/70">Owners and managers only · never shown to the rep</span></div>
+          <div className="p-5 grid grid-cols-2 gap-5">
+            <label className="flex flex-col gap-1.5 text-[14px] font-bold text-navy-800">This week ({weekLabel})
+              {canEdit ? (
+                <textarea key={`${id}:${note}`} defaultValue={note} placeholder="Add a note for this week"
+                  onBlur={(e) => { if (e.target.value.trim() !== note) onNote(id, e.target.value.trim()); }}
+                  className="min-h-36 text-[14px] font-normal leading-snug rounded-lg border border-tan-300 bg-white px-3 py-2 focus:outline-2 focus:outline-navy-500" />
+              ) : <span className="text-[14px] font-normal text-zinc-700 whitespace-pre-wrap">{note || <span className="text-zinc-400 italic">No note</span>}</span>}
+            </label>
+            <div className="flex flex-col gap-2">
+              <div className="text-[14px] font-bold text-navy-800">Earlier weeks</div>
+              {earlier.length ? earlier.map((e) => (
+                <div key={e.week} className="rounded-lg bg-tan-50 px-3 py-2">
+                  <div className="text-[12px] font-bold text-tan-800">Week of {e.label}{e.by ? ` · reviewed by ${e.by}` : ''}</div>
+                  <div className="text-[14px] text-zinc-800 whitespace-pre-wrap">{e.note}</div>
+                </div>
+              )) : <div className="text-[13.5px] text-zinc-400 italic">No notes from earlier weeks.</div>}
+            </div>
+          </div>
+        </section>
+      )}
     </section>
   );
 }
@@ -793,7 +828,9 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
         {sc.loaded && !shownIds.length && <div className="rounded-2xl bg-white border border-tan-200 text-[15px] text-zinc-500 px-6 py-5">{show === 'behind' ? 'Nobody is in the Behind band this week.' : 'No reps to show.'}</div>}
 
         {peek && <RepDrawer id={peek} ids={shownIds.includes(peek) ? shownIds : allRows.map((r) => r.id)} onPick={setPeek} onClose={() => setPeek(null)}
-          crm={{ row: allRows.find((r) => r.id === peek) || null, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard: () => setDrafts((d) => { const c = { ...d }; delete c[week]; return c; }) }} />}
+          crm={{ row: allRows.find((r) => r.id === peek) || null, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, saving, error, save, discard: () => setDrafts((d) => { const c = { ...d }; delete c[week]; return c; }),
+            // Every finding for the open rep (the table rows keep the short list).
+            full: isLive ? autoCrm(repPairs(peek), week, Infinity) : null, earlier: showNotes ? earlierNotes(sc, week, peek) : [] }} />}
 
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">

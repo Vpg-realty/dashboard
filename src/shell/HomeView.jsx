@@ -15,6 +15,7 @@ import { formatCompactCurrency } from '../utils/format.js';
 import { metrics, T } from '../views/manager/metrics.js';
 import { linkProps } from './router.js';
 import { useAlerts } from '../alerts/store.js';
+import TodayCard from './TodayCard.jsx';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
@@ -181,26 +182,6 @@ function AlertsLink() {
 // repeated Alerts, Calendar and Active): four counts, each a link to where the
 // work is done (Late, Due today and Closing this week → Pipeline › Contracted
 // Deals — Luke, Oct 20).
-function TodayCard({ alertsOpen, late, dueToday, closingWeek }) {
-  const tiles = [
-    ['Alerts to do', alertsOpen, '/alerts', 'text-navy-800'],
-    ['Late', late, '/pipeline/all', 'text-[#B42318]'],
-    ['Due today', dueToday, '/pipeline/all', 'text-[#B54708]'],
-    ['Closing this week', closingWeek, '/pipeline/all', 'text-emerald-700'],
-  ];
-  return (
-    <Card title="Today at a Glance" right={more('/calendar', 'Calendar')}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {tiles.map(([l, v, to, c]) => (
-          <a key={l} {...linkProps(to)} className="rounded-lg bg-tan-50 hover:bg-tan-100 px-4 py-3.5">
-            <div className={`text-[28px] leading-none font-semibold tabular-nums ${v ? c : 'text-zinc-300'}`}>{v ?? '—'}</div>
-            <div className="text-[12.5px] text-zinc-600 mt-1.5 flex items-center gap-1">{l} <Icon name="arrow" size={12} /></div>
-          </a>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
 export default function HomeView({ me }) {
   // Luke, Oct 14: a deal clicked on Home opens its details here (the deal
@@ -235,12 +216,6 @@ export default function HomeView({ me }) {
     })
     .filter((d) => d && d.days <= 3)
     .sort((a, b) => a.days - b.days);
-  const late = open.filter((d) => d.days < 0);
-  const dueToday = open.filter((d) => d.days === 0).length;
-  // Closings (COE) from today through Sunday, for deals not closed yet.
-  const toSunday = 6 - ((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7);
-  const closingWeek = deals.filter((d) => d.stage !== 'closed' && d.coe && !ended.has(addrKey(d.address || d.name))).filter((d) => { const k = daysInclusive(today, d.coe) - 1; return k >= 0 && k <= toSunday; }).length;
-  const { counts: alertCounts } = useAlerts();
 
   // This week's wins: new contracts (startedAt) and closings (stageSince),
   // Mon → now — the whole team's, for everyone whatever their role or pod
@@ -304,7 +279,7 @@ export default function HomeView({ me }) {
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <div className={`${showMoney || me?.role === 'owner' ? 'xl:col-span-2' : 'xl:col-span-3'} flex flex-col gap-6 min-w-0`}>
-        <TodayCard alertsOpen={alertCounts ? alertCounts.owe : null} late={late.length} dueToday={dueToday} closingWeek={closingWeek} />
+        <TodayCard me={me} deals={open.filter((d) => d.stage !== 'closed')} allDeals={teamDeals} tracked={trackedOf} tracker={tracker} openGhl={openGhl} />
         <Card title="Wins this week · whole team">
           {wins.length === 0 ? (
             <div className="text-zinc-500">No new contracts or closings yet this week.</div>

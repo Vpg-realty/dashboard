@@ -1161,6 +1161,34 @@ Overrides the Alerts notes above where they differ.
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.
+## Oct 22 round, phase 5b — Today at a Glance, CRM Scores (Luke)
+
+From the approved mock-ups. Overrides older Home / CRM panel notes.
+- **Today at a Glance** (`src/shell/TodayCard.jsx`) is a checklist, not
+  four numbers: **Late / Today / Coming up · next 2 days**, each row one
+  thing with its button, at most 10 rows ("Showing N of M", See all in
+  Alerts). Everyone: their deals whose key date (IP end before a buyer, COE
+  once Assigned) is late or within 2 days — the same scoped deals Home
+  already shows, tracker dates first. From the person's alerts (Home loads
+  `/api/alerts` once — the same read as opening Alerts): their own leads
+  (a day old = Late, in their lead-type colour), tasks / GHL tasks (tick
+  here = done, GHL tasks go back to GHL) and 30-day check-ins by due date;
+  owners and pod leads get one row "N leads your team got · not reviewed by
+  you yet". Owners and the TC also: GHL deals under contract in the last 3
+  days not on the sheet (Add to tracker), "N deals missing info" (→ Deals ›
+  Active ?only=need) and "N deals with TC items due today" (→ TC List;
+  reads `/api/tc` once). Deal-deadline alerts aren't repeated (the deal row
+  says it). Lead colours and the GHL link rule moved to `src/alerts/kinds.js`
+  (`LEAD_TYPE`, `HINT_WORD`, `linkOf`), shared with the Alerts page.
+- **CRM Scores** (Team Scorecard › a rep's panel, `DrawerCrm` in
+  ScorecardView.jsx): six grade boxes across the top (five CRM items +
+  Speed to Lead) that jump to their card; a full-width card per check below
+  2 listing every finding (the panel runs `autoCrm(…, Infinity)` for the
+  open rep — the table keeps the short list) with the grade picker in its
+  header; checks that are fine fold into one line ("… all good", show);
+  **Manager Notes** its own section — this week's note and the four
+  earlier weeks' notes (`earlierNotes`), owners / managers only.
+
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 
 - **Market chips** = `MarketChips` (src/shell/MarketChips.jsx): "All" then a
