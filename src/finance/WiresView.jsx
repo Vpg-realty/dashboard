@@ -33,18 +33,35 @@ const TABS = WIRE_TABS;
 // be only the assignment fee and EM is never returned") — only where VPG put
 // up earnest money; saved on the deal's own "EMD returned?".
 const vpgEmd = (d) => /VPG/.test(up(d.emdPaidBy));
-const emdOpen = (d) => vpgEmd(d) && !['YES', 'NO'].includes(up(d.emdReturned));
-export function EmdCell({ d, raw }) {
+const emdOpen = (d) => vpgEmd(d) && !['YES', 'NO', 'LOST'].includes(up(d.emdReturned));
+export function EmdCell({ d, raw, lost = true }) {
   const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState(false);
   if (!vpgEmd(d)) return <span className="text-[12px] text-zinc-400">buyer's EMD</span>;
   const v = up(d.emdReturned);
-  const set = async (val) => { setBusy(true); try { await saveDeal(d.id, { fields: { emdReturned: val } }, raw?.updatedAt); } catch (e) { window.alert(e.message); } finally { setBusy(false); } };
-  const btn = (val, label, on) => <button type="button" disabled={busy} onClick={() => set(v === val ? null : val)} className={`h-7 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${v === val ? on : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'}`}>{label}</button>;
+  const save = async (fields) => { setBusy(true); setWhy(false); try { await saveDeal(d.id, { fields }, raw?.updatedAt); } catch (e) { window.alert(e.message); } finally { setBusy(false); } };
+  // Leaving Lost clears its reason too.
+  const set = (val) => save(v === 'LOST' || val === 'LOST' ? { emdReturned: val, emdLostWhy: null } : { emdReturned: val });
+  const btn = (val, label, on, onClick) => <button type="button" disabled={busy} onClick={onClick || (() => set(v === val ? null : val))} className={`h-7 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${v === val ? on : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'}`}>{label}</button>;
+  const RED = 'bg-[#FDF1F0] text-[#B42318] ring-[#F5C2BD]';
+  // Lost (Luke, Oct 22): the seller keeps it — past the inspection period or
+  // non-refundable. Pick the reason; it counts as a loss on the deal.
+  if (why) {
+    return (
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        <span className="text-[12px] font-semibold text-[#B42318] mr-1">Why?</span>
+        {btn('_ip', 'Past IP', RED, () => save({ emdReturned: 'LOST', emdLostWhy: 'PAST_IP' }))}
+        {btn('_nr', 'Non-refundable', RED, () => save({ emdReturned: 'LOST', emdLostWhy: 'NON_REFUNDABLE' }))}
+        <button type="button" onClick={() => setWhy(false)} className="h-7 px-1.5 text-[12px] text-zinc-500 hover:text-zinc-800">Cancel</button>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       {!v && <span className="text-[12px] font-semibold text-[#B54708] mr-1">confirm</span>}
       {btn('YES', 'Returned', 'bg-[#EEF8F1] text-[#14532D] ring-[#9FD4B1]')}
-      {btn('NO', 'Not returned', 'bg-[#FDF1F0] text-[#B42318] ring-[#F5C2BD]')}
+      {btn('NO', 'Not returned', RED)}
+      {lost && btn('LOST', 'Lost', 'bg-[#B42318] text-white ring-[#B42318]', () => (v === 'LOST' ? set(null) : setWhy(true)))}
     </span>
   );
 }

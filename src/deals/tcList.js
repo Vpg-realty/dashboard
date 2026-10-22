@@ -74,8 +74,8 @@ export const CHECKLIST = [
       { id: 'hud', label: 'HUD statement received', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 1) : null) },
       { id: 'wirein', label: 'Wire received', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 1) : null), auto: (d) => ISO.test(d.wireDate || ''), why: () => 'done — wire date on the deal' },
       { id: 'emret', label: 'EM returned', due: (d) => (ISO.test(d.coe || '') ? addDays(d.coe, 3) : null),
-        auto: (d) => !vpgPlacedEm(d) || up(d.emdReturned) === 'YES',
-        why: (d) => (!vpgPlacedEm(d) ? 'VPG never placed EM — nothing to return' : 'done — EMD returned on the deal') },
+        auto: (d) => !vpgPlacedEm(d) || ['YES', 'LOST'].includes(up(d.emdReturned)),
+        why: (d) => (!vpgPlacedEm(d) ? 'VPG never placed EM — nothing to return' : up(d.emdReturned) === 'LOST' ? 'EM lost — marked on the deal' : 'done — EMD returned on the deal') },
     ],
   },
 ];

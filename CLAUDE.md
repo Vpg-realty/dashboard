@@ -2279,7 +2279,22 @@ the approval records who).
   returned buttons, `EmdCell`, which save the deal). **Cancelled · Not Returned**
   (Luke, Oct 22) the same for cancelled deals. Columns: property (→
   deal panel), stage, acq. manager, EMD paid by, EMD, buyer's EMD (open
-  lists), sent on, IP end / COE; a total row. `?view=risk | closed | cancelled`.
+  lists), sent on, IP end / COE; a total row. `?view=risk | closed | cancelled
+  | lost`.
+  **EM Lost** (Luke, Oct 22: "EM is lost in the deal due to us either going
+  past our inspection period or it being non refundable … dismiss it and
+  count it as a loss"): EMD returned? has a fourth value **Lost** (`LOST`,
+  `FIXED_LISTS.emdReturned` = Yes / No / Lost / N/A) with its reason in the
+  new field `emdLostWhy` (EM lost because: `PAST_IP` / `NON_REFUNDABLE`,
+  shown in the deal panel only when Lost; checked by `clean` in
+  edge/deals.js; required once Lost — the owners' bookkeeping category).
+  `EmdCell`'s **Lost** button asks "Why? Past IP / Non-refundable" and saves
+  both; leaving Lost clears the reason. Lost takes the deal off the Not
+  Returned lists into **EM Lost** (5th tile / rail entry, with the reason),
+  counts as a loss like No (`compute`: gross / net profit − EMD), ticks the
+  TC List's "EM returned" ("EM lost — marked on the deal") and drops off
+  Wires In's EMD to confirm. Locked until COE / closed / cancelled like the
+  rest of bookkeeping.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)

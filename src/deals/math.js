@@ -66,6 +66,9 @@ export const FIELDS = [
   ['wireReceived', 'Total wire received', 'money', 'money'],
   ['wireDate', 'Wire date received', 'money', 'date'],
   ['emdReturned', 'EMD returned?', 'money', 'list'],
+  // Lost (Luke, Oct 22): EM kept by the seller — past the inspection period or
+  // non-refundable. Counts as a loss like No; the reason is kept with it.
+  ['emdLostWhy', 'EM lost because', 'money', 'list'],
   ['commBase', 'Commission base', 'pay', 'money', 'calc', 'secret'],
   // Each commission's "Paid on" (Luke, Oct 19): written by Finance when the
   // payout is marked paid (cleared when it's undone) — read-only here ('fin').
@@ -314,7 +317,7 @@ export function compute(deal, rules, lists) {
   set('tcComm', statusIn(d, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);
-  const emdLost = is(d.emdReturned, 'NO');
+  const emdLost = is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST');
   set('grossProfit', emdLost ? num(d.netAssign) - num(d.emd) : cancelled ? -num(d.optionFee) - paid : num(d.netAssign));
   set('netProfit', emdLost ? num(d.netAssign) - num(d.emd) - paid : cancelled ? -num(d.optionFee) - paid : num(d.netAssign) - paid);
   return d;

@@ -61,6 +61,7 @@ const RULE = {
   status: ['value'],
   wireDate: ['value'], wireReceived: ['value'],
   emdReturned: ['value', emdByVpg],
+  emdLostWhy: ['value', (d) => up(d.emdReturned) === 'LOST'],
   commPaid: ['value'],
 };
 
@@ -95,7 +96,7 @@ export const CATEGORIES = [
     id: 'books', label: 'At COE — fill in bookkeeping', tone: 'navy', owners: true,
     hint: 'The COE date is here (or the deal closed): wire received, wire date, EMD returned and commission paid.',
     when: (d, today) => !cancelled(d) && booksOpen(d, today) && (open(d) || recentClose(d, today)),
-    fields: BOOKS_KEYS,
+    fields: [...BOOKS_KEYS, 'emdLostWhy'],
   },
   {
     id: 'lost', label: 'Lost in GHL — confirm the cancel', tone: 'red',

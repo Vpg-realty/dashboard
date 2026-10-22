@@ -15,8 +15,8 @@ export function RailButton({ on, label, sub, count, tone = 'navy', dim, disabled
     <button type="button" onClick={onClick} disabled={disabled} aria-current={on ? 'page' : undefined}
       className={`shrink-0 text-left rounded-xl px-3 py-2.5 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : `bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70 ${dim ? 'opacity-55' : ''} ${disabled ? 'cursor-default' : ''}`}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[14px] font-semibold whitespace-nowrap">{titleCase(label)}</span>
-        {count != null && <span className={`text-[12px] font-semibold tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : count ? `bg-tan-100 ${tone === 'red' ? 'text-[#B42318]' : 'text-zinc-600'}` : 'text-zinc-300'}`}>{count}</span>}
+        <span className="min-w-0 text-[14px] font-semibold whitespace-nowrap lg:whitespace-normal">{titleCase(label)}</span>
+        {count != null && <span className={`shrink-0 text-[12px] font-semibold tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : count ? `bg-tan-100 ${tone === 'red' ? 'text-[#B42318]' : 'text-zinc-600'}` : 'text-zinc-300'}`}>{count}</span>}
       </div>
       {sub && <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>}
     </button>
