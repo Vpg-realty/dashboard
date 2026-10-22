@@ -58,17 +58,19 @@ export async function load(db, u) {
   return { pof: pof || null, agencies: list, calcs: mine, can: { agencies: canEditAgencies(u), pof: canUploadPof(u) } };
 }
 
+// The offer message's text fields are longer than a number.
+const LONG = { title: 300, coe: 60, state: 40 };
 // Keep only the fields a calculator has (and its units for multifamily).
 function cleanInputs(kind, inp) {
   const base = kind === 'seller' ? SELLER_DEFAULTS : MF_DEFAULTS;
   const out = {};
   for (const k of Object.keys(base)) {
     if (k === 'units') continue;
-    out[k] = clip(inp?.[k], 30);
+    out[k] = clip(inp?.[k], LONG[k] || 30);
   }
   if (kind === 'mf') {
     out.units = (Array.isArray(inp?.units) ? inp.units : []).slice(0, 60).map((x) => ({
-      unit: clip(x?.unit, 20), bed: clip(x?.bed, 6), bath: clip(x?.bath, 6), rent: clip(x?.rent, 14), market: clip(x?.market, 14), sf: clip(x?.sf, 10),
+      unit: clip(x?.unit, 20), bed: clip(x?.bed, 6), bath: clip(x?.bath, 6), rent: clip(x?.rent, 14), market: clip(x?.market, 14), sf: clip(x?.sf, 10), vacant: x?.vacant === 'yes' ? 'yes' : '',
     }));
   }
   return out;

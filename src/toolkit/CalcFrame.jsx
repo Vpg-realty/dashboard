@@ -102,3 +102,35 @@ export function Field({ label, value, onChange, pre, post, hint, bad, readOnly, 
   );
 }
 
+
+// A yes / no switch in the same box as the fields.
+export function Toggle({ label, value, onChange, yes = 'Yes', no = 'No', hint, readOnly }) {
+  const on = value === 'yes';
+  const btn = (v, text) => (
+    <button type="button" disabled={readOnly} onClick={() => onChange(v)} aria-pressed={(v === 'yes') === on}
+      className={`flex-1 rounded-md text-[13px] font-semibold ${(v === 'yes') === on ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-tan-50'}`}>{text}</button>
+  );
+  return (
+    <div className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">
+      {label}
+      <div className="flex h-10 gap-1 rounded-lg border border-zinc-200 bg-white p-1">{btn('', no)}{btn('yes', yes)}</div>
+      {hint && <span className="text-[11.5px] font-normal text-tan-600">{hint}</span>}
+    </div>
+  );
+}
+
+// What's off with the numbers: the one rule in red, recommendations in amber.
+export function Notes({ notes }) {
+  if (!notes.length) return null;
+  const tone = { rule: 'border-rose-200 bg-rose-50 text-rose-900', rec: 'border-amber-200 bg-amber-50 text-amber-900', info: 'border-tan-200 bg-tan-50 text-navy-900' };
+  const tag = { rule: 'Rule', rec: 'Recommended', info: 'Note' };
+  return (
+    <div className="flex flex-col gap-1.5">
+      {notes.map((n) => (
+        <div key={n.text} className={`rounded-lg border px-3 py-2 text-[13px] ${tone[n.level]}`}>
+          <span className="mr-1.5 text-[10.5px] font-bold uppercase tracking-wide opacity-70">{tag[n.level]}</span>{n.text}
+        </div>
+      ))}
+    </div>
+  );
+}

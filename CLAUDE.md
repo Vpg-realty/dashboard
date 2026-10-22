@@ -1360,6 +1360,35 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   calculation worked out (`calcContext`), no other data, no tools; 25
   questions an Arizona day (`CALC_DAILY`, Luke OK'd), cost counts toward the
   chat's monthly cap (`chat_cap`); `GET/POST /api/toolkit/ask`.
+- **Round 2 (Luke, Oct 22)** — `calc.js` overrides the calculator notes
+  above where they differ. Goals are **recommended, not required**
+  (`notesFor` → amber "Recommended" notes; the only red rule is the seller-
+  finance down payment under 10%): seller finance $300+ a month and 10%+
+  cash-on-cash; multifamily 10%+ cash-on-cash on **current rents** (a unit
+  ticked Vacant, or at $0, counts its market rent — `rentNowOf`; market rents
+  are "the upside") and $3,000+ a year cash flow (`MF_CASH_FLOW_GOAL`), debt
+  coverage 1.2×+ (`DSCR_MIN`). The buyer's **cash in** counts our assignment
+  fee (`fee`; the buyer pays it in cash, the loan is on our contract price).
+  Seller finance adds management % and a repair reserve to cash flow,
+  closing (2.5%) / fee / rehab to cash in, interest only (`io`),
+  appreciation, and the **balloon refinance check** (owed ÷ value ≤ 75%,
+  the payment over 30 years at `refiRate`, 7%). Multifamily adds our fee,
+  a repair reserve ($250 / unit / yr), an optional tax rate % of the price
+  (taxes after the sale, replaces the bill), the cash-buyer switch; defaults
+  7% rate, 2.5% closing. **What it takes** (`solveSeller` / `solveMf`, a
+  bisection): the highest price for each goal (and seller finance's highest
+  rate for $300), multifamily's "Max we can contract at" for 10% with our
+  fee unchanged. Claude's briefing (edge/calcChat.js) matches.
+- **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
+  Luke's two templates): Market, EMD, Inspection period (days), COE (a date
+  or words) and Title company (the state's ★ agency by default, else "All
+  other states") — saved with the calculation — then "Create Message /
+  Email" writes the creative offer (seller finance: signer, IP, COE, title,
+  price, EMD, down, seller carry, rate, amortization, term / balloon) or the
+  standard offer (multifamily: price, EMD, signer, IP, COE, title) into an
+  editable box with Copy / Email (mailto) / Text (sms:). Signer = `SIGNER`,
+  plus "and/or Assigns" outside AZ, AL, FL, OK (`MARKETS_NO_ASSIGNS`); the
+  market defaults to the linked opportunity's state.
 - Usage: a Toolkit page load reads the letter's details, the agencies (~20
   rows) and the saved calculations (all rows, filtered by person) — a few
   hundred loads a day is well under 1M reads a month.
