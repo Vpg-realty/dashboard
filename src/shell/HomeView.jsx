@@ -32,15 +32,6 @@ const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
 const DAY = 86_400_000;
 
-function Avatar({ rep, size = 20 }) {
-  const initials = (rep?.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('');
-  return (
-    <span className="rounded-full grid place-items-center text-white font-semibold shrink-0" style={{ width: size, height: size, fontSize: size * 0.42, background: rep?.color || '#a1a1aa' }}>
-      {initials}
-    </span>
-  );
-}
-
 // On pace / Near pace / Behind: label, badge colours, the box's tint (Luke,
 // Oct 14: highlight boxes by pace across the site) — the site's one rule,
 // utils/pace.js (Oct 22: 0 is red, 85% for near, the same red as the scorecards).
@@ -223,8 +214,10 @@ export default function HomeView({ me }) {
   const teamDeals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, rep: repById[p.repId], marketId: p.marketId })));
   const monday = (() => { const n = new Date(`${today}T12:00:00Z`); const dow = (n.getUTCDay() + 6) % 7; return Date.parse(`${today}T07:00:00Z`) - dow * DAY; })();
   const wins = [
-    ...teamDeals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', at: d.startedAt })),
-    ...teamDeals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', at: d.stageSince })),
+    // The TV board's Wins icons (MasterView, Luke Oct 22: "match the emojis").
+    ...teamDeals.filter((d) => d.startedAt && d.startedAt >= monday).map((d) => ({ ...d, what: 'Under contract', icon: '✍️', at: d.startedAt })),
+    ...teamDeals.filter((d) => d.stage === 'assigned' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Assigned', icon: '🤝', at: d.stageSince })),
+    ...teamDeals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', icon: '🎉', at: d.stageSince })),
   ].sort((a, b) => b.at - a.at);
 
   const m = metrics(pairs);
@@ -278,31 +271,33 @@ export default function HomeView({ me }) {
       ))}
 
       <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-        <div className={`${showMoney || me?.role === 'owner' ? 'xl:col-span-2' : 'xl:col-span-3'} flex flex-col gap-6 min-w-0`}>
+        <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
         <TodayCard me={me} deals={open.filter((d) => d.stage !== 'closed')} allDeals={teamDeals} tracked={trackedOf} tracker={tracker} openGhl={openGhl} />
-        <Card title="Wins this week · whole team">
-          {wins.length === 0 ? (
-            <div className="text-zinc-500">No new contracts or closings yet this week.</div>
-          ) : wins.slice(0, 8).map((w) => (
-            <button type="button" onClick={() => openGhl(w)} key={`${w.id}${w.what}`} className="w-full text-left flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 hover:bg-tan-50 rounded-sm">
-              <Avatar rep={w.rep} size={28} />
-              <div className="min-w-0">
-                <div className="truncate"><span className="font-semibold">{w.what}</span> · {w.address}</div>
-                <div className="text-zinc-500 text-xs mt-0.5">{w.rep?.name.split(' ')[0]} · {MARKETS.find((x) => x.id === w.marketId)?.name || w.marketId}{w.what === 'Closed' && w.value ? ` · ${formatCompactCurrency(w.value)}` : ''} · {new Date(w.at).toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'short' })}</div>
-              </div>
-            </button>
-          ))}
-        </Card>
         </div>
-        {(showMoney || me?.role === 'owner') && <div className="flex flex-col gap-6 min-w-0">
+        {/* Right column: revenue, then this week's wins (Luke, Oct 22: wins
+            on the right), then the owners' cards. */}
+        <div className="flex flex-col gap-6 min-w-0">
         {showMoney && (pod ? <>
           <RevenueCard m={metrics(PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
           <RevenueCard m={metrics(PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
         </> : <RevenueCard m={m} n={n} />)}
+        <Card title="Wins this week · whole team">
+          {wins.length === 0 ? (
+            <div className="text-zinc-500">No new contracts, assignments or closings yet this week.</div>
+          ) : wins.slice(0, 8).map((w) => (
+            <button type="button" onClick={() => openGhl(w)} key={`${w.id}${w.what}`} className="w-full text-left flex gap-3 py-2.5 border-t border-zinc-100 first-of-type:border-0 hover:bg-tan-50 rounded-sm">
+              <span className="text-[22px] leading-7 shrink-0" aria-hidden="true">{w.icon}</span>
+              <div className="min-w-0">
+                <div className="truncate"><span className="font-semibold">{w.what}</span> · {w.address}</div>
+                <div className="text-zinc-500 text-xs mt-0.5"><span className="font-semibold" style={{ color: w.rep?.color }}>{w.rep?.name.split(' ')[0]}</span> · {MARKETS.find((x) => x.id === w.marketId)?.name || w.marketId}{(w.what === 'Closed' || w.what === 'Assigned') && w.value ? ` · ${formatCompactCurrency(w.value)}` : ''} · {new Date(w.at).toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'short' })}</div>
+              </div>
+            </button>
+          ))}
+        </Card>
         {/* Owners only (Luke, Oct 19): the Deal tracker may go later — Deals covers it. */}
         {me?.role === 'owner' && <TrackerCard />}
         {me?.role === 'owner' && <PipelineCard deals={deals} />}
-        </div>}
+        </div>
       </div>
       {panel}
     </div>

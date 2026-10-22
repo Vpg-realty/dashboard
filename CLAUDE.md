@@ -1199,6 +1199,10 @@ From the approved mock-ups. Overrides older Home / CRM panel notes.
   reads `/api/tc` once). Deal-deadline alerts aren't repeated (the deal row
   says it). Lead colours and the GHL link rule moved to `src/alerts/kinds.js`
   (`LEAD_TYPE`, `HINT_WORD`, `linkOf`), shared with the Alerts page.
+- **Wins this week** sits in Home's right column under Revenue (Luke, Oct
+  22), for everyone (the TC too), with the TV board's icons and kinds: ✍️
+  Under contract, 🤝 Assigned, 🎉 Closed (value on Assigned / Closed), the
+  rep's first name in their colour.
 - **CRM Scores** (Team Scorecard › a rep's panel, `DrawerCrm` in
   ScorecardView.jsx): six grade boxes across the top (five CRM items +
   Speed to Lead) that jump to their card; a full-width card per check below
