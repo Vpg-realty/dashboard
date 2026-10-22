@@ -1065,7 +1065,10 @@ Overrides older notes where they differ.
   of a wrong date.
 - **Sold volume** = the VPG assignment price of closed deals (Finance
   Overview, territory state card, the closed-deals map's tracker rows) —
-  never the final assignment price.
+  not the final assignment price, nor the fee. `soldPrice` (math.js): older
+  sheet rows with no VPG price typed in (45 of 54 closed 2026 deals) fall
+  back to their final assignment price — without it 2026 read $2.13M
+  instead of ~$13.31M (Oct 22).
 
 ## Oct 22 round, phase 4a — KPI colours (Luke)
 

@@ -235,6 +235,11 @@ export function pickRules(rules, deal) {
 // deal (Pending or Assigned), as it did before the Assigned status existed,
 // so moving a deal to Assigned never drops a fee it already had.
 export const RULE_STATUSES = [['PENDING', 'Open (Under Contract / Dispo Active)'], ['ASSIGNED', 'Assigned'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
+// The price a closed deal counts at in sold volume (Luke, Oct 22): the VPG
+// assignment price — what the home sold for to VPG's buyer. Older sheet rows
+// (Jan–Aug) never had one typed in, only the final assignment price, so
+// those fall back to it (45 of 54 closed 2026 deals on Oct 22).
+export const soldPrice = (d) => num(d.vpgAssign) || num(d.finalAssign);
 export const isAssigned = (d) => is(d.status, 'ASSIGNED') || (!is(d.status, 'CANCELLED') && num(d.vpgAssign) > 0);
 export const statusMatches = (d, s) => (is(s, 'ASSIGNED') ? isAssigned(d) : is(s, 'PENDING') ? isOpen(d) : is(d.status, s));
 const statusIn = (d, list) => (list || []).some((s) => statusMatches(d, s));
