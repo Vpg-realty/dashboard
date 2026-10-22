@@ -139,7 +139,8 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
         {a.kind === 'lead' && <>
           {/* Five types (Luke, Oct 22) — one answer for everyone, teaches
               Claude (the last 30 go along as examples); a second click on the
-              picked one clears it. Complete stays, per person. */}
+              picked one clears it. Complete stays, per person, and only once a
+              type is picked (Luke, Oct 22). */}
           <span role="group" aria-label="Lead type (teaches Claude)" className="inline-flex flex-wrap rounded-lg ring-1 ring-zinc-200 overflow-hidden">
             {['hot', 'warm', 'cold', 'wholesale', 'not'].map((v) => (
               <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v} title="Everyone sees the type picked — it also teaches Claude"
@@ -148,7 +149,9 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
             ))}
           </span>
           {!done
-            ? <button type="button" disabled={busy} onClick={() => act({ action: 'done', id: a.id, done: true })} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800 disabled:opacity-50">Complete</button>
+            ? <button type="button" disabled={busy || !a.verdict} onClick={() => act({ action: 'done', id: a.id, done: true })}
+              title={a.verdict ? 'Complete this lead (for you)' : 'Pick the lead type first'}
+              className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:cursor-not-allowed">Complete</button>
             : <button type="button" disabled={busy} onClick={() => act({ action: 'done', id: a.id, done: false })} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 text-[12.5px] font-semibold hover:bg-zinc-50">Reopen</button>}
         </>}
         {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}

@@ -213,6 +213,8 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   }
   if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
   if (a === 'done') {
+    // A lead is completed only once it has a lead type (Luke, Oct 22).
+    if (b.done && existing.kind === 'lead' && !existing.verdict) return { error: 'Pick the lead type first (Hot, Warm, Cold, Wholesale or Not a lead)' };
     return { check: b.done && personal(existing, scope) ? [existing] : [], run: tick(existing, !!b.done, user, scope, now) };
   }
   if (a === 'verdict') {
