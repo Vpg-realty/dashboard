@@ -184,7 +184,11 @@ one can't fit a page, tell Luke instead of making a one-off.
   tan when picked or hot. Keep them that way on every navy band.
 - **Search box** = `SearchBox` (`src/shell/SearchBox.jsx`, the Pipeline /
   Calendar style; `dark` on a navy band) — magnifier, ×, Esc clears. The
-  deals `Search` wraps it. ⌘K keeps its own palette input.
+  deals `Search` wraps it. ⌘K keeps its own palette input. **Inside a navy
+  band or navy header it is always `dark`** (Oct 22: Deals › Active and the
+  Map got the light box inside the band — it read as a different search bar;
+  All Deals' search moved into its band like Pipeline's). Light only on a
+  white card.
 - **Dropdown** = `SearchSelect` (`src/deals/SearchSelect.jsx`); an "All …" /
   "Pick …" choice is a `pinned` option, `buttonClass` restyles the button
   (the navy-band person pickers). Left as native selects on purpose: the

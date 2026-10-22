@@ -199,7 +199,7 @@ export default function DealsMapView() {
         <div className={`flex flex-wrap items-center gap-3 px-4 py-2.5 ${PANEL_HEAD}`}>
           <h2 className="font-semibold">Closings{zoomSt ? ` · ${zoomSt}` : ''}{year ? ` · ${year}` : ''}</h2>
           <span className="text-[12.5px] text-white/70">{list.length} · newest first</span>
-          <span className="ml-auto rounded-md bg-white px-1 py-0.5"><Search value={q} onChange={setQ} placeholder="Search an address…" /></span>
+          <span className="ml-auto"><Search dark value={q} onChange={setQ} placeholder="Search an address…" /></span>
         </div>
         <ul className="divide-y divide-[#E5E9F0] max-h-[420px] overflow-auto">
           {list.map((p) => (
