@@ -13,6 +13,8 @@
 // their key date, two weeks at a time). Pipeline A look (Luke, Oct 16): the
 // navy band with the person filter, then the columns — Due this week first.
 // A state filter (`?st=`) and, for opportunities, a search narrow it down.
+import SearchSelect from '../deals/SearchSelect.jsx';
+import SearchBox from './SearchBox.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import PipelineView from '../views/PipelineView.jsx';
 import { REPS, MARKETS, SUBACCOUNTS } from '../data/config.js';
@@ -26,7 +28,6 @@ import { stageKey } from './stages.js';
 import { useOpps } from '../data/oppsStore.js';
 import { scopeReps } from './scope.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
-import ClearX from './ClearX.jsx';
 import { formatCompactCurrency } from '../utils/format.js';
 import { titleCase } from './titleCase.js';
 import BandMark from './BandMark.jsx';
@@ -156,12 +157,12 @@ export default function PipelinePage({ mode = 'deals' }) {
   );
 
   return (
-    <div className="flex flex-col gap-3 h-full min-h-0">
+    <div className="w-full max-w-[1720px] mx-auto flex flex-col gap-3 h-full min-h-0">
       <div className="relative isolate shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
         <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{view === 'cal' ? 'Calendar' : 'Pipeline'} · {scopeName}</div>
-          <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{view === 'cal' ? titleCase(headline) : headline}</h1>
+          <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight leading-tight">{view === 'cal' ? titleCase(headline) : headline}</h1>
           <p className="text-[12.5px] text-white/70">{blurb}</p>
         </div>
         {/* The person filter (Luke, Oct 14): Mine, My pod, Full team, then a person. */}
@@ -169,11 +170,7 @@ export default function PipelinePage({ mode = 'deals' }) {
           {/* In the band, not the state row, so the columns below sit at the
               same height on both tabs (Luke, Oct 16). */}
           {(isOpps ? oppScope : !calBlocked) && (
-            <label className="relative">
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQ(''); }} placeholder={isOpps ? 'Search name or address…' : 'Search address…'}
-                className="h-8 w-60 rounded-md bg-white/10 text-white placeholder:text-white/50 ring-1 ring-inset ring-white/25 pl-3 pr-8 text-[13px] focus:outline-none focus:ring-2 focus:ring-tan-400" />
-              <ClearX value={q} onClear={() => setQ('')} className="absolute right-1.5 top-1.5 !text-white/60 hover:!text-white hover:!bg-white/10" />
-            </label>
+            <SearchBox dark value={q} onChange={setQ} placeholder={isOpps ? 'Search name or address…' : 'Search address…'} />
           )}
           {/* Option 1 of the Oct 16 round (Luke: "a white box doesn't say
               selected"): one dark switch, the choice that's on raised in tan;
@@ -187,11 +184,9 @@ export default function PipelinePage({ mode = 'deals' }) {
             </span>
           )}
           {canPick && (
-            <select aria-label="Pick a person" value={picked || ''} onChange={(e) => pickWho(e.target.value || (dflt === 'all' || dflt === '' ? null : 'all'))}
-              className={`h-[34px] rounded-lg px-2 text-[13px] font-semibold ${picked ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'bg-transparent text-white ring-1 ring-inset ring-white/35 hover:bg-white/10'}`}>
-              <option value="" className="text-navy-900">Pick a person…</option>
-              {pickable.map((r) => <option key={r.id} value={r.id} className="text-navy-900">{r.name}</option>)}
-            </select>
+            <SearchSelect value={picked || ''} onChange={(v) => pickWho(v || (dflt === 'all' || dflt === '' ? null : 'all'))} clearable={false}
+              buttonClass={picked ? "h-[34px] min-w-[10rem] flex items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] font-semibold bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]" : "h-[34px] min-w-[10rem] flex items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] font-semibold bg-transparent text-white ring-1 ring-inset ring-white/35 hover:bg-white/10"}
+              pinned={[{ value: '', label: 'Pick a person…' }]} options={pickable.map((r) => ({ value: r.id, label: r.name }))} />
           )}
         </div>
       </div>

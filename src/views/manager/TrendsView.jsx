@@ -12,6 +12,7 @@ import { REPS } from '../../data/config.js';
 import { usePods } from '../../shell/pods.js';
 import { scoreTone } from './metrics.js';
 import { weekSeries, avgOf } from './trends.js';
+import { Tile } from '../../shell/Tile.jsx';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
@@ -24,15 +25,10 @@ function Change({ v, big }) {
   return <span className={`font-bold tabular-nums ${r > 0 ? 'text-emerald-600' : 'text-rose-600'} ${big ? 'text-base' : ''}`}>{r > 0 ? '▲' : '▼'} {Math.abs(r)}</span>;
 }
 
+// The site's Tile (Oct 22), tinted by the score's band (Strong / Watch / Behind).
 function Stat({ label, value, sub, tone }) {
-  const t = tone ? scoreTone(tone) : null;
-  return (
-    <div className={`rounded-xl border p-4 min-w-0 ${t ? `${t.bg} border-transparent` : 'border-zinc-300/80 bg-white'}`}>
-      <div className="text-[10px] uppercase tracking-[0.22em] text-zinc-600 mb-1 truncate">{label}</div>
-      <div className={`text-[min(2.5rem,4.4vh)] font-bold tabular-nums leading-tight truncate ${t ? t.text : 'text-zinc-900'}`}>{value}</div>
-      <div className="text-xs text-zinc-600 mt-0.5 truncate">{sub}</div>
-    </div>
-  );
+  const tint = tone == null ? undefined : tone >= 90 ? 'green' : tone >= 75 ? 'amber' : 'red';
+  return <Tile label={label} value={value} sub={sub} tint={tint} />;
 }
 
 export default function TrendsView({ sc, groups, onPickRep }) {

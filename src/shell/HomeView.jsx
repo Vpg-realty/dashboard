@@ -25,6 +25,7 @@ import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from 
 import { nextStep } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
 import Icon from './icons.jsx';
+import { Tile } from './Tile.jsx';
 
 const KEY = { under_contract: 'ipEnd', dispo: 'ipEnd', assigned: 'coe' };
 const repById = Object.fromEntries(REPS.map((r) => [r.id, r]));
@@ -50,28 +51,26 @@ function paceBadge(ratio) {
   return ['Behind', 'bg-rose-100 text-rose-800 ring-rose-300', 'bg-rose-50', '#e11d48'];
 }
 
+// The site's Tile (Oct 22), tinted by pace, with the bar and the
+// "should be here" tick under the number.
+const TINT = { on: 'green', near: 'amber', behind: 'red' };
 function Stat({ label, value, target, color, period }) {
   const pct = target ? Math.min(100, Math.round((100 * value) / target)) : null;
   const pace = target && period ? paceFraction(period) : null;
   const ratio = paceRatio(value, target, pace);
   const badge = paceBadge(ratio);
+  const show = pace != null && pace < 1;
   return (
-    <div className={`px-5 py-4 border-tan-200 [&:not(:last-child)]:border-r ${badge ? badge[2] : ''}`}>
-      <div className="flex items-center gap-2">
-        <span className="text-[13.5px] text-zinc-500 font-medium">{label}</span>
-        {badge && <span className={`ml-auto ${paceChip(badge[0])}`}>{badge[0]}</span>}
-      </div>
-      <div className="mt-2 text-[34px] leading-none font-semibold tracking-tight tabular-nums text-navy-800">
-        {value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}
-      </div>
-      {pct != null && (<>
-        <div className="relative mt-3.5 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
+    <Tile label={label} tint={TINT[paceKey(ratio)]} badge={badge && <span className={paceChip(badge[0])}>{badge[0]}</span>}
+      value={<>{value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}</>}
+      sub={show ? <span className="tabular-nums">Should be at {Math.round(target * pace)} by now</span> : null}>
+      {pct != null && (
+        <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
           {pct > 0 && <div className="h-full rounded-full" style={{ width: `${pct}%`, background: badge ? badge[3] : color }} />}
-          {pace != null && pace < 1 && <span className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${pace * 100}% - 1px)` }} title="Where you should be by now" />}
+          {show && <span className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${pace * 100}% - 1px)` }} title="Where you should be by now" />}
         </div>
-        {pace != null && pace < 1 && <div className="mt-1.5 text-[11.5px] text-zinc-500 tabular-nums">Should be at {Math.round(target * pace)} by now</div>}
-      </>)}
-    </div>
+      )}
+    </Tile>
   );
 }
 
@@ -297,7 +296,7 @@ export default function HomeView({ me }) {
               {row.sub && <span className="text-[13px] text-zinc-500">{row.sub}</span>}
             </div>
           )}
-          <div className="grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] [&>*:nth-child(2)]:border-r-0 lg:[&>*:nth-child(2)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*:nth-child(-n+2)]:border-b-0">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
             {row.list.map(([l, v, t, c, per]) => <Stat key={l} label={l} value={v} target={t} color={c} period={per} />)}
           </div>
         </div>

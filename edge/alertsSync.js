@@ -343,7 +343,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     for (const [pk, l] of pods) {
       const multi = pods.size > 1;
       const earlier = list.filter((x) => x.created_at < l.created_at && podOf(x.holder)?.title !== podOf(l.holder)?.title);
-      const title = !multi ? `Same address sent to ${list.length} reps — ${clip(list[0].addr, 120)}`
+      const title = !multi ? `Duplicate lead — sent to ${list.length} reps — ${clip(list[0].addr, 120)}`
         : earlier.length ? `Already received by another pod — ${clip(l.addr, 120)}`
           : `Also sent to another pod — ${clip(l.addr, 120)}`;
       const ext = `dupe:${k}|${pk}`;

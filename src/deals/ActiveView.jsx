@@ -31,6 +31,7 @@ import { needsInfo, CATEGORIES } from './required.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
 import { titleCase } from '../shell/titleCase.js';
+import { Tile } from '../shell/Tile.jsx';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
@@ -90,22 +91,11 @@ function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-700 borde
 // lists below (click again or "Clear" for all), the open lists unfold, and
 // the pick is kept in the link (?only=). A tile with nothing in it is
 // greyed out and can't be picked.
-function FilterTile({ label, value, sub, dot, tone, active, activeText, onClick }) {
-  const off = !value && !active;
-  return (
-    <button type="button" onClick={onClick} disabled={off} aria-pressed={!!active}
-      className={`group relative text-left px-4 py-3.5 rounded-xl border transition-colors ${active ? 'border-navy-700 bg-navy-50 ring-1 ring-navy-700' : off ? 'border-tan-200 bg-white opacity-55 cursor-default' : 'border-tan-200 bg-white hover:border-navy-300 hover:bg-tan-50 cursor-pointer'}`}>
-      <div className="text-[13px] text-zinc-600 font-medium whitespace-nowrap flex items-center gap-1.5">{dot && <span className={`w-2 h-2 rounded-full ${DOT[dot]}`} />}{label}</div>
-      <div className={`mt-1 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${off ? 'text-zinc-400' : tone || 'text-navy-800'}`}>{value}</div>
-      <div className="mt-1.5 text-[12px] whitespace-nowrap truncate h-4">
-        {active ? <span className="font-semibold text-navy-700">✓ {activeText || 'Showing · click to clear'}</span>
-          : off ? <span className="text-zinc-400">none right now</span>
-          : <><span className="text-zinc-500 group-hover:hidden">{sub || ' '}</span><span className="hidden group-hover:inline font-medium text-navy-700">Show only these</span></>}
-      </div>
-    </button>
-  );
+// The approved tile (Oct 22) is the site's Tile — this page's look became
+// src/shell/Tile.jsx; here it's used as a filter.
+function FilterTile(props) {
+  return <Tile filter {...props} />;
 }
-const DOT = { red: 'bg-[#B42318]', amber: 'bg-[#DC8A0E]', blue: 'bg-[#1D4ED8]', green: 'bg-[#15803D]', navy: 'bg-navy-700' };
 const ONLY_LABEL = { asg: 'Assigned', buyer: 'Dispo Active', emd: 'EMD at risk', past: 'Past COE', soon: 'Closing ≤ 7 days', need: 'Needs info' };
 
 function Legend() {

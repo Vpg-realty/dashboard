@@ -4,21 +4,16 @@
 // The pick is remembered per device (localStorage `vpg.fin.outlook`).
 import { useMemo, useState } from 'react';
 import { PanelHead } from '../shell/Panel.jsx';
+import { Tile } from '../shell/Tile.jsx';
 import { money } from '../deals/format.js';
 import { outlook, outlookRanges } from './outlook.js';
 
 const KEY = 'vpg.fin.outlook';
 const read = () => { try { return localStorage.getItem(KEY) || 'month'; } catch { return 'month'; } };
 
-function Box({ label, value, sub, tone = 'text-navy-800', ring = 'border-tan-200', bg = 'bg-white', striped, dark }) {
-  return (
-    <div className={`relative flex-1 min-w-[150px] rounded-xl border ${ring} ${bg} px-4 py-3 overflow-hidden`}>
-      {striped && <span aria-hidden="true" className="absolute inset-0 opacity-[0.07]" style={{ background: 'repeating-linear-gradient(135deg, #0284C7 0 8px, transparent 8px 16px)' }} />}
-      <div className={`relative text-[12px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap ${dark ? 'text-tan-400' : 'text-zinc-500'}`}>{label}</div>
-      <div className={`relative mt-1 text-[26px] leading-none font-semibold tabular-nums tracking-tight ${tone}`}>{value}</div>
-      <div className={`relative mt-1.5 text-[12px] whitespace-nowrap ${dark ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>
-    </div>
-  );
+// Each number is the site's Tile (Oct 22); the dot says which part it is.
+function Box({ label, value, sub, tone, dot }) {
+  return <Tile className="flex-1 min-w-[150px]" label={label} value={value} sub={sub} tone={tone} dot={dot} />;
 }
 const Op = ({ children }) => <span className="hidden md:grid place-items-center text-[22px] font-light text-zinc-400 w-5 shrink-0">{children}</span>;
 
@@ -40,15 +35,15 @@ export default function CompanyOutlook({ deals, rules, wires = false }) {
         </span>
       } />
       <div className="p-4 flex flex-wrap md:flex-nowrap items-stretch gap-2">
-        <Box label="Closed" value={money(o.closedNet)} sub={`${s(o.closed, 'deal')} · net assignment`} tone="text-emerald-700" ring="border-emerald-200" bg="bg-emerald-50/50" />
+        <Box label="Closed" value={money(o.closedNet)} sub={`${s(o.closed, 'deal')} · net assignment`} tone="text-[#15803D]" dot="green" />
         <Op>+</Op>
-        <Box label="Lined up" value={money(o.linedNet)} sub={`${s(o.lined, 'assigned deal')} with a price`} tone="text-sky-800" ring="border-sky-200" striped />
+        <Box label="Lined up" value={money(o.linedNet)} sub={`${s(o.lined, 'assigned deal')} with a price`} tone="text-sky-800" dot="sky" />
         <Op>=</Op>
-        <Box label="Projected net assignment" value={money(o.net)} sub="closed + lined up" ring="border-navy-200" bg="bg-navy-50/50" />
+        <Box label="Projected net assignment" value={money(o.net)} sub="closed + lined up" dot="navy" />
         <Op>−</Op>
-        <Box label="Projected payouts" value={money(o.payouts)} sub="commissions incl. TC" tone="text-amber-800" ring="border-amber-200" bg="bg-amber-50/40" />
+        <Box label="Projected payouts" value={money(o.payouts)} sub="commissions incl. TC" tone="text-amber-800" dot="amber" />
         <Op>=</Op>
-        <Box label="Projected net profit" value={money(o.profit)} sub="what VPG keeps" tone="text-white" ring="border-navy-700" bg="bg-navy-700" dark />
+        <Box label="Projected net profit" value={money(o.profit)} sub="what VPG keeps" dot="tan" />
       </div>
       <div className="px-5 pb-3 -mt-1 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-zinc-500">
         {o.noBuyer > 0 && <span>{s(o.noBuyer, 'more open deal')} with a COE in {range.long} still need{o.noBuyer === 1 ? 's' : ''} a buyer — not counted yet</span>}

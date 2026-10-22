@@ -12,6 +12,7 @@ import { PAIRS, historyEntries } from '../data/source.js';
 import { useLocation, setQuery, navigate, linkProps } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { BrandTile } from '../shell/BrandTile.jsx';
+import { Tile } from '../shell/Tile.jsx';
 import UsMap, { MapLegend } from './UsMap.jsx';
 import { MAP_MODES } from './mapColors.js';
 import { coverageReview } from './structure.js';
@@ -29,15 +30,6 @@ const Legal = ({ v }) => (v ? <span className={`${chip} ${LEGAL_CHIP[v] || 'bg-z
 export const RepDot = ({ rep }) => <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: rep?.color || '#a1a1aa' }} />;
 const pct = (x) => `${Math.round(x * 100)}%`;
 
-export function Tile({ label, value, sub, tone }) {
-  return (
-    <div className="px-5 py-4 border-tan-100 [&:not(:last-child)]:border-r min-w-0">
-      <div className="text-[13px] text-zinc-500 font-medium whitespace-nowrap">{label}</div>
-      <div className={`mt-1.5 text-[28px] leading-none font-semibold tracking-tight tabular-nums ${tone || 'text-navy-800'}`}>{value}</div>
-      <div className="mt-2 text-xs text-zinc-500 whitespace-nowrap truncate">{sub || ' '}</div>
-    </div>
-  );
-}
 
 // The state panel as a VPG market card (Luke, Oct 16: "too claude-like …
 // personalize this a little more"): a navy hero with the state's own outline,
@@ -79,18 +71,11 @@ function YearToDate({ st, tracker, owner }) {
         <span className="text-[12px] text-zinc-500">whole team · from GHL</span>
       </div>
       {anyGhl ? (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(132px,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
           {YTD_FIELDS.map(([k, , label]) => {
             const v = y[k].value;
             const tone = !y[k].since ? 'text-zinc-300' : k === 'cancels' ? (v ? 'text-red-700' : 'text-zinc-400') : k === 'closed' || k === 'revenue' ? 'text-emerald-700' : 'text-navy-800';
-            return (
-              <div key={k} className="relative min-w-0 rounded-xl border border-tan-200 bg-white px-3 pt-3 pb-2 overflow-hidden">
-                <span className="absolute inset-x-0 top-0 h-1" style={{ background: STATE_ACCENT[k] }} />
-                <div className="text-[12px] text-zinc-500 font-medium">{label}</div>
-                <div className={`text-[22px] font-semibold tabular-nums leading-tight ${tone}`}>{y[k].since ? (k === 'revenue' ? money(v) : v.toLocaleString()) : '—'}</div>
-                <div className="text-[10.5px] text-zinc-400">{y[k].since ? `since ${monthName(y[k].since)}` : 'not tracked'}</div>
-              </div>
-            );
+            return <Tile key={k} label={label} dot={STATE_ACCENT[k]} tone={tone} value={y[k].since ? (k === 'revenue' ? money(v) : v.toLocaleString()) : '—'} sub={y[k].since ? `since ${monthName(y[k].since)}` : 'not tracked'} />;
           })}
         </div>
       ) : <div className="rounded-xl border border-dashed border-tan-200 bg-white px-4 py-3 text-[13px] text-zinc-500">No GHL sub-account here yet, so no numbers.</div>}

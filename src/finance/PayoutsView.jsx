@@ -252,7 +252,7 @@ export default function PayoutsView({ embedded = false }) {
   const n = (x, one, many = `${one}s`) => `${x} ${x === 1 ? one : many}`;
 
   return (
-    <div className={embedded ? '' : 'max-w-[1500px] mx-auto'}>
+    <div className={embedded ? '' : 'max-w-[1720px] mx-auto'}>
       {!embedded && <FinanceHead eyebrow="Payouts" title="Commission payouts" sub="Acquisition, dispo and manager commissions are paid per deal when it closes — approve, then mark paid, and the deal's Commission paid turns Yes. The TC's monthly bonus counts every deal that closed or was cancelled (after Dispo Active) that month." />}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-[13px] text-zinc-600">Approve, then mark paid — the deal sheet gets each commission's Paid on date and Commission paid. The TC is paid monthly.</span>

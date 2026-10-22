@@ -1,5 +1,6 @@
 // Period · date-by · compare-to pickers, kept in the page link
 // (?p=m:2026-10&by=coe&cmp=prev) so a view can be bookmarked or shared.
+import SearchSelect from './SearchSelect.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { setQuery } from '../shell/router.js';
 import { usePeriod, DATE_BY } from './period.js';
@@ -72,16 +73,10 @@ export default function PeriodBar({ deals, defaultKey, showCompare = true, showB
         </span>
       )}
       {showBy && (
-        <select value={by} onChange={(e) => setQuery({ by: e.target.value === 'coe' ? null : e.target.value })} className={selectCls} aria-label="Date by">
-          {Object.entries(DATE_BY).map(([k, l]) => <option key={k} value={k}>by {l}</option>)}
-        </select>
+        <SearchSelect className="w-44" value={by} onChange={(v) => v && setQuery({ by: v === 'coe' ? null : v })} clearable={false} sort={false} options={Object.entries(DATE_BY).map(([k, l]) => ({ value: k, label: `by ${l}` }))} />
       )}
       {showCompare && period.from && (
-        <select value={cmpKey || ''} onChange={(e) => setQuery({ cmp: e.target.value || null })} className={selectCls} aria-label="Compare to">
-          <option value="">No comparison</option>
-          <option value="prev">vs previous period</option>
-          <option value="yoy">vs same period last year</option>
-        </select>
+        <SearchSelect className="w-52" value={cmpKey || ''} onChange={(v) => setQuery({ cmp: v || null })} clearable={false} sort={false} options={[{ value: '', label: 'No comparison' }, { value: 'prev', label: 'vs previous period' }, { value: 'yoy', label: 'vs same period last year' }]} />
       )}
       {compare && <span className="text-xs opacity-70">Comparing with {compare.label}</span>}
     </div>

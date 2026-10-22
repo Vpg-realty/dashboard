@@ -1,6 +1,7 @@
 // Small pieces shared by the Deal Summary and its files (SummaryView.jsx,
 // SummaryFile.jsx).
 import { compact } from './format.js';
+import { Tile } from '../shell/Tile.jsx';
 import { pctTxt, closeRateTone, CLOSE_RATE_CLS } from './summaryStats.js';
 
 export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
@@ -13,30 +14,11 @@ export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
   return <span className={`inline-flex rounded px-1.5 py-px text-[12px] font-semibold whitespace-nowrap ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
 }
 
-// A number tile in the brand style (Luke, Oct 18: "more brand focused and
-// similar to what we've been working on" — like Finance's MoneyTile): white
-// card, tan border, the label as a tan eyebrow behind a status dot, the big
-// number, a short tan rule, then the change vs the compare period (or a
-// plain line), the V mark faint in the corner.
-const ACCENT = { navy: '#1b385f', green: '#16A34A', red: '#DC2626', tan: '#AD9B7A', sky: '#0284C7', violet: '#7C3AED' };
-export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub, accent = 'navy', tone = 'text-navy-800', big }) {
+// A number tile with the change vs the compare period under it — the site's
+// Tile (Oct 22).
+export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub, accent = 'navy', tone }) {
   const fmtThen = then == null ? null : pct ? pctTxt(then) : isMoney ? compact(then) : then;
-  return (
-    <div className="relative rounded-2xl border border-tan-200 bg-white px-5 pt-4 pb-3.5 overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.05)] min-w-0">
-      <svg viewBox="0 0 600 781" aria-hidden="true" className="absolute -right-3 -bottom-8 h-28 pointer-events-none opacity-[0.06]">
-        <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#1b385f" />
-        <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
-      </svg>
-      <div className="relative flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-tan-700 whitespace-nowrap truncate">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ACCENT[accent] }} />{label}
-      </div>
-      <div className={`relative mt-2.5 ${big ? 'text-[34px]' : 'text-[30px]'} leading-none font-bold tracking-tight tabular-nums ${tone}`}>{value}</div>
-      <div className="relative mt-2 h-px w-10 bg-tan-300" />
-      <div className="relative mt-2 flex items-center gap-1.5 text-[12.5px] text-zinc-500 whitespace-nowrap min-h-[20px]">
-        {then != null ? <><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></> : <span className="truncate">{sub || ' '}</span>}
-      </div>
-    </div>
-  );
+  return <Tile label={label} value={value} dot={accent} tone={tone} sub={then != null ? <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></span> : sub} />;
 }
 
 // Fixed targets (closeRateTone in summaryStats): green 50%+, amber 40–50%,
@@ -52,46 +34,31 @@ export function RateCell({ r }) {
 // Money on white with a tan rule — each a single card with the numbers side
 // by side, split by thin dividers, the change vs the compare period under
 // each.
-function BandDelta({ now, then, pct, isMoney, lowerIsBetter, dark }) {
+function BandDelta({ now, then, pct, isMoney, lowerIsBetter }) {
   if (then == null) return null;
   const diff = now - then;
   const fmt = pct ? pctTxt(then) : isMoney ? compact(then) : then;
-  if (Math.abs(diff) < 1e-9) return <span className={dark ? 'text-white/60' : 'text-zinc-500'}>same as {fmt}</span>;
-  const up = diff > 0;
-  const good = lowerIsBetter ? !up : up;
-  const text = pct ? `${Math.round(Math.abs(diff) * 100)} pts` : isMoney ? compact(Math.abs(diff)) : Math.abs(diff);
-  const chip = dark ? (good ? 'bg-emerald-400/15 text-emerald-300' : 'bg-red-400/15 text-red-300') : (good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700');
-  return <><span className={`inline-flex rounded px-1.5 py-px font-semibold ${chip}`}>{up ? '▲' : '▼'} {text}</span><span className={dark ? 'text-white/55' : 'text-zinc-500'}>vs {fmt}</span></>;
+  if (Math.abs(diff) < 1e-9) return <span className="text-zinc-500">same as {fmt}</span>;
+  return <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span className="text-zinc-500">vs {fmt}</span></span>;
 }
 
-export function BandStat({ label, value, sub, tone, dark, feature, ...d }) {
-  return (
-    <div className={`min-w-0 px-5 py-4 ${feature ? (dark ? 'bg-white/[0.06]' : 'bg-tan-50') : ''}`}>
-      <div className={`text-[11.5px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap truncate ${dark ? 'text-tan-400' : 'text-tan-700'}`}>{label}</div>
-      <div className={`mt-1.5 text-[32px] leading-none font-semibold tracking-tight tabular-nums ${tone || (dark ? 'text-white' : 'text-navy-800')}`}>{value}</div>
-      <div className={`mt-2 flex flex-wrap items-center gap-1.5 text-[12px] min-h-[20px] ${dark ? 'text-white/60' : 'text-zinc-500'}`}>
-        {d.then != null ? <BandDelta {...d} dark={dark} /> : <span className="truncate">{sub || '\u00a0'}</span>}
-      </div>
-    </div>
-  );
+// The numbers on Finance Overview are the site's tile (Oct 22, src/shell/
+// Tile.jsx); a Band is a labelled row of them. The old dark-band tones map to
+// the tile's light ones.
+const LIGHT = { 'text-emerald-300': 'text-[#15803D]', 'text-red-300': 'text-[#B42318]', 'text-white/40': 'text-zinc-400', 'text-tan-400': 'text-navy-800' };
+export function BandStat({ label, value, sub, tone, dark, feature, accent, ...d }) {
+  void dark; void feature;
+  return <Tile label={label} value={value} dot={accent} tone={LIGHT[tone] || tone} sub={d.then != null ? <BandDelta {...d} /> : sub} />;
 }
 
-export function Band({ eyebrow, note, dark, cols, children }) {
+export function Band({ eyebrow, note, cols, children }) {
   return (
-    <section className={`relative overflow-hidden rounded-2xl ${dark ? 'bg-navy-700 text-white shadow-[0_8px_24px_rgba(27,56,95,0.22)]' : 'bg-white border border-tan-200 shadow-[0_1px_2px_rgba(27,56,95,0.05)]'}`}>
-      {dark ? (
-        <svg viewBox="0 0 600 781" aria-hidden="true" className="absolute -right-6 -top-10 h-[170%] w-auto opacity-[0.07] pointer-events-none">
-          <path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#ffffff" />
-          <path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" />
-        </svg>
-      ) : <span className="absolute inset-x-0 top-0 h-[3px] bg-tan-500" />}
-      <div className="relative flex items-baseline gap-3 px-5 pt-3.5">
-        <span className={`text-[12px] font-bold uppercase tracking-[0.2em] ${dark ? 'text-tan-400' : 'text-navy-700'}`}>{eyebrow}</span>
-        {note && <span className={`text-[12px] ${dark ? 'text-white/55' : 'text-zinc-500'}`}>{note}</span>}
+    <section>
+      <div className="flex items-baseline gap-3 mb-2">
+        <span className="text-[12px] font-bold uppercase tracking-[0.18em] text-navy-700">{eyebrow}</span>
+        {note && <span className="text-[12px] text-zinc-500">{note}</span>}
       </div>
-      <div className={`relative grid grid-cols-2 ${cols} ${dark ? 'divide-white/10' : 'divide-tan-100'} [&>*]:border-t lg:[&>*]:border-t-0 lg:divide-x ${dark ? '[&>*]:border-white/10' : '[&>*]:border-tan-100'}`}>
-        {children}
-      </div>
+      <div className={`grid grid-cols-2 ${cols} gap-2.5`}>{children}</div>
     </section>
   );
 }

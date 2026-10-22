@@ -6,6 +6,7 @@
 // Owners get the same page (Luke, Oct 14: "Jack and I still need to request
 // zips"): they hold zips as themselves (edge/zips.js holderOf), in every
 // Active state with zips on file, with the same weekly limit.
+import SearchBox from '../shell/SearchBox.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
@@ -13,8 +14,6 @@ import { useZips, useManyStateZips, zipAction, TIER_CHIP, daysLeft, shortDate } 
 import { useManyCounties } from '../territory/store.js';
 import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
-import ClearX from '../shell/ClearX.jsx';
-import { escClears } from '../shell/escClears.js';
 import BandMark from '../shell/BandMark.jsx';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
@@ -54,10 +53,7 @@ function ZipSearch({ states, repId, owner }) {
       <div className="p-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <SearchSelect className="w-48" value={only} onChange={(v) => setOnly(v || '')} clearable={false} pinned={many ? [] : [{ value: '', label: 'All my states' }]} options={states.map((s) => ({ value: s, label: s }))} />
-          <span className="relative flex items-center flex-1 min-w-[220px]">
-            <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={escClears(q, () => setQ(''))} placeholder="e.g. 85008, Maricopa or Mesa" className="h-9 w-full rounded-lg border border-zinc-200 pl-3 pr-8 text-[13.5px] outline-none focus:ring-2 focus:ring-navy-100" />
-            <ClearX value={q} onClear={() => setQ('')} className="absolute right-2" />
-          </span>
+          <SearchBox value={q} onChange={setQ} placeholder="Search zip, county or city — e.g. 85008, Maricopa or Mesa" className="flex-1 min-w-[220px]" />
         </div>
         <div className="flex flex-wrap gap-3 text-[12px] text-zinc-600">
           {[['open', 'Available'], ['mine', 'Yours'], ['taken', 'Another rep has it'], ['used', 'Used this round'], ['off', 'Paused / flagged']].map(([k, l]) => <span key={k} className="inline-flex items-center gap-1.5"><span className={`w-3.5 h-3.5 rounded ring-1 ring-inset ${LOOK[k]}`} />{l}</span>)}
@@ -139,14 +135,14 @@ export default function MyZips() {
   const all = (me.holds || []).map((h) => h.zip);
 
   return (
-    <div className="max-w-[1200px] mx-auto flex flex-col gap-5">
+    <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       {/* The standard navy band (Luke's site map, Oct 19); the rules open
           from ⓘ instead of a page of their own. */}
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-5 py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
         <BandMark />
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Get Zips{me.owner ? ' · as yourself' : ''}</div>
-          <h1 className="text-[20px] font-semibold tracking-tight leading-tight">{(me.holds || []).length} zip{(me.holds || []).length === 1 ? '' : 's'} held · {left} request{left === 1 ? '' : 's'} left in {state || 'each state'} this week</h1>
+          <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight leading-tight">{(me.holds || []).length} zip{(me.holds || []).length === 1 ? '' : 's'} held · {left} request{left === 1 ? '' : 's'} left in {state || 'each state'} this week</h1>
           <p className="text-[12.5px] text-white/70">{me.owner ? 'You request as yourself, in any Active state, under the same rules as the reps. ' : ''}Each request gives you {rules.perRequest} zips, held for you for {rules.holdDays} days — nobody else gets them while you have them.</p>
         </div>
         <button type="button" onClick={() => setShowRules(true)} className="ml-auto h-8 px-3 rounded-lg bg-tan-500 text-navy-900 text-[13px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.35)] hover:bg-tan-400">ⓘ The rules</button>

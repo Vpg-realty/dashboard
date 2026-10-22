@@ -56,7 +56,7 @@ export default function StatementsView() {
   ], rows);
 
   return (
-    <div className="max-w-[1400px] mx-auto">
+    <div className="max-w-[1720px] mx-auto">
       <FinanceHead eyebrow="Statements" title="Commission statements" sub="One person's commissions for a period, by the deal's closing date — print it or download a CSV." right={<>
         <button type="button" onClick={csv} className={btnCls} disabled={!rows.length}>Export CSV</button>
         <button type="button" onClick={() => printStatement({ who, period, rows, totals })} className={btnCls} disabled={!who}>Print statement</button>

@@ -9,6 +9,7 @@
 // pickRules), so closed deals keep the rules they had. Every rule shows its
 // value today, since when, any change still to come and its own history.
 // Before saving, shows which deals the change moves.
+import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from '../shell/router.js';
 import { readSetting, changeRule } from '../utils/dashApi.js';
@@ -85,10 +86,7 @@ function Names({ value, onChange, people }) {
         <span key={x} className="inline-flex items-center gap-1 rounded-md bg-tan-100 px-2 py-1 text-[13px]">{x}
           <button type="button" onClick={() => onChange(value.filter((y) => y !== x))} className="text-zinc-400 hover:text-red-600" aria-label={`Remove ${x}`}>×</button></span>
       ))}
-      <select value={pick} onChange={(e) => { if (e.target.value) onChange([...value, e.target.value]); setPick(''); }} className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px]">
-        <option value="">+ add</option>
-        {people.filter((p) => !value.includes(p)).map((p) => <option key={p}>{p}</option>)}
-      </select>
+      <SearchSelect className="w-44" value={pick || ''} onChange={(v) => { if (v) onChange([...value, v]); setPick(''); }} clearable={false} pinned={[{ value: '', label: '+ add' }]} options={people.filter((p) => !value.includes(p)).map((p) => ({ value: p, label: p }))} />
     </div>
   );
 }
@@ -120,9 +118,7 @@ function Reps({ value, onChange, people }) {
           <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className="ml-auto text-red-600 hover:underline">remove</button>
         </div>
       ))}
-      <select value="" onChange={(e) => e.target.value && onChange([...value, { rep: e.target.value }])} className="h-8 w-48 rounded-md border border-zinc-200 bg-white px-2 text-[13px]">
-        <option value="">+ add a rep</option>{people.filter((p) => !value.some((x) => x.rep === p)).map((p) => <option key={p}>{p}</option>)}
-      </select>
+      <SearchSelect className="w-48" value="" onChange={(v) => v && onChange([...value, { rep: v }])} clearable={false} pinned={[{ value: '', label: '+ add a rep' }]} options={people.filter((p) => !value.some((x) => x.rep === p)).map((p) => ({ value: p, label: p }))} />
     </div>
   );
 }
@@ -136,10 +132,10 @@ function ValueInput({ def, value, onChange, people }) {
   if (t === 'reps') return <Reps value={value || []} onChange={onChange} people={people} />;
   if (t === 'side') return <div className="flex flex-col gap-1.5 text-[13.5px]">{SIDES.map(([k, l]) => <label key={k} className="flex items-center gap-2"><input type="radio" checked={(value || 'acq') === k} onChange={() => onChange(k)} />{l}</label>)}</div>;
   if (t === 'date') return <input type="date" value={value || ''} onChange={(e) => onChange(e.target.value || null)} className={`${inputCls} w-48`} />;
-  if (t === 'status') return <select value={value || 'COMPLETE'} onChange={(e) => onChange(e.target.value)} className={`${inputCls} w-48`}>{STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>;
+  if (t === 'status') return <SearchSelect className="w-48" value={value || 'COMPLETE'} onChange={(v) => v && onChange(v)} clearable={false} sort={false} options={STATUSES.map(([k, l]) => ({ value: k, label: l }))} />;
   if (t === 'person') {
     const opts = value && !people.includes(value) ? [value, ...people] : people;
-    return <select value={value || ''} onChange={(e) => onChange(e.target.value)} className={`${inputCls} w-56`}>{!value && <option value="">—</option>}{opts.map((p) => <option key={p}>{p}</option>)}</select>;
+    return <SearchSelect className="w-56" value={value || null} onChange={(v) => onChange(v || '')} clearable={false} options={opts.map((p) => ({ value: p, label: p }))} />;
   }
   return <span className="text-zinc-500 text-[13px]">Not editable here.</span>;
 }
@@ -390,9 +386,7 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
                     <div className="pl-4 border-l-2 border-tan-200">
                       {netKeys.map((k) => row(defOf(k)))}
                       {pendingNet && row(defOf(pendingNet))}
-                      <select value="" onChange={(e) => e.target.value && setEditing(NET + e.target.value)} className="mt-2 h-8 w-48 rounded-md border border-zinc-200 bg-white px-2 text-[13px]">
-                        <option value="">+ add a person</option>{people.filter((p) => !netKeys.includes(NET + p)).map((p) => <option key={p}>{p}</option>)}
-                      </select>
+                      <SearchSelect className="mt-2 w-48" value="" onChange={(v) => v && setEditing(NET + v)} clearable={false} pinned={[{ value: '', label: '+ add a person' }]} options={people.filter((p) => !netKeys.includes(NET + p)).map((p) => ({ value: p, label: p }))} />
                     </div>
                   </div>
                 );

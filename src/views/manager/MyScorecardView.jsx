@@ -20,6 +20,7 @@ import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
 import { T, metrics, repPairs, teamMetrics, scoreParts, scoreTone, paceTone, mostPointsLeft, STEPS, rate } from './metrics.js';
+import { Tile } from '../../shell/Tile.jsx';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
 const card = 'rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]';
@@ -46,24 +47,19 @@ function Ring({ score, estimate }) {
 // one looked thinner than the others).
 const Tick = ({ at, title }) => <span className="absolute -top-1 -bottom-1 w-[3px] rounded bg-navy-800" style={{ left: `calc(${at * 100}% - 1px)` }} title={title} />;
 
+// The site's Tile (Oct 22), tinted by pace, with the bar and the 3px tick.
+const PACE_TINT = { good: 'green', close: 'amber', bad: 'red' };
 function Kpi({ label, v, t, frac, money }) {
   const tone = paceTone(v, t, frac);
   const word = tone.key === 'good' ? 'On pace' : tone.key === 'close' ? 'Near pace' : 'Behind';
   return (
-    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${tone.box}`}>
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] font-medium text-zinc-600">{label}</span>
-        <span className={`ml-auto ${paceChip(word)}`}>{word}</span>
-      </div>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-[30px] leading-none font-bold tabular-nums text-navy-800">{money ? kMoney(v) : v}</span>
-        <span className="text-zinc-500 tabular-nums">/ {money ? kMoney(t) : t}</span>
-      </div>
+    <Tile label={label} tint={PACE_TINT[tone.key]} badge={<span className={paceChip(word)}>{word}</span>}
+      value={<>{money ? kMoney(v) : v} <span className="text-base font-medium text-zinc-500">/ {money ? kMoney(t) : t}</span></>}>
       <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
         {v > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, (100 * v) / t)}%`, background: tone.bar }} />}
         {frac < 1 && <Tick at={frac} title="Where you should be by now" />}
       </div>
-    </div>
+    </Tile>
   );
 }
 
@@ -91,25 +87,19 @@ function oneThing(parts, m, scale) {
 function SpeedKpi({ ok, total }) {
   const r = total ? ok / total : null;
   const tone = total == null ? null : r == null || r >= SPEED_TARGET ? 'good' : r >= SPEED_TARGET * 0.75 ? 'close' : 'bad';
-  // The same boxes, badge and bar colours as the pace boxes beside it (Luke,
-  // Oct 19: this one had no box around it).
-  const cls = { good: ['bg-emerald-100 border-emerald-300', '#059669'], close: ['bg-amber-100 border-amber-300', '#d97706'], bad: ['bg-rose-100 border-rose-300', '#e11d48'] }[tone] || ['border-zinc-300 bg-zinc-50', '#a1a1aa'];
+  // The same tile, badge and bar colours as the pace boxes beside it.
+  const bar = { good: '#059669', close: '#d97706', bad: '#e11d48' }[tone] || '#a1a1aa';
   const word = tone == null ? '' : r == null ? 'No agent texts' : tone === 'good' ? 'On target' : tone === 'close' ? 'Near target' : 'Below target';
   return (
-    <div className={`rounded-xl border px-4 py-3.5 min-w-0 ${cls[0]}`} title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · one of your six CRM items: 2 at ${Math.round(SPEED_TARGET * 100)}%+, 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+`}>
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] font-medium text-zinc-600 whitespace-nowrap">Answered ≤ {ANSWER_WITHIN_MIN} min</span>
-        {word && <span className={`ml-auto ${paceChip(word)}`}>{word}</span>}
-      </div>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className={`leading-none font-bold tabular-nums ${tone ? 'text-[30px] text-navy-800' : 'text-[20px] text-zinc-400'}`}>{tone == null ? 'not checked yet' : r == null ? '—' : `${Math.round(r * 100)}%`}</span>
-        <span className="text-zinc-500 tabular-nums">{total ? `${ok} of ${total} texts` : total === 0 ? 'none this week' : ''}</span>
-      </div>
+    <Tile label={`Answered ≤ ${ANSWER_WITHIN_MIN} min`} tint={PACE_TINT[tone]} badge={word && <span className={paceChip(word)}>{word}</span>}
+      title={`Agent texts answered within ${ANSWER_WITHIN_MIN} min (weekdays 8–5 Arizona) by a text or a connected call · target ${Math.round(SPEED_TARGET * 100)}% · one of your six CRM items: 2 at ${Math.round(SPEED_TARGET * 100)}%+, 1 at ${Math.round(SPEED_GRADE_ONE * 100)}%+`}
+      value={tone == null || r == null ? '—' : `${Math.round(r * 100)}%`}
+      sub={tone == null ? 'not checked yet' : total ? `${ok} of ${total} texts` : total === 0 ? 'none this week' : ''}>
       <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
-        {r > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: cls[1] }} />}
+        {r > 0 && <div className="h-full rounded-full" style={{ width: `${Math.min(100, r * 100)}%`, background: bar }} />}
         <Tick at={SPEED_TARGET} title={`Target ${Math.round(SPEED_TARGET * 100)}%`} />
       </div>
-    </div>
+    </Tile>
   );
 }
 
@@ -249,14 +239,14 @@ function Trend({ sc, rep }) {
   mine.forEach((v, i) => { if (v != null && (best == null || v > best.v)) best = { v, i }; });
   const d = (a, b) => (a == null || b == null ? null : Math.round(a - b));
   const delta = (v) => (v == null ? <span className="text-zinc-300">—</span> : v === 0 ? <span className="text-zinc-500">±0</span> : <span className={v > 0 ? 'text-emerald-700' : 'text-red-700'}>{v > 0 ? '▲' : '▼'} {Math.abs(v)}</span>);
-  const tint = (v) => (v == null || v === 0 ? 'border-tan-200 bg-white' : v > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50');
+  const tint = (v) => (v == null || v === 0 ? null : v > 0 ? 'green' : 'red');
   const dWk = d(now, prev);
   const dAvg = before.length ? d(now, avgOf(before)) : null;
   const stats = [
-    ['This week so far', <span key="n" className="text-navy-800">{now ?? '—'}</span>, 'border-tan-200 bg-white'],
+    ['This week so far', <span key="n" className="text-navy-800">{now ?? '—'}</span>, null],
     ['vs last week', delta(dWk), tint(dWk)],
     [`vs your ${before.length}-week average`, delta(dAvg), tint(dAvg)],
-    ['Best week', best ? <span key="b" className="text-navy-800">{best.v} <span className="text-base font-medium text-zinc-500">{weeks[best.i].label}</span></span> : '—', 'border-tan-200 bg-white'],
+    ['Best week', best ? <span key="b" className="text-navy-800">{best.v} <span className="text-base font-medium text-zinc-500">{weeks[best.i].label}</span></span> : '—', null],
   ];
   return (
     <section className={card}>
@@ -268,12 +258,7 @@ function Trend({ sc, rep }) {
       )} />
       <div className="px-5 pb-5">
       <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {stats.map(([l, v, c]) => (
-          <div key={l} className={`rounded-xl border px-4 py-3 ${c}`}>
-            <div className="text-[13px] text-zinc-500 font-medium">{l}</div>
-            <div className="mt-1.5 text-[28px] leading-none font-bold tabular-nums">{v}</div>
-          </div>
-        ))}
+        {stats.map(([l, v, c]) => <Tile key={l} label={l} value={v} tint={c || undefined} />)}
       </div>
       <div className="mt-4 h-[300px]">
         <LineChart
@@ -308,10 +293,10 @@ export default function MyScorecardView() {
   const frozen = !!sc.weeks[monday];
 
   return (
-    <div className="max-w-[1600px] mx-auto flex flex-col gap-4 overflow-x-auto">
+    <div className="max-w-[1720px] mx-auto flex flex-col gap-4 overflow-x-auto">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-navy-800">My Scorecard</h1>
+          <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight text-navy-800">My Scorecard</h1>
           <div className="text-zinc-500 mt-0.5">{weekOfLabel ? `Week of ${weekOfLabel}` : 'This week'} · {frozen ? 'final (frozen Friday noon)' : 'live until Friday noon'}</div>
         </div>
         <span className="ml-auto"><ScoreHelp /></span>

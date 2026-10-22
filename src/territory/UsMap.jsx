@@ -78,6 +78,9 @@ export default function UsMap({ byAbbr, mode, focusRep, selected, onSelect }) {
             <path key={s.id} d={s.d} fill={f} stroke="#ffffff" strokeWidth={0.8}
               className={st ? 'cursor-pointer' : ''}
               onMouseEnter={() => setHover({ id: s.id, name: s.name })}
+              // Clear as the cursor leaves the state, so nothing stays lit once
+              // it's off the map (Luke, Oct 22).
+              onMouseLeave={() => setHover((h) => (h?.id === s.id ? null : h))}
               onClick={() => st && onSelect?.(s.id)} />
           );
         })}

@@ -99,7 +99,7 @@ export default function WiresView({ embedded = false }) {
   const shown = tab === 'all' ? deals : tab === 'in' ? deals.filter((d) => wireState(d) !== 'waiting') : tab === 'emd' ? emdTodo : waiting;
   const setTab = (k) => setQuery({ tab: k === 'waiting' ? null : k });
   return (
-    <div className={embedded ? '' : 'max-w-[1500px] mx-auto'}>
+    <div className={embedded ? '' : 'max-w-[1720px] mx-auto'}>
       {embedded ? <p className="mb-3 text-[13px] text-zinc-600">The wire on every deal at or past its COE. Marking one received saves it on the deal (Total wire received, Wire date received); whether VPG's EMD came back is confirmed on its own.</p>
         : <FinanceHead eyebrow="Wires In" title="Incoming wires" sub="The wire on every deal at or past its COE. Marking one received saves it on the deal (Total wire received, Wire date received); whether VPG's EMD came back is confirmed on its own. A change made in the tracker shows here too." />}
       {!embedded && <CompanyOutlook deals={s.deals} rules={s.rules} wires />}

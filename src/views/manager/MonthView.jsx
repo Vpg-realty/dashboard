@@ -11,6 +11,7 @@ import { paceFraction } from '../../utils/pace.js';
 import { laToday, shortDate } from '../../utils/historyRange.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { paceClsFrac } from './metrics.js';
+import { Tile as SiteTile } from '../../shell/Tile.jsx';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
   repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts, addedContracts,
@@ -21,32 +22,17 @@ const shortMonth = (mo) => monthLabel(`${mo}-01`).split(' ')[0].slice(0, 3);
 
 const Dot = ({ id, size = 'w-2.5 h-2.5' }) => <span className={`${size} rounded-full shrink-0 inline-block`} style={{ background: repColor(id) }} />;
 
+// The site's Tile (Oct 22): the month's number, "% of goal" at the right of
+// the label, the change vs last month underneath.
 function Tile({ label, v, prev, target, frac, fmt = (x) => x, sub, na, lowerIsBetter, note }) {
   const delta = prev == null || na ? null : v - prev;
   const good = delta == null ? null : lowerIsBetter ? delta < 0 : delta > 0;
+  const line = delta == null ? (note ? <span className="text-zinc-400">{note}</span> : null)
+    : <span className="inline-flex items-center gap-1.5">{delta === 0 ? <span className="font-bold text-zinc-500">= same</span> : <span className={`font-bold ${good ? 'text-emerald-700' : 'text-rose-700'}`}>{delta > 0 ? '▲' : '▼'} {fmt(Math.abs(delta))}</span>}<span>vs {sub}</span></span>;
   return (
-    <div className="rounded-xl bg-white border border-zinc-300/80 px-3 py-2.5 min-w-0 flex flex-col">
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-500 font-semibold whitespace-nowrap">{label}</span>
-        {target != null && !na && (
-          <span className={`text-[9px] font-extrabold px-1 py-0.5 rounded whitespace-nowrap ${paceClsFrac(v, target, frac)}`}>
-            {Math.round((v / target) * 100)}% of goal
-          </span>
-        )}
-      </div>
-      <div className="flex items-baseline gap-2 mt-1">
-        <span className={`text-[min(2rem,3.6vh)] font-extrabold tabular-nums leading-none ${na ? 'text-zinc-300' : ''}`}>{na ? '—' : fmt(v)}</span>
-        {target != null && !na && <span className="text-sm font-bold text-zinc-400 whitespace-nowrap">/ {fmt(target)}</span>}
-      </div>
-      <div className="mt-auto pt-1.5 flex items-center gap-2 text-xs whitespace-nowrap">
-        {delta != null && delta !== 0 && (
-          <span className={`font-bold ${good ? 'text-emerald-700' : 'text-rose-700'}`}>{delta > 0 ? '▲' : '▼'} {fmt(Math.abs(delta))}</span>
-        )}
-        {delta === 0 && <span className="font-bold text-zinc-500">= same</span>}
-        {delta != null && <span className="text-zinc-500">vs {sub}</span>}
-        {delta == null && note && <span className="text-zinc-400 truncate">{note}</span>}
-      </div>
-    </div>
+    <SiteTile label={label} sub={line}
+      badge={target != null && !na && <span className={`text-[10px] font-extrabold px-1 py-0.5 rounded whitespace-nowrap ${paceClsFrac(v, target, frac)}`}>{Math.round((v / target) * 100)}% of goal</span>}
+      value={na ? '—' : <>{fmt(v)}{target != null && <span className="text-base font-medium text-zinc-500"> / {fmt(target)}</span>}</>} />
   );
 }
 
@@ -158,7 +144,7 @@ export default function MonthView() {
   return (
     <ManagerFrame title="Month in Review" subtitle={`${monthLabel(`${mo}-01`)}${isCurrent ? ' so far' : ''} · first-Friday recap`} right={picker}>
       <div className="h-full grid grid-rows-[auto_auto_minmax(0,1fr)] gap-3 min-h-0">
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 2xl:grid-cols-6 gap-2.5">
           <Tile label="Contracts signed" v={cur.team.contracts} prev={pv('contracts')} target={tt.contracts} frac={frac} sub={pmLabel} note={pmNote} na={na('contracts')} />
           <Tile
             label="Cancellations" v={cur.team.cancels} na={na('cancels')} prev={pv('cancels')} sub={pmLabel} lowerIsBetter

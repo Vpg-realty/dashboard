@@ -38,7 +38,7 @@ export function FinanceHead({ eyebrow, title, sub, right }) {
       <BandMark />
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Finance · {eyebrow}</div>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{titleCase(title)}</h1>
+        <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{titleCase(title)}</h1>
         {sub && <p className="mt-1 text-[13.5px] text-white/75 max-w-[760px]">{sub}</p>}
       </div>
       {right && <div className="ml-auto flex flex-wrap items-center gap-2">{right}</div>}
