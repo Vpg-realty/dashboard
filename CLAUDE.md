@@ -171,7 +171,10 @@ one can't fit a page, tell Luke instead of making a one-off.
   28px number, one line under it. Options: `onClick` / `active` (tab or
   filter, navy ring when picked), `filter` (greyed at 0, "Show only these"),
   `tint` green / amber / red (pace), `badge` (a pace chip at the right of the
-  label), `children` (a pace bar or delta under the number). `BrandTile`,
+  label), `children` (a pace bar or delta under the number), `shade` navy /
+  tan (a brand fill for a group of tiles — Finance Overview's Deal Flow navy,
+  Money tan; Luke, Oct 22: "darker … match our branding") and `big` (a
+  headline tile, 40px number). `BrandTile`,
   Finance's `MoneyTile`, `Stat` / `BandStat` (Finance Overview), the deals
   `Tile` and every page's former tile draw through it. Not the TV board's
   boxes (KpiCard) — the TV keeps its look.
@@ -1215,6 +1218,32 @@ From the approved mock-ups. Overrides older Home / CRM panel notes.
   header; checks that are fine fold into one line ("… all good", show);
   **Manager Notes** its own section — this week's note and the four
   earlier weeks' notes (`earlierNotes`), owners / managers only.
+
+## Oct 22 round, phase 7 — CRM coaching, one My Scorecard (Luke)
+
+Overrides older My Scorecard / Full Breakdown notes.
+- **Claude's top 3 for the week** (Luke: "an AI overview of the top 3 things
+  you can improve on based on messaging that week"): scripts/review-messaging.mjs
+  `coachAll` asks `claude-opus-5-5` (effort low, structured output,
+  `COACH_SYSTEM` in messaging-standard.mjs) once per rep per day — only when
+  the week has new conversations or verdicts (`sig`) and the last one is 20 h
+  old — with the rep's numbers vs the standards, the review's findings and up
+  to 25 of their conversations. Kept in messaging-review.json `coach[week]
+  [repId]`, copied onto each pair as `messaging.coach` (data-mgr.json; reps get
+  their own through /api/my-scorecard) and read by autoCrm as
+  `detail.messaging.coach` (so a frozen week keeps its top 3). Cost: ~10 calls
+  a day, roughly $15–20 a month.
+- **CRM check cards** (`src/views/manager/CrmBits.jsx`, Team Scorecard's rep
+  panel and My Scorecard): Messaging splits in two — the top 3 on the left,
+  the standards on the right; every check's findings sit behind one "Show all
+  N examples" fold.
+- **My Scorecard is one page** (Luke: "a ton of overlap"): This Week (score,
+  pace tiles, the one thing, Fix These), the weekly score trend, then **Look
+  Back** — the old Full Breakdown (`RepView self breakdown lookBack`), opening
+  on this month so it doesn't repeat the week. The Full Breakdown tabs are
+  gone (`/me/breakdown` → `/me/scorecard`, `/team/my-breakdown` →
+  `/team/mine`); the sidebar entry is `solo`. Where They Leak now lives in
+  Team Scorecard's rail (the team), the rep panel and Look Back (one person).
 
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 
