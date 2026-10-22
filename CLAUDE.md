@@ -1161,6 +1161,25 @@ Overrides the Alerts notes above where they differ.
 - Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
   `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
   (60 days) and per poll (this person's), a few hundred rows a day.
+## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
+
+- One **Add a Sub-Account** row on top of the page (`AddForm` in
+  src/components/SubAccountsPanel.jsx): **Rep** = an active person from
+  Settings › People (team, manager, trainee, or an owner with a rep) — reps
+  are never created anywhere else; **Market** = a state on file or "+ Add a
+  new market" (name + code, a free colour); **GHL Location ID**; **API key**
+  (the PIT). Add writes subaccounts.json and the PIT secret
+  (`PIT_<base32(locationId)>`) through the browser's GitHub key (⚙, once per
+  browser) and starts a deploy, as before.
+- A person not on the board yet gets a rep id from their name
+  (`suggestRepId`, or the matching rep already in the file) and is linked in
+  People (`saveUser` with `newRep: true` — `cleanUser` in edge/settings.js
+  accepts a well-formed rep id this deploy doesn't know yet only then).
+- Warnings in the form: location ID already connected, a second sub-account
+  for the same rep + state, a market code already used.
+- **Manage Reps is gone** (rename / add / delete reps): People is the one
+  place for people. The list below keeps health, reassign and remove.
+
 ## Oct 22 round, phase 5b — Today at a Glance, CRM Scores (Luke)
 
 From the approved mock-ups. Overrides older Home / CRM panel notes.

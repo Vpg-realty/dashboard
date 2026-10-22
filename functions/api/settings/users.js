@@ -37,7 +37,7 @@ export async function onRequestPost(context) {
   await refreshPods(context.env.DB);
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
-  const p = cleanUser(body);
+  const p = cleanUser(body, { newRep: body?.newRep === true });
   if (p.error) return json(p, 400);
   if (p.email === user.email) return json({ error: "you can't change your own access here" }, 400);
   const db = context.env.DB;

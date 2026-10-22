@@ -23,7 +23,10 @@ export async function log(db, user, action, detail) {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // A person row from a request body, or { error }.
-export function cleanUser(b) {
+// `newRep`: Settings › Sub-Accounts just added this person's first
+// sub-account, so their rep id is in subaccounts.json on GitHub but not in
+// this deploy's copy yet (Oct 22) — a well-formed new id is accepted then.
+export function cleanUser(b, { newRep = false } = {}) {
   const email = String(b?.email || '').trim().toLowerCase();
   const name = String(b?.name || '').trim();
   const role = String(b?.role || '');
@@ -31,7 +34,7 @@ export function cleanUser(b) {
   if (!EMAIL.test(email) || email.length > 120) return { error: 'enter a valid email' };
   if (!name || name.length > 60) return { error: 'enter a name' };
   if (!ROLES.includes(role)) return { error: 'pick a role' };
-  if (repId && !REP_IDS.has(repId)) return { error: 'unknown rep' };
+  if (repId && !REP_IDS.has(repId) && !(newRep && /^[a-z0-9_]{2,40}$/.test(repId))) return { error: 'unknown rep' };
   return { email, name, role, rep_id: repId };
 }
 
