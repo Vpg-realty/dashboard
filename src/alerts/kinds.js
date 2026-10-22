@@ -1,6 +1,6 @@
 // Shared by the Alerts page and Home's Today at a Glance: the lead type
 // colours (Luke, Oct 22) and where an alert opens in GHL.
-import { ghlContactUrl, ghlConvUrl, ghlOppUrl, ALL_MARKETS } from '../data/config.js';
+import { ghlContactUrl, ghlConvUrl, ghlOppUrl, ALL_MARKETS, ALL_REPS } from '../data/config.js';
 
 export const LEAD_TYPE = {
   hot: { label: 'Hot lead', on: 'bg-red-600 text-white', row: 'border-l-red-600 bg-red-50/60', chip: 'bg-red-100 text-red-800' },
@@ -12,13 +12,16 @@ export const LEAD_TYPE = {
 };
 export const HINT_WORD = { hot: 'hot lead', warm: 'warm lead', cold: 'cold lead', wholesale: 'potential wholesale', not: 'maybe not a lead' };
 
-// The market a lead came from, by its sub-account ("<repId>|<marketId>") —
-// shown first in a lead's headline (Luke, Oct 22: "include which market the
-// lead is coming from in the headline").
-export const marketOf = (sub) => {
-  const id = String(sub || '').split('|')[1];
-  return id ? ALL_MARKETS.find((m) => m.id === id)?.name || id : null;
-};
+// Which sub-account a lead came from, as the rep's first name and the state
+// code — "Sam · WA" (Luke, later Oct 22: "a simple box … the name of the rep
+// and which sub account it is coming from"), with the rep's colour.
+export function subTag(sub) {
+  const [repId, marketId] = String(sub || '').split('|');
+  if (!repId) return null;
+  const rep = ALL_REPS.find((r) => r.id === repId);
+  return { label: `${(rep?.name || repId).split(' ')[0]} · ${marketId || '?'}`, color: rep?.color || '#64748b' };
+}
+
 // A duplicate's leads, one per rep (edge/alertsSync.js keeps them as JSON in
 // `quote`): [{ rep, name, pod, at, sub, conv, contact, text }].
 export const dupeRefs = (a) => {

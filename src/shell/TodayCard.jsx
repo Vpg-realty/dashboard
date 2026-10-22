@@ -11,7 +11,7 @@ import Icon from './icons.jsx';
 import { linkProps } from './router.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { useAlerts, loadAlerts, alertAction } from '../alerts/store.js';
-import { LEAD_TYPE, linkOf, marketOf } from '../alerts/kinds.js';
+import { LEAD_TYPE, linkOf, subTag } from '../alerts/kinds.js';
 import { isOpen } from '../deals/math.js';
 import { needsInfo } from '../deals/required.js';
 import { buildTcCards } from '../deals/tcList.js';
@@ -53,7 +53,7 @@ function alertRows(data, role, today) {
       const type = LEAD_TYPE[a.verdict];
       const old = nowMs() - Date.parse(a.created_at) > DAY;
       rows.push({ id: `a:${a.id}`, group: old ? 'late' : 'today', sort: a.created_at, chip: type ? type.label : 'New lead', chipCls: type ? type.on : 'bg-violet-100 text-violet-800',
-        title: `${old ? 'Lead not answered' : 'New lead'} · ${[marketOf(a.sub), a.addr || 'No address given'].filter(Boolean).join(' · ')}`, sub: a.body || a.quote, href: linkOf(a), action: 'Reply in GHL ↗' });
+        title: `${old ? 'Lead not answered' : 'New lead'} · ${[subTag(a.sub)?.label, a.addr || 'No address given'].filter(Boolean).join(' · ')}`, sub: a.body || a.quote, href: linkOf(a), action: 'Reply in GHL ↗' });
       continue;
     }
     if (a.holder !== me || !['task', 'ghl', 'checkin'].includes(a.kind)) continue;
