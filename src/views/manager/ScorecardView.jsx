@@ -16,7 +16,6 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
-import { Tile } from '../../shell/Tile.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
@@ -739,7 +738,15 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
             </span>
           </div>
           <div className="w-full grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
-            {stats.map(([label, v, sub]) => <Tile key={label} label={label} value={v} sub={sub} dot="navy" />)}
+            {/* Band counters (Luke, Oct 22: inside a navy band they match the
+                Alerts counters — same size as before). */}
+            {stats.map(([label, v, sub]) => (
+              <div key={label} className="min-w-0 rounded-xl bg-white/10 px-4 py-3.5">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{label}</div>
+                <div className="mt-1 text-[28px] leading-none font-semibold tracking-tight tabular-nums text-white">{v}</div>
+                {sub && <div className="mt-2 text-[12px] text-white/60 truncate">{sub}</div>}
+              </div>
+            ))}
           </div>
         </div>
 
