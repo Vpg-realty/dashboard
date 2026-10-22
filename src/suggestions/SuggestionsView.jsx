@@ -102,7 +102,7 @@ function Card({ s, comments, me, onChange }) {
   const [editing, setEditing] = useState(null);
   const owner = me?.role === 'owner' && !me.viewAs;
   const canWrite = !me?.viewAs;
-  const mine = s.created_email === me?.email;
+  const mine = String(s.created_email || '').toLowerCase() === String(me?.email || '').toLowerCase();
   const act = async (body) => { setBusy(true); setErr(null); try { onChange(await post({ id: s.id, ...body })); return true; } catch (e) { setErr(e.message); return false; } finally { setBusy(false); } };
   return (
     <article className="rounded-xl border border-tan-200 bg-white overflow-hidden">
@@ -113,20 +113,38 @@ function Card({ s, comments, me, onChange }) {
         <span className={`${pill} bg-tan-50 text-tan-700 ring-tan-200`}>{AREA[s.area] || 'Something else'}</span>
         <span className="ml-auto flex items-center gap-3 text-[12.5px] text-zinc-500">
           {comments.length > 0 && <span>💬 {comments.length}</span>}
-          <span>{s.created_by} · {when(s.created_at)}</span>
+          <span>{mine ? 'You' : <b className="font-semibold text-navy-800">{s.created_by}</b>} · {when(s.created_at)}</span>
           <span className={`${pill} ${STATUS_PILL[s.status]}`}>{STATUS_LABEL[s.status] || s.status}</span>
         </span>
       </button>
       {s.note && !open && <div className="px-4 pb-3 -mt-1 text-[13px] text-zinc-600"><b className="text-navy-800">{s.decided_by || 'Owners'}:</b> {s.note}</div>}
       {open && (
         <div className="border-t border-tan-100 px-4 py-3 grid gap-3">
+          {/* Who sent it, and the author's Edit / Remove up top (Luke, Oct 22:
+              "noted on who submitted them … editable by the person who
+              submitted them"). */}
+          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-zinc-600">
+            <span>Submitted by <b className="text-navy-800">{mine ? `you (${s.created_by})` : s.created_by}</b>{!mine && s.created_email ? ` · ${s.created_email}` : ''} · {when(s.created_at)}</span>
+            {canWrite && (mine || owner) && !editing && (
+              <span className="ml-auto flex gap-2">
+                <button type="button" disabled={busy} onClick={() => setEditing({ title: s.title, body: s.body || '', kind: s.kind })} className="h-8 px-3 rounded-lg ring-1 ring-inset ring-navy-200 bg-white text-navy-800 text-[12.5px] font-semibold hover:bg-navy-50">✎ Edit</button>
+                <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) act({ action: 'remove' }); }} className="h-8 px-3 rounded-lg ring-1 ring-inset ring-zinc-200 bg-white text-zinc-600 text-[12.5px] font-semibold hover:text-red-700 hover:ring-red-200">Remove</button>
+              </span>
+            )}
+          </div>
           {editing ? (
             <div className="grid gap-2 rounded-lg bg-tan-50 p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(KIND_LABEL).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setEditing({ ...editing, kind: k })} aria-pressed={editing.kind === k}
+                    className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold ring-1 ring-inset ${editing.kind === k ? `${KIND_PILL[k]} ring-2` : 'bg-white text-zinc-700 ring-zinc-200'}`}>{l}</button>
+                ))}
+              </div>
               <input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} maxLength={140} className={field} />
               <textarea value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={4} maxLength={4000} placeholder="Details" className={field} />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setEditing(null)} className="text-[12.5px] text-zinc-500 hover:underline">Cancel</button>
-                <button type="button" disabled={busy || !editing.title.trim()} onClick={async () => { if (await act({ action: 'edit', title: editing.title, body: editing.body, kind: s.kind })) setEditing(null); }} className={primaryCls}>Save</button>
+                <button type="button" disabled={busy || !editing.title.trim()} onClick={async () => { if (await act({ action: 'edit', title: editing.title, body: editing.body, kind: editing.kind })) setEditing(null); }} className={primaryCls}>Save</button>
               </div>
             </div>
           ) : s.body ? <p className="text-[14px] text-zinc-800 whitespace-pre-line">{s.body}</p> : <p className="text-[13px] text-zinc-400">No details.</p>}
@@ -162,12 +180,6 @@ function Card({ s, comments, me, onChange }) {
               </div>
             )}
           </div>
-          {canWrite && (mine || owner) && (
-            <div className="flex justify-end gap-4">
-              {!editing && <button type="button" disabled={busy} onClick={() => setEditing({ title: s.title, body: s.body || '' })} className="text-[12.5px] text-zinc-400 hover:text-navy-700">Edit</button>}
-              <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) act({ action: 'remove' }); }} className="text-[12.5px] text-zinc-400 hover:text-red-700">Remove</button>
-            </div>
-          )}
           {err && <div className="text-[13px] text-red-700">{err}</div>}
         </div>
       )}
@@ -206,7 +218,7 @@ export default function SuggestionsView() {
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div className="min-w-0">
           <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight text-navy-700">Suggestion Box</h1>
-          <div className="text-zinc-500 text-[13.5px]">Ideas and fixes for the site from owners, managers and the TC. Owners review each one and answer here.</div>
+          <div className="text-zinc-500 text-[13.5px]">{data.all ? 'Every suggestion from the team, with who sent it. Set each one’s status and answer here.' : 'Only you and the owners see your suggestions. Owners review each one and answer here — you can edit or remove yours any time.'}</div>
         </div>
         {!writing && !me?.viewAs && <button type="button" onClick={() => setQuery({ new: '1' })} className={`${primaryCls} ml-auto`}>+ New suggestion</button>}
       </div>
