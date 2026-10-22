@@ -13,6 +13,7 @@
 // out is a tile on top (`?only=out`). Ticks and tasks: D1 via /api/tc, with who
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
+import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
 import { Tile } from '../shell/Tile.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
@@ -27,7 +28,6 @@ import useDealPanel from './useDealPanel.jsx';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
 import BandMark from '../shell/BandMark.jsx';
-import { titleCase as properCase } from '../shell/titleCase.js';
 
 const firstLine = (s) => (s ? String(s).split('\n')[0].trim() : null);
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -249,19 +249,10 @@ const RAIL = [
 ];
 const WATCH = TC_FLAGS.filter((f) => f.id !== 'due');
 const VIEW_IDS = new Set(['due', 'all', 'out', ...WATCH.map((f) => f.id)]);
-const TONE_NUM = { red: 'text-[#B42318]', amber: 'text-[#B54708]', navy: 'text-navy-800' };
 
-function RailButton({ on, label, sub, n, tone, dim, onClick }) {
-  return (
-    <button type="button" onClick={onClick} disabled={dim} aria-current={on ? 'page' : undefined}
-      className={`shrink-0 w-full text-left rounded-xl px-3 py-2 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : dim ? 'text-zinc-400 cursor-default' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[14px] font-semibold whitespace-nowrap">{properCase(label)}</span>
-        {n != null && <span className={`text-[12px] font-semibold tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : n ? `bg-tan-100 ${TONE_NUM[tone] || 'text-zinc-600'}` : 'text-zinc-300'}`}>{n}</span>}
-      </div>
-      {sub && <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>}
-    </button>
-  );
+// The site's rail button (src/shell/SideRail.jsx).
+function RailButton({ n, tone, dim, ...p }) {
+  return <SharedRailButton {...p} count={n} tone={tone === 'red' ? 'red' : 'navy'} dim={dim} disabled={dim} />;
 }
 
 function Progress({ c }) {

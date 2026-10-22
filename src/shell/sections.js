@@ -105,7 +105,10 @@ export const SECTIONS = [
       { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
       // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
       // as one page with tabs (Overview / Browse & Assign / Holds & History).
-      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Zips, holds, rules', title: 'Zip center' },
+      // Oct 22 (Luke: no tabs inside tabs): its three views are rail entries.
+      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
+      { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
+      { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
     ],
   },
   {
@@ -198,8 +201,8 @@ const MOVED = {
   'territory/zip-mgmt': { section: 'territory', tab: 'zip-center' },
   'territory/zips': { section: 'zips', tab: 'mine' },
   'territory/rules': { section: 'territory', tab: 'zip-center' },
-  'territory/sheet': { section: 'territory', tab: 'zip-center' },
-  'territory/holds': { section: 'territory', tab: 'zip-center' },
+  'territory/sheet': { section: 'territory', tab: 'zip-browse' },
+  'territory/holds': { section: 'territory', tab: 'zip-holds' },
   'territory/health': { section: 'territory', tab: 'zip-center' },
   'territory/reps': { section: 'territory', tab: 'coverage' },
   'board/pipeline': { section: 'pipeline', tab: 'all' },

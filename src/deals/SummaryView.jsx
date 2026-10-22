@@ -5,6 +5,7 @@
 // view at a time on the right. A rep or state opens its file (`?file=`,
 // SummaryFile.jsx): every deal counted for them, with the same period and
 // compare. Numbers: summaryStats.js. Profit and commissions are owners only.
+import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
 import { useMemo } from 'react';
 import { useDeals } from './store.js';
 import { Loading } from './ui.jsx';
@@ -19,7 +20,6 @@ import SummaryFile from './SummaryFile.jsx';
 import useDealPanel from './useDealPanel.jsx';
 import { stats, groupStats, KINDS, MONTH, titleCase, pctTxt } from './summaryStats.js';
 import { Delta, RateCell, Band, BandStat } from './summaryUi.jsx';
-import { titleCase as properCase } from '../shell/titleCase.js';
 
 const VIEWS = [
   ['overview', 'Company overview', 'The period at a glance'],
@@ -32,24 +32,8 @@ const VIEWS = [
 const dim = (v, f = (x) => x) => (v ? f(v) : <span className="text-zinc-300">0</span>);
 
 function Rail({ view, counts }) {
-  return (
-    <nav aria-label="Summary sections" className="lg:sticky lg:top-2 self-start flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
-      <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Summary</div>
-      {VIEWS.map(([k, label, sub]) => {
-        const on = view === k;
-        return (
-          <button key={k} type="button" onClick={() => setQuery({ view: k === 'overview' ? null : k })} aria-current={on ? 'page' : undefined}
-            className={`shrink-0 text-left rounded-xl px-3 py-2.5 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[14px] font-semibold whitespace-nowrap">{properCase(label)}</span>
-              {counts[k] != null && <span className={`text-[12px] tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : 'bg-tan-100 text-zinc-600'}`}>{counts[k]}</span>}
-            </div>
-            <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>
-          </button>
-        );
-      })}
-    </nav>
-  );
+  return <SideRail label="Summary sections" value={view} onPick={(k) => setQuery({ view: k === 'overview' ? null : k })}
+    groups={[{ title: 'Summary', items: VIEWS.map(([id, label, sub]) => ({ id, label, sub, count: counts[id] })) }]} />;
 }
 
 function Card({ title, sub, right, children }) {
@@ -282,7 +266,7 @@ export default function SummaryView() {
     <div className="max-w-[1720px] mx-auto">
       <FinanceHead eyebrow="Finance Overview" title="How the deals add up" sub={`${period.label} · by ${DATE_BY[by]}${compare ? ` · compared with ${compare.label}` : ''}`}
         right={<PeriodBar deals={s.deals} defaultKey="y:2026" />} />
-      <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
+      <div className={RAIL_GRID}>
         <Rail view={view} counts={counts} />
         <div className="min-w-0">
           {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} />}

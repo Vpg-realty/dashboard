@@ -8,6 +8,7 @@
 // off (Luke, Oct 19); opening the page only stops the pulse — what arrived
 // since the last visit keeps a NEW tag until the page is left. "Select all"
 // ticks many at once (leads take a Real / Not a lead answer instead).
+import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
 import { Tile } from '../shell/Tile.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -18,7 +19,6 @@ import { ghlContactUrl, ghlConvUrl, ghlOppUrl, REPS } from '../data/config.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
-import { titleCase as properCase } from '../shell/titleCase.js';
 
 const KIND = {
   lead: { label: 'Lead spotted', tag: 'bg-violet-100 text-violet-800', icon: '✦', bg: 'bg-violet-100 text-violet-700' },
@@ -143,17 +143,9 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
   );
 }
 
-function RailButton({ on, label, sub, n, red, onClick }) {
-  return (
-    <button type="button" onClick={onClick} aria-current={on ? 'page' : undefined}
-      className={`shrink-0 lg:w-full text-left rounded-xl px-3 py-2 transition-colors ${on ? 'bg-navy-700 text-white shadow-sm' : 'bg-white lg:bg-transparent text-navy-800 ring-1 ring-tan-200 lg:ring-0 hover:bg-tan-100/70'}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[14px] font-semibold whitespace-nowrap">{properCase(label)}</span>
-        {n != null && <span className={`text-[12px] font-semibold tabular-nums rounded-full px-1.5 ${on ? 'bg-white/15 text-white' : n ? `bg-tan-100 ${red ? 'text-[#B42318]' : 'text-zinc-600'}` : 'text-zinc-300'}`}>{n}</span>}
-      </div>
-      {sub && <div className={`hidden lg:block text-[12px] ${on ? 'text-white/70' : 'text-zinc-500'}`}>{sub}</div>}
-    </button>
-  );
+// The site's rail button (src/shell/SideRail.jsx).
+function RailButton({ n, red, ...p }) {
+  return <SharedRailButton {...p} count={n} tone={red ? 'red' : 'navy'} />;
 }
 
 function AddTask({ assignable, me, act, busy }) {

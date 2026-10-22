@@ -564,7 +564,9 @@ const filtersOf = (pods) => [
 ];
 
 // `mode` 'crm' = the CRM Review tab (Luke, Oct 16).
-export default function ScorecardView() {
+// `trendsView` = Team Scorecards' rail picked Trends (Oct 22: Trends left
+// the week picker for the rail).
+export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
   const sc = useScorecards();
   const cur = currentWeek();
   const { query } = useLocation();
@@ -600,7 +602,7 @@ export default function ScorecardView() {
       return { value: m, label: `Week of ${label}${tag}` };
     });
   }, [sc.weeks, cur.monday, cur.weekOfLabel]);
-  const trends = week === '__trends';
+  const trends = trendsView;
 
   // Scores of the last finished week before this one (for "+3 vs last week").
   const series = useMemo(() => weekSeries(sc, 400), [sc]);
@@ -659,16 +661,16 @@ export default function ScorecardView() {
 
   const pickers = (
     <>
-      <SearchSelect className="w-64" value={week} onChange={(v) => v && setWeek(v)} clearable={false} sort={false}
-        pinned={[{ value: '__trends', label: 'Trends · last 8 weeks' }]} options={weekOptions.map((o) => ({ value: o.value, label: o.label }))} />
+      {!trendsView && <SearchSelect className="w-64" value={week} onChange={(v) => v && setWeek(v)} clearable={false} sort={false}
+        options={weekOptions.map((o) => ({ value: o.value, label: o.label }))} />}
       <ScoreHelp light />
     </>
   );
 
   if (trends) {
     return (
-      <ManagerFrame title="Weekly Scorecard" subtitle="trends · week by week" right={pickers}>
-        <TrendsView sc={sc} groups={groups(pods)} onPickRep={(id) => { setWeek(cur.monday); setPeek(id); }} />
+      <ManagerFrame title="Trends" subtitle="team and rep scores, week by week" right={pickers}>
+        <TrendsView sc={sc} groups={groups(pods)} onPickRep={(id) => { if (onPickRep) onPickRep(id); else { setWeek(cur.monday); setPeek(id); } }} />
       </ManagerFrame>
     );
   }
@@ -725,7 +727,7 @@ export default function ScorecardView() {
         {/* 2 · Team strip */}
         <div className="relative isolate flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl bg-navy-700 text-white px-7 py-5">
           <BandMark />
-          <div className="flex flex-col gap-1 flex-1 min-w-[18rem]">
+          <div className="flex flex-col gap-1 w-full">
             <span className="text-[14px] font-semibold text-[#d9cfbd] tracking-[0.06em]">TEAM</span>
             <span className="text-[30px] font-bold leading-tight">
               Score {team ?? '—'}{' '}
@@ -736,9 +738,9 @@ export default function ScorecardView() {
               </span>
             </span>
           </div>
-          {stats.map(([label, v, sub]) => (
-            <Tile key={label} className="min-w-[10rem]" label={label} value={v} sub={sub} dot="navy" />
-          ))}
+          <div className="w-full grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
+            {stats.map(([label, v, sub]) => <Tile key={label} label={label} value={v} sub={sub} dot="navy" />)}
+          </div>
         </div>
 
         {/* Save bar / view-only note (sticks while you scroll the table) */}

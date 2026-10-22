@@ -50,13 +50,16 @@ import RepsStates from '../territory/RepsStates.jsx';
 import MyZips from '../zips/MyZips.jsx';
 import AllZips from '../zips/AllZips.jsx';
 
+// Zip Center's views as Territory rail entries (Oct 22).
+const ZipBrowse = () => <AllZips view="browse" />;
+const ZipHolds = () => <AllZips view="holds" />;
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
   suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView,
   'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
-  'zips-mine': MyZips, 'zips-all': AllZips,
+  'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
