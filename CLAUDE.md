@@ -1106,6 +1106,48 @@ Overrides the Deal status notes below where they differ.
   opportunity's `monetaryValue`. The TV's "Assigned" revenue reads that
   value, so it follows the sheet. Usage: 2 settings rows read per deal save.
 
+
+## Oct 22 round, phase 4c — Alerts: lead types, repeats, duplicates, reviewed-by (Luke)
+
+Overrides the Alerts notes above where they differ.
+- **Lead type** replaces Real / Not a lead: Hot / Warm / Cold / Wholesale /
+  Not a lead (`LEAD_TYPES`, edge/alerts.js; red / orange / sky / teal /
+  grey). The type someone picks is the alert's (`verdict`); everyone sees
+  it as the row's colour and a chip, and it teaches Claude (the last 30 go
+  along as examples). **Complete** stays. Claude's own guess shows as a
+  hint chip ("Claude: potential wholesale", `alerts.hint`).
+- **Bank-owned / HUD** homes (Claude's `bank_hud`) arrive marked Cold
+  (verdict by "Claude (bank / HUD owned)") but stay open — each person
+  completes them (Luke, Oct 22; may change later).
+- Every lead and duplicate starts with the **address** (📍), or "No
+  address given".
+- **Repeat texts**: the same agent (phone, `alerts.agent` = last 10 digits,
+  from server/messaging.js `inbound.phone`) texting the same rep again is a
+  new lead only with a new address, or ≥ 2 h after their last lead when
+  Claude doesn't call it the same property (`same_as_earlier`; `isRepeat` in
+  edge/alertsSync.js). The recent leads are read only when there's a text to
+  judge.
+- **Duplicates**: "Duplicate lead" = the same address, or the same agent
+  with a matching message, at different reps; "Potential duplicate" = the
+  same agent at different reps within 7 days with no address and different
+  messages (`hint` 'duplicate' | 'potential'; ext_id `dupe:agent:<phone>:
+  <first date>|<pod>` for agent groups). One per pod as before.
+- **Reviewed by, per person**: ticking an alert off (or Complete) clears it
+  for you only — D1 `alert_marks (alert_id, who, name, at)` (edge/alerts.sql;
+  indexes on who and at) — and the others see "✓ Reviewed by <name> ·
+  <type>". It closes for everyone ("Everyone reviewed", `closeReviewed`)
+  once everyone it rings has a mark (holder; for leads / dupes / deal
+  deadlines also their pod lead and the owners). Your own task, GHL task or
+  check-in still closes at once (and a GHL task goes back to GHL). A
+  reopened duplicate drops its marks. The red dot leaves out what you've
+  marked (one indexed read of your marks per poll).
+- **Layout**: top tabs **Active** / **Completed · last 7 days** (`?tab=done`;
+  old `?view=done` links land there); the rail filters inside either tab.
+  Completed keeps 7 days (`KEEP_DONE_MS`). The band counters keep their
+  own style (see Site-wide building blocks).
+- Live D1, Oct 22: `alert_marks` + indexes created, `alerts.agent` /
+  `alerts.hint` added (ALTER TABLE). Usage: one marks read per Alerts load
+  (60 days) and per poll (this person's), a few hundred rows a day.
 ## Oct 22 round, phase 3 — no tabs inside tabs (Luke)
 
 - **Money In & Out**: the Money out / Money in switch, the tiles-as-tabs and

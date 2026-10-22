@@ -3,7 +3,7 @@
 // POST /api/alerts { action: 'add', title, body?, due?, dueTime?, to? }   a task (pod leads / owners can assign)
 //                  { action: 'done', id, done }                 tick / untick
 //                  { action: 'doneMany', ids, done }            tick / untick several (not leads)
-//                  { action: 'verdict', id, verdict }           a spotted lead: real | not | null
+//                  { action: 'verdict', id, verdict }           a spotted lead: hot | warm | cold | wholesale | not | null
 //                  { action: 'due', id, due, dueTime? }               move a date (not GHL tasks)
 //                  { action: 'remove', id }                     a site task
 //                  { action: 'seen' }                           opened Alerts — clears the red dot
@@ -13,7 +13,7 @@
 // edit_log (not seen / chime) and refused while viewing as someone — except
 // an owner ticking alerts off (done / doneMany), saved under the owner's name.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan, counts, countFor, scopeOf, azHM, MANY_MAX } from '../../../edge/alerts.js';
+import { canUse, load, plan, counts, countFor, scopeOf, azHM, closeReviewed, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 import { refreshPods } from '../../../edge/pods.js';
 
@@ -66,6 +66,7 @@ export async function onRequestPost(context) {
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, ids: p.ids, to: b.to, verdict: b.verdict, done: b.done })),
   ];
   await db.batch([...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)), ...log]);
+  await closeReviewed(db, p.check || [], now);
   // Answer as the person being viewed (a write request gave them role 'none').
   const asRole = viewed.viewAs ? (await db.prepare('SELECT role FROM users WHERE email = ?').bind(viewed.email).first())?.role : null;
   return json(await answer(db, asRole ? { ...viewed, role: asRole } : viewed));

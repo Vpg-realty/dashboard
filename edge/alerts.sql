@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS alerts (
   addr TEXT,
   -- a task's due time, "HH:MM" Arizona (Oct 22; added to the live table
   -- with ALTER TABLE alerts ADD COLUMN due_time TEXT)
-  due_time TEXT
+  due_time TEXT,
+  -- leads (Oct 22; added with ALTER TABLE): the agent's phone (last 10
+  -- digits) for repeat / duplicate checks, and Claude's hint — a suggested
+  -- lead type, or for dupes 'duplicate' | 'potential'
+  agent TEXT,
+  hint TEXT
 );
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
 -- Oct 19: the sync and the red-dot poll scanned the whole table every time
@@ -41,3 +46,15 @@ CREATE TABLE IF NOT EXISTS alert_seen (
   seen_at TEXT,
   chime INTEGER NOT NULL DEFAULT 1
 );
+-- Per-person "reviewed" (Oct 22, Luke): a shared alert (lead, dupe, a rep's
+-- deal deadline) is ticked off by each person for themself; it closes for
+-- everyone once everyone it rings has a mark (edge/alerts.js closeReviewed).
+CREATE TABLE IF NOT EXISTS alert_marks (
+  alert_id TEXT NOT NULL,
+  who TEXT NOT NULL,            -- holderOf: a rep id or u:<email name>
+  name TEXT,
+  at TEXT NOT NULL,
+  PRIMARY KEY (alert_id, who)
+);
+CREATE INDEX IF NOT EXISTS alert_marks_who ON alert_marks (who);
+CREATE INDEX IF NOT EXISTS alert_marks_at ON alert_marks (at);

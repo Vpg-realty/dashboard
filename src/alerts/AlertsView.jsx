@@ -29,6 +29,17 @@ const KIND = {
   dupe: { label: 'Duplicate lead', tag: 'bg-orange-100 text-orange-800', icon: '⇄', bg: 'bg-orange-100 text-orange-700' },
 };
 const SHARED = new Set(['lead', 'deal', 'dupe']);
+// Lead types (Luke, Oct 22): Hot / Warm / Cold / Wholesale / Not a lead, one
+// answer for everyone — the row takes its colour. Untyped leads stay purple.
+const LEAD_TYPE = {
+  hot: { label: 'Hot lead', on: 'bg-red-600 text-white', row: 'border-l-red-600 bg-red-50/60', chip: 'bg-red-100 text-red-800' },
+  warm: { label: 'Warm lead', on: 'bg-orange-500 text-white', row: 'border-l-orange-500 bg-orange-50/60', chip: 'bg-orange-100 text-orange-800' },
+  cold: { label: 'Cold lead', on: 'bg-sky-600 text-white', row: 'border-l-sky-600 bg-sky-50/60', chip: 'bg-sky-100 text-sky-800' },
+  wholesale: { label: 'Wholesale', on: 'bg-teal-600 text-white', row: 'border-l-teal-600 bg-teal-50/60', chip: 'bg-teal-100 text-teal-800' },
+  not: { label: 'Not a lead', on: 'bg-zinc-600 text-white', row: 'border-l-zinc-400 bg-zinc-50', chip: 'bg-zinc-100 text-zinc-700' },
+  real: { label: 'Lead', on: 'bg-violet-600 text-white', row: 'border-l-violet-500', chip: 'bg-violet-100 text-violet-800' },
+};
+const HINT_WORD = { hot: 'hot lead', warm: 'warm lead', cold: 'cold lead', wholesale: 'potential wholesale', not: 'maybe not a lead' };
 
 const RAIL = [
   { id: 'today', label: 'Today', sub: 'Leads, late and due today' },
@@ -39,17 +50,17 @@ const RAIL = [
 ];
 const LATER = [
   { id: 'upcoming', label: 'Upcoming', sub: 'Due after today' },
-  { id: 'done', label: 'Done', sub: 'Last 24 hours' },
 ];
 
+// Which list an alert is in — Active and Completed (top tabs, Oct 22) share
+// the rail: today = everything in Completed.
 const PICK = {
-  today: (a, t) => !a.done_at && (SHARED.has(a.kind) || !a.due || a.due <= t),
-  leads: (a) => !a.done_at && a.kind === 'lead',
-  dupes: (a) => !a.done_at && a.kind === 'dupe',
-  tasks: (a) => !a.done_at && (a.kind === 'task' || a.kind === 'ghl' || a.kind === 'deal'),
-  checkins: (a) => !a.done_at && a.kind === 'checkin',
-  upcoming: (a, t) => !a.done_at && !SHARED.has(a.kind) && a.due && a.due > t,
-  done: (a) => !!a.done_at,
+  today: (a, t, done) => done || SHARED.has(a.kind) || !a.due || a.due <= t,
+  leads: (a) => a.kind === 'lead',
+  dupes: (a) => a.kind === 'dupe',
+  tasks: (a) => a.kind === 'task' || a.kind === 'ghl' || a.kind === 'deal',
+  checkins: (a) => a.kind === 'checkin',
+  upcoming: (a, t, done) => !done && !SHARED.has(a.kind) && a.due && a.due > t,
 };
 
 // Soonest first, a timed task before an untimed one on the same day.
@@ -87,12 +98,16 @@ function DueTag({ a, today }) {
 }
 
 function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
-  const k = KIND[a.kind] || KIND.task;
+  const k = a.kind === 'dupe' && a.hint === 'potential' ? { ...KIND.dupe, label: 'Potential duplicate' } : KIND[a.kind] || KIND.task;
   const url = linkOf(a);
   const whose = a.holder !== me ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
-  const done = !!a.done_at;
+  // Done for this person: their own tick, or closed for everyone.
+  const mine = (a.marks || []).find((m) => m.who === me);
+  const done = !!a.done_at || !!mine;
+  const others = (a.marks || []).filter((m) => m.who !== me);
+  const type = a.kind === 'lead' && a.verdict ? LEAD_TYPE[a.verdict] : null;
   return (
-    <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${isNew && !done ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-70' : ''}`}>
+    <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${type ? `border-l-4 ${type.row}` : ''} ${isNew && !done && !type ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-75' : ''}`}>
       {a.kind === 'lead' ? <span /> : sel ? (
         <input type="checkbox" checked={sel.has(a.id)} onChange={() => toggle(a.id)}
           className="mt-1.5 w-[18px] h-[18px] accent-tan-600 cursor-pointer" aria-label="Select" />
@@ -102,9 +117,15 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
       )}
       <span className={`w-[30px] h-[30px] rounded-lg grid place-items-center text-[15px] ${k.bg}`} aria-hidden="true">{k.icon}</span>
       <div className="min-w-0">
+        {/* The address first (Luke, Oct 22), or that none was given. */}
+        {(a.kind === 'lead' || a.kind === 'dupe') && (
+          <div className={`mb-0.5 text-[13.5px] font-bold ${a.addr ? 'text-navy-900' : 'text-zinc-500'}`}>📍 {a.addr || 'No address given'}</div>
+        )}
         <div className={`font-semibold text-navy-800 leading-snug ${done ? 'line-through decoration-zinc-400' : ''}`}>
           {isNew && !done && <span className="mr-1.5 rounded px-1.5 py-px text-[11px] font-bold bg-rose-600 text-white align-[1px]">NEW</span>}
           <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${k.tag}`}>{k.label}</span>
+          {type && <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${type.chip}`}>{type.label}</span>}
+          {a.kind === 'lead' && !a.verdict && HINT_WORD[a.hint] && <span title="Claude's guess — pick the type to teach it" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
           {a.title}
         </div>
@@ -112,10 +133,18 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
           {[whose && <span key="w" className="font-semibold text-navy-700">{whose}</span>,
             a.body,
             a.kind === 'lead' ? `texted ${ago(a.created_at)}` : a.kind === 'task' && a.created_by ? `added by ${a.created_by}` : null,
-            a.verdict && `${a.verdict === 'real' ? 'Real lead' : 'Not a lead'} — ${a.verdict_by}`,
-            done && `done by ${a.done_by} · ${dayLabel(azDate(new Date(a.done_at)))}`,
+            a.verdict && `${LEAD_TYPE[a.verdict]?.label || a.verdict} — ${a.verdict_by}`,
+            a.done_at && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
+            !a.done_at && mine && `you completed it · ${dayLabel(azDate(new Date(mine.at)))}`,
           ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
         </div>
+        {/* Who else has reviewed it (Luke, Oct 22: ticking it off clears it
+            only for you; the others see who reviewed it and the type given). */}
+        {others.length > 0 && (
+          <div className="mt-1 text-[12px] font-semibold text-emerald-800">
+            ✓ Reviewed by {others.map((m) => m.name).join(', ')}{type ? ` · ${type.label}` : ''}
+          </div>
+        )}
         {a.quote && <div className="mt-1.5 text-[13px] text-zinc-700 bg-violet-50 border-l-[3px] border-violet-400 rounded px-2.5 py-1.5 whitespace-pre-line">“{a.quote}”</div>}
       </div>
       <div className="col-start-3 md:col-start-auto flex flex-wrap gap-1.5 md:justify-end">
@@ -123,11 +152,14 @@ function Row({ a, isNew, today, names, me, busy, act, sel, toggle, openDeal }) {
             go along as examples) and stays on the alert; Complete closes it
             (Luke, Oct 19). A second click on the picked answer clears it. */}
         {a.kind === 'lead' && <>
-          <span role="group" aria-label="Is this a lead? (teaches Claude)" className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
-            {[['real', 'Real lead', 'bg-emerald-600 text-white'], ['not', 'Not a lead', 'bg-zinc-700 text-white']].map(([v, l, on]) => (
-              <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v} title="Teaches Claude what counts as a lead"
+          {/* Five types (Luke, Oct 22) — one answer for everyone, teaches
+              Claude (the last 30 go along as examples); a second click on the
+              picked one clears it. Complete stays, per person. */}
+          <span role="group" aria-label="Lead type (teaches Claude)" className="inline-flex flex-wrap rounded-lg ring-1 ring-zinc-200 overflow-hidden">
+            {['hot', 'warm', 'cold', 'wholesale', 'not'].map((v) => (
+              <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v} title="Everyone sees the type picked — it also teaches Claude"
                 onClick={() => act({ action: 'verdict', id: a.id, verdict: a.verdict === v ? null : v })}
-                className={`h-8 px-3 text-[12.5px] font-semibold disabled:opacity-50 ${a.verdict === v ? on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{l}</button>
+                className={`h-8 px-2.5 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${a.verdict === v ? LEAD_TYPE[v].on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{LEAD_TYPE[v].label}</button>
             ))}
           </span>
           {!done
@@ -173,6 +205,9 @@ function AddTask({ assignable, me, act, busy }) {
   );
 }
 
+// Completed keeps a week (edge/alerts.js KEEP_DONE_MS).
+const inWeek = (iso) => Date.now() - Date.parse(iso) <= 7 * 86400000;
+
 export default function AlertsView() {
   const { query } = useLocation();
   const { data, chime } = useAlerts();
@@ -211,7 +246,12 @@ export default function AlertsView() {
   // to them); everyone else on Mine.
   const defWho = owner ? 'all' : 'me';
   const who = query.get('who') || defWho;
-  const view = query.get('view') || 'today';
+  const view = PICK[query.get('view')] ? query.get('view') : 'today';
+  // Active / Completed (last 7 days) — Luke, Oct 22; old ?view=done links
+  // land on Completed.
+  const tab = query.get('tab') === 'done' || query.get('view') === 'done' ? 'done' : 'active';
+  const doneAt = (a) => a.done_at || (a.marks || []).find((m) => m.who === me)?.at || null;
+  const isDone = (a) => !!doneAt(a);
   const scoped = useMemo(() => {
     const all = data?.alerts || [];
     if (who === 'all') return all;
@@ -219,16 +259,17 @@ export default function AlertsView() {
     if (who !== 'me') return all.filter((a) => a.holder === who);
     return all.filter((a) => a.holder === me || (SHARED.has(a.kind) && (owner || pod?.reps.includes(a.holder))));
   }, [data, who, me, pod, owner]);
-  const count = (id) => scoped.filter((a) => PICK[id](a, today)).length;
+  const inTab = (a) => (tab === 'done' ? isDone(a) && inWeek(doneAt(a)) : !isDone(a));
+  const count = (id) => scoped.filter((a) => inTab(a) && PICK[id](a, today, tab === 'done')).length;
   const isNew = (a) => seenBefore !== undefined && (!seenBefore || a.created_at > seenBefore);
-  const shown = scoped.filter((a) => PICK[view](a, today)).sort((x, y) => (
-    view === 'done' ? (y.done_at > x.done_at ? 1 : -1)
+  const shown = scoped.filter((a) => inTab(a) && PICK[view](a, today, tab === 'done')).sort((x, y) => (
+    tab === 'done' ? (doneAt(y) > doneAt(x) ? 1 : -1)
       : (x.kind === 'lead') !== (y.kind === 'lead') ? (x.kind === 'lead' ? -1 : 1)
         : dueKey(x) !== dueKey(y) ? (dueKey(x) < dueKey(y) ? -1 : 1)
           : (y.created_at > x.created_at ? 1 : -1)));
 
   // Today's list in groups: new since the last look, late, due today, the rest.
-  const groups = view === 'today' ? [
+  const groups = view === 'today' && tab === 'active' ? [
     ['New since you last looked', shown.filter((a) => isNew(a))],
     ['Overdue', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today)],
     ['Duplicate leads — more than one rep', shown.filter((a) => !isNew(a) && a.kind === 'dupe')],
@@ -237,18 +278,19 @@ export default function AlertsView() {
     ['No due date', shown.filter((a) => !isNew(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !a.due)],
   ].filter(([, l]) => l.length) : [[null, shown]];
 
-  const late = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today).length;
-  const dueToday = scoped.filter((a) => !a.done_at && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today).length;
-  const newN = scoped.filter((a) => !a.done_at && isNew(a)).length;
+  const late = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today).length;
+  const dueToday = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today).length;
+  const newN = scoped.filter((a) => !isDone(a) && isNew(a)).length;
+  const doneN = scoped.filter((a) => isDone(a) && inWeek(doneAt(a))).length;
   const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (owner || pod?.reps.includes(id))) : [];
   const whoName = who === 'me' ? 'Mine' : who === 'pod' ? pod?.title : who === 'all' ? 'Everyone' : data?.names[who] || who;
-  const title = [...RAIL, ...LATER].find((r) => r.id === view)?.label;
+  const title = `${tab === 'done' ? 'Completed · ' : ''}${[...RAIL, ...LATER].find((r) => r.id === view)?.label}`;
   // What "Select all" picks: the ticks shown in this list (not leads).
   const selectable = shown.filter((a) => a.kind !== 'lead').map((a) => a.id);
   const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = sel && selectable.length > 0 && selectable.every((id) => sel.has(id));
   const tickMany = async () => {
-    if (await act({ action: 'doneMany', ids: [...sel], done: view !== 'done' })) setSel(null);
+    if (await act({ action: 'doneMany', ids: [...sel], done: tab !== 'done' })) setSel(null);
   };
 
   return (
@@ -279,9 +321,9 @@ export default function AlertsView() {
           </div>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          {[['New', newN, 'today'], ['Due today', dueToday, 'today'], ['Overdue', late, 'today'], ['Leads', count('leads'), 'leads']].map(([l, n, v]) => (
+          {[['New', newN, 'today'], ['Due today', dueToday, 'today'], ['Overdue', late, 'today'], ['Leads', scoped.filter((a) => !isDone(a) && a.kind === 'lead').length, 'leads']].map(([l, n, v]) => (
             // Band counters, not page tiles (Luke, Oct 22: these stay as they were).
-            <button key={l} type="button" onClick={() => setQuery({ view: v === 'today' ? null : v })} className={`rounded-xl px-4 py-2 text-left min-w-[96px] ${l === 'New' && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
+            <button key={l} type="button" onClick={() => setQuery({ view: v === 'today' ? null : v, tab: null })} className={`rounded-xl px-4 py-2 text-left min-w-[96px] ${l === 'New' && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
               <div className={`text-[11px] font-semibold uppercase tracking-wide ${l === 'New' && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
               <div className={`text-[22px] font-semibold tabular-nums leading-tight ${l === 'Overdue' && n ? 'text-rose-200' : ''}`}>{n}</div>
             </button>
@@ -297,10 +339,18 @@ export default function AlertsView() {
           {LATER.map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={r.sub} n={count(r.id)} onClick={() => setQuery({ view: r.id })} />)}
         </nav>
         <div className="min-w-0">
+          {/* Active / Completed (Luke, Oct 22: completed alerts at the top as
+              their own tab, kept a week). */}
+          <div role="tablist" aria-label="Active or completed" className="mb-3 flex items-center gap-1 border-b border-tan-200">
+            {[['active', 'Active'], ['done', `Completed · last 7 days${doneN ? ` (${doneN})` : ''}`]].map(([id, l]) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setQuery({ tab: id === 'active' ? null : id, view: view === 'today' ? null : view })}
+                className={`-mb-px h-10 px-4 text-[14px] font-semibold border-b-[3px] ${tab === id ? 'border-navy-700 text-navy-800' : 'border-transparent text-zinc-500 hover:text-navy-700'}`}>{l}</button>
+            ))}
+          </div>
           <div className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.05)]">
             <div className="flex items-center gap-3 px-4 md:px-5 py-2.5 bg-navy-700 text-white">
               <span className="font-semibold text-[15px]">{title}</span>
-              <span className="ml-auto rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold px-2 py-0.5">{shown.length} {view === 'done' ? 'done' : 'open'}</span>
+              <span className="ml-auto rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold px-2 py-0.5">{shown.length} {tab === 'done' ? 'completed' : 'open'}</span>
             </div>
             {data && selectable.length > 0 && (
               <div className="flex flex-wrap items-center gap-3 px-4 md:px-5 py-2 border-b border-tan-100 bg-tan-50/70 text-[13px]">
@@ -310,7 +360,7 @@ export default function AlertsView() {
                 </label>
                 {sel && <>
                   <span className="text-zinc-500">{sel.size} selected</span>
-                  <button type="button" disabled={busy || !sel.size} onClick={tickMany} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">{view === 'done' ? 'Mark not done' : 'Mark done'}</button>
+                  <button type="button" disabled={busy || !sel.size} onClick={tickMany} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">{tab === 'done' ? 'Mark not done' : 'Mark done'}</button>
                   <button type="button" onClick={() => setSel(null)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 font-semibold hover:bg-zinc-50">Cancel</button>
                 </>}
                 {!sel && <button type="button" onClick={() => setSel(new Set())} className="text-navy-700 font-semibold hover:underline">Select some…</button>}
@@ -320,7 +370,7 @@ export default function AlertsView() {
             {data && !shown.length && (
               <div className="px-5 py-8 text-center text-zinc-500">
                 <div className="text-[22px] text-emerald-600">✓</div>
-                {view === 'today' ? 'Nothing for today — you’re all caught up.' : view === 'done' ? 'Nothing finished in the last 24 hours.' : 'Nothing here right now.'}
+                {tab === 'done' ? 'Nothing completed in the last 7 days.' : view === 'today' ? 'Nothing for today — you’re all caught up.' : 'Nothing here right now.'}
               </div>
             )}
             {groups.map(([label, list]) => (
@@ -329,10 +379,10 @@ export default function AlertsView() {
                 {list.map((a) => <Row key={a.id} a={a} isNew={isNew(a)} today={today} names={data.names} me={me} busy={busy} act={act} sel={sel} toggle={toggle} openDeal={dealPanel.open} />)}
               </div>
             ))}
-            {data && view !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
+            {data && tab !== 'done' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           <p className="mt-4 text-[12px] text-zinc-500">
-            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts — ticking one here completes it in GHL too with the next refresh (unticking reopens it), and one finished in GHL clears here. A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners; “Real lead” / “Not a lead” teaches Claude what counts. Two counts sit on the Alerts entry: purple for leads still to work and red for tasks due today or late (and tasks with no date). Each stays until it’s cleared — Complete closes a lead, the tick closes a task — and finished ones stay under Done for 24 hours.
+            Where these come from: GHL tasks are the open tasks in your GHL sub-accounts — ticking one here completes it in GHL too with the next refresh (unticking reopens it), and one finished in GHL clears here. A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners. Pick the type (Hot / Warm / Cold / Wholesale / Not a lead): everyone sees it and it teaches Claude. Bank-owned and HUD homes arrive already marked Cold. The same agent texting the same rep again is a new lead only with a new address, or 2+ hours later when it isn’t the same property. Ticking an alert off or pressing Complete clears it for you only — the others see who reviewed it; it closes for everyone once everyone it rings has reviewed it (your own tasks and check-ins close when you tick them). Completed ones stay under Completed for 7 days.
           </p>
         </div>
       </div>

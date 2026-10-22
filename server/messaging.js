@@ -125,7 +125,9 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
           const body = list.slice(s0, i + 1).map((x) => String(x.body || '').trim()).filter(Boolean).join('\n').slice(0, 600);
           if (body && !isAck(body) && !isStop(body) && !isAutoReply(body)) {
             inbound.push({
-              id: m.id, at: t, conv, contact: m.contactId || null, who: names[m.contactId] || null, body,
+              // phone = the agent's number (last 10 digits) — the same agent
+              // across sub-accounts, for repeat / duplicate leads (Oct 22).
+              id: m.id, at: t, conv, contact: m.contactId || null, who: names[m.contactId] || null, phone: String(m.from || '').replace(/\D/g, '').slice(-10) || null, body,
               before: list.slice(Math.max(0, s0 - 4), s0).map((x) => ({ from: x.direction === 'inbound' ? 'agent' : isRep(x) ? 'rep' : 'automated', body: String(x.body || '').slice(0, 300) })),
             });
           }
