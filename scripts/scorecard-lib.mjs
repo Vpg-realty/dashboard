@@ -10,6 +10,8 @@
 //   - Week # of Month = which week of the month that Friday falls in
 //     (Fri Oct 2 → 1, Fri Oct 9 → 2): ceil(day-of-month / 7).
 
+import { targetsOn } from '../src/data/kpiTargets.js';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_MS = 86_400_000;
 
@@ -109,10 +111,17 @@ export const weightsFor = (monday) => (!monday || monday >= SPEED_FROM ? SPEED_W
 // Speed to response: agent texts answered within 15 min (weekdays 8–5 AZ),
 // full points at the Texting Standard's 75% target.
 export const speedShare = (ok, total) => (total ? Math.min(1, ok / total / MESSAGING_SPEED_TARGET) : 1);
+// KPI targets (Settings › KPI Targets, src/data/kpiTargets.js): the browser
+// gets them baked in by the build; a Pages Function sets them from D1 with
+// setKpiTargets. A week is scored against the targets in effect that week.
+/* global __KPI_TIMELINES__ */
+let KPI_STORE = typeof __KPI_TIMELINES__ !== 'undefined' ? __KPI_TIMELINES__ : null;
+export const setKpiTargets = (store) => { KPI_STORE = store || null; };
 export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 0, speedOk = null, speedTotal = null }, crm, weekOfMonth, monday) {
   const W = weightsFor(monday);
   const cap = (x) => Math.max(0, Math.min(1, x));
-  const pace = 6250 * Math.min(4, Math.max(1, weekOfMonth || 1));
+  const t = targetsOn(KPI_STORE, monday || Date.now());
+  const pace = (t.revenuePerRepMonth / 4) * Math.min(4, Math.max(1, weekOfMonth || 1));
   const inCrm = speedInCrm(monday);
   const five = Array.from({ length: 5 }, (_, i) => (Array.isArray(crm) ? crm[i] ?? null : null));
   const crmGrades = inCrm ? [...five, speedGrade(speedOk, speedTotal)] : five;
@@ -121,10 +130,10 @@ export function scoreWeek({ contractsW = 0, projected = 0, offersW = 0, oppsW = 
   const speedKnown = W.speed > 0 && speedTotal != null;
   const perItem = W.crm / items;
   const parts = {
-    contracts: cap(contractsW / 1) * W.contracts,
+    contracts: cap(contractsW / (t.contractsPerWeek || 1)) * W.contracts,
     projected: cap(projected / pace) * W.projected,
-    offers: cap(offersW / 5) * W.offers,
-    opps: cap(oppsW / 10) * W.opps,
+    offers: cap(offersW / (t.offersPerWeek || 1)) * W.offers,
+    opps: cap(oppsW / (t.oppsOpenedPerWeek || 1)) * W.opps,
     speed: speedKnown ? speedShare(speedOk, speedTotal) * W.speed : null,
     crm: known.length ? (known.reduce((a, b) => a + b, 0) / 2) * perItem : null,
   };
@@ -235,7 +244,10 @@ export function autoCrm(pairs, monday, limit = 12) {
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
       ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min`, sub: m.sub, conv: b.conv || null }))),
     ];
-    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length };
+    // Claude's top 3 for the week (scripts/review-messaging.mjs, once a day
+    // per rep — the same on each of the rep's pairs).
+    const coach = msgs.find((m) => m.coach?.items?.length)?.coach || null;
+    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length, coach };
   }
 
   // Dispo: deals that went under contract this week.

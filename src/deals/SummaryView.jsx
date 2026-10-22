@@ -60,18 +60,18 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal, periodKe
     <div className="grid gap-4">
       {/* Luke, Oct 16: top row the deal flow, second row the money — VPG colours. */}
       <Band eyebrow="Deal flow" note={`${now.pending} still open — not in the close rate`} cols="lg:grid-cols-4">
-        <BandStat accent="navy" label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
-        <BandStat accent="green" label="Closed" value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-300" sub="sold and closed" />
-        <BandStat accent="red" label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
-        <BandStat accent="tan" label="Close rate" value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
+        <BandStat accent="navy" label="Contracts" shade="navy" big value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
+        <BandStat accent="green" label="Closed" shade="navy" big value={now.closed} now={now.closed} then={t('closed')} tone="text-emerald-300" sub="sold and closed" />
+        <BandStat accent="red" label="Cancelled" shade="navy" big value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
+        <BandStat accent="tan" label="Close rate" shade="navy" big value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
       </Band>
       <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
-        <BandStat label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
-        <BandStat label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-        <BandStat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
-        {owner && <BandStat feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
-        {owner && <BandStat label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
-        {owner && <BandStat label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}
+        <BandStat shade="tan" label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
+        <BandStat shade="tan" label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
+        <BandStat shade="tan" label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
+        {owner && <BandStat shade="tan" feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
+        {owner && <BandStat shade="tan" label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
+        {owner && <BandStat shade="tan" label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}
       </Band>
       {compareLabel && !then && <div className="text-zinc-500 text-[13.5px]">No deals on file for {compareLabel}, so there's nothing to compare with.</div>}
       {now.projCount > 0 && (

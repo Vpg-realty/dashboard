@@ -76,6 +76,26 @@ async function main() {
   } catch (err) {
     console.log(`[private-files] trainee list not read (${err.message}) — nobody hidden`);
   }
+
+  // KPI targets from Settings › KPI Targets (Oct 22), baked into the app by
+  // vite.config.js. Best effort: no file = the defaults in the code.
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: "SELECT value FROM settings WHERE key = 'kpi_targets'" }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const row = d.result?.[0]?.results?.[0];
+    fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
+    const file = path.join(ROOT, '.cache', 'kpi-targets.json');
+    if (row?.value) fs.writeFileSync(file, row.value);
+    else fs.rmSync(file, { force: true });
+    console.log(`[private-files] KPI targets: ${row?.value ? 'from Settings' : 'defaults'}`);
+  } catch (err) {
+    console.log(`[private-files] KPI targets not read (${err.message}) — defaults`);
+  }
 }
 
 main().catch((err) => {

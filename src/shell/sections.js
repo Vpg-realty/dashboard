@@ -116,11 +116,11 @@ export const SECTIONS = [
     // notes, no other rep's scores); a simple page with the full breakdown below.
     // Managers see their own scorecard inside Team Scorecards (Luke, Oct 22),
     // so this entry is the reps' only.
-    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team'],
+    // One page since Oct 22 (Luke: "a ton of overlap") — This Week, the trend
+    // and Look Back (the old Full Breakdown) on the same page.
+    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team'], solo: true,
     tabs: [
-      { id: 'scorecard', label: 'This Week & Trend', view: 'my-scorecard', scroll: true },
-      // Its own tab (Luke, Oct 15: the "Show the full breakdown" button was easy to miss).
-      { id: 'breakdown', label: 'Full Breakdown', view: 'my-breakdown', scroll: true },
+      { id: 'scorecard', label: 'My Scorecard', view: 'my-scorecard', scroll: true },
     ],
   },
   {
@@ -134,7 +134,6 @@ export const SECTIONS = [
       // A manager's own scorecard, the same pages reps get (Luke, Oct 22: no
       // third view, no separate sidebar entry).
       { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager'] },
-      { id: 'my-breakdown', label: 'My Full Breakdown', view: 'my-breakdown', scroll: true, roles: ['manager'] },
       { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
@@ -172,6 +171,7 @@ export const SECTIONS = [
     tabs: [
       { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
       { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
+      { id: 'targets', label: 'KPI Targets', view: 'settings-targets', scroll: true, group: 'Team', sub: 'Opps, offers, contracts, revenue', title: 'KPI targets', blurb: 'The per-rep targets the board, the TV and the scorecards are graded on. Each change has a start date, so earlier weeks keep their scores.' },
       // Oct 19 (Luke's site map): Pods and TC Pay folded into Commissions (who
       // reports to whom is People's Pod lead column), Dropdown Lists gone (the
       // lists come from People, Sub-Accounts, the code and past deals), and
@@ -225,6 +225,9 @@ const MOVED = {
   'finance/summary': { section: 'finance', tab: 'overview' },
   'finance/payouts': { section: 'finance', tab: 'money' },
   'finance/wires': { section: 'finance', tab: 'money' },
+  // Full Breakdown folded into My Scorecard as Look Back (Oct 22).
+  'me/breakdown': { section: 'me', tab: 'scorecard' },
+  'team/my-breakdown': { section: 'team', tab: 'mine' },
 };
 
 export function resolve(path, role, extra = []) {

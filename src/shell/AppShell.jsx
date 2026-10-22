@@ -12,11 +12,12 @@ import PipelineView from '../views/PipelineView.jsx';
 import TeamHub from '../views/manager/TeamHub.jsx';
 import CoachingView from '../views/manager/CoachingView.jsx';
 import MonthView from '../views/manager/MonthView.jsx';
-import MyScorecardView, { MyBreakdownView } from '../views/manager/MyScorecardView.jsx';
+import MyScorecardView from '../views/manager/MyScorecardView.jsx';
 import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
 import SettingsFrame from '../settings/Frame.jsx';
+import TargetsView from '../settings/TargetsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
@@ -57,10 +58,10 @@ const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
   suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView,
-  'my-scorecard': MyScorecardView, 'my-breakdown': MyBreakdownView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
+  'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
-  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView,
+  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
@@ -152,7 +153,7 @@ export default function AppShell({ me }) {
   const View = tab ? VIEWS[tab.view] : null;
   const rep = query.get('rep');
   const pickRep = (id) => navigate(`/team/scorecard${id ? `?rep=${id}` : ''}`);
-  const refresh = async () => { setRefreshing(true); try { await refreshNow(); } finally { setRefreshing(false); } };
+  const refresh = async () => { setRefreshing(true); try { await refreshNow({ rebuild: true }); } finally { setRefreshing(false); } };
 
   const navItem = (s) => {
     const on = s.id === section.id;

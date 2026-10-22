@@ -8,10 +8,9 @@ import { settingsUsers, saveUser } from '../utils/dashApi.js';
 import { PanelHead } from '../shell/Panel.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import {
-  hasPAT, getStoredPAT, setStoredPAT,
-  validatePAT, readConfig, addSubAccount,
+  githubStatus, saveGithubKey, forgetGithubKey, addSubAccount,
   reassignSubAccount, deleteSubAccount,
-} from '../utils/githubApi.js';
+} from '../utils/subaccountsApi.js';
 
 // Sub-Accounts panel. Modes:
 //   • View — live list of every connected (rep × market) pair with its
@@ -32,11 +31,12 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
   const [mode, setMode] = useState('view');     // 'view' | 'settings'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);   // { tone, text }
-  const [patPresent, setPatPresent] = useState(hasPAT());
+  // The GitHub key is saved on the server once, for every owner (Oct 22).
+  const [patPresent, setPatPresent] = useState(true);
 
   useEffect(() => {
     if (!open) { setMode('view'); setStatus(null); return; }
-    setPatPresent(hasPAT());
+    githubStatus().then((r) => setPatPresent(!!r.connected)).catch(() => setPatPresent(false));
     const onEsc = (e) => e.key === 'Escape' && !inline && onClose?.();
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
@@ -66,7 +66,7 @@ export default function SubAccountsPanel({ open, onClose, dataStatus, snapshotEr
                   ? 'bg-zinc-200 border-zinc-400 text-zinc-900'
                   : 'border-zinc-300 text-zinc-500 hover:text-zinc-800'
               }`}
-              title="GitHub PAT settings"
+              title="GitHub connection"
             >⚙</button>
             {!inline && <button
               onClick={onClose}
@@ -156,8 +156,8 @@ function ViewMode({ snapshotErrors, patPresent, busy, setBusy, setStatus, onNeed
       {/* PAT not configured warning */}
       {!patPresent && (
         <div className="px-4 py-3 rounded-lg text-xs border bg-amber-500/10 text-amber-700 border-amber-500/30">
-          ⚠ GitHub isn’t connected in this browser yet. Connect it once with <span className="font-semibold">⚙</span> (top
-          right) — adding, moving or removing a sub-account saves through it.
+          ⚠ GitHub isn’t connected yet. An owner connects it once with <span className="font-semibold">⚙</span> (top
+          right) — adding, moving or removing a sub-account saves through it, and Refresh uses it to pull from GHL.
         </div>
       )}
 
@@ -231,7 +231,7 @@ function EditSubRow({ sub, currentRep, busy, setBusy, setStatus, patPresent, onN
 
   const requirePAT = () => {
     if (patPresent) return true;
-    setStatus({ tone: 'amber', text: 'Add a GitHub PAT in Settings first, then come back here.' });
+    setStatus({ tone: 'amber', text: 'Connect GitHub first (⚙ at the top right), then come back here.' });
     onNeedsPAT();
     return false;
   };
@@ -392,15 +392,12 @@ function AddForm({ busy, setBusy, setStatus, patPresent, onNeedsPAT }) {
     if (!patPresent) { setStatus({ tone: 'amber', text: 'Connect GitHub first (⚙ at the top right) — it stores the API key as a secret.' }); onNeedsPAT(); return; }
     setBusy(true);
     try {
-      setStatus({ tone: 'blue', text: 'Reading the sub-account list…' });
-      const { config, sha } = await readConfig();
-      if ((config.subaccounts || []).some((x) => x.locationId === loc)) throw new Error(`location ID ${loc} is already connected`);
       const repId = repIdOf(person);
-      const known = (config.reps || []).find((r) => r.id === repId);
-      const newRep = known ? null : { id: repId, name: person.name, color: pickColor(repId, (config.reps || []).map((r) => r.color)) };
-      const market = newMarket ? { id: code, name: newMarketName.trim(), color: pickColor(code, (config.markets || []).map((m) => m.color)) } : null;
+      const known = REPS.find((r) => r.id === repId);
+      const newRep = known ? null : { id: repId, name: person.name, color: pickColor(repId, REPS.map((r) => r.color)) };
+      const market = newMarket ? { id: code, name: newMarketName.trim(), color: pickColor(code, MARKETS.map((m) => m.color)) } : null;
       setStatus({ tone: 'blue', text: 'Saving the sub-account and its API key, then starting a refresh…' });
-      await addSubAccount({ config, sha, newMarket: market, newRep, subaccount: { repId, marketId: newMarket ? code : marketId, locationId: loc }, pitToken: pitToken.trim() });
+      await addSubAccount({ newMarket: market, newRep, subaccount: { repId, marketId: newMarket ? code : marketId, locationId: loc }, pit: pitToken.trim() });
       // Tie the person to their rep in People (their first sub-account).
       if (!person.rep_id) await saveUser({ email: person.email, name: person.name, role: person.role, rep_id: repId, newRep: true });
       setStatus({ tone: 'emerald', text: `Added ${person.name} · ${newMarket ? newMarketName.trim() : MARKETS.find((m) => m.id === marketId)?.name}. It shows on the board after the refresh that just started (a few minutes).` });
@@ -489,70 +486,72 @@ function Field({ value, onChange, placeholder, mono, type = 'text' }) {
 function SettingsMode({ patPresent, setPatPresent, setStatus }) {
   const [pat, setPat] = useState('');
   const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState(null);
+  useEffect(() => { githubStatus().then(setInfo).catch(() => {}); }, [patPresent]);
 
   const save = async () => {
     if (!pat.trim()) return;
     setBusy(true);
-    setStatus({ tone: 'blue', text: 'Validating PAT against GitHub…' });
+    setStatus({ tone: 'blue', text: 'Checking the key with GitHub…' });
     try {
-      await validatePAT(pat.trim());
-      setStoredPAT(pat.trim());
+      await saveGithubKey(pat.trim());
       setPatPresent(true);
       setPat('');
-      setStatus({ tone: 'emerald', text: 'PAT saved + validated. You can add sub-accounts now.' });
+      setStatus({ tone: 'emerald', text: 'Connected. Every owner can add sub-accounts now, from any browser.' });
     } catch (err) {
-      setStatus({ tone: 'rose', text: `Validation failed: ${err.message}` });
+      setStatus({ tone: 'rose', text: `Not saved: ${err.message}` });
     } finally {
       setBusy(false);
     }
   };
 
-  const clear = () => {
-    setStoredPAT('');
-    setPatPresent(false);
-    setStatus({ tone: 'amber', text: 'PAT cleared from this browser.' });
+  const clear = async () => {
+    setBusy(true);
+    try { await forgetGithubKey(); setPatPresent(false); setStatus({ tone: 'amber', text: 'GitHub key removed from the server.' }); }
+    catch (err) { setStatus({ tone: 'rose', text: err.message }); }
+    finally { setBusy(false); }
   };
 
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-base font-semibold text-zinc-900">GitHub PAT</h3>
+        <h3 className="text-base font-semibold text-zinc-900">GitHub Connection</h3>
         <p className="text-xs text-zinc-500 mt-0.5">
-          A fine-grained token scoped to <span className="font-mono">{REPO_OWNER}/{REPO_NAME}</span> is required
-          for one-click sub-account adds. Stored only in this browser's localStorage.
+          One fine-grained key for <span className="font-mono">{REPO_OWNER}/{REPO_NAME}</span>, saved on the server for every owner —
+          it is never shown again or sent to a browser. Adding, moving or removing a sub-account and Refresh use it.
         </p>
       </div>
 
       <div className="rounded-lg bg-white border border-blue-500/20 p-4 space-y-3 text-sm text-zinc-800">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-blue-700 mb-1.5">Required scopes</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-blue-700 mb-1.5">Permissions it needs on this repo</div>
           <ul className="text-xs text-zinc-600 space-y-1 list-disc pl-5">
-            <li>Repository Contents: <span className="text-zinc-900">Read and Write</span> (updates subaccounts.json)</li>
-            <li>Repository Secrets: <span className="text-zinc-900">Read and Write</span> (stores PIT per location)</li>
-            <li>Repository Actions: <span className="text-zinc-900">Read and Write</span> (triggers deploy on add)</li>
+            <li>Contents: <span className="text-zinc-900">Read and write</span> (the sub-account list)</li>
+            <li>Secrets: <span className="text-zinc-900">Read and write</span> (each sub-account’s API key)</li>
+            <li>Actions: <span className="text-zinc-900">Read and write</span> (starts the refresh)</li>
           </ul>
         </div>
         <a
-          href={`https://github.com/settings/personal-access-tokens/new?name=VPG+Dashboard+Self-Serve&description=Used+by+the+Sub-Accounts+panel+on+the+VPG+dashboard&target_name=${REPO_OWNER}`}
+          href={`https://github.com/settings/personal-access-tokens/new?name=VPG+Dashboard+Server&description=Sub-Accounts+and+Refresh+on+the+VPG+dashboard&target_name=${REPO_OWNER}`}
           target="_blank" rel="noreferrer"
-          className="inline-block text-xs text-blue-700 hover:text-blue-200 underline"
+          className="inline-block text-xs text-blue-700 underline"
         >
-          Create a new fine-grained PAT →
+          Create a fine-grained key →
         </a>
       </div>
 
-      <Section label="Paste PAT">
+      <Section label="Paste the key">
         <Field type="password" mono value={pat} onChange={setPat} placeholder="github_pat_xxxxxxxx_xxxxxxxxxxxxxx" />
       </Section>
 
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-300">
         <span className="text-xs text-zinc-500">
-          {patPresent ? '✓ PAT currently stored (' + getStoredPAT().slice(0, 9) + '…)' : 'No PAT stored'}
+          {patPresent ? `✓ Connected${info?.by ? ` by ${info.by}` : ''}${info?.at ? ` on ${new Date(info.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}` : 'Not connected'}
         </span>
         <div className="flex gap-2">
           {patPresent && (
-            <button onClick={clear} className="px-3 py-2 rounded-lg text-sm text-rose-700 hover:bg-rose-500/10 border border-zinc-300 transition">
-              Clear
+            <button onClick={clear} disabled={busy} className="px-3 py-2 rounded-lg text-sm text-rose-700 hover:bg-rose-500/10 border border-zinc-300 transition">
+              Remove
             </button>
           )}
           <button
@@ -560,11 +559,11 @@ function SettingsMode({ patPresent, setPatPresent, setStatus }) {
             disabled={!pat.trim() || busy}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               pat.trim() && !busy
-                ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400'
+                ? 'bg-navy-700 text-white hover:bg-navy-800'
                 : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
             }`}
           >
-            {busy ? 'Validating…' : 'Save PAT'}
+            {busy ? 'Checking…' : patPresent ? 'Replace Key' : 'Connect'}
           </button>
         </div>
       </div>

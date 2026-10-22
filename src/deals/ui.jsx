@@ -83,9 +83,11 @@ export function Loading({ s }) {
   return <div className="py-16 text-center text-zinc-400">Loading deals…</div>;
 }
 
-// The deals pages' search is the site's SearchBox (Oct 22).
-export function Search({ value, onChange, placeholder = 'Search address, rep, buyer…' }) {
-  return <SearchBox value={value} onChange={onChange} placeholder={placeholder} className="w-64" />;
+// The deals pages' search is the site's SearchBox (Oct 22). `dark` on a navy
+// band, like Pipeline / Calendar (Luke, Oct 22: the Active one sat in the
+// band as a white box).
+export function Search({ value, onChange, placeholder = 'Search address, rep, buyer…', dark = false }) {
+  return <SearchBox dark={dark} value={value} onChange={onChange} placeholder={placeholder} className="w-64" />;
 }
 
 

@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM, REPLY_SYSTEM } from './messaging-standard.mjs';
+import { SYSTEM, REPLY_SYSTEM, COACH_SYSTEM } from './messaging-standard.mjs';
 import { fetchState } from './state-source.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,6 +37,11 @@ const MAX_PER_RUN = 150;    // cost guard: the rest wait for the next run
 const REREVIEW_MS = 24 * 3600 * 1000;
 const REPLY_PER_CALL = 25;     // unanswered agent texts per request
 const REPLY_MAX_PER_RUN = 300;   // a conversation with new rep texts is looked at again at most daily
+// Weekly coaching (Luke, Oct 22: "an AI overview of the top 3 things you can
+// improve on based on messaging that week"): per rep, at most once a day,
+// and only when there is something new to read.
+const COACH_EVERY_MS = 20 * 3600 * 1000;
+const COACH_THREADS = 25;   // conversations shown to Claude per rep
 
 export const MODEL = 'claude-opus-5-5';
 
@@ -166,13 +171,72 @@ export async function judgeReplies(client, batch) {
   return { verdicts: out, usage: response.usage };
 }
 
+const COACH_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          detail: { type: 'string' },
+          count: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+        },
+        required: ['title', 'detail', 'count'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['items'],
+  additionalProperties: false,
+};
+
+// One rep's week → up to three things to work on: { items: [{ title,
+// detail, count }] }. Shown on the rep's CRM Scores (managers) and My
+// Scorecard (the rep).
+export async function coachRep(client, { stats, issues, threads }) {
+  const pct = (o) => (o?.total ? `${o.ok} of ${o.total} (${Math.round((100 * o.ok) / o.total)}%)` : 'none');
+  const body = [
+    [
+      '<numbers>',
+      `Rep texts ending in a question: ${pct(stats.questions)} · team standard 40%`,
+      `Texts clear of Never-send / quiet hours / STOP: ${pct(stats.compliance)} · standard 90%`,
+      `Agent texts answered within 15 minutes: ${pct(stats.speed)} · standard 75%`,
+      `Conversations meeting the texting standard (AI review): ${pct(stats.ai)} · standard 50%`,
+      '</numbers>',
+    ].join('\n'),
+    issues.length ? `<review_findings>\n${issues.map((x) => `- ${x}`).join('\n')}\n</review_findings>` : '<review_findings>none</review_findings>',
+    ...threads.map((t, i) => `<conversation id="c${i + 1}">\n${t.texts.map((x) => `[${fmtTime(x.at)}] ${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}\n</conversation>`),
+  ].join('\n\n');
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 4000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: [{ type: 'text', text: COACH_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: COACH_SCHEMA } },
+    messages: [{ role: 'user', content: `This rep's texting this week. Give the top 3 things to improve.\n\n${body}` }],
+  });
+  if (response.stop_reason === 'refusal') throw new Error(`refused (${response.stop_details?.category || 'no category'})`);
+  if (response.stop_reason === 'max_tokens') throw new Error('hit max_tokens');
+  const parsed = JSON.parse(response.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));
+  const items = (parsed.items || []).slice(0, 3).map((x) => ({
+    title: String(x.title || '').slice(0, 80),
+    detail: String(x.detail || '').slice(0, 400),
+    count: Number.isInteger(x.count) && x.count > 0 ? x.count : null,
+  })).filter((x) => x.title);
+  return { items, usage: response.usage };
+}
+
 async function main() {
   if (!fs.existsSync(DATA)) { console.log('[messaging-ai] no data.json — skipped'); return; }
   const data = JSON.parse(fs.readFileSync(DATA, 'utf8'));
   const cache = fs.existsSync(THREADS) ? JSON.parse(fs.readFileSync(THREADS, 'utf8')) : { threads: {} };
   const prev = await loadDeployed();   // throws after 3 tries → the deploy stops instead of wiping verdicts
-  const state = prev && prev.rules === RULES_VERSION ? prev : { v: 1, rules: RULES_VERSION, weeks: {}, needs: prev?.needs || {} };
-  state.needs ||= {};   // { week: { pairKey: { msgId: { needs, at } } } } — did an unanswered agent text need an answer
+  const state = prev && prev.rules === RULES_VERSION ? prev : { v: 1, rules: RULES_VERSION, weeks: {}, needs: prev?.needs || {}, coach: prev?.coach || {} };
+  state.needs ||= {};
+  state.coach ||= {};   // { week: { repId: { at, sig, items } } }   // { week: { pairKey: { msgId: { needs, at } } } } — did an unanswered agent text need an answer
   if (prev && prev.rules !== RULES_VERSION) console.log(`[messaging-ai] review rules changed (${prev.rules || 1} → ${RULES_VERSION}): earlier verdicts dropped`);
 
   // Conversations to review: this run's, not reviewed yet.
@@ -253,16 +317,10 @@ async function main() {
     console.log(`[messaging-ai] judged ${judged} unanswered agent text(s), ${replyTodo.length - queue.length} over the per-run cap · tokens in ${inTok} out ${outTok}`);
   }
 
-  // Keep a few weeks.
-  for (const store of [state.weeks, state.needs]) {
-    const weeks = Object.keys(store).sort((a, b) => a - b);
-    for (const w of weeks.slice(0, Math.max(0, weeks.length - KEEP_WEEKS))) delete store[w];
-  }
-  state.updatedAt = new Date().toISOString();
-
   // Each pair's AI result for the week: the conversations in this run's
   // list, or — when the rules were carried over and there is no list — every
-  // conversation reviewed this week.
+  // conversation reviewed this week. Then the weekly coaching per rep, which
+  // reads it.
   for (const p of data.pairs || []) {
     const wk = p.messaging?.weekStart;
     if (!wk) continue;
@@ -270,6 +328,23 @@ async function main() {
     const list = cache.threads?.[pairKey];
     const convs = list ? [...new Set(list.map((t) => convOf(t.key)))] : Object.keys(state.weeks?.[wk]?.[pairKey] || {});
     p.messaging.ai = aiSummary(state, wk, pairKey, convs);
+  }
+  if (key) await coachAll(new Anthropic({ apiKey: key, maxRetries: 2 }), data, cache, state);
+
+  // Keep a few weeks.
+  for (const store of [state.weeks, state.needs, state.coach]) {
+    const weeks = Object.keys(store).sort((a, b) => a - b);
+    for (const w of weeks.slice(0, Math.max(0, weeks.length - KEEP_WEEKS))) delete store[w];
+  }
+  state.updatedAt = new Date().toISOString();
+
+  // The top 3 and the speed exclusions onto each pair.
+  for (const p of data.pairs || []) {
+    const wk = p.messaging?.weekStart;
+    if (!wk) continue;
+    const pairKey = `${p.repId}|${p.marketId}`;
+    const coach = state.coach?.[wk]?.[p.repId];
+    p.messaging.coach = coach?.items?.length ? { at: coach.at, items: coach.items } : null;
     // Speed: unanswered agent texts Claude judged as not needing an answer
     // come out of the count (scorecard-lib speedCounts); not judged yet =
     // still counted.
@@ -282,6 +357,39 @@ async function main() {
 
   fs.writeFileSync(OUT, JSON.stringify(state));
   fs.writeFileSync(DATA, JSON.stringify(data));
+}
+
+// The weekly coaching, per rep (all their sub-accounts together): asked
+// again only when it's 20 h old and the week has new conversations or
+// verdicts since (`sig`).
+async function coachAll(client, data, cache, state) {
+  const reps = {};
+  for (const p of data.pairs || []) {
+    const wk = p.messaging?.weekStart;
+    if (!wk || !p.messaging?.speed) continue;
+    (reps[p.repId] ||= { wk, pairs: [] }).pairs.push(p);
+  }
+  let asked = 0, inTok = 0, outTok = 0;
+  for (const [repId, { wk, pairs }] of Object.entries(reps)) {
+    const threads = pairs.flatMap((p) => cache.threads?.[`${p.repId}|${p.marketId}`] || []);
+    const add = (f) => pairs.reduce((a, p) => ({ ok: a.ok + (f(p)?.ok || 0), total: a.total + (f(p)?.total || 0) }), { ok: 0, total: 0 });
+    const stats = { questions: add((p) => p.messaging.questions), compliance: add((p) => p.messaging.compliance), speed: add((p) => p.messaging.speed), ai: add((p) => p.messaging.ai) };
+    const issues = pairs.flatMap((p) => (p.messaging.ai?.bad || []).map((b) => b.why)).concat(pairs.flatMap((p) => (p.messaging.compliance?.bad || []).filter((b) => !b.auto).map((b) => b.why))).slice(0, 30);
+    if (!threads.length && !issues.length) continue;
+    const sig = `${threads.length}:${stats.ai.total}:${stats.questions.total}:${stats.compliance.total}`;
+    const had = state.coach[wk]?.[repId];
+    if (had && (had.sig === sig || Date.now() - had.at < COACH_EVERY_MS)) continue;
+    try {
+      const { items, usage } = await coachRep(client, { stats, issues, threads: threads.slice(-COACH_THREADS) });
+      inTok += (usage?.input_tokens || 0) + (usage?.cache_read_input_tokens || 0) + (usage?.cache_creation_input_tokens || 0);
+      outTok += usage?.output_tokens || 0;
+      if (items.length) ((state.coach[wk] ||= {})[repId] = { at: Date.now(), sig, items });
+      asked++;
+    } catch (err) {
+      console.warn(`[messaging-ai] coaching failed (${repId}): ${String(err?.message || err).slice(0, 200)}`);
+    }
+  }
+  if (asked) console.log(`[messaging-ai] weekly top 3 for ${asked} rep(s) · tokens in ${inTok} out ${outTok}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

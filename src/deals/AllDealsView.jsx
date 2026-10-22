@@ -236,6 +236,8 @@ export default function AllDealsView() {
           with the column picker, colour key (small menus), Export and New deal;
           then one toolbar of search and filters. */}
       <PageHead title="All deals" sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${period.label} by ${DATE_BY[by]} · as of ${new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}`} right={<>
+        {/* Search in the navy band, like Pipeline / Calendar (Luke, Oct 22). */}
+        <Search dark value={q} onChange={(v) => setQuery({ q: v || null })} />
         <Menu label={<>Columns: <b className="font-semibold text-navy-800">{!colsParam ? 'Full sheet' : overview ? 'Overview' : `${groups.length} group${groups.length === 1 ? '' : 's'}`}</b></>}>
           <div className="w-56 py-1.5 text-[13px]">
             <button onClick={() => setQuery({ cols: null })} className={menuRow(!colsParam)}>Full sheet <span className="text-zinc-400">every column</span></button>
@@ -252,7 +254,6 @@ export default function AllDealsView() {
         {!s.readOnly && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
         <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
         <span className="w-px h-5 bg-zinc-200 mx-0.5" />
         <span className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5" role="group" aria-label="Stage">

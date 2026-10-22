@@ -46,11 +46,13 @@ function BandDelta({ now, then, pct, isMoney, lowerIsBetter }) {
 // Tile.jsx); a Band is a labelled row of them. The old dark-band tones map to
 // the tile's light ones.
 const LIGHT = { 'text-emerald-300': 'text-[#15803D]', 'text-red-300': 'text-[#B42318]', 'text-white/40': 'text-zinc-400', 'text-tan-400': 'text-navy-800' };
-export function BandStat({ label, value, sub, tone, dark, feature, accent, ...d }) {
+export function BandStat({ label, value, sub, tone, dark, feature, accent, shade, big, ...d }) {
   void dark; void feature;
-  return <Tile label={label} value={value} dot={accent} tone={LIGHT[tone] || tone} sub={d.then != null ? <BandDelta {...d} /> : sub} />;
+  return <Tile label={label} value={value} dot={accent} shade={shade} big={big} tone={LIGHT[tone] || tone} sub={d.then != null ? <BandDelta {...d} /> : sub} />;
 }
 
+// Each band's tiles share one brand fill (Luke, Oct 22, option C made
+// darker): Deal flow navy, Money tan.
 export function Band({ eyebrow, note, cols, children }) {
   return (
     <section>
