@@ -10,6 +10,7 @@
 // Only in-app alerts for now: nothing sends an email or a text yet (there's
 // no sender wired up — see CLAUDE.md, Deal tracker → DD end time).
 
+import { isPending } from './math.js';
 export const ZONES = [
   ['ARIZONA', 'Arizona', 'America/Phoenix'],
   ['PACIFIC', 'Pacific', 'America/Los_Angeles'],
@@ -139,7 +140,7 @@ export const IP_ALERT_HOURS = 48;
 // (none is set up yet); the alert is only shown in the app.
 // Only Pending deals: an Assigned one has a buyer lined up.
 export function ipEndAlert(d, now = Date.now()) {
-  if (String(d?.status || '').toUpperCase() !== 'PENDING') return null;
+  if (!isPending(d)) return null;
   if (/assigned|closed/i.test(String(d.ghlStage || ''))) return null;
   const at = ddEndMs(d);
   if (at == null) return null;

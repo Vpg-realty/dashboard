@@ -9,7 +9,7 @@
 //             not in the public repo
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
-import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen } from '../src/deals/math.js';
+import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen, compute } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
 
@@ -36,12 +36,26 @@ export const canManagerEdit = (u) => u?.role === 'manager' && !!u.rep_id;
 // ghl_push, sent by scripts/push-ghl.mjs) — GHL's own later changes to them
 // never come back (only the stage does, edge/dealSync.js).
 // Oct 20 (Luke): also the contracted price, and the deal status as the GHL
-// stage — Assigned → Assigned, Closed → Closed, Cancelled → Lost (Pending
-// isn't sent: it could be Under Contract or Dispo Active).
+// stage. Since Oct 22 the stage is the GHL stage itself: Under Contract,
+// Dispo Active, Assigned and Closed are sent; Cancelled is NOT (Luke: the rep
+// marks it Lost or Abandoned in GHL — Abandoned when it may come back).
 export const GHL_PUSH_FIELDS = ['address', 'title', 'coe', 'ipEnd', 'price', 'status'];
-const PUSH_STATUS = new Set(['ASSIGNED', 'COMPLETE', 'CANCELLED']);
+const PUSH_STATUS = new Set(['UNDER_CONTRACT', 'DISPO_ACTIVE', 'ASSIGNED', 'COMPLETE']);
 const ipEndOf = (d) => (DATE.test(d?.accepted || '') && Number.isFinite(Number(d?.ddDays)) && d.ddDays !== '' && d.ddDays != null
   ? new Date(Date.parse(`${d.accepted}T12:00:00Z`) + Number(d.ddDays) * 86_400_000).toISOString().slice(0, 10) : null);
+// The GHL lead value follows the sheet's net assignment (Luke, Oct 22: one
+// way — a change in GHL never comes back). Only once the deal has a VPG
+// assignment price (before that the net is "no buyer yet"), in whole dollars.
+// `rules` / `lists` = settings deal_rules / deal_lists (compute needs them).
+export function leadValuePush(before, after, rules, lists) {
+  const net = (d) => {
+    if (!(Number(d?.vpgAssign) > 0)) return null;
+    const n = compute(d, rules, lists).netAssign;
+    return typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : null;
+  };
+  const a = net(before); const b = net(after);
+  return b != null && a !== b ? [{ field: 'netAssign', value: String(b) }] : [];
+}
 export function ghlPushes(before, after) {
   const v = (d, f) => (f === 'ipEnd' ? ipEndOf(d) : d?.[f] ?? null);
   const sendable = (f, b) => b != null && (f !== 'status' || PUSH_STATUS.has(b)) && (f !== 'price' || Number(b) > 0);
@@ -73,7 +87,7 @@ export function clean(key, v) {
   if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
   if (key === 'status') {
     const s = String(v).trim().toUpperCase();
-    return STATUS_KEYS.includes(s) ? { value: s } : { error: `${f.label}: pick Pending, Assigned, Closed or Cancelled` };
+    return STATUS_KEYS.includes(s) ? { value: s } : { error: `${f.label}: pick Under Contract, Dispo Active, Assigned, Closed or Cancelled` };
   }
   if (f.type === 'money' || f.type === 'number' || f.type === 'percent') {
     if (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e10) return { value: v };

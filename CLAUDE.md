@@ -1075,6 +1075,37 @@ Team Overview boxes): **0 is always red**; green at or above "should be at N
 by now"; yellow at 85–99%; red below 85% (was 75%, and 0 used to count as on
 pace while nothing was due yet). Speed to lead keeps its own 75% standard.
 
+## Oct 22 round, phase 4b — Stage, Unknown, lead value (Luke)
+
+Overrides the Deal status notes below where they differ.
+- **Stage replaces Deal status** (Luke: "remove the deal status and have it
+  only be the GHL stage"): one field (still `status` in D1, label "Stage"),
+  `STATUS_KEYS` = UNDER_CONTRACT, DISPO_ACTIVE, ASSIGNED, COMPLETE (reads
+  Closed), CANCELLED, in the stage colours (Under Contract blue, Dispo
+  Active amber, Assigned violet, Closed green, Cancelled red). Deals saved
+  before Oct 22 may still hold PENDING: `stageOf` (math.js) reads them as
+  their GHL stage mirror, else Dispo Active; compute() does that for the
+  browser; server code tests `isPending` / `isOpen`. Nothing was rewritten
+  in D1. The GHL sync sets the stage on a stage move (`STAGE_STATUS`, now one
+  stage each). A stage set on the site goes to GHL (`PUSH_STATUS` in
+  edge/deals.js, `STATUS_STAGE` in push-ghl.mjs, stage ids from
+  `pushStages` incl. under_contract / dispo) — **except Cancelled**: the rep
+  marks it Lost (never coming back) or Abandoned (may come back) in GHL; the
+  deal panel's mismatch row says so. All Deals has one Stage column (the GHL
+  stage mirror column is gone; a hand-set stage shows a "GHL: …" hint); old
+  `?status=PENDING` links filter both stages before a buyer. Commission / TC
+  rules keep PENDING = "Open (Under Contract / Dispo Active)". New deals on
+  the site start Under Contract; tracker-only fallbacks are Dispo Active.
+- **Final assignment price "Unknown"**: stored UNKNOWN (an Unknown button by
+  the field, or type "unknown"); counts as filled in (no Needs info); net
+  loss % stays blank; sold volume is the VPG assignment price anyway.
+- **Lead value → GHL** (one way): a saved edit that moves the deal's net
+  assignment (computed with deal_rules / deal_lists, whole dollars, only once
+  a VPG assignment price is in) queues `netAssign` in ghl_push
+  (`leadValuePush`, edge/deals.js); push-ghl.mjs sends it as the
+  opportunity's `monetaryValue`. The TV's "Assigned" revenue reads that
+  value, so it follows the sheet. Usage: 2 settings rows read per deal save.
+
 ## Oct 22 round, phase 3 — no tabs inside tabs (Luke)
 
 - **Money In & Out**: the Money out / Money in switch, the tiles-as-tabs and

@@ -42,7 +42,7 @@ import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER,
 import { laToday } from '../utils/historyRange.js';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
-const OVERVIEW = ['address', 'ghlStage', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
+const OVERVIEW = ['address', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
 const GROUP_LABEL = { contract: 'Contract Info', title: 'Title', emd: 'EMD', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
 // How a value reads in the table (Luke, Oct 14: proper case throughout;
 // dropdown values worth scanning as pills, people as their coloured chip).
@@ -126,7 +126,8 @@ export default function AllDealsView() {
   const q = query.get('q') || '';
   // Several statuses at once (Luke, Oct 16): ?status=PENDING,ASSIGNED.
   const status = query.get('status') || '';
-  const statuses = useMemo(() => (status ? status.split(',').filter((x) => STATUS_KEYS.includes(x)) : []), [status]);
+  // An old ?status=PENDING link means both stages before a buyer.
+  const statuses = useMemo(() => (status ? status.split(',').flatMap((x) => (x === 'PENDING' ? ['UNDER_CONTRACT', 'DISPO_ACTIVE'] : [x])).filter((x) => STATUS_KEYS.includes(x)) : []), [status]);
   const acq = query.get('acq') || '';
   const state = query.get('state') || '';
   const needOnly = query.get('need') === '1';
@@ -139,7 +140,9 @@ export default function AllDealsView() {
 
   // The sheet's column order (FIELDS is in it); the full sheet by default.
   const keys = overview ? OVERVIEW : groups.length ? FIELDS.filter((f) => f.key === 'address' || groups.includes(f.group)).map((f) => f.key) : FIELDS.map((f) => f.key);
-  const cols = keys.map((k) => F[k]).filter((f) => s.owner || !f.secret);
+  // One Stage column (Oct 22): the read-only GHL stage mirror isn't its own
+  // column any more — a Stage that differs from GHL shows a "GHL: …" hint.
+  const cols = keys.filter((k) => k !== 'ghlStage').map((k) => F[k]).filter((f) => s.owner || !f.secret);
 
   const ghl = useMemo(() => ghlDeals(), [s.deals]); // eslint-disable-line react-hooks/exhaustive-deps
   const withNeed = useMemo(() => s.deals.map((d) => ({ ...d, _need: missingKeys(d, who, today) })), [s.deals, who, today]);
@@ -246,13 +249,13 @@ export default function AllDealsView() {
           </div>
         </Menu>
         <button onClick={csv} className={btnCls}>Export CSV</button>
-        {!s.readOnly && <button onClick={() => openNew({ status: 'PENDING', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
+        {!s.readOnly && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Search value={q} onChange={(v) => setQuery({ q: v || null })} />
         <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
         <span className="w-px h-5 bg-zinc-200 mx-0.5" />
-        <span className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5" role="group" aria-label="Deal status">
+        <span className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5" role="group" aria-label="Stage">
           {STATUS_KEYS.map((x) => {
             const on = statuses.includes(x);
             const next = on ? statuses.filter((y) => y !== x) : [...statuses, x];
@@ -321,7 +324,7 @@ export default function AllDealsView() {
                       // The status set by hand differs from GHL's stage (Luke,
                       // Oct 14: GHL's stage drives it, people can override).
                       if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
-                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the status was set by hand`} className="text-[10.5px] font-semibold not-italic" style={{ color: stageColor(d.ghlStage) }}>GHL: {d.ghlStage}</span></span>;
+                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the stage here was set by hand (a cancel is marked Lost or Abandoned in GHL by the rep)`} className="text-[10.5px] font-semibold not-italic" style={{ color: stageColor(d.ghlStage) }}>GHL: {d.ghlStage}</span></span>;
                       }
                       const pay = payMap.get(d.id);
                       const line = pay && partOfField(f.key) ? pay.parts[partOfField(f.key)] : null;

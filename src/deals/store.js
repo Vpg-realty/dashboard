@@ -129,7 +129,7 @@ export function fieldsFromGhl(g) {
     state: g.stateName ? g.stateName.toUpperCase() : null,
     coe: g.coe || null,
     accepted: accepted || null,
-    status: STAGE_STATUS[g.stage] || 'PENDING',
+    status: STAGE_STATUS[g.stage] || 'DISPO_ACTIVE',
     dealType: 'WHOLESALE',
     ...(accepted && g.ipEnd && g.ipEnd > accepted ? { ddDays: Math.round((Date.parse(g.ipEnd) - Date.parse(accepted)) / 86_400_000) } : {}),
   };

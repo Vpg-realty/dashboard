@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { needsInfo } from '../src/deals/required.js';
-import { isOpen, emdIn, addrKey, addrKeys } from '../src/deals/math.js';
+import { isOpen, emdIn, addrKey, addrKeys, isPending } from '../src/deals/math.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a'; // same database as sync-deals.mjs
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -82,7 +82,7 @@ export function planAlerts({ pairs = [], deals = [], names = {}, now = Date.now(
   if (morning) {
     const up = (x) => String(x || '').toUpperCase();
     const ipDeals = deals
-      .filter((d) => up(d.status) === 'PENDING' && !['ASSIGNED', 'CLOSED'].includes(up(d.ghlStage)) && ISO.test(d.ddEnd || ''))
+      .filter((d) => isPending(d) && !['ASSIGNED', 'CLOSED'].includes(up(d.ghlStage)) && ISO.test(d.ddEnd || ''))
       .map((d) => ({ id: d.id, address: d.address, end: d.ddEnd, who: d.acq, url: `${SITE}/deals/active?deal=${encodeURIComponent(d.id)}` }));
     const inTracker = new Set(deals.flatMap((d) => addrKeys(d.address)));
     for (const p of pairs) {
