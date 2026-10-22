@@ -1391,6 +1391,23 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   "N cap · N% CoC". **COE** in the offer message defaults to 14 days from
   the day it's drafted (Arizona), a weekend moved to Monday (`coeDefault`
   in offer.js) — saved when the message is created, editable.
+- **Your Read & Claude's Review** (Luke, later Oct 22: "a quick claude
+  review of the underwriting … I still want them to have to think for
+  themselves"; `ReviewCard.jsx` under both calculators): the rep's own call
+  (Go / Adjust the terms / Pass) and why — encouraged, not required — then
+  "Get Claude's Review" (`POST /api/toolkit/review`, `reviewCalc` in
+  edge/calcChat.js, structured output): a verdict (strong / workable /
+  stretch / pass), whether it agrees with the rep's read, questions to check
+  before offering (never answered — Claude has no market data), numbers that
+  look off, and 1–2 levers with numbers. **Drafts too** (Luke: most
+  properties don't work and aren't saved); kept in the calculation's inputs
+  (`readCall`, `read`, `review` = JSON with `sig` = `numbersSig` of the
+  numbers — a review shows "numbers changed" when they move), so a saved one
+  shows the rep's read and the review to pod leads and owners (My
+  Calculations: "Their call: Go · Claude: workable"). Shares the 25 a day
+  with Ask Claude (`askedToday` counts threads `calc:` + `calcreview:<email>`);
+  each review is logged in chat_messages (thread `calcreview:<email>`) for
+  the monthly cap. About 2¢ a review.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All

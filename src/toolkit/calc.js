@@ -59,11 +59,18 @@ export const MARKETS_NO_ASSIGNS = ['AZ', 'AL', 'FL', 'OK'];
 
 // The offer message's fields, saved with either calculator.
 const OFFER = { state: '', emd: '', ipDays: '', coe: '', title: '' };
+// The rep's own read and Claude's review (Luke, Oct 22), kept with the
+// calculation: readCall go | adjust | pass, read = their words, review =
+// Claude's review as JSON text (with the numbers' signature it was made for).
+const REVIEW = { readCall: '', read: '', review: '' };
+// The fields that aren't the numbers (so a review knows when the numbers moved).
+export const NOT_NUMBERS = new Set([...Object.keys(OFFER), ...Object.keys(REVIEW)]);
+export const numbersSig = (inputs = {}) => JSON.stringify(Object.keys(inputs).filter((k) => !NOT_NUMBERS.has(k)).sort().map((k) => [k, inputs[k]]));
 
 // ── Seller finance ──────────────────────────────────────────────────────────
 export const SELLER_DEFAULTS = {
   price: '', down: '', rate: '', amort: '30', io: '', balloon: '', tax: '', ins: '', hoa: '',
-  rent: '', mv: '', mgmt: '8', capex: '', fee: '10000', closingPct: '2.5', rehab: '', appreciation: '', refiRate: '7', ...OFFER,
+  rent: '', mv: '', mgmt: '8', capex: '', fee: '10000', closingPct: '2.5', rehab: '', appreciation: '', refiRate: '7', ...OFFER, ...REVIEW,
 };
 export const SELLER_HINTS = {
   mgmt: '8–10% if they hire a manager', capex: 'Roof, HVAC, water heater — ~$100 / mo a house', fee: 'Our assignment fee — the buyer pays it in cash',
@@ -148,7 +155,7 @@ export const MF_DEFAULTS = {
   price: '', fee: '10000', list: '',
   units: [{ ...UNIT, unit: '1' }, { ...UNIT, unit: '2' }],
   taxYear: '', taxRate: '', ins: '', hoa: '', gas: '', water: '', sewer: '', garbage: '', lawn: '', capex: '250',
-  mgmt: '10', vacancy: '5', maint: '12', cash: '', downPct: '20', rate: '7', term: '30', rehab: '', closingPct: '2.5', ...OFFER,
+  mgmt: '10', vacancy: '5', maint: '12', cash: '', downPct: '20', rate: '7', term: '30', rehab: '', closingPct: '2.5', ...OFFER, ...REVIEW,
 };
 // The sheet's guidance under each field (updated Oct 22).
 export const MF_HINTS = {

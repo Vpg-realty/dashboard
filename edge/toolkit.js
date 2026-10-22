@@ -59,7 +59,7 @@ export async function load(db, u) {
 }
 
 // The offer message's text fields are longer than a number.
-const LONG = { title: 300, coe: 60, state: 40 };
+const LONG = { title: 300, coe: 60, state: 40, read: 1000, review: 8000 };
 // Keep only the fields a calculator has (and its units for multifamily).
 function cleanInputs(kind, inp) {
   const base = kind === 'seller' ? SELLER_DEFAULTS : MF_DEFAULTS;

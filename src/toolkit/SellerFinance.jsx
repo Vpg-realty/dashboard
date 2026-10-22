@@ -11,6 +11,7 @@ import { CalcBar, Field, LinkedOpp, Toggle, Notes } from './CalcFrame.jsx';
 import { useCalc, money, pct } from './useCalc.js';
 import CalcAsk from './CalcAsk.jsx';
 import OfferMessage from './OfferMessage.jsx';
+import ReviewCard from './ReviewCard.jsx';
 import { printCalc } from './print.js';
 import { seller, solveSeller, notesFor, SELLER_DEFAULTS, SELLER_HINTS, CASH_FLOW_GOAL, DOWN_MAX_PCT, REFI_LTV_MAX, num } from './calc.js';
 
@@ -129,6 +130,7 @@ export default function SellerFinance() {
         </div>
       </div>
       <CalcBar c={c} kind="seller" onPdf={pdf} />
+      <ReviewCard c={c} kind="seller" ready={s.ready} />
       <OfferMessage c={c} kind="seller" />
       <CalcAsk calc={{ kind: 'seller', title: c.form.title, inputs: i }} />
     </div>
