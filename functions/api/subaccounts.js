@@ -5,6 +5,8 @@
 //   POST { action: 'key', token }         save the key after checking it (owners)
 //   POST { action: 'forget' }             remove it (owners)
 //   POST { action: 'add', newMarket?, newRep?, subaccount, pit }   (owners)
+//   POST { action: 'update', locationId, repId, marketId, newLocationId?,
+//          newMarket?, newRep?, pit? }                              (owners)
 //   POST { action: 'reassign', locationId, repId }                  (owners)
 //   POST { action: 'remove', locationId }                           (owners)
 //   POST { action: 'deploy' }             start a refresh (owners, managers)
@@ -12,7 +14,7 @@
 // (never the GitHub key or the GHL key).
 import { currentUser, json } from '../../edge/auth.js';
 import { log } from '../../edge/settings.js';
-import { client, addSubAccount, reassignSubAccount, removeSubAccount } from '../../edge/github.js';
+import { client, addSubAccount, updateSubAccount, reassignSubAccount, removeSubAccount } from '../../edge/github.js';
 
 const ID = /^[A-Za-z0-9_-]{4,60}$/;
 const SLUG = /^[a-z0-9_]{2,40}$/;
@@ -84,6 +86,25 @@ export async function onRequestPost(context) {
         pit,
       });
       await log(db, user, 'subaccounts.add', { ...s, newMarket: m?.id || null, newRep: r?.id || null });
+      return json({ config });
+    }
+    if (b.action === 'update') {
+      if (!ID.test(b.locationId || '') || !SLUG.test(b.repId || '') || !CODE.test(b.marketId || '')) return json({ error: 'rep, market and location ID needed' }, 400);
+      if (b.newLocationId && !ID.test(b.newLocationId)) return json({ error: 'that location ID doesn\'t look right' }, 400);
+      const pit = b.pit ? String(b.pit).trim() : null;
+      if (pit && (pit.length < 10 || pit.length > 400)) return json({ error: 'paste the sub-account\'s API key' }, 400);
+      const m = b.newMarket;
+      if (m && (!CODE.test(m.id || '') || !String(m.name || '').trim() || !COLOR.test(m.color || ''))) return json({ error: 'the new market needs a name, a code and a colour' }, 400);
+      const r = b.newRep;
+      if (r && (!SLUG.test(r.id || '') || !String(r.name || '').trim() || !COLOR.test(r.color || ''))) return json({ error: 'the new rep needs a name' }, 400);
+      const config = await updateSubAccount(gh, {
+        locationId: b.locationId, repId: b.repId, marketId: b.marketId,
+        newLocationId: b.newLocationId && b.newLocationId !== b.locationId ? b.newLocationId : null,
+        newMarket: m ? { id: m.id, name: String(m.name).trim().slice(0, 40), color: m.color } : null,
+        newRep: r ? { id: r.id, name: String(r.name).trim().slice(0, 60), color: r.color } : null,
+        pit,
+      });
+      await log(db, user, 'subaccounts.update', { locationId: b.locationId, newLocationId: b.newLocationId || null, repId: b.repId, marketId: b.marketId, newKey: !!pit, newMarket: m?.id || null, newRep: r?.id || null });
       return json({ config });
     }
     if (b.action === 'reassign') {
