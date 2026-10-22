@@ -1098,6 +1098,11 @@ Team Scorecards, My Scorecard, the Rep page, Month in Review, the TV /
 Team Overview boxes): **0 is always red**; green at or above "should be at N
 by now"; yellow at 85–99%; red below 85% (was 75%, and 0 used to count as on
 pace while nothing was due yet). Speed to lead keeps its own 75% standard.
+**Later Oct 22** (Luke: "if you are within the threshold above red, but at
+all behind the pace line you should be a yellow"): green only at or past the
+tick — the exact target × share of the period gone, no rounding to a whole
+number any more; "Should be at N by now" / "pace now" show it rounded up
+(`shouldBe`), so reaching N is always green.
 
 ## Oct 22 round, phase 4b — Stage, Unknown, lead value (Luke)
 

@@ -27,21 +27,23 @@ export function paceFraction(period, now = new Date()) {
 export const azHour = (now = new Date()) => parts(now).h;
 
 // One pace rule for the whole site — Home, the scorecards, My Scorecard, the
-// TV / Team Overview boxes (Luke, Oct 22, stricter than Oct 19's 75%):
-// 0 is always red; green at or above where they should be by now; yellow at
-// 85–99% of it; red below 85%. Counts are judged against the whole number
-// "Should be at N by now" shows (so "1 of 45 · should be at 1" is on pace);
-// money (`count: false`) on the exact figure. Words: On pace / Near pace /
-// Behind while a period runs, Hit / Close / Missed once it's over.
+// TV / Team Overview boxes (Luke, Oct 22): 0 is always red; green only at or
+// past the "should be here by now" tick (target × share of the period gone,
+// the exact figure — Luke, later Oct 22: "if you are … at all behind the pace
+// line you should be a yellow"); yellow at 85% of it up to the tick; red below
+// 85%. Words: On pace / Near pace / Behind while a period runs, Hit / Close /
+// Missed once it's over.
 export const PACE_NEAR = 0.85;
-export function paceRatio(value, target, frac = 1, { count = true } = {}) {
+export function paceRatio(value, target, frac = 1) {
   if (!target) return null;
   const v = value || 0;
   if (v <= 0) return 0; // "if we are at 0, it is red no questions asked"
   const want = target * (frac ?? 1);
-  if (count && v >= Math.round(want)) return 1;
   return want > 0 ? v / want : 1;
 }
+// The whole number to reach the tick — "Should be at N by now" (rounded up,
+// so reaching N is always on pace).
+export const shouldBe = (target, frac = 1) => Math.ceil(target * (frac ?? 1) - 1e-9);
 export const paceKey = (ratio) => (ratio == null ? null : ratio >= 1 ? 'on' : ratio >= PACE_NEAR ? 'near' : 'behind');
 export const paceWord = (key, finished = false) => (key == null ? null : finished
   ? { on: 'Hit', near: 'Close', behind: 'Missed' }[key]

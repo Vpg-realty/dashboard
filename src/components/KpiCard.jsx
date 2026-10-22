@@ -1,5 +1,5 @@
 import { kpiStatus, pct, formatNumber } from '../utils/format.js';
-import { paceFraction } from '../utils/pace.js';
+import { paceFraction, shouldBe } from '../utils/pace.js';
 
 // `pace` ('week' | 'month'): grade against where the team should be by now
 // (target × share of the period gone, utils/pace.js) instead of the full
@@ -45,7 +45,7 @@ export default function KpiCard({ label, actual, target, unit = '', sublabel, pa
       </div>
       <div className="mt-1.5 text-[10px] text-zinc-500 tabular-nums">
         {percent}% of target
-        {pace && <> · pace now <b className="text-zinc-800">{formatNumber(Math.round(paceTarget))}</b> ({Math.round(frac * 100)}% of the {pace} gone)</>}
+        {pace && <> · pace now <b className="text-zinc-800">{formatNumber(shouldBe(target, frac))}</b> ({Math.round(frac * 100)}% of the {pace} gone)</>}
       </div>
     </div>
   );
