@@ -10,6 +10,7 @@ import { statusLabel } from './format.js';
 const KEEP = new Set(['VPG', 'JV', 'CFAR', 'EMD', 'DD', 'COE', 'TC', 'LLC', 'AZ', 'CO', 'GHL']);
 const SPECIAL = {
   NA: 'N/A', 'N/A': 'N/A', Y: 'Yes', N: 'No', YES: 'Yes', NO: 'No',
+  LOST: 'Lost', PAST_IP: 'Past inspection period', NON_REFUNDABLE: 'Non-refundable',
   "FINDER'S FEE": "Finder's fee", 'ON-MARKET': 'On-market', 'OFF-MARKET': 'Off-market',
 };
 
@@ -49,7 +50,8 @@ export function toneOf(key, v) {
     case 'emdStatus': return { COMPLETE: 'green', PENDING: 'red' }[x] || 'grey';
     case 'emdPaidBy': return x === 'PENDING' ? 'amber' : 'navy';
     case 'cfar': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';
-    case 'emdReturned': return x === 'NO' ? 'red' : x === 'YES' ? 'green' : 'grey';
+    case 'emdReturned': return x === 'NO' || x === 'LOST' ? 'red' : x === 'YES' ? 'green' : 'grey';
+    case 'emdLostWhy': return x ? 'red' : 'grey';
     case 'commPaid': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';
     case 'retrade': return x === 'Y' ? 'amber' : 'grey';
     case 'dealType': return x === 'CREATIVE' ? 'violet' : x === 'WHOLESALE' ? 'blue' : 'grey';
@@ -59,5 +61,5 @@ export function toneOf(key, v) {
 }
 
 // Columns shown as pills (dropdown values worth scanning down a column).
-export const PILL_KEYS = new Set(['status', 'emdStatus', 'emdPaidBy', 'cfar', 'emdReturned', 'commPaid', 'retrade', 'dealType', 'listing']);
+export const PILL_KEYS = new Set(['status', 'emdStatus', 'emdPaidBy', 'cfar', 'emdReturned', 'emdLostWhy', 'commPaid', 'retrade', 'dealType', 'listing']);
 

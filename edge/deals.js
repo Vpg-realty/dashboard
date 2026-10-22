@@ -85,6 +85,12 @@ export function clean(key, v) {
     return { error: `${f.label}: not a time` };
   }
   if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
+  // EMD returned? (Yes / No / Lost / N/A) and why it was lost — Luke, Oct 22.
+  if (key === 'emdReturned' || key === 'emdLostWhy') {
+    const s = String(v).trim().toUpperCase();
+    if (key === 'emdReturned') return ['YES', 'NO', 'LOST', 'NA', 'N/A'].includes(s) ? { value: s } : { error: `${f.label}: pick Yes, No, Lost or N/A` };
+    return ['PAST_IP', 'NON_REFUNDABLE'].includes(s) ? { value: s } : { error: `${f.label}: pick past inspection period or non-refundable` };
+  }
   if (key === 'status') {
     const s = String(v).trim().toUpperCase();
     return STATUS_KEYS.includes(s) ? { value: s } : { error: `${f.label}: pick Under Contract, Dispo Active, Assigned, Closed or Cancelled` };
