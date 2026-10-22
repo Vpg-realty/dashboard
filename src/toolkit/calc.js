@@ -14,10 +14,10 @@
 // cash-on-cash on both; graded on current rents (a vacant unit or one at $0
 // uses its market rent); debt coverage; taxes after the sale; a repair
 // reserve; a cash-buyer switch; the balloon refinance check; appreciation;
-// "the most we can pay" solved for the goals; 7% / 2.5% defaults. The goals
-// ($300 a month and 10% cash-on-cash on seller finance; 10% cash-on-cash
-// and $3,000+ a year on multifamily) are recommendations, not rules — the
-// only rule is the seller-finance down payment under 10%.
+// "the most we can pay" solved for the goals; 7% / 2.5% defaults; our fee
+// $10,000. The goals (Luke, later Oct 22: seller finance $300+ a month;
+// multifamily an 8 cap and 10% cash-on-cash) are recommendations, not rules
+// — the only rule is the seller-finance down payment under 10%.
 
 export const num = (v) => {
   const x = parseFloat(String(v ?? '').replace(/[$,%\s]/g, ''));
@@ -51,7 +51,7 @@ function highest(ok, lo, hi) {
 export const CASH_FLOW_GOAL = 300;      // seller finance, a month
 export const COC_TARGET = 10;           // cash-on-cash, both calculators
 export const COC_NEAR = 6;
-export const MF_CASH_FLOW_GOAL = 3000;  // multifamily, a year
+export const CAP_TARGET = 8;            // multifamily cap rate, on current rents
 export const DSCR_MIN = 1.2;            // lenders want NOI ≥ 1.2–1.25 × the mortgage
 export const REFI_LTV_MAX = 75;         // what most lenders will refinance up to
 export const DOWN_MAX_PCT = 10;         // seller finance: the one hard rule
@@ -63,7 +63,7 @@ const OFFER = { state: '', emd: '', ipDays: '', coe: '', title: '' };
 // ── Seller finance ──────────────────────────────────────────────────────────
 export const SELLER_DEFAULTS = {
   price: '', down: '', rate: '', amort: '30', io: '', balloon: '', tax: '', ins: '', hoa: '',
-  rent: '', mv: '', mgmt: '8', capex: '', fee: '', closingPct: '2.5', rehab: '', appreciation: '', refiRate: '7', ...OFFER,
+  rent: '', mv: '', mgmt: '8', capex: '', fee: '10000', closingPct: '2.5', rehab: '', appreciation: '', refiRate: '7', ...OFFER,
 };
 export const SELLER_HINTS = {
   mgmt: '8–10% if they hire a manager', capex: 'Roof, HVAC, water heater — ~$100 / mo a house', fee: 'Our assignment fee — the buyer pays it in cash',
@@ -138,7 +138,6 @@ export function solveSeller(inp = {}) {
   const top = s.price * 4;
   return {
     priceForCashFlow: highest((p) => at(p).cashFlow >= CASH_FLOW_GOAL, 0, top),
-    priceForCoc: highest((p) => (at(p).coc ?? -1) >= COC_TARGET, 1, top),
     rateForCashFlow: highest((r) => seller({ ...inp, rate: String(r) }).cashFlow >= CASH_FLOW_GOAL, 0, 30),
   };
 }
@@ -146,7 +145,7 @@ export function solveSeller(inp = {}) {
 // ── Multifamily ─────────────────────────────────────────────────────────────
 const UNIT = { unit: '', bed: '', bath: '', rent: '', market: '', sf: '', vacant: '' };
 export const MF_DEFAULTS = {
-  price: '', fee: '', list: '',
+  price: '', fee: '10000', list: '',
   units: [{ ...UNIT, unit: '1' }, { ...UNIT, unit: '2' }],
   taxYear: '', taxRate: '', ins: '', hoa: '', gas: '', water: '', sewer: '', garbage: '', lawn: '', capex: '250',
   mgmt: '10', vacancy: '5', maint: '12', cash: '', downPct: '20', rate: '7', term: '30', rehab: '', closingPct: '2.5', ...OFFER,
@@ -211,18 +210,20 @@ export function multifamily(inp = {}) {
   return {
     price, fee, cost, units: units.length, rentNow, rentMarket, vacantUsed, sf, cash, down, downPct, loan, mortgage, closing, rehab, cashIn,
     taxEstimated: taxRate > 0, current, stabilized: proforma(rentMarket, inp, m),
-    cocOk: current.coc >= COC_TARGET, cashFlowOk: current.yearly >= MF_CASH_FLOW_GOAL, dscrOk: current.dscr == null || current.dscr >= DSCR_MIN,
+    cocOk: current.coc >= COC_TARGET, capOk: current.cap >= CAP_TARGET, dscrOk: current.dscr == null || current.dscr >= DSCR_MIN,
     ready: price > 0 && rentNow > 0,
   };
 }
-// The most we can contract at (our fee unchanged) for 10% cash-on-cash on
-// current rents.
+// The most we can contract at (our fee unchanged) for 10% cash-on-cash and
+// an 8 cap on current rents — `max` meets both.
 export function solveMf(inp = {}) {
   const m = multifamily(inp);
   if (!m.ready) return null;
-  const at = (p) => multifamily({ ...inp, price: String(p) }).current.coc >= COC_TARGET;
-  const max = highest(at, 1, m.price * 4);
-  return { priceForCoc: max, room: max == null ? null : max - m.price };
+  const cur = (p) => multifamily({ ...inp, price: String(p) }).current;
+  const forCoc = highest((p) => cur(p).coc >= COC_TARGET, 1, m.price * 4);
+  const forCap = highest((p) => cur(p).cap >= CAP_TARGET, 1, m.price * 4);
+  const max = forCoc == null || forCap == null ? null : Math.min(forCoc, forCap);
+  return { priceForCoc: forCoc, priceForCap: forCap, max, room: max == null ? null : max - m.price };
 }
 export const cocTone = (coc) => (coc >= COC_TARGET ? 'green' : coc >= COC_NEAR ? 'amber' : 'red');
 
@@ -236,7 +237,6 @@ export function notesFor(kind, inputs) {
     if (!s.ready) return out;
     if (!s.downOk) out.push({ level: 'rule', text: `The down payment is ${s.downPct.toFixed(1)}% of the price — it must be under ${DOWN_MAX_PCT}%.` });
     if (s.investment && !s.cashFlowOk) out.push({ level: 'rec', text: `Cash flow is ${$(s.cashFlow)} a month — we recommend ${$(CASH_FLOW_GOAL)}+.` });
-    if (s.coc != null && !s.cocOk) out.push({ level: 'rec', text: `Cash-on-cash is ${s.coc.toFixed(1)}% — we recommend ${COC_TARGET}%+.` });
     if (s.refi && !s.refi.ok) out.push({ level: 'rec', text: `At the balloon the buyer owes ${s.refi.ltv.toFixed(0)}% of the value — most lenders refinance up to ${REFI_LTV_MAX}%. A longer balloon or more appreciation helps.` });
     if (s.refi && s.refi.cashFlow != null && s.refi.cashFlow < 0) out.push({ level: 'rec', text: `After refinancing at ${s.refi.rate}% the cash flow would be ${$(s.refi.cashFlow)} a month.` });
     return out;
@@ -244,7 +244,7 @@ export function notesFor(kind, inputs) {
   const m = multifamily(inputs);
   if (!m.ready) return out;
   if (!m.cocOk) out.push({ level: 'rec', text: `Cash-on-cash on current rents is ${m.current.coc.toFixed(1)}% — we recommend ${COC_TARGET}%+.` });
-  if (!m.cashFlowOk) out.push({ level: 'rec', text: `Cash flow is ${$(m.current.yearly)} a year — buyers like ${$(MF_CASH_FLOW_GOAL)}+.` });
+  if (!m.capOk) out.push({ level: 'rec', text: `The cap rate on current rents is ${m.current.cap.toFixed(1)}% — we recommend ${CAP_TARGET}%+.` });
   if (!m.dscrOk) out.push({ level: 'rec', text: `Debt coverage is ${m.current.dscr.toFixed(2)}× — lenders want ${DSCR_MIN}×+, so a buyer may not get this loan.` });
   if (m.vacantUsed) out.push({ level: 'info', text: `${m.vacantUsed} vacant ${m.vacantUsed === 1 ? 'unit counts its' : 'units count their'} market rent in current rents.` });
   return out;
@@ -257,14 +257,14 @@ export function summaryOf(kind, inputs) {
     if (!s.ready) return { text: 'Not filled in', tone: 'grey' };
     const warn = s.downOk ? null : `Down ${s.downPct.toFixed(1)}% — over the limit`;
     if (!s.investment) return { text: `$${Math.round(s.total).toLocaleString('en-US')} / mo payment`, tone: 'grey', value: s.total, warn };
-    const tone = s.cashFlowOk && (s.coc == null || s.cocOk) ? 'green' : s.cashFlow >= CASH_FLOW_GOAL * 0.7 ? 'amber' : 'red';
+    const tone = s.cashFlowOk ? 'green' : s.cashFlow >= CASH_FLOW_GOAL * 0.7 ? 'amber' : 'red';
     const cf = `${s.cashFlow < 0 ? '−' : ''}$${Math.abs(Math.round(s.cashFlow)).toLocaleString('en-US')} / mo`;
     return { text: s.coc != null ? `${cf} · ${s.coc.toFixed(1)}% CoC` : cf, tone, value: s.cashFlow, warn };
   }
   const m = multifamily(inputs);
   if (!m.ready) return { text: 'Not filled in', tone: 'grey' };
-  const coc = m.current.coc;
-  return { text: `${coc.toFixed(1)}% CoC`, tone: cocTone(coc), value: coc };
+  const hits = Number(m.capOk) + Number(m.cocOk);
+  return { text: `${m.current.cap.toFixed(1)} cap · ${m.current.coc.toFixed(1)}% CoC`, tone: hits === 2 ? 'green' : hits === 1 ? 'amber' : 'red', value: m.current.coc };
 }
 
 export const KINDS = { seller: 'Seller Finance', mf: 'Multifamily' };

@@ -18,9 +18,19 @@ export function coeText(v) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(`${s}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
   return s;
 }
+// The default COE (Luke, Oct 22): 14 days from the day the message is
+// drafted (Arizona), moved to Monday when that lands on a weekend.
+export function coeDefault(now = Date.now()) {
+  const d = new Date(`${new Date(now - 7 * 3600000).toISOString().slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 14);
+  const dow = d.getUTCDay();
+  if (dow === 6) d.setUTCDate(d.getUTCDate() + 2);
+  if (dow === 0) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
 // What's missing before the message is ready to send.
 export function missingFor(kind, i) {
-  const need = [['state', 'Market'], ['emd', 'EMD'], ['ipDays', 'Inspection period'], ['coe', 'COE'], ['title', 'Title company']];
+  const need = [['state', 'Market'], ['emd', 'EMD'], ['ipDays', 'Inspection period'], ['title', 'Title company']];
   if (kind === 'seller') need.push(['price', 'Price'], ['rate', 'Interest rate']);
   else need.push(['price', 'Price']);
   return need.filter(([k]) => !String(i[k] ?? '').trim()).map(([, l]) => l);
