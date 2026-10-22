@@ -12,6 +12,7 @@ import { CalcBar, Field, LinkedOpp, Toggle, Notes } from './CalcFrame.jsx';
 import { useCalc, money, pct } from './useCalc.js';
 import CalcAsk from './CalcAsk.jsx';
 import OfferMessage from './OfferMessage.jsx';
+import ReviewCard from './ReviewCard.jsx';
 import { printCalc } from './print.js';
 import { multifamily, solveMf, notesFor, MF_DEFAULTS, MF_HINTS, COC_TARGET, CAP_TARGET, DSCR_MIN, cocTone, num } from './calc.js';
 
@@ -149,6 +150,7 @@ export default function Multifamily() {
         </div>
       </div>
       <CalcBar c={c} kind="mf" onPdf={pdf} />
+      <ReviewCard c={c} kind="mf" ready={m.ready} />
       <OfferMessage c={c} kind="mf" />
       <CalcAsk calc={{ kind: 'mf', title: c.form.title, inputs: i }} />
     </div>

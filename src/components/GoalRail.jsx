@@ -47,7 +47,7 @@ export default function GoalRail() {
   const { pace, daysLeft } = goalPace(laToday(), goal);
   const proj = totals.closed + totals.lined;
   const pct = (v) => `${Math.min(100, (v / goal.amount) * 100)}%`;
-  const key = paceKey(paceRatio(proj, goal.amount, pace / goal.amount, { count: false }));
+  const key = paceKey(paceRatio(proj, goal.amount, pace / goal.amount));
   const gap = proj - pace;
   const left = Math.max(0, goal.amount - proj);
   const perMonth = daysLeft > 0 ? left / (daysLeft / 30.44) : 0;

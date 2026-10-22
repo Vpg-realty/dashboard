@@ -21,7 +21,7 @@ import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
 import { scopeReps } from './scope.js';
 import { podsOf } from './pods.js';
-import { paceFraction, paceRatio, paceKey } from '../utils/pace.js';
+import { paceFraction, paceRatio, paceKey, shouldBe } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
 import { nextStep } from '../deals/status.js';
 import { isOpen } from '../deals/math.js';
@@ -55,7 +55,7 @@ function Stat({ label, value, target, color, period }) {
   return (
     <Tile label={label} tint={TINT[paceKey(ratio)]} badge={badge && <span className={paceChip(badge[0])}>{badge[0]}</span>}
       value={<>{value}{target != null && <span className="text-base text-zinc-400 font-medium"> / {target}</span>}</>}
-      sub={show ? <span className="tabular-nums">Should be at {Math.round(target * pace)} by now</span> : null}>
+      sub={show ? <span className="tabular-nums">Should be at {shouldBe(target, pace)} by now</span> : null}>
       {pct != null && (
         <div className="relative mt-3 h-2 rounded-full bg-white/80 ring-1 ring-inset ring-black/5">
           {pct > 0 && <div className="h-full rounded-full" style={{ width: `${pct}%`, background: badge ? badge[3] : color }} />}
@@ -83,7 +83,7 @@ function RevenueCard({ m, n, title = 'Revenue · this month' }) {
   const goal = T.revenuePerRepMonth * n;
   const pace = paceFraction('month');
   const w = (x) => `${Math.min(100, (100 * x) / Math.max(goal, 1))}%`;
-  const badge = paceBadge(paceRatio(m.projected, goal, pace, { count: false }));
+  const badge = paceBadge(paceRatio(m.projected, goal, pace));
   return (
     <Card title={title} tint={badge ? badge[2] : undefined} right={more('/board/overview', 'Overview')}>
       {/* The pace badge sits in the box's own top right (Luke, Oct 16). */}

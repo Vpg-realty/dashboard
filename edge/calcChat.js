@@ -12,6 +12,9 @@ import { seller, multifamily, solveSeller, solveMf, notesFor, KINDS, CASH_FLOW_G
 
 export const CALC_DAILY = 25;
 export const threadOf = (u) => `calc:${u.email}`;
+const azDayStart = (now = new Date()) => { const az = new Date(now.getTime() - 7 * 3600000); return new Date(Date.UTC(az.getUTCFullYear(), az.getUTCMonth(), az.getUTCDate()) + 7 * 3600000).toISOString(); };
+// Questions and reviews share one daily allowance (CALC_DAILY).
+export const askedToday = async (db, thread) => (await db.prepare("SELECT COUNT(*) n FROM chat_messages WHERE thread IN (?, ?) AND role = 'user' AND at >= ?").bind(thread, thread.replace(/^calc:/, 'calcreview:'), azDayStart()).first())?.n || 0;
 
 export const CALC_BRIEFING = `You help the team of Valley Property Group (VPG), a real-estate wholesaling and creative-finance company, with the two calculators in the dashboard's Toolkit. The person asking is on the team (an acquisition rep, a pod lead, the transaction coordinator or an owner). Explain how the numbers are worked out, why a result looks the way it does, and what would change it. VPG puts a deal under contract and assigns it to an investor buyer, who pays VPG's assignment fee in cash at closing — so the fee is part of the buyer's cash in.
 
@@ -98,4 +101,69 @@ export async function askCalc(context, user, { history, question, calc }) {
   if (res.stop_reason === 'refusal') text = "I can't answer that one — try rephrasing it.";
   if (!text) text = 'No answer came back — try again.';
   return { text, usage: res.usage || {}, cost: costOf(res.usage || {}) };
+}
+
+// ── The underwriting review (Luke, Oct 22: "a quick claude review of the
+// underwriting … where you think we can find improvement with
+// recommendations. i still want them to have to think for themselves").
+// The rep's own read is encouraged first; Claude answers it, then gives
+// questions to check (not answers), numbers that look off and one or two
+// levers with numbers. Works on drafts; the page keeps it with the
+// calculation. Counts toward the same CALC_DAILY as the questions.
+export const REVIEW_SYSTEM = `${CALC_BRIEFING}
+
+YOUR JOB NOW: a short second opinion on one calculation. The rep should still do the thinking — coach, don't decide for them.
+- If the rep wrote their own read (go / adjust / pass and why), say whether you agree, partly agree or disagree, and why, in one or two sentences. If they didn't, say so in stance "none" and leave stanceNote empty.
+- verdict: strong (meets VPG's goals with room), workable (close — a change or two gets there), stretch (needs real changes), pass (the numbers don't work at any reasonable terms). summary: one or two sentences in plain words.
+- questions: 2–4 things the rep should go and check before offering — phrased as questions they answer from comps, the agent, the listing or the county (e.g. whether the rent is supported, whether taxes reassess after the sale, what the units' condition is). Never answer them yourself; you don't have market data.
+- flags: 0–4 numbers that look off against VPG's rules or each other (insurance low for the unit count, a rent far above the other units, an expense left blank, a vacant unit without a market rent, a down payment near 10%, a balloon that can't be refinanced, weak debt coverage). Only what the inputs show; none is fine.
+- levers: 1–2 concrete changes with their effect worked out from VPG's formulas (e.g. "Offer $395,000 instead of $420,000 → about an 8.2 cap and 10.1% cash-on-cash"). Use the "What it takes" numbers when they help. Round to dollars.
+- Plain words, short. No preamble.`;
+
+const REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    stance: { type: 'string', enum: ['agree', 'partly', 'disagree', 'none'] },
+    stanceNote: { type: 'string' },
+    verdict: { type: 'string', enum: ['strong', 'workable', 'stretch', 'pass'] },
+    summary: { type: 'string' },
+    questions: { type: 'array', items: { type: 'string' } },
+    flags: { type: 'array', items: { type: 'string' } },
+    levers: { type: 'array', items: { type: 'object', properties: { change: { type: 'string' }, effect: { type: 'string' } }, required: ['change', 'effect'], additionalProperties: false } },
+  },
+  required: ['stance', 'stanceNote', 'verdict', 'summary', 'questions', 'flags', 'levers'],
+  additionalProperties: false,
+};
+const READ_WORD = { go: 'Go', adjust: 'Adjust the terms', pass: 'Pass' };
+const clipS = (x, n) => String(x ?? '').slice(0, n);
+
+export async function reviewCalc(context, user, calc) {
+  const i = calc.inputs || {};
+  const read = String(i.read || '').trim();
+  const mine = i.readCall || read
+    ? `THE REP'S OWN READ: ${READ_WORD[i.readCall] || 'no call picked'}${read ? ` — "${read.slice(0, 1000)}"` : ''}`
+    : "THE REP'S OWN READ: none written.";
+  const client = new Anthropic({ apiKey: context.env.ANTHROPIC_API_KEY, maxRetries: 2 });
+  const res = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 3000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system: [{ type: 'text', text: REVIEW_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: REVIEW_SCHEMA } },
+    messages: [{ role: 'user', content: `Review this calculation for ${user.name}.\n\n${calcContext(calc)}\n\n${mine}` }],
+  });
+  if (res.stop_reason === 'refusal') throw new Error("Claude couldn't review this one");
+  if (res.stop_reason === 'max_tokens') throw new Error('The review ran long — try again');
+  const p = JSON.parse((res.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
+  const review = {
+    stance: ['agree', 'partly', 'disagree', 'none'].includes(p.stance) ? p.stance : 'none',
+    stanceNote: clipS(p.stanceNote, 400),
+    verdict: ['strong', 'workable', 'stretch', 'pass'].includes(p.verdict) ? p.verdict : 'workable',
+    summary: clipS(p.summary, 500),
+    questions: (p.questions || []).slice(0, 4).map((x) => clipS(x, 300)),
+    flags: (p.flags || []).slice(0, 4).map((x) => clipS(x, 300)),
+    levers: (p.levers || []).slice(0, 2).map((x) => ({ change: clipS(x?.change, 200), effect: clipS(x?.effect, 300) })),
+  };
+  return { review, usage: res.usage || {}, cost: costOf(res.usage || {}) };
 }

@@ -70,7 +70,7 @@ export default function MyCalcs() {
                 const open = `${PAGE[c.kind]}?calc=${c.id}`;
                 return (
                   <tr key={c.id} className="border-t border-tan-100 hover:bg-tan-50/60">
-                    <td className="pl-5 py-2.5"><a href={open} onClick={(e) => { e.preventDefault(); navigate(open); }} className="font-semibold text-navy-800 hover:underline">{c.title}</a></td>
+                    <td className="pl-5 py-2.5"><a href={open} onClick={(e) => { e.preventDefault(); navigate(open); }} className="font-semibold text-navy-800 hover:underline">{c.title}</a><ReadLine i={c.inputs} /></td>
                     <td className="px-3"><span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-semibold ring-1 ${KIND_CLS[c.kind]}`}>{KINDS[c.kind]}</span></td>
                     <td className="px-3 py-2">{c.opp ? <LinkedOpp opp={c.opp} stacked /> : <span className="text-zinc-400">Not linked</span>}</td>
                     <td className="px-3 whitespace-nowrap"><span className={`font-semibold tabular-nums ${TONE[sum.tone]}`}>{sum.text}</span>{sum.warn && <span className="block text-[11.5px] font-medium text-rose-700">{sum.warn}</span>}</td>
@@ -91,4 +91,12 @@ export default function MyCalcs() {
       <p className="text-[12.5px] text-zinc-500">Results are coloured against VPG’s goals: seller finance $300+ a month cash flow, multifamily 10–12% cash-on-cash (stabilized). {me?.role === 'owner' ? 'Owners see everyone’s calculations.' : me?.role === 'manager' ? 'Pod leads see their pod’s calculations; owners see everyone’s.' : 'Your pod lead and the owners can see what you save.'}</p>
     </div>
   );
+}
+
+// The rep's call and Claude's verdict under the name (pod leads review these).
+const CALL = { go: 'Go', adjust: 'Adjust', pass: 'Pass' };
+function ReadLine({ i }) {
+  const v = (() => { try { return i?.review ? JSON.parse(i.review).verdict : null; } catch { return null; } })();
+  if (!i?.readCall && !v) return null;
+  return <span className="block text-[11.5px] text-zinc-500">{i.readCall ? `Their call: ${CALL[i.readCall]}` : ''}{i.readCall && v ? ' · ' : ''}{v ? `Claude: ${v}` : ''}</span>;
 }

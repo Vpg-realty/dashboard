@@ -1098,6 +1098,11 @@ Team Scorecards, My Scorecard, the Rep page, Month in Review, the TV /
 Team Overview boxes): **0 is always red**; green at or above "should be at N
 by now"; yellow at 85–99%; red below 85% (was 75%, and 0 used to count as on
 pace while nothing was due yet). Speed to lead keeps its own 75% standard.
+**Later Oct 22** (Luke: "if you are within the threshold above red, but at
+all behind the pace line you should be a yellow"): green only at or past the
+tick — the exact target × share of the period gone, no rounding to a whole
+number any more; "Should be at N by now" / "pace now" show it rounded up
+(`shouldBe`), so reaching N is always green.
 
 ## Oct 22 round, phase 4b — Stage, Unknown, lead value (Luke)
 
@@ -1391,6 +1396,23 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   "N cap · N% CoC". **COE** in the offer message defaults to 14 days from
   the day it's drafted (Arizona), a weekend moved to Monday (`coeDefault`
   in offer.js) — saved when the message is created, editable.
+- **Your Read & Claude's Review** (Luke, later Oct 22: "a quick claude
+  review of the underwriting … I still want them to have to think for
+  themselves"; `ReviewCard.jsx` under both calculators): the rep's own call
+  (Go / Adjust the terms / Pass) and why — encouraged, not required — then
+  "Get Claude's Review" (`POST /api/toolkit/review`, `reviewCalc` in
+  edge/calcChat.js, structured output): a verdict (strong / workable /
+  stretch / pass), whether it agrees with the rep's read, questions to check
+  before offering (never answered — Claude has no market data), numbers that
+  look off, and 1–2 levers with numbers. **Drafts too** (Luke: most
+  properties don't work and aren't saved); kept in the calculation's inputs
+  (`readCall`, `read`, `review` = JSON with `sig` = `numbersSig` of the
+  numbers — a review shows "numbers changed" when they move), so a saved one
+  shows the rep's read and the review to pod leads and owners (My
+  Calculations: "Their call: Go · Claude: workable"). Shares the 25 a day
+  with Ask Claude (`askedToday` counts threads `calc:` + `calcreview:<email>`);
+  each review is logged in chat_messages (thread `calcreview:<email>`) for
+  the monthly cap. About 2¢ a review.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All

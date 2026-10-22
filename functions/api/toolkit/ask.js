@@ -7,10 +7,8 @@
 import { currentUser, json } from '../../../edge/auth.js';
 import { canUse } from '../../../edge/toolkit.js';
 import { monthStart, DEFAULT_CAP } from '../../../edge/chat.js';
-import { askCalc, threadOf, CALC_DAILY } from '../../../edge/calcChat.js';
+import { askCalc, threadOf, askedToday, CALC_DAILY } from '../../../edge/calcChat.js';
 
-const azDayStart = (now = new Date()) => { const az = new Date(now.getTime() - 7 * 3600000); return new Date(Date.UTC(az.getUTCFullYear(), az.getUTCMonth(), az.getUTCDate()) + 7 * 3600000).toISOString(); };
-const askedToday = async (db, thread) => (await db.prepare("SELECT COUNT(*) n FROM chat_messages WHERE thread = ? AND role = 'user' AND at >= ?").bind(thread, azDayStart()).first())?.n || 0;
 const rowOut = (r) => ({ id: r.id, role: r.role, text: r.text, name: r.name, at: r.at });
 
 async function guard(context) {
