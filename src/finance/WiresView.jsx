@@ -34,7 +34,7 @@ const TABS = WIRE_TABS;
 // up earnest money; saved on the deal's own "EMD returned?".
 const vpgEmd = (d) => /VPG/.test(up(d.emdPaidBy));
 const emdOpen = (d) => vpgEmd(d) && !['YES', 'NO'].includes(up(d.emdReturned));
-function EmdCell({ d, raw }) {
+export function EmdCell({ d, raw }) {
   const [busy, setBusy] = useState(false);
   if (!vpgEmd(d)) return <span className="text-[12px] text-zinc-400">buyer's EMD</span>;
   const v = up(d.emdReturned);

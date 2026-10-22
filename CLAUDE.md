@@ -2269,6 +2269,17 @@ the approval records who).
   for wires dated from Oct 1 (older sheet rows recorded wires their own way)
   and net of VPG's EMD when it wasn't returned. The TC List never changes a
   deal's status (Luke, Oct 15) — its ticks only fill EMD paid by / title.
+- **Earnest Money** (Luke, later Oct 22: "a section specific to EM out …
+  out (vpg and vpg+buyer), EM at risk (vpg only), and … closed and EM was
+  not marked as returned"): Finance tab `/finance/em` (`EmView.jsx`), read
+  from the deal sheet — three tiles that pick the list and the same rail:
+  **EM Out** (open deals, EMD paid by VPG or VPG + Buyer), **EM at Risk**
+  (open, VPG only), **Closed · Not Returned** (Closed, VPG put money in, EMD
+  returned? not Yes — with days since COE and Wires In's Returned / Not
+  returned buttons, `EmdCell`, which save the deal). **Cancelled · Not Returned**
+  (Luke, Oct 22) the same for cancelled deals. Columns: property (→
+  deal panel), stage, acq. manager, EMD paid by, EMD, buyer's EMD (open
+  lists), sent on, IP end / COE; a total row. `?view=risk | closed | cancelled`.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)
