@@ -180,9 +180,13 @@ one can't fit a page, tell Luke instead of making a one-off.
   boxes (KpiCard) — the TV keeps its look.
 - **Band counters** are their own kind, not `Tile` (Luke, Oct 22: "these
   will be classified as different tiles than the others"): the small
-  translucent boxes inside a navy page band — Alerts (New / Due today /
-  Overdue / Leads), TC List, My Training, Management › Training, the
-  Team Scorecards strip (kept at its larger size) —
+  translucent boxes inside a navy page band — `BandCounter`
+  (`src/shell/BandCounter.jsx`; `filter` / `active` / `hot` / `warn` / `sub`)
+  on Alerts (New / Due today / Overdue / Leads), TC List and the Deals pages
+  (Active's All / Assigned / Dispo Active filters and the Map's counts sit in
+  the PageHead band's right side via `counters`, like Alerts — Luke, Oct 22: "mirror the tiles seen on
+  alerts … faded in the header blue box"), My Training, Management ›
+  Training, the Team Scorecards strip (kept at its larger size) —
   `rounded-xl bg-white/10 px-4 py-2`, white/60 uppercase label, 22px number,
   tan when picked or hot. Keep them that way on every navy band.
 - **Search box** = `SearchBox` (`src/shell/SearchBox.jsx`, the Pipeline /
@@ -1260,6 +1264,36 @@ Overrides older My Scorecard / Full Breakdown notes.
   header) asks the server to start a deploy; without a key, or for anyone
   else, it just re-reads the published data. Usage: one settings row per
   call.
+
+## Oct 22 round, phase 8 (Luke)
+
+- **On the TV board** (Luke: "some reps should not be shown on the tv / team
+  overview board"): Settings › People has a "TV board" On / Off switch per
+  rep (saves at once). D1 settings `board_hidden` `{repIds}`
+  (`checkBoardHidden`); scripts/load-private-files.mjs writes
+  `.cache/board-hidden.json`, vite.config.js bakes `__BOARD_HIDDEN__`, so it
+  shows with the next deploy (~15 min). `src/data/board.js` gives the board
+  views their reps and numbers under the old names (`REPS_ON_BOARD`,
+  `BOARD_PAIRS`, board headline / tier totals / conversations by market /
+  history / `BOARD_TEAM_TARGETS`): Overview, Conversations, Agents,
+  Opportunities, the TV Pipeline (PipelineView without `keep`), the alert
+  strip and the celebrations. Every other page (Home, Pipeline, scorecards,
+  Finance, Road to Hawaii's money) keeps everyone.
+- **Sub-Accounts = editable rows** (Luke: "edit all existing sub accounts
+  the same way that i add them … new members take over … change the market,
+  or both"): `src/settings/SubAccountsView.jsx` (the old SubAccountsPanel is
+  gone) — the GitHub Connection card on top (status, Replace key with ← Back,
+  Remove; the form opens by itself when nothing is connected), then one table:
+  the add row, then every sub-account as the same row — Rep (people from
+  Settings › People, or a rep with no login), Market (or + new market), GHL
+  Location ID, API key ("Saved · paste to replace"; never shown), Health,
+  Save / Cancel / Remove. Server action `update` (`updateSubAccount` in
+  edge/github.js): new rep / market / location ID / key; a new location ID
+  needs its key; the key is written first, the old location's secret removed
+  last. The page keeps the subaccounts.json the server answers with, so a
+  save shows at once. Past numbers stay with the old rep / market pair.
+- **Alerts**: a lead can be completed only once it has a lead type (the
+  Complete button waits for one; the server refuses it too).
 
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 

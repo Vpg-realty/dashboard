@@ -1,7 +1,9 @@
 import Panel from '../components/Panel.jsx';
 import KpiCard from '../components/KpiCard.jsx';
-import { REPS, KPI_TARGETS, TEAM_TARGETS } from '../data/config.js';
-import { getPair, getPairsForRep, headline } from '../data/source.js';
+import { KPI_TARGETS } from '../data/config.js';
+import { getPair, getPairsForRep } from '../data/source.js';
+// The board's reps only (src/data/board.js).
+import { REPS_ON_BOARD as REPS, BOARD_TEAM_TARGETS as TEAM_TARGETS, boardHeadline as headline } from '../data/board.js';
 import { marketShade } from '../utils/marketShade.js';
 
 // Layout: four columns, fits one TV viewport (Luke, Oct 7).

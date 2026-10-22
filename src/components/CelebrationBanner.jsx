@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { REPS, MARKETS } from '../data/config.js';
-import { PAIRS } from '../data/source.js';
+// Only the board's reps celebrate on the TV (src/data/board.js).
+import { BOARD_PAIRS as PAIRS } from '../data/board.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { shortDate } from '../utils/historyRange.js';
 import Fireworks from './Fireworks.jsx';

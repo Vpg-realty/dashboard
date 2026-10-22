@@ -9,6 +9,7 @@ export const githubStatus = () => call('subaccounts');
 export const saveGithubKey = (token) => post({ action: 'key', token });
 export const forgetGithubKey = () => post({ action: 'forget' });
 export const addSubAccount = ({ newMarket, newRep, subaccount, pit }) => post({ action: 'add', newMarket, newRep, subaccount, pit });
+export const updateSubAccount = (u) => post({ action: 'update', ...u });
 export const reassignSubAccount = (locationId, repId) => post({ action: 'reassign', locationId, repId });
 export const deleteSubAccount = (locationId) => post({ action: 'remove', locationId });
 // A fresh GHL pull + republish (owners and managers); false when the server

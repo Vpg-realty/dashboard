@@ -146,7 +146,7 @@ const STATUS_LABEL = { training: 'Training', active: 'Active', inactive: 'Inacti
 const STATUS_TONE = { training: 'bg-violet-50 text-violet-800 ring-violet-200', active: 'bg-emerald-50 text-emerald-800 ring-emerald-200', inactive: 'bg-zinc-100 text-zinc-600 ring-zinc-200' };
 const toBody = (d) => ({ ...d, role: d.status === 'training' ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active' });
 
-function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames }) {
+function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, setTv }) {
   const start = { ...u, role: uiRole(u), status: uiStatus(u) };
   const [d, setD] = useState(start);
   const [busy, setBusy] = useState(false);
@@ -197,6 +197,17 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames }) {
           <SearchSelect value={lead || ''} onChange={(v) => setLead(rn, v || '')} clearable={false} pinned={[{ value: '', label: 'No pod lead' }]} options={leadNames.filter((n) => n !== rn).map((n) => ({ value: n, label: n }))} />
         )}
       </td>
+      <td className={cell}>
+        {/* On the TV board (Luke, Oct 22): off = left out of the TV / Team
+            Overview only; every other page keeps them. */}
+        {!u.rep_id ? <span className="text-zinc-400">—</span> : (
+          <button type="button" onClick={() => setTv(u.rep_id, !tvHidden)} role="switch" aria-checked={!tvHidden}
+            title={tvHidden ? 'Not on the TV board or Team Overview — click to show them' : 'On the TV board and Team Overview — click to leave them off'}
+            className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12.5px] font-semibold ring-1 ring-inset ${tvHidden ? 'bg-zinc-100 text-zinc-500 ring-zinc-300' : 'bg-emerald-50 text-emerald-800 ring-emerald-300'}`}>
+            <span className={`w-2 h-2 rounded-full ${tvHidden ? 'bg-zinc-400' : 'bg-emerald-600'}`} />{tvHidden ? 'Off' : 'On'}
+          </button>
+        )}
+      </td>
       <td className="py-2 text-right whitespace-nowrap">
         {err && <span className="text-red-700 text-xs mr-2">{err}</span>}
         {note && <span className="text-emerald-700 text-xs mr-2">{note}</span>}
@@ -220,6 +231,15 @@ export default function PeopleView() {
   const [leadMsg, setLeadMsg] = useState(null);
   useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, []);
   useEffect(() => { readSetting('deal-lists').then((r) => setLists(r.value || {})).catch(() => setLists({})); }, []);
+  // Reps left off the TV board (settings board_hidden) — saved at once, on
+  // the board with the next refresh.
+  const [tvOff, setTvOff] = useState([]);
+  useEffect(() => { readSetting('board-hidden').then((r) => setTvOff(r.value?.repIds || [])).catch(() => setTvOff([])); }, []);
+  const setTv = async (repId, hide) => {
+    const next = hide ? [...new Set([...tvOff, repId])] : tvOff.filter((x) => x !== repId);
+    setLeadMsg(null);
+    try { await writeSetting('board-hidden', { repIds: next }); setTvOff(next); setLeadMsg({ ok: true, text: `${repName(repId).split(' ')[0]} ${hide ? 'will be left off' : 'will show on'} the TV board and Team Overview after the next refresh (about 15 minutes).` }); } catch (e) { setLeadMsg({ ok: false, text: e.message }); }
+  };
   // Saved at once: who a rep reports to (the pod override follows it).
   const setLead = async (rep, lead) => {
     const next = { ...lists, reportsTo: { ...(lists.reportsTo || {}) } };
@@ -254,10 +274,10 @@ export default function PeopleView() {
       {[['Everyone', list.filter((u) => u.status !== 'inactive')], ['Inactive', list.filter((u) => u.status === 'inactive')]].map(([title, rows]) => (rows.length > 0 || title === 'Everyone') && (
         <Section key={title} title={`${title} · ${rows.length}`} sub={title === 'Inactive' ? 'Can’t sign in; history kept. Set one back to Active to restore access.' : 'Role decides what they see; Status is Training, Active or Inactive. Pod lead is who they report to — it saves at once and decides the pod override.'}>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13.5px] min-w-[1080px]">
-              <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Started', 'Ended', 'Rep on the board · trainer', 'Pod lead', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
+            <table className="w-full text-left text-[13.5px] min-w-[1160px]">
+              <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Started', 'Ended', 'Rep on the board · trainer', 'Pod lead', 'TV board', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
               <tbody>
-                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} />)}
+                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} tvHidden={!!u.rep_id && tvOff.includes(u.rep_id)} setTv={setTv} />)}
               </tbody>
             </table>
           </div>

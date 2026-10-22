@@ -13,6 +13,7 @@
 // out is a tile on top (`?only=out`). Ticks and tasks: D1 via /api/tc, with who
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
+import BandCounter from '../shell/BandCounter.jsx';
 import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
@@ -413,10 +414,7 @@ export default function TcListView() {
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           {[['Deals due today', count('due'), 'due'], ['Active deals', cards.length, 'all'], ['Closing ≤ 7 days', count('closing'), 'closing']].map(([l, n, v]) => (
-            <button key={v} type="button" onClick={() => go(v)} className={`rounded-xl px-4 py-2 text-left ${view === v ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
-              <div className={`text-[11px] font-semibold uppercase tracking-wide ${view === v ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
-              <div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div>
-            </button>
+            <BandCounter key={v} label={l} value={n} active={view === v} onClick={() => go(v)} />
           ))}
         </div>
       </div>

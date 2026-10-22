@@ -106,6 +106,13 @@ export function checkSuggestPeople(v) {
 
 // "Send a test alert" (Settings → People): { by } — the next deploy posts a
 // test to Discord and clears it (scripts/discord-alerts.mjs).
+// Reps left off the TV board (Oct 22): { repIds: [...] } — any rep id on file.
+export function checkBoardHidden(v) {
+  if (!v || !Array.isArray(v.repIds) || v.repIds.length > 60) return 'repIds missing';
+  if (!v.repIds.every((x) => typeof x === 'string' && /^[a-z0-9_]{2,40}$/.test(x))) return 'bad rep id';
+  return null;
+}
+
 export function checkDiscordTest(v) {
   return v && typeof v === 'object' ? null : 'nothing to send';
 }

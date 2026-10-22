@@ -1,9 +1,11 @@
 import { Fragment } from 'react';
 import Panel from '../components/Panel.jsx';
 import RepStackBars from '../components/RepStackBars.jsx';
-import { REPS, MARKETS, TIERS } from '../data/config.js';
+import { MARKETS, TIERS } from '../data/config.js';
+// The board's reps only (src/data/board.js).
+import { REPS_ON_BOARD as REPS, boardTierTotals as tierTotals, boardHeadline as headline } from '../data/board.js';
 import { STATE_DOT } from '../utils/marketShade.js';
-import { getPair, tierTotals, headline } from '../data/source.js';
+import { getPair } from '../data/source.js';
 import { formatNumber } from '../utils/format.js';
 
 // Luke (May 11): Active Agent Count (renamed from Total Agents, Oct 7) =

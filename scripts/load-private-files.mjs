@@ -77,6 +77,25 @@ async function main() {
     console.log(`[private-files] trainee list not read (${err.message}) — nobody hidden`);
   }
 
+  // Reps left off the TV board (Settings › People › On the TV board, Oct 22),
+  // baked in by vite.config.js. Best effort: no file = everyone shows.
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: "SELECT value FROM settings WHERE key = 'board_hidden'" }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const row = d.result?.[0]?.results?.[0];
+    const ids = row?.value ? (JSON.parse(row.value).repIds || []) : [];
+    fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, '.cache', 'board-hidden.json'), JSON.stringify(ids));
+    console.log(`[private-files] reps off the TV board: ${ids.length}`);
+  } catch (err) {
+    console.log(`[private-files] TV board list not read (${err.message}) — everyone shows`);
+  }
+
   // KPI targets from Settings › KPI Targets (Oct 22), baked into the app by
   // vite.config.js. Best effort: no file = the defaults in the code.
   try {

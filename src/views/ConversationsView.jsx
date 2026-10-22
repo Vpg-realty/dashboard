@@ -1,7 +1,9 @@
 import { BarChart, Bar, Cell, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, CartesianGrid, LabelList, ReferenceLine } from 'recharts';
 import Panel from '../components/Panel.jsx';
-import { REPS, MARKETS } from '../data/config.js';
-import { getPair, totalConversationsByMarket, headline, historyEntries } from '../data/source.js';
+import { MARKETS } from '../data/config.js';
+import { getPair } from '../data/source.js';
+// The board's reps only (src/data/board.js).
+import { REPS_ON_BOARD as REPS, boardConversationsByMarket as totalConversationsByMarket, boardHeadline as headline, boardHistory as historyEntries } from '../data/board.js';
 import { laToday, weekStart, addDays, daysInclusive, teamConvosByDay } from '../utils/historyRange.js';
 import { formatNumber, niceMax } from '../utils/format.js';
 import { STATE_DOT, segmentFill } from '../utils/marketShade.js';

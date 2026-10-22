@@ -106,6 +106,33 @@ export async function addSubAccount(gh, { newMarket, newRep, subaccount, pit }) 
   return next;
 }
 
+// Edit an existing sub-account like adding one (Luke, Oct 22: "new members
+// take over existing sub accounts or we keep the sub account but change the
+// market, or both"): rep, market, location ID and, optionally, a new API key.
+// A new location ID needs its key (the old secret can't be read back). The
+// key goes in first — a refused config write then leaves nothing pointing at
+// a missing secret; the old location's secret is removed last.
+export async function updateSubAccount(gh, { locationId, repId, marketId, newLocationId, newMarket, newRep, pit }) {
+  const loc = newLocationId || locationId;
+  const moved = loc !== locationId;
+  if (moved && !pit) throw Object.assign(new Error('A new location ID needs its API key'), { status: 400 });
+  if (pit) await gh.putSecret(pitSecretName(loc), pit);
+  const next = await gh.update((cfg) => {
+    cfg.markets ||= []; cfg.reps ||= []; cfg.subaccounts ||= [];
+    const sa = cfg.subaccounts.find((s) => s.locationId === locationId);
+    if (!sa) throw Object.assign(new Error('Sub-account not found — reload the page'), { status: 404 });
+    if (moved && cfg.subaccounts.some((s) => s.locationId === loc)) throw Object.assign(new Error('That location ID is already connected'), { status: 409 });
+    if (newMarket && !cfg.markets.some((m) => m.id === newMarket.id)) cfg.markets.push(newMarket);
+    if (newRep && !cfg.reps.some((r) => r.id === newRep.id)) cfg.reps.push(newRep);
+    if (!cfg.markets.some((m) => m.id === marketId)) throw Object.assign(new Error(`Unknown market ${marketId}`), { status: 400 });
+    if (!cfg.reps.some((r) => r.id === repId)) throw Object.assign(new Error(`Unknown rep ${repId}`), { status: 400 });
+    sa.repId = repId; sa.marketId = marketId; sa.locationId = loc;
+    return cfg;
+  }, `Update sub-account ${locationId}${moved ? ` → ${loc}` : ''} (${repId} · ${marketId}${pit ? ', new key' : ''})`);
+  if (moved) { try { await gh.deleteSecret(pitSecretName(locationId)); } catch { /* already gone */ } }
+  return next;
+}
+
 export function reassignSubAccount(gh, locationId, repId) {
   return gh.update((cfg) => {
     const sa = (cfg.subaccounts || []).find((s) => s.locationId === locationId);

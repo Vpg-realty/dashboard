@@ -22,7 +22,9 @@ export function GhlChip({ g }) {
 
 // The standard navy band (Luke's site map, Oct 19: one filter band per page,
 // like Pipeline's): eyebrow, title, a line under it, the controls on the right.
-export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
+// `counters` = the band counters (src/shell/BandCounter.jsx), drawn inside the
+// band like Alerts' (Luke, Oct 22).
+export function PageHead({ title, sub, right, eyebrow = 'Deals', counters }) {
   return (
     <div className="relative isolate shrink-0 rounded-2xl bg-navy-700 text-white px-5 py-3.5 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-sm">
       <BandMark />
@@ -32,7 +34,14 @@ export function PageHead({ title, sub, right, eyebrow = 'Deals' }) {
         {sub && <div className="text-[12.5px] text-white/70 mt-0.5 [&_*]:!text-white/70">{sub}</div>}
       </div>
       {/* A navy primary button reads tan on the band, like Pipeline's picked switch. */}
-      {right && <div className="ml-auto flex flex-wrap items-center gap-2 [&_.bg-navy-700]:!bg-tan-500 [&_.bg-navy-700]:!text-navy-900 [&_.bg-navy-700]:font-semibold [&_.bg-navy-700:hover]:!bg-tan-400">{right}</div>}
+      {/* Controls on the right, the counters under them on the right too —
+          where Alerts has its counters (Luke, Oct 22: "match the alerts"). */}
+      {(right || counters) && (
+        <div className="ml-auto flex flex-col items-end gap-2">
+          {right && <div className="flex flex-wrap items-center justify-end gap-2 [&_.bg-navy-700]:!bg-tan-500 [&_.bg-navy-700]:!text-navy-900 [&_.bg-navy-700]:font-semibold [&_.bg-navy-700:hover]:!bg-tan-400">{right}</div>}
+          {counters && <div className="flex flex-wrap justify-end gap-2">{counters}</div>}
+        </div>
+      )}
     </div>
   );
 }

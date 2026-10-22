@@ -31,7 +31,7 @@ import { needsInfo, CATEGORIES } from './required.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { Person } from './people.jsx';
 import { titleCase } from '../shell/titleCase.js';
-import { Tile } from '../shell/Tile.jsx';
+import BandCounter from '../shell/BandCounter.jsx';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const days = daysBetween;
@@ -86,16 +86,10 @@ function FoldHead({ id, folds, title, sub, count, className = 'bg-navy-700 borde
   );
 }
 
-// The tiles on top are one set of filters (Luke, Oct 15: "some click, some
-// do not … confusing … clunky"): every tile shows only its deals in the
-// lists below (click again or "Clear" for all), the open lists unfold, and
-// the pick is kept in the link (?only=). A tile with nothing in it is
-// greyed out and can't be picked.
-// The approved tile (Oct 22) is the site's Tile — this page's look became
-// src/shell/Tile.jsx; here it's used as a filter.
-function FilterTile(props) {
-  return <Tile filter {...props} />;
-}
+// The counters in the band are one set of filters (Luke, Oct 15: "some
+// click, some do not … confusing"): each shows only its deals in the lists
+// below (click again or "Clear" for all), kept in the link (?only=); one
+// with nothing in it is faded and can't be picked.
 const ONLY_LABEL = { asg: 'Assigned', buyer: 'Dispo Active', emd: 'EMD at risk', past: 'Past COE', soon: 'Closing ≤ 7 days', need: 'Needs info' };
 
 function Legend() {
@@ -345,14 +339,14 @@ export default function ActiveView() {
         )}
         <Search dark value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
         {ed && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
+      </>} counters={<>
+        {/* Three filters (Luke, Oct 19: "All / Assigned / Dispo Active") as the
+            band's counters, like Alerts' (Oct 22); EMD, past COE, closing soon
+            and Needs info stay as sections and next steps. */}
+        <BandCounter filter label="All active deals" value={tiles.active} sub="pending + assigned" active={!only} onClick={() => setOnly(null)} />
+        <BandCounter filter label="Assigned" value={tiles.assigned} sub={`${compact(tiles.assignedGross)} gross`} active={only === 'asg'} onClick={() => tog('asg')} />
+        <BandCounter filter label="Dispo Active" value={tiles.needs} sub="needs a buyer" active={only === 'buyer'} onClick={() => tog('buyer')} />
       </>} />
-      {/* Three tiles (Luke, Oct 19: "All / Assigned / Dispo Active"); EMD,
-          past COE, closing soon and Needs info stay as sections and next steps. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <FilterTile label="All active deals" value={tiles.active} active={!only} activeText="Showing all" onClick={() => setOnly(null)} sub="pending + assigned" />
-        <FilterTile label="Assigned" value={tiles.assigned} dot="green" tone="text-[#15803D]" sub={`${compact(tiles.assignedGross)} gross`} active={only === 'asg'} onClick={() => tog('asg')} />
-        <FilterTile label="Dispo Active" value={tiles.needs} dot="blue" tone="text-[#1D4ED8]" sub="needs a buyer" active={only === 'buyer'} onClick={() => tog('buyer')} />
-      </div>
       {only && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
           <span className="text-zinc-500">Showing</span>

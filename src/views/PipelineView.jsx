@@ -2,7 +2,8 @@ import { Fragment, createContext, useContext, useEffect, useRef, useState } from
 import { REPS, MARKETS, ghlOppUrl } from '../data/config.js';
 import { STAGES } from '../shell/stages.js';
 import { useLocation, setQuery } from '../shell/router.js';
-import { PAIRS } from '../data/source.js';
+import { PAIRS as ALL_PAIRS } from '../data/source.js';
+import { BOARD_PAIRS } from '../data/board.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
 import { titleCase } from '../shell/titleCase.js';
@@ -97,6 +98,9 @@ export default function PipelineView({ keep, onOpen, still, dates, opps, brand, 
       soon: keyDays != null && keyDays >= 0 && keyDays <= 1,
     };
   };
+  // The TV board (no `keep`) shows the board's reps only; the app's Pipeline
+  // page passes `keep` and sees everyone (Settings › People › On the TV board).
+  const PAIRS = keep ? ALL_PAIRS : BOARD_PAIRS;
   const deals = PAIRS.flatMap((p) => (p.deals || []).filter((d) => !keep || keep(d, p)).map((g) => shape(dates ? dates(g) : g, p.repId, p.marketId)));
 
   // Sub-accounts whose address / COE / IP custom fields couldn't be read —
