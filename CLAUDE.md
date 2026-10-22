@@ -1294,6 +1294,8 @@ Overrides older My Scorecard / Full Breakdown notes.
   save shows at once. Past numbers stay with the old rep / market pair.
 - **Alerts**: a lead can be completed only once it has a lead type (the
   Complete button waits for one; the server refuses it too).
+- **Sidebar**: Finance sits below Team Scorecards (Luke, Oct 22), not after
+  Deals.
 
 ## Oct 22 round, phase 5a — market chips, managers' own scorecard (Luke)
 

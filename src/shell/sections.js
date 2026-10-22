@@ -74,19 +74,6 @@ export const SECTIONS = [
     ],
   },
   {
-    // Luke, Oct 15: commissions per deal (paid at closing), approved by Luke
-    // or Jack, statements per person, and the money side of closed deals.
-    // Owners only (the API refuses everyone else).
-    id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
-    tabs: [
-      // Oct 19 (Luke's site map): Deal Summary is the Finance Overview (the
-      // old Overview page went), Payouts + Wires In are one page.
-      { id: 'overview', label: 'Finance Overview', view: 'deals-summary', scroll: true },
-      { id: 'money', label: 'Money In & Out', view: 'fin-money', scroll: true },
-      { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
-    ],
-  },
-  {
     // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
     // managers, trainees and owners request zips here; the rules open from
     // an ⓘ on the page.
@@ -138,6 +125,21 @@ export const SECTIONS = [
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
       { id: 'training', label: 'Training', view: 'mgr-training', scroll: true },
+    ],
+  },
+  {
+    // Below Team Scorecards (Luke, Oct 22: "move the finance category to the
+    // bottom below team scorecards").
+    // Luke, Oct 15: commissions per deal (paid at closing), approved by Luke
+    // or Jack, statements per person, and the money side of closed deals.
+    // Owners only (the API refuses everyone else).
+    id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
+    tabs: [
+      // Oct 19 (Luke's site map): Deal Summary is the Finance Overview (the
+      // old Overview page went), Payouts + Wires In are one page.
+      { id: 'overview', label: 'Finance Overview', view: 'deals-summary', scroll: true },
+      { id: 'money', label: 'Money In & Out', view: 'fin-money', scroll: true },
+      { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
     ],
   },
   {
