@@ -7,19 +7,19 @@
 // only ever sends their own rows plus the team average.
 import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
-import { REPS, MARKETS, ghlConvUrl, issueUrl } from '../../data/config.js';
+import { REPS, ghlConvUrl } from '../../data/config.js';
 import { paceFraction } from '../../utils/pace.js';
 import { CRM_ITEMS, autoCrm, speedGrade, SPEED_GRADE_ONE } from '../../../scripts/scorecard-lib.mjs';
 import { ANSWER_WITHIN_MIN, SPEED_TARGET } from '../../../server/messaging.js';
 import RepView from './RepView.jsx';
-import FunnelByState from './FunnelByState.jsx';
+import { CoachTop3, Standards, Examples } from './CrmBits.jsx';
 import { PanelHead } from '../../shell/Panel.jsx';
 import { paceChip } from '../../shell/panelStyle.js';
 import LineChart from './LineChart.jsx';
 import { ScoreHelp, ScoreBreakdown } from './Score.jsx';
 import { useScorecards, currentWeek, reviewFor } from './useScorecards.js';
 import { weekSeries, avgOf } from './trends.js';
-import { T, metrics, repPairs, teamMetrics, scoreParts, scoreTone, paceTone, mostPointsLeft, STEPS, rate } from './metrics.js';
+import { T, metrics, repPairs, scoreParts, scoreTone, paceTone, mostPointsLeft } from './metrics.js';
 import { Tile } from '../../shell/Tile.jsx';
 
 const kMoney = (v) => (Math.abs(v) < 1000 ? `$${Math.round(v)}` : Math.abs(v) < 10000 ? `$${(v / 1000).toFixed(1).replace(/\.0$/, '')}K` : `$${Math.round(v / 1000)}K`);
@@ -115,47 +115,6 @@ function slowTexts(pairs) {
   }).sort((a, b) => b.at - a.at);
 }
 
-// A list of flagged deals / texts — every one (Luke, Oct 19: "why do you not
-// show all things"); a long list scrolls inside the row.
-function BadList({ bad, total }) {
-  const hidden = total - bad.length; // flagged but not kept (25 per state)
-  return (
-    <>
-      <ul className={`mt-1 space-y-0.5 text-[13.5px] ${bad.length > 12 ? 'max-h-[19rem] overflow-y-auto pr-2' : ''}`}>
-        {bad.map((b, i) => {
-          // Deals open their GHL opportunity in a new tab (Luke, Oct 15).
-          const url = issueUrl(b);
-          return (
-            <li key={`${b.id || ''}${i}`}>
-              {url ? <a href={url} target="_blank" rel="noreferrer" title="Open in GoHighLevel" className="font-medium text-navy-700 underline decoration-navy-200 underline-offset-2 hover:decoration-navy-700">{b.addr} ↗</a> : <span className="font-medium">{b.addr}</span>}
-              {' '}<span className="text-zinc-600">— {b.why}</span>
-            </li>
-          );
-        })}
-      </ul>
-      {hidden > 0 && <div className="mt-1 text-[12.5px] text-zinc-500">…and {hidden} more like these (only the first 25 per state are listed).</div>}
-    </>
-  );
-}
-
-// Messaging is graded from several checks; each one shows with its numbers
-// and the team standard, so nothing behind the grade is hidden.
-function MsgParts({ parts }) {
-  return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5 text-[12.5px]">
-      {parts.map((x) => {
-        const r = x.total ? x.ok / x.total : null;
-        const ok = r == null || r >= (x.target || 0);
-        return (
-          <span key={x.key} className={`rounded-md border px-2 py-0.5 ${r == null ? 'border-zinc-200 bg-white text-zinc-500' : ok ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
-            {x.label}: {r == null ? 'nothing to check' : `${x.ok} of ${x.total} (${Math.round(r * 100)}%)`} · standard {Math.round((x.target || 0) * 100)}%{x.pending ? ` · ${x.pending} waiting on review` : ''}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 function FixList({ pairs, monday, crm, manual, m }) {
   const auto = autoCrm(pairs, monday, Infinity);
   const rows = [];
@@ -170,7 +129,7 @@ function FixList({ pairs, monday, crm, manual, m }) {
     const byManager = Array.isArray(manual) && manual[i] != null;
     if (g === 2) { good.push(it.short); return; }
     const bad = byManager ? [] : d?.bad || [];
-    rows.push({ key: it.key, label: it.label, help: it.help, g, bad, parts: byManager ? null : d?.parts, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : d?.badN ? `${d.badN} to look at` : '' });
+    rows.push({ key: it.key, label: it.label, help: it.help, g, bad, parts: byManager ? null : d?.parts, coach: d?.coach, total: Math.max(bad.length, d?.badN ?? 0), note: byManager ? 'Graded by your manager.' : g == null ? 'Graded by your manager on Friday.' : d?.total != null ? `${d.ok} of ${d.total} OK` : d?.badN ? `${d.badN} to look at` : '' });
   });
   // Speed to lead is the sixth CRM item (Luke, Oct 16): below the standard,
   // the texts behind it are listed here too.
@@ -197,14 +156,24 @@ function FixList({ pairs, monday, crm, manual, m }) {
             </span>
           ))}
         </div>
-        {rows.map(({ key, label, help, g, bad, parts, total, note }) => (
-          <div key={key} className={`rounded-lg border px-4 py-3 flex gap-3 ${g === 0 ? 'border-red-200 bg-red-50/60' : g === 1 ? 'border-amber-200 bg-amber-50/60' : 'border-zinc-200 bg-zinc-50/60'}`}>
-            <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-zinc-900">{label}{note && <span className="font-normal text-zinc-500"> · {note}</span>}</div>
-              {parts?.length > 0 && <MsgParts parts={parts} />}
-              {bad.length > 0 ? <BadList bad={bad} total={total} /> : !parts?.length && <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}
+        {rows.map(({ key, label, help, g, bad, parts, total, note, coach }) => (
+          <div key={key} className={`rounded-lg border overflow-hidden ${g === 0 ? 'border-red-200' : g === 1 ? 'border-amber-200' : 'border-zinc-200'}`}>
+            <div className={`px-4 py-3 flex gap-3 ${g === 0 ? 'bg-red-50/60' : g === 1 ? 'bg-amber-50/60' : 'bg-zinc-50/60'}`}>
+              <span className={`w-7 h-7 rounded-md grid place-items-center text-sm font-bold shrink-0 ${badge(g)}`}>{g ?? '–'}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-zinc-900">{label}{note && <span className="font-normal text-zinc-500"> · {note}</span>}</div>
+                {!bad.length && !parts?.length && <div className="mt-0.5 text-[13.5px] text-zinc-600">{help}</div>}
+              </div>
             </div>
+            {/* Messaging (Luke, Oct 22): Claude's top 3 for the week on the
+                left, the standards on the right. */}
+            {parts?.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-tan-100 border-t border-tan-100 bg-white">
+                <div className="p-4"><CoachTop3 coach={coach} whose="Your Week" /></div>
+                <div className="p-4"><Standards parts={parts} /></div>
+              </div>
+            )}
+            <Examples bad={bad} total={total} className="bg-white border-t border-tan-100" />
           </div>
         ))}
         {good.length > 0 && (
@@ -216,15 +185,6 @@ function FixList({ pairs, monday, crm, manual, m }) {
       </div>
     </section>
   );
-}
-
-// This month's funnel by state + where each state leaks (FunnelByState.jsx).
-function LeakByState({ rep }) {
-  const pairs = repPairs(rep.id);
-  const states = pairs.map((p) => ({ id: p.marketId, name: MARKETS.find((x) => x.id === p.marketId)?.name || p.marketId, m: metrics([p]) }))
-    .sort((a, b) => (b.m.convosM || 0) - (a.m.convosM || 0));
-  const team = teamMetrics();
-  return <FunnelByState states={states} total={metrics(pairs)} teamRates={STEPS.map((s) => rate(team, s))} when="This Month" />;
 }
 
 function Trend({ sc, rep }) {
@@ -318,22 +278,14 @@ export default function MyScorecardView() {
       </section>
 
       <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} m={m} />
-      <LeakByState rep={rep} />
       <Trend sc={sc} rep={rep} />
+      {/* Look Back (Luke, Oct 22 — the old Full Breakdown tab, folded in):
+          any week, month or dates. Opens on this month, so it doesn't repeat
+          the week above. */}
+      <div className="app-team h-[1060px] min-w-[1100px]">
+        <RepView repId={rep.id} self breakdown lookBack />
+      </div>
 
-    </div>
-  );
-}
-
-// My Scorecard › Full Breakdown (its own tab, Luke Oct 15).
-export function MyBreakdownView() {
-  const me = useMe();
-  const rep = REPS.find((r) => r.id === me?.rep_id);
-  if (!me) return null;
-  if (!rep) return <div className="py-16 text-center text-zinc-500">Your login isn't linked to a rep yet.</div>;
-  return (
-    <div className="app-team h-[1060px] min-w-[1100px] max-w-[1600px] mx-auto">
-      <RepView repId={rep.id} self breakdown />
     </div>
   );
 }

@@ -90,7 +90,9 @@ const pickCls = 'rounded-md bg-white text-zinc-900 px-2 py-1 text-sm font-semibo
 
 // `self` (Oct 14): a rep's own page ("My scorecard") — no rep picker, no
 // way back to the full scorecard, plus their CRM checklist.
-export default function RepView({ repId, onPickRep, onBack, withTeam, self, breakdown }) {
+// `lookBack` (Oct 22): the bottom of My Scorecard — opens on this month,
+// since the week is already shown above it.
+export default function RepView({ repId, onPickRep, onBack, withTeam, self, breakdown, lookBack }) {
   // `breakdown` (My scorecard's "full breakdown", Luke Oct 14): only the
   // rep's own numbers — no team rates in the funnel / states.
   const solo = !!breakdown;
@@ -100,7 +102,8 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const today = laToday();
   const firstOnFile = history[0]?.date;
   const { weeks, months } = periodOptions(history, today);
-  const [period, setPeriod] = useState('now');
+  const [picked, setPeriod] = useState(null);
+  const period = picked ?? ((lookBack && months.find((o) => o.from <= today && o.to >= today)?.value) || 'now');
   const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
   const [customTo, setCustomTo] = useState(today);
   const [showScore, setShowScore] = useState(false);
@@ -220,12 +223,12 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
         </>
       )}
       {/* Always last, so the pickers never change places (Luke, Oct 12). */}
-      <ScoreHelp light />
+      {!lookBack && <ScoreHelp light />}
     </>
   );
 
   return (
-    <ManagerFrame title={breakdown ? 'Full breakdown' : self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : breakdown ? 'Only your own numbers — pick any week, month or dates' : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
+    <ManagerFrame title={lookBack ? 'Look Back' : breakdown ? 'Full breakdown' : self ? 'My scorecard' : 'Rep'} subtitle={period === 'custom' ? null : range ? `${first(rep)} · ${range.label}` : lookBack ? 'Any week, month or dates — your numbers, points by week, funnel and states' : breakdown ? 'Only your own numbers — pick any week, month or dates' : self ? 'Your week and month, what to fix, and how you\'re trending vs the team' : "One rep's week and month, funnel and states"} right={picker}>
       <div className={`h-full grid ${breakdown ? 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_auto]' : self ? 'grid-rows-[auto_auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]' : 'grid-rows-[auto_auto_minmax(15.5rem,0.9fr)_minmax(19rem,1fr)]'} gap-3 min-h-0 overflow-y-auto`}>
         <div className="flex items-center gap-4 rounded-xl bg-white border border-zinc-300/80 px-4 py-2.5">
           {!self && <button onClick={onBack} className="text-sm font-semibold text-blue-600 hover:underline whitespace-nowrap">← Scorecard</button>}

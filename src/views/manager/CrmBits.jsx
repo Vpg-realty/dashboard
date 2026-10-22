@@ -71,12 +71,12 @@ export function Examples({ bad, total, className = '' }) {
       {open && (
         <ul className="divide-y divide-tan-100 border-t border-tan-100">
           {bad.map((b) => {
-            const url = issueUrl(b);
+            const url = b.url || issueUrl(b);
             return (
               <li key={b.id + b.why} className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-5 py-2.5">
                 <span className="flex-[1_1_260px] min-w-0 text-[14.5px] font-semibold text-navy-900">{b.addr}</span>
                 <span className="flex-[1_1_320px] min-w-0 text-[13.5px] text-zinc-600">{b.why}</span>
-                {url && <a href={url} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-navy-700 hover:underline">{'conv' in b ? 'Open conversation ↗' : 'Open in GHL ↗'}</a>}
+                {url && <a href={url} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-navy-700 hover:underline">{'conv' in b || b.url ? 'Open conversation ↗' : 'Open in GHL ↗'}</a>}
               </li>
             );
           })}
