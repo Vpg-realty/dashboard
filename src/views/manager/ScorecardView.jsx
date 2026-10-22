@@ -16,7 +16,6 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
-import { Tile } from '../../shell/Tile.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
@@ -739,7 +738,15 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
             </span>
           </div>
           <div className="w-full grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5">
-            {stats.map(([label, v, sub]) => <Tile key={label} label={label} value={v} sub={sub} dot="navy" />)}
+            {/* Band counters (Luke, Oct 22: inside a navy band they match the
+                Alerts counters — same size as before). */}
+            {stats.map(([label, v, sub]) => (
+              <div key={label} className="min-w-0 rounded-xl bg-white/10 px-4 py-3.5">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{label}</div>
+                <div className="mt-1 text-[28px] leading-none font-semibold tracking-tight tabular-nums text-white">{v}</div>
+                {sub && <div className="mt-2 text-[12px] text-white/60 truncate">{sub}</div>}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -790,7 +797,7 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
 
         {/* 6 · Legend */}
         <div className="text-[13.5px] leading-relaxed text-zinc-600 flex flex-col gap-1">
-          <span><b className="text-navy-700">Each number</b> is this week against the weekly target. The bar turns green when the rep is at or ahead of where they should be by now{isLive ? ' (the navy tick)' : ''}, amber when close (75%+ of it), red when further behind. Projected $ is the month so far (closed + Assigned with a COE this month) against $6,250 × week {wom} of the month.</span>
+          <span><b className="text-navy-700">Each number</b> is this week against the weekly target. The bar turns green when the rep is at or ahead of where they should be by now{isLive ? ' (the navy tick)' : ''}, amber when close (85%+ of it), red when further behind — and 0 is always red. Projected $ is the month so far (closed + Assigned with a COE this month) against $6,250 × week {wom} of the month.</span>
           <span><b className="text-navy-700">Score</b> out of 100 — {Object.entries(weightsFor(week)).filter(([, w]) => w).map(([key, w]) => `${key === 'crm' ? `CRM${speedInCrm(week) ? ' (six items, speed included)' : ''}` : key} ${w}`).join(', ')}; no contract caps it at 89. Strong 90+, Watch 75–89, Behind under 75 (worth a 1-on-1). The change is against the last finished week. “est.” means not every part is graded yet, so the graded parts are scaled up to 100.</span>
           <span><b className="text-navy-700">CRM</b>: {speedInCrm(week) ? <>points out of 12 — six items, 0–2 each, the last one Speed (agent texts answered within 15 minutes: 2 at {Math.round(SPEED_T * 100)}%+, 1 at {Math.round(SPEED_GRADE_ONE * 100)}%+)</> : <>points out of 10 — five items, 0–2 each</>}; A = graded automatically from GHL, a manager’s pick wins. <b className="text-navy-700">Next move</b> is the part of the score with the most points left. Click a row to see the CRM checklist{showNotes ? ', set grades and write a note' : ''}; click a name for the rep’s page.</span>
           <span><b className="text-navy-700">Where they leak</b>: green = at or above the team rate, amber = up to 20% below it, red = more than 20% below; the ring marks the biggest leak (only when 20%+ below the team).</span>

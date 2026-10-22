@@ -5,7 +5,6 @@
 // as often as needed; daily logs are written here; paperwork, live sessions
 // and sign-offs wait on their trainer (their pod lead) or Jack / Luke.
 // Trainer notes and session ratings never come here.
-import { Tile } from '../shell/Tile.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
@@ -222,7 +221,7 @@ export default function MyTraining() {
         </div>
         <div className="flex flex-wrap gap-2">
           {[['Progress', `${Math.round((status.done / Math.max(1, status.total)) * 100)}%`], ['Avg test', pct(avg)], ['Steps left', status.total - status.done]].map(([l, v]) => (
-            <Tile key={l} className="min-w-[120px]" label={l} value={v} dot="navy" />
+            <div key={l} className="rounded-xl bg-white/10 px-4 py-2"><div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{v}</div></div>
           ))}
         </div>
       </div>

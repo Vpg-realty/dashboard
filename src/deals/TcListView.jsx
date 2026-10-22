@@ -14,7 +14,6 @@
 // and when. Tiles on top filter the cards (?only=). Deals open in the deal
 // panel.
 import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
-import { Tile } from '../shell/Tile.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
@@ -414,7 +413,10 @@ export default function TcListView() {
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
           {[['Deals due today', count('due'), 'due'], ['Active deals', cards.length, 'all'], ['Closing ≤ 7 days', count('closing'), 'closing']].map(([l, n, v]) => (
-            <Tile key={v} className="min-w-[150px]" label={l} value={n} dot={v === 'due' && n ? 'red' : 'navy'} onClick={() => go(v)} active={view === v} />
+            <button key={v} type="button" onClick={() => go(v)} className={`rounded-xl px-4 py-2 text-left ${view === v ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
+              <div className={`text-[11px] font-semibold uppercase tracking-wide ${view === v ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
+              <div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div>
+            </button>
           ))}
         </div>
       </div>
