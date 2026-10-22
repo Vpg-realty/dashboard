@@ -235,7 +235,10 @@ export function autoCrm(pairs, monday, limit = 12) {
       ...msgs.flatMap((m) => m.compliance.bad.map((b) => ({ id: `c${b.at}`, addr: b.auto ? 'Automated text' : 'Rep text', why: b.why }))),
       ...(monday >= SPEED_FROM ? [] : msgs).flatMap((m) => m.speed.slow.filter((b) => !(m.speed.notNeeded || []).includes(b.id)).map((b) => ({ id: `s${b.at}`, addr: 'Agent text', why: b.mins == null ? 'no answer yet' : `answered in ${b.mins} min`, sub: m.sub, conv: b.conv || null }))),
     ];
-    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length };
+    // Claude's top 3 for the week (scripts/review-messaging.mjs, once a day
+    // per rep — the same on each of the rep's pairs).
+    const coach = msgs.find((m) => m.coach?.items?.length)?.coach || null;
+    detail.messaging = { share, parts: mparts, ok: null, total: null, bad: bad.slice(0, limit), badN: bad.length, coach };
   }
 
   // Dispo: deals that went under contract this week.

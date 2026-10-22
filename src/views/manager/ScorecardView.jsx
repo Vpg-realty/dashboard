@@ -16,10 +16,11 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
+import { CoachTop3, Standards, Examples } from './CrmBits.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
-import { REPS, issueUrl } from '../../data/config.js';
+import { REPS } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { addDays, rangeLabel } from '../../utils/historyRange.js';
@@ -459,33 +460,17 @@ function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, s
         <section key={x.key} id={anchor(x.key)} className="scroll-mt-4 rounded-xl bg-white border border-tan-200 overflow-hidden">
           <div className={head}>
             <h4 className="text-[16px] font-semibold">{x.short} · {x.grade} of 2</h4>
-            <span className="text-[13px] text-white/70">{x.d ? autoLine(x.d) : x.help}</span>
+            <span className="text-[13px] text-white/70">{x.d?.parts ? 'graded from the standards below' : x.d ? autoLine(x.d) : x.help}</span>
             {pick(x)}
           </div>
           {x.d?.parts && (
-            <div className="px-5 py-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[14px] border-b border-tan-100">
-              {x.d.parts.map((p) => (
-                <div key={p.key} className="contents">
-                  <span className="text-zinc-700">{p.label}{p.target ? ` · standard ${Math.round(p.target * 100)}%` : ''}{p.pending ? ` · ${p.pending} waiting for review` : ''}</span>
-                  <span className={`tabular-nums font-semibold text-right ${p.share == null ? 'text-zinc-400' : p.share >= 1 ? 'text-emerald-700' : p.share >= 0.6 ? 'text-amber-700' : 'text-rose-700'}`}>{p.total ? `${Math.round((p.ok / p.total) * 100)}% · ${p.ok} of ${p.total}` : '—'}</span>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 divide-x divide-tan-100 border-b border-tan-100">
+              <div className="p-5"><CoachTop3 coach={x.d.coach} whose={`${first(id)}'s Week`} /></div>
+              <div className="p-5"><Standards parts={x.d.parts} /></div>
             </div>
           )}
-          {x.d?.bad?.length > 0 ? (
-            <ul className="divide-y divide-tan-100">
-              {x.d.bad.map((b) => {
-                const url = issueUrl(b);
-                return (
-                  <li key={b.id + b.why} className="flex flex-wrap items-center gap-x-4 gap-y-0.5 px-5 py-2.5">
-                    <span className="flex-[1_1_260px] min-w-0 text-[15px] font-semibold text-navy-900">{b.addr}</span>
-                    <span className="flex-[1_1_320px] min-w-0 text-[13.5px] text-zinc-600">{b.why}</span>
-                    {url && <a href={url} target="_blank" rel="noreferrer" className="text-[13px] font-semibold text-navy-700 hover:underline">{'conv' in b ? 'Open conversation ↗' : 'Open in GHL ↗'}</a>}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : !x.d?.parts && <div className="px-5 py-3 text-[14px] text-zinc-500">{x.set ? `Set to ${x.grade} by a manager${x.auto != null ? ` (automatic: ${x.auto})` : ''}.` : 'Nothing listed for this check.'}</div>}
+          {x.d?.bad?.length > 0 ? <Examples bad={x.d.bad} total={x.bad || x.d.bad.length} />
+            : !x.d?.parts && <div className="px-5 py-3 text-[14px] text-zinc-500">{x.set ? `Set to ${x.grade} by a manager${x.auto != null ? ` (automatic: ${x.auto})` : ''}.` : 'Nothing listed for this check.'}</div>}
         </section>
       ))}
       {speed.open && (

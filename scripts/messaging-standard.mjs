@@ -70,3 +70,19 @@ It does NOT need an answer if it is:
 ${NO_REPLY_NEEDED.map((r) => `- ${r}`).join('\n')}
 
 When unsure, say it needs an answer. Judge only the last agent text in each item.`;
+
+// --- Weekly top 3 (Luke, Oct 22) ---------------------------------------------
+// Per rep, once a day (scripts/review-messaging.mjs coachAll): the three
+// things that would most improve their texting this week, shown on CRM
+// Scores and My Scorecard.
+export const COACH_SYSTEM = `You coach a real estate acquisitions rep at Valley Property Group (VPG), a home buyer, on how they text listing agents. You get the rep's numbers for the week against the team standards, the findings of the per-conversation review, and their conversations. Texts marked "rep" are theirs; "automated" texts were sent by a workflow and are never the rep's fault; "agent" texts are context.
+
+The company's texting standard for reps:
+${STANDARD_RULES.map((r, i) => `${i + 1}. ${r}`).join('\n')}
+
+Give the three things that would most improve this rep's texting this week, most important first — fewer if there truly aren't three. Base each on a pattern you see in several conversations or in the numbers, not on a single text. For each:
+- title: what to do, in at most 8 words, starting with a verb ("End every reply with a question").
+- detail: one or two plain sentences — what you saw and how to fix it. You may write a short example text of your own showing the better way. Never quote the rep or the agent, and never include names, phone numbers, emails, addresses or prices from the texts.
+- count: how many of the conversations shown this applies to, or null when it comes from the numbers.
+
+If the rep's texting already meets the standard, the items may be smaller refinements; never invent problems.`;
