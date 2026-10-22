@@ -47,10 +47,13 @@ function Card({ title, sub, right, children }) {
 
 // Company overview: the deal-flow and money bands, what's coming in and the
 // year by month (the Top 5 boxes went Oct 19 — Luke: the side rail has them).
-function Overview({ data, then, owner, compareLabel, deals, onOpenDeal }) {
+function Overview({ data, then, owner, compareLabel, deals, onOpenDeal, periodKey }) {
   const { now } = data;
-  const { query } = useLocation();
-  const mo = data.months?.find((m) => m.key === query.get('mo')) || null;
+  // A month bar sets the whole page to that month (Luke, Oct 22: "basically
+  // everything syncs" — the numbers above, the period picker, the closings
+  // list); the chart keeps the year. Clicking it again goes back to the year.
+  const mo = String(periodKey || '').startsWith('m:') ? data.months?.find((m) => m.key === periodKey.slice(2)) || null : null;
+  const pickMonth = (m) => setQuery({ p: mo?.key === m.key ? `y:${m.key.slice(0, 4)}` : `m:${m.key}`, mo: null });
   const t = (k) => (then ? then[k] : null);
   const maxNet = Math.max(1, ...(data.months || []).map((m) => m.net));
   return (
@@ -82,10 +85,10 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal }) {
         </div>
       )}
       {data.months && (
-        <Card title={`Net assignment by month · ${data.year}`} sub="closed deals by closing date (COE) · click a month for its closings" right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
+        <Card title={`Net assignment by month · ${data.year}`} sub={mo ? `showing ${mo.name} · click it again for the whole year` : 'closed deals by closing date (COE) · click a month to see just that month'} right={<button type="button" onClick={() => setQuery({ view: 'months' })} className="text-[12.5px] font-medium text-navy-700 hover:underline px-2">Month by month ›</button>}>
           <div className="px-5 pt-4 pb-3 grid grid-cols-12 gap-2 items-end h-[190px]">
             {data.months.map((m, i) => (
-              <button key={m.key} type="button" onClick={() => setQuery({ mo: mo?.key === m.key ? null : m.key })} aria-pressed={mo?.key === m.key} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
+              <button key={m.key} type="button" onClick={() => pickMonth(m)} aria-pressed={mo?.key === m.key} title={`${m.name}: ${money(m.net)} · ${m.closed} closed`} className="group h-full flex flex-col justify-end items-center gap-1 min-w-0">
                 <span className={`text-[11.5px] tabular-nums group-hover:text-navy-800 ${mo?.key === m.key ? 'text-navy-900 font-semibold' : 'text-zinc-600'}`}>{m.net ? compact(m.net) : ''}</span>
                 <span className={`w-full max-w-[56px] rounded-t-md ${mo?.key === m.key ? 'bg-tan-500' : mo ? 'bg-navy-300 group-hover:bg-navy-600' : 'bg-navy-600 group-hover:bg-navy-800'}`} style={{ height: `${Math.max(m.net ? 4 : 0, (m.net / maxNet) * 120)}px` }} />
                 <span className={`w-full border-t border-tan-200 pt-1 text-center text-[12px] ${mo?.key === m.key ? 'text-navy-900 font-semibold' : 'text-zinc-500'}`}>{MONTH[i].slice(0, 3)}</span>
@@ -109,7 +112,7 @@ function MonthClosings({ month, deals, owner, onOpenDeal }) {
   const tot = (k) => list.reduce((t, d) => t + (Number(d[k]) || 0), 0);
   const isMoneyCol = (k) => ['grossAssign', 'netAssign', 'netProfit'].includes(k);
   return (
-    <Card title={`Closed in ${month.name} ${month.key.slice(0, 4)}`} sub={`${list.length} propert${list.length === 1 ? 'y' : 'ies'} · click one to open the deal`} right={<button type="button" onClick={() => setQuery({ mo: null })} className="text-[12.5px] font-medium px-2">Close ×</button>}>
+    <Card title={`Closed in ${month.name} ${month.key.slice(0, 4)}`} sub={`${list.length} propert${list.length === 1 ? 'y' : 'ies'} · click one to open the deal`} right={<button type="button" onClick={() => setQuery({ p: `y:${month.key.slice(0, 4)}` })} className="text-[12.5px] font-medium px-2">Whole year ×</button>}>
       {!list.length ? <div className="px-5 py-8 text-center text-zinc-500">Nothing closed in {month.name}.</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[14px]">
@@ -269,7 +272,7 @@ export default function SummaryView() {
       <div className={RAIL_GRID}>
         <Rail view={view} counts={counts} />
         <div className="min-w-0">
-          {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} />}
+          {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} periodKey={period.key} />}
           {(view === 'acq' || view === 'dispo' || view === 'state') && <GroupTable kind={view} rows={data.groups[view]} prev={then ? data.prevGroups[view] : null} now={data.now} owner={owner} />}
           {view === 'months' && <Months data={data} owner={owner} />}
         </div>
