@@ -1,5 +1,5 @@
-import { REPS } from '../data/config.js';
-import { PAIRS } from '../data/source.js';
+// The board's reps only (src/data/board.js).
+import { REPS_ON_BOARD as REPS, BOARD_PAIRS as PAIRS } from '../data/board.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { azHour } from '../utils/pace.js';
 

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { REPS, KPI_TARGETS } from '../data/config.js';
-import { PAIRS, headline, historyEntries } from '../data/source.js';
+import { KPI_TARGETS } from '../data/config.js';
+// The board's reps only (Settings › People › On the TV board, src/data/board.js).
+import { REPS_ON_BOARD as REPS, BOARD_PAIRS as PAIRS, boardHeadline as headline, boardHistory as historyEntries } from '../data/board.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
