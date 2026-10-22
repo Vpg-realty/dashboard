@@ -18,7 +18,7 @@ import { zillowUrl } from './math.js';
 import { useLocation, setQuery } from '../shell/router.js';
 import { PANEL_HEAD } from '../shell/panelStyle.js';
 import { laToday } from '../utils/historyRange.js';
-import { Tile } from '../shell/Tile.jsx';
+import BandCounter from '../shell/BandCounter.jsx';
 
 // The same projection the state shapes were made with (us-atlas
 // states-albers-10m: 975 × 610).
@@ -146,12 +146,10 @@ export default function DealsMapView() {
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <PageHead title="Closed deals map" sub={`Every deal we've closed${points.length ? ` since ${fullDate(points.map((p) => p.sold).filter(Boolean).sort()[0])}` : ''} — new closings are added automatically. Hover a dot for the details; click it to keep the card open.`} />
-      <div className="grid grid-cols-3 gap-2.5 mb-3">
-        {[['Closed sales', shown.length], ['States', states.length], ['Sold volume', money(volume)]].map(([l, val]) => (
-          <Tile key={l} label={`${l}${year ? ` · ${year}` : ''}`} value={val} dot={l === 'Sold volume' ? 'green' : 'navy'} />
-        ))}
-      </div>
+      <PageHead title="Closed deals map" sub={`Every deal we've closed${points.length ? ` since ${fullDate(points.map((p) => p.sold).filter(Boolean).sort()[0])}` : ''} — new closings are added automatically. Hover a dot for the details; click it to keep the card open.`} counters={
+        [['Closed sales', shown.length], ['States', states.length], ['Sold volume', money(volume)]].map(([l, val]) => (
+          <BandCounter key={l} label={`${l}${year ? ` · ${year}` : ''}`} value={val} />
+        ))} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <button type="button" onClick={() => setQuery({ y: null })} className={chip(!year)}>All years</button>
         {years.map((y) => <button key={y} type="button" onClick={() => setQuery({ y })} className={chip(year === y)}>{y}</button>)}

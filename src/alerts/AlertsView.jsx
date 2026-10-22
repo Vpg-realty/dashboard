@@ -8,6 +8,7 @@
 // off (Luke, Oct 19); opening the page only stops the pulse — what arrived
 // since the last visit keeps a NEW tag until the page is left. "Select all"
 // ticks many at once (leads take a Real / Not a lead answer instead).
+import BandCounter from '../shell/BandCounter.jsx';
 import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -307,10 +308,7 @@ export default function AlertsView() {
         <div className="ml-auto flex flex-wrap gap-2">
           {[['New', newN, 'today'], ['Due today', dueToday, 'today'], ['Overdue', late, 'today'], ['Leads', scoped.filter((a) => !isDone(a) && a.kind === 'lead').length, 'leads']].map(([l, n, v]) => (
             // Band counters, not page tiles (Luke, Oct 22: these stay as they were).
-            <button key={l} type="button" onClick={() => setQuery({ view: v === 'today' ? null : v, tab: null })} className={`rounded-xl px-4 py-2 text-left min-w-[96px] ${l === 'New' && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10 hover:bg-white/15'}`}>
-              <div className={`text-[11px] font-semibold uppercase tracking-wide ${l === 'New' && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div>
-              <div className={`text-[22px] font-semibold tabular-nums leading-tight ${l === 'Overdue' && n ? 'text-rose-200' : ''}`}>{n}</div>
-            </button>
+            <BandCounter key={l} label={l} value={n} hot={l === 'New' && !!n} warn={l === 'Overdue'} onClick={() => setQuery({ view: v === 'today' ? null : v, tab: null })} />
           ))}
         </div>
       </div>
