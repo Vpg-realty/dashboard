@@ -152,7 +152,7 @@ export default function TrainingBoard() {
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Management · Training</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Scorecards · Training</div>
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">New Hires in Training</h1>
           <p className="mt-1 text-[13.5px] text-white/75">Everyone in the program, where they are, and what’s waiting on you.</p>
         </div>

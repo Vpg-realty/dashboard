@@ -62,9 +62,10 @@ const OFFER = { state: '', emd: '', ipDays: '', coe: '', title: '' };
 // The rep's own read and Claude's review (Luke, Oct 22), kept with the
 // calculation: readCall go | adjust | pass, read = their words, review =
 // Claude's review as JSON text (with the numbers' signature it was made for).
-const REVIEW = { readCall: '', read: '', review: '' };
+const REVIEW = { review: '' }; // Claude's take, kept with the calculation
 // The fields that aren't the numbers (so a review knows when the numbers moved).
-export const NOT_NUMBERS = new Set([...Object.keys(OFFER), ...Object.keys(REVIEW)]);
+// readCall / read: the rep's own read (removed Oct 22), still in older saves.
+export const NOT_NUMBERS = new Set([...Object.keys(OFFER), ...Object.keys(REVIEW), 'readCall', 'read']);
 export const numbersSig = (inputs = {}) => JSON.stringify(Object.keys(inputs).filter((k) => !NOT_NUMBERS.has(k)).sort().map((k) => [k, inputs[k]]));
 
 // ── Seller finance ──────────────────────────────────────────────────────────

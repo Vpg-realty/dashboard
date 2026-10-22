@@ -1,11 +1,10 @@
-// Ask Claude on the Toolkit's calculators (Luke, Oct 22: "an ask claude
-// section here specific to how we are calculating these items"). Everyone
-// in the app; each person has their own private thread (`calc:<email>`), 25
-// questions an Arizona day, and the cost counts toward the same monthly cap
-// as the owners' chat (settings chat_cap). Claude gets the briefing below
-// (the calculators' formulas, written from src/toolkit/calc.js) and the
-// calculation the person has open, with its results worked out — no other
-// dashboard data, no tools.
+// Claude's take on the Toolkit's calculators (Luke, Oct 22; the Ask Claude
+// chat was replaced later that day by the take under the result tiles).
+// Everyone in the app, 25 takes an Arizona day per person, and the cost
+// counts toward the same monthly cap as the owners' chat (settings
+// chat_cap). Claude gets the briefing below (the calculators' formulas,
+// written from src/toolkit/calc.js) and the calculation with its results
+// worked out — no other dashboard data, no tools.
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL, costOf } from './chat.js';
 import { seller, multifamily, solveSeller, solveMf, notesFor, KINDS, CASH_FLOW_GOAL, DOWN_MAX_PCT, COC_TARGET, CAP_TARGET, DSCR_MIN, REFI_LTV_MAX } from '../src/toolkit/calc.js';
@@ -13,7 +12,7 @@ import { seller, multifamily, solveSeller, solveMf, notesFor, KINDS, CASH_FLOW_G
 export const CALC_DAILY = 25;
 export const threadOf = (u) => `calc:${u.email}`;
 const azDayStart = (now = new Date()) => { const az = new Date(now.getTime() - 7 * 3600000); return new Date(Date.UTC(az.getUTCFullYear(), az.getUTCMonth(), az.getUTCDate()) + 7 * 3600000).toISOString(); };
-// Questions and reviews share one daily allowance (CALC_DAILY).
+// Takes logged in chat_messages (thread calcreview:<email>; older calc:<email> questions still count today).
 export const askedToday = async (db, thread) => (await db.prepare("SELECT COUNT(*) n FROM chat_messages WHERE thread IN (?, ?) AND role = 'user' AND at >= ?").bind(thread, thread.replace(/^calc:/, 'calcreview:'), azDayStart()).first())?.n || 0;
 
 export const CALC_BRIEFING = `You help the team of Valley Property Group (VPG), a real-estate wholesaling and creative-finance company, with the two calculators in the dashboard's Toolkit. The person asking is on the team (an acquisition rep, a pod lead, the transaction coordinator or an owner). Explain how the numbers are worked out, why a result looks the way it does, and what would change it. VPG puts a deal under contract and assigns it to an investor buyer, who pays VPG's assignment fee in cash at closing — so the fee is part of the buyer's cash in.
@@ -75,74 +74,35 @@ export function calcContext(calc) {
     notes ? `Flags:\n${notes}` : 'Flags: none.'].filter(Boolean).join('\n');
 }
 
-// Ask. history = this person's last messages; returns { text, usage, cost }.
-export async function askCalc(context, user, { history, question, calc }) {
-  const messages = [];
-  for (const h of history) {
-    const role = h.role === 'assistant' ? 'assistant' : 'user';
-    const last = messages[messages.length - 1];
-    if (last && last.role === role) last.content += `\n\n${h.text}`; else messages.push({ role, content: h.text });
-  }
-  if (messages[0]?.role === 'assistant') messages.shift();
-  const today = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const turn = `Today is ${today}. Asked by ${user.name}.\n\n${calcContext(calc)}\n\nQUESTION: ${question}`;
-  if (messages.length && messages[messages.length - 1].role === 'user') messages[messages.length - 1].content += `\n\n${turn}`; else messages.push({ role: 'user', content: turn });
-  const client = new Anthropic({ apiKey: context.env.ANTHROPIC_API_KEY, maxRetries: 2 });
-  const res = await client.beta.messages.create({
-    model: MODEL,
-    max_tokens: 4000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'low' },
-    system: [{ type: 'text', text: CALC_BRIEFING, cache_control: { type: 'ephemeral' } }],
-    messages,
-  });
-  let text = (res.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n\n').trim();
-  if (res.stop_reason === 'refusal') text = "I can't answer that one — try rephrasing it.";
-  if (!text) text = 'No answer came back — try again.';
-  return { text, usage: res.usage || {}, cost: costOf(res.usage || {}) };
-}
-
-// ── The underwriting review (Luke, Oct 22: "a quick claude review of the
-// underwriting … where you think we can find improvement with
-// recommendations. i still want them to have to think for themselves").
-// The rep's own read is encouraged first; Claude answers it, then gives
-// questions to check (not answers), numbers that look off and one or two
-// levers with numbers. Works on drafts; the page keeps it with the
-// calculation. Counts toward the same CALC_DAILY as the questions.
+// Claude's take on one calculation (Luke, later Oct 22: "draft a response
+// on your thoughts about the deal, why, and thoughts on how to make it a
+// better deal … providing them with reasoning so they can also understand
+// where you are coming from"). Shown under the result tiles; works on drafts.
 export const REVIEW_SYSTEM = `${CALC_BRIEFING}
 
-YOUR JOB NOW: a short second opinion on one calculation. The rep should still do the thinking — coach, don't decide for them.
-- If the rep wrote their own read (go / adjust / pass and why), say whether you agree, partly agree or disagree, and why, in one or two sentences. If they didn't, say so in stance "none" and leave stanceNote empty.
-- verdict: strong (meets VPG's goals with room), workable (close — a change or two gets there), stretch (needs real changes), pass (the numbers don't work at any reasonable terms). summary: one or two sentences in plain words.
-- questions: 2–4 things the rep should go and check before offering — phrased as questions they answer from comps, the agent, the listing or the county (e.g. whether the rent is supported, whether taxes reassess after the sale, what the units' condition is). Never answer them yourself; you don't have market data.
-- flags: 0–4 numbers that look off against VPG's rules or each other (insurance low for the unit count, a rent far above the other units, an expense left blank, a vacant unit without a market rent, a down payment near 10%, a balloon that can't be refinanced, weak debt coverage). Only what the inputs show; none is fine.
-- levers: 1–2 concrete changes with their effect worked out from VPG's formulas (e.g. "Offer $395,000 instead of $420,000 → about an 8.2 cap and 10.1% cash-on-cash"). Use the "What it takes" numbers when they help. Round to dollars.
+YOUR JOB NOW: your take on one calculation, written so a newer rep learns how to read a deal — show your reasoning, not just a verdict.
+- verdict: strong (meets VPG's goals with room), workable (close — a change or two gets there), stretch (needs real changes), pass (the numbers don't work at any reasonable terms).
+- take: two or three sentences in plain words — what you think of the deal and the one thing that decides it.
+- why: 2–4 short points of reasoning, each tied to a number on the page and the goal it's measured against (e.g. "Cash-on-cash is 7.4% on current rents — under our 10% because the two vacant units are carried at market rent and the buyer brings $52,000 in cash"). Include anything that looks off in the inputs (insurance low for the unit count, a rent far above the others, an expense left blank, a down payment near 10%, a balloon that can't refinance, weak debt coverage).
+- better: 1–3 concrete ways to make it a better deal, each with the change, its effect worked out from VPG's formulas, and why it works (e.g. change "Offer $395,000 instead of $420,000", effect "≈ 8.2 cap and 10.1% cash-on-cash", why "the price is the biggest lever on both"). Use the "What it takes" numbers when they help. Round to dollars. When the deal is already strong, say what keeps it strong.
+- check: 1–3 things to verify before offering, as questions the rep answers from comps, the agent, the listing or the county (rent supported? taxes reassess after the sale? condition of the units?). Never answer them — you don't have market data.
 - Plain words, short. No preamble.`;
 
 const REVIEW_SCHEMA = {
   type: 'object',
   properties: {
-    stance: { type: 'string', enum: ['agree', 'partly', 'disagree', 'none'] },
-    stanceNote: { type: 'string' },
     verdict: { type: 'string', enum: ['strong', 'workable', 'stretch', 'pass'] },
-    summary: { type: 'string' },
-    questions: { type: 'array', items: { type: 'string' } },
-    flags: { type: 'array', items: { type: 'string' } },
-    levers: { type: 'array', items: { type: 'object', properties: { change: { type: 'string' }, effect: { type: 'string' } }, required: ['change', 'effect'], additionalProperties: false } },
+    take: { type: 'string' },
+    why: { type: 'array', items: { type: 'string' } },
+    better: { type: 'array', items: { type: 'object', properties: { change: { type: 'string' }, effect: { type: 'string' }, why: { type: 'string' } }, required: ['change', 'effect', 'why'], additionalProperties: false } },
+    check: { type: 'array', items: { type: 'string' } },
   },
-  required: ['stance', 'stanceNote', 'verdict', 'summary', 'questions', 'flags', 'levers'],
+  required: ['verdict', 'take', 'why', 'better', 'check'],
   additionalProperties: false,
 };
-const READ_WORD = { go: 'Go', adjust: 'Adjust the terms', pass: 'Pass' };
 const clipS = (x, n) => String(x ?? '').slice(0, n);
 
 export async function reviewCalc(context, user, calc) {
-  const i = calc.inputs || {};
-  const read = String(i.read || '').trim();
-  const mine = i.readCall || read
-    ? `THE REP'S OWN READ: ${READ_WORD[i.readCall] || 'no call picked'}${read ? ` — "${read.slice(0, 1000)}"` : ''}`
-    : "THE REP'S OWN READ: none written.";
   const client = new Anthropic({ apiKey: context.env.ANTHROPIC_API_KEY, maxRetries: 2 });
   const res = await client.beta.messages.create({
     model: MODEL,
@@ -151,19 +111,17 @@ export async function reviewCalc(context, user, calc) {
     fallbacks: 'default',
     system: [{ type: 'text', text: REVIEW_SYSTEM, cache_control: { type: 'ephemeral' } }],
     output_config: { effort: 'low', format: { type: 'json_schema', schema: REVIEW_SCHEMA } },
-    messages: [{ role: 'user', content: `Review this calculation for ${user.name}.\n\n${calcContext(calc)}\n\n${mine}` }],
+    messages: [{ role: 'user', content: `Give your take on this calculation for ${user.name}.\n\n${calcContext(calc)}` }],
   });
   if (res.stop_reason === 'refusal') throw new Error("Claude couldn't review this one");
   if (res.stop_reason === 'max_tokens') throw new Error('The review ran long — try again');
   const p = JSON.parse((res.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''));
   const review = {
-    stance: ['agree', 'partly', 'disagree', 'none'].includes(p.stance) ? p.stance : 'none',
-    stanceNote: clipS(p.stanceNote, 400),
     verdict: ['strong', 'workable', 'stretch', 'pass'].includes(p.verdict) ? p.verdict : 'workable',
-    summary: clipS(p.summary, 500),
-    questions: (p.questions || []).slice(0, 4).map((x) => clipS(x, 300)),
-    flags: (p.flags || []).slice(0, 4).map((x) => clipS(x, 300)),
-    levers: (p.levers || []).slice(0, 2).map((x) => ({ change: clipS(x?.change, 200), effect: clipS(x?.effect, 300) })),
+    take: clipS(p.take, 700),
+    why: (p.why || []).slice(0, 4).map((x) => clipS(x, 350)),
+    better: (p.better || []).slice(0, 3).map((x) => ({ change: clipS(x?.change, 200), effect: clipS(x?.effect, 250), why: clipS(x?.why, 300) })),
+    check: (p.check || []).slice(0, 3).map((x) => clipS(x, 300)),
   };
   return { review, usage: res.usage || {}, cost: costOf(res.usage || {}) };
 }

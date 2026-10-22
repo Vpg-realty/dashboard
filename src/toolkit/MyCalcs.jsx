@@ -93,10 +93,9 @@ export default function MyCalcs() {
   );
 }
 
-// The rep's call and Claude's verdict under the name (pod leads review these).
-const CALL = { go: 'Go', adjust: 'Adjust', pass: 'Pass' };
+// Claude's verdict under the name (pod leads review these).
+const VERDICT = { strong: 'Strong', workable: 'Workable', stretch: 'Stretch', pass: 'Pass' };
 function ReadLine({ i }) {
   const v = (() => { try { return i?.review ? JSON.parse(i.review).verdict : null; } catch { return null; } })();
-  if (!i?.readCall && !v) return null;
-  return <span className="block text-[11.5px] text-zinc-500">{i.readCall ? `Their call: ${CALL[i.readCall]}` : ''}{i.readCall && v ? ' · ' : ''}{v ? `Claude: ${v}` : ''}</span>;
+  return v ? <span className="block text-[11.5px] text-zinc-500">Claude’s take: {VERDICT[v] || v}</span> : null;
 }

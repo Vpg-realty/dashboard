@@ -85,13 +85,13 @@ export const SECTIONS = [
     // funds letter, title agencies by market, the seller finance and
     // multifamily calculators, and the calculations people saved
     // (src/toolkit; data in D1, functions/api/toolkit).
-    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true,
+    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
     tabs: [
       { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The current letter', title: 'Proof of funds', blurb: 'The letter to send with offers. Always download it from here — it’s replaced whenever a new one comes in.' },
       { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
       { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
       { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
-      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Saved', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
+      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
     ],
   },
   {
@@ -113,32 +113,21 @@ export const SECTIONS = [
     ],
   },
   {
-    // Luke, Oct 14: each rep sees their own scorecard (team average line, no
-    // notes, no other rep's scores); a simple page with the full breakdown below.
-    // Managers see their own scorecard inside Team Scorecards (Luke, Oct 22),
-    // so this entry is the reps' only.
-    // One page since Oct 22 (Luke: "a ton of overlap") — This Week, the trend
-    // and Look Back (the old Full Breakdown) on the same page.
-    id: 'me', label: 'My Scorecard', icon: 'user', roles: ['team'], solo: true,
+    // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…), then
+    // Team Scorecards (Oct 19). Oct 22 (Luke: "rename the team / my
+    // scorecards to just scorecards … internal tabs can distinguish"): one
+    // Scorecards entry for owners, managers and reps — My Scorecard (reps and
+    // managers; This Week, the trend and Look Back, the old Full Breakdown)
+    // and Team Scorecard (owners, managers). Old /me/… links land on My
+    // Scorecard (MOVED). Coaching is the Scorecard's Where They Leak view.
+    id: 'team', label: 'Scorecards', icon: 'team', roles: ['owner', 'manager', 'team'],
     tabs: [
-      { id: 'scorecard', label: 'My Scorecard', view: 'my-scorecard', scroll: true },
-    ],
-  },
-  {
-    // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…).
-    // "Management" renamed Team Scorecards (Luke, Oct 19); Coaching is the
-    // Scorecard's Where They Leak view now (old /team/coaching links redirect).
-    id: 'team', label: 'Team Scorecards', icon: 'team', roles: ['owner', 'manager'],
-    tabs: [
-      // "Team Scorecard" (Luke, Oct 22: tells it apart from My Scorecard).
-      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK },
-      // A manager's own scorecard, the same pages reps get (Luke, Oct 22: no
-      // third view, no separate sidebar entry).
-      { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager'] },
-      { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK },
+      { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager', 'team'] },
+      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK, roles: ['owner', 'manager'] },
+      { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK, roles: ['owner', 'manager'] },
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
-      { id: 'training', label: 'Training', view: 'mgr-training', scroll: true },
+      { id: 'training', label: 'Training', view: 'mgr-training', scroll: true, roles: ['owner', 'manager'] },
     ],
   },
   {
@@ -242,7 +231,8 @@ const MOVED = {
   'finance/payouts': { section: 'finance', tab: 'money' },
   'finance/wires': { section: 'finance', tab: 'money' },
   // Full Breakdown folded into My Scorecard as Look Back (Oct 22).
-  'me/breakdown': { section: 'me', tab: 'scorecard' },
+  // My Scorecard's own sidebar entry folded into Scorecards (Oct 22).
+  me: { section: 'team', tabs: { scorecard: 'mine', breakdown: 'mine' } },
   'team/my-breakdown': { section: 'team', tab: 'mine' },
 };
 
