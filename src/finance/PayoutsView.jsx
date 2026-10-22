@@ -10,6 +10,7 @@
 // - **TC monthly** — the TC's fee for each month's closings as one payment:
 //   approve the month, mark it paid; never touches a deal's Commission paid.
 // - **Paid** (history) and **Coming due** (open assigned deals, by COE month).
+import { PAYOUT_TABS } from './tabs.js';
 import { useMemo, useState } from 'react';
 import { useFinance, act } from './store.js';
 import { METHODS, lineAmount, partLabel, sum, isTcLine, tcMonths, TC_MONTHLY_FROM } from './lines.js';
@@ -26,7 +27,7 @@ import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
 import { titleCase } from '../shell/titleCase.js';
 
-const TABS = [['deals', 'By deal'], ['tc', 'TC monthly'], ['paid', 'Paid'], ['coming', 'Coming due']];
+const TABS = PAYOUT_TABS;
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthName = (m) => (m === 'none' ? 'No COE' : `${MON[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}`);
 const pill = 'inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap';
@@ -271,11 +272,13 @@ export default function PayoutsView({ embedded = false }) {
         <MoneyTile label="Coming due" accent="tan" value={money(sum(f.coming))} sub="open assigned deals · paid at closing" active={tab === 'coming'} onClick={() => setTab('coming')} />
       </div>
 
-      <div className="mt-5 mb-3 flex flex-wrap items-center gap-1 border-b border-tan-200">
+      {/* On Money In & Out the page's left rail picks the list (Oct 22: no tabs
+          inside tabs); on its own the page keeps its tab row. */}
+      {embedded ? <div className="mt-5" /> : <div className="mt-5 mb-3 flex flex-wrap items-center gap-1 border-b border-tan-200">
         {TABS.map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={`-mb-px h-10 px-4 text-[14px] font-medium border-b-[3px] ${tab === k ? 'border-navy-700 text-navy-800' : 'border-transparent text-zinc-500 hover:text-navy-700'}`}>{l}</button>
         ))}
-      </div>
+      </div>}
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13.5px] text-red-800">{err}</div>}
 
       {tab === 'deals' && (

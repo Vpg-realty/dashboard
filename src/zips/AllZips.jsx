@@ -5,7 +5,7 @@
 // (who holds what, the request log). The rules open from ⓘ (RulesHealth.jsx).
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useMemo, useState } from 'react';
-import { useLocation, setQuery } from '../shell/router.js';
+import { useLocation, navigate } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import { useMe } from '../utils/dashApi.js';
 import { useZips, zipAction, daysLeft, shortDate } from './store.js';
@@ -63,12 +63,15 @@ function Progress({ s, at }) {
 
 const VIEWS = [['overview', 'Overview'], ['browse', 'Browse & Assign'], ['holds', 'Holds & History']];
 
-export default function ZipCenter() {
+// Oct 22 (Luke: no tabs inside tabs): the three views are Territory's own
+// rail entries — Zip Center (overview), Browse & Assign, Holds & History —
+// `view` comes from the tab (AppShell); an old ?view= link still opens it.
+export default function ZipCenter({ view: tabView }) {
   const me = useMe();
   const owner = me?.role === 'owner' && !me?.viewAs;
   const z = useZips();
   const { query } = useLocation();
-  const view = VIEWS.some(([k]) => k === query.get('view')) ? query.get('view') : 'overview';
+  const view = tabView || (VIEWS.some(([k]) => k === query.get('view')) ? query.get('view') : 'overview');
   const [rules, setRules] = useState(false);
   const [repFilter, setRepFilter] = useState('');
   const d = z.data;
@@ -86,19 +89,13 @@ export default function ZipCenter() {
   const weekReq = d.requests.filter((r) => r.via === 'request' && r.at >= d.weekStart).length;
   const urgent = d.health.filter((h) => h.level !== 'info');
   // A state anywhere opens it in Browse & Assign.
-  const goState = (st) => setQuery({ view: 'browse', s: st });
+  const goState = (st) => navigate(`/territory/zip-browse?s=${encodeURIComponent(st)}`);
   const states = [...d.states].sort((a, b) => worked.has(b.state) - worked.has(a.state) || a.state.localeCompare(b.state));
   const holds = repFilter ? holdsByRep.filter(([id]) => id === repFilter) : holdsByRep;
 
   return (
     <div className="max-w-[1720px] mx-auto flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-xl bg-navy-800 p-1 shadow-sm" role="tablist">
-          {VIEWS.map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={view === k} onClick={() => setQuery({ view: k === 'overview' ? null : k })}
-              className={`h-9 px-4 rounded-lg text-[13.5px] font-semibold transition-colors ${view === k ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white'}`}>{l}</button>
-          ))}
-        </div>
         <span className="text-zinc-500 text-[13px]">Every zip from the territory sheet, who has it and for how long. Reps request their own; {owner ? 'you' : 'owners'} assign, release and approve new rounds.</span>
         <button type="button" onClick={() => setRules(true)} className="ml-auto h-9 px-3 rounded-lg bg-tan-500 text-navy-900 text-[13px] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.2)] hover:bg-tan-400">ⓘ The rules</button>
       </div>
@@ -106,9 +103,9 @@ export default function ZipCenter() {
       {view === 'overview' && <>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
           <BrandTile label="Zips on file" value={totals.total.toLocaleString()} sub={`${d.states.length} states`} />
-          <BrandTile label="Held right now" value={totals.held.toLocaleString()} sub={`by ${holdsByRep.length} rep${holdsByRep.length === 1 ? '' : 's'}`} accent="sky" onClick={() => setQuery({ view: 'holds' })} />
+          <BrandTile label="Held right now" value={totals.held.toLocaleString()} sub={`by ${holdsByRep.length} rep${holdsByRep.length === 1 ? '' : 's'}`} accent="sky" onClick={() => navigate('/territory/zip-holds')} />
           <BrandTile label="Available" value={totals.avail.toLocaleString()} sub="in states reps work, this round" accent="green" />
-          <BrandTile label="Requests this week" value={String(weekReq)} sub={`${d.rules.perWeek} per rep per state allowed`} accent="tan" onClick={() => setQuery({ view: 'holds' })} />
+          <BrandTile label="Requests this week" value={String(weekReq)} sub={`${d.rules.perWeek} per rep per state allowed`} accent="tan" onClick={() => navigate('/territory/zip-holds')} />
           <BrandTile label="Needs attention" value={String(urgent.length)} sub={urgent.length ? 'see the list below' : 'nothing urgent'} accent={urgent.some((h) => h.level === 'now') ? 'red' : urgent.length ? 'amber' : 'grey'} />
         </div>
 

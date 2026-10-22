@@ -183,6 +183,13 @@ one can't fit a page, tell Luke instead of making a one-off.
   (the navy-band person pickers). Left as native selects on purpose: the
   CRM grade chips in the Scorecard rows and the coloured status pickers on
   Territory (SheetView / StateControls) — Luke to decide.
+- **Sections inside a page** = `SideRail` (`src/shell/SideRail.jsx`, Finance
+  Overview's left rail; `RAIL_GRID` beside it, `compact` + `RAIL_GRID_COMPACT`
+  = labels only for wide tables) — never a second row of tabs or a switch
+  inside a tab (Luke, Oct 22). Used by Finance Overview, Money In & Out,
+  Team Scorecards › Scorecard, TC List and Alerts (their buttons are its
+  `RailButton`). Settings / Territory keep their Frame rail (the section's
+  own tabs, links). Panels (the deal panel, Ask Claude) may keep tabs.
 - **Page title** = Home's size: `text-2xl md:text-[30px] font-semibold`
   (every page band's h1, ManagerFrame, Settings / Territory Frame).
 - **Page width** = Deals › Active's: `max-w-[1720px] mx-auto` on every page
@@ -1052,6 +1059,25 @@ Overrides older notes where they differ.
 - **Sold volume** = the VPG assignment price of closed deals (Finance
   Overview, territory state card, the closed-deals map's tracker rows) —
   never the final assignment price.
+
+## Oct 22 round, phase 3 — no tabs inside tabs (Luke)
+
+- **Money In & Out**: the Money out / Money in switch, the tiles-as-tabs and
+  Payouts' underline tabs became one rail — Money out · payouts (By Deal, TC
+  Monthly, Paid, Coming Due) and Money in · wires (Waiting, Received, EMD to
+  Confirm, All Wires); the link keeps `?side=in&tab=`; the lists' names live
+  in `src/finance/tabs.js`. Payouts / Wires on their own (not embedded) keep
+  their own tab row.
+- **Zip Center**: its Overview / Browse & Assign / Holds & History switch is
+  gone — they're Territory rail entries (`/territory/zip-center`,
+  `/territory/zip-browse?s=`, `/territory/zip-holds`; AllZips takes `view`
+  from the tab; old ?view= links still open the view; /territory/sheet and
+  /holds redirect to the new ones).
+- **Team Scorecards › Scorecard**: a slim rail — Scores, Trends (it was the
+  week picker's "Trends · last 8 weeks"), Where They Leak (`?view=trends |
+  leak`); a rep picked on Trends / Where They Leak opens their panel on
+  Scores. The Scores table is wide: at ~1600px its Next move column scrolls
+  sideways.
 
 ## Alerts every 2 minutes (Oct 20, Luke — "option 2")
 

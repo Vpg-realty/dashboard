@@ -6,6 +6,7 @@
 // here — "Mark received" saves the deal's own "Total wire received" and "Wire
 // date received" (logged in its history), and an edit in the tracker shows up
 // here the same way.
+import { WIRE_TABS } from './tabs.js';
 import { useMemo, useState } from 'react';
 import { useDeals, saveDeal } from '../deals/store.js';
 import { booksOpen, isBlank } from '../deals/math.js';
@@ -27,7 +28,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const SHORT_FROM = '2026-10-01';
 const expectedNow = (d) => n(d.wireExpected) - (up(d.emdReturned) !== 'YES' && typeof d.emdReturn === 'number' ? d.emdReturn : 0);
 const wireState = (d) => (!ISO.test(d.wireDate || '') ? 'waiting' : d.wireDate >= SHORT_FROM && n(d.wireReceived) + 1 < expectedNow(d) ? 'short' : 'in');
-const TABS = [['waiting', 'Waiting'], ['in', 'Received'], ['emd', 'EMD to confirm'], ['all', 'All']];
+const TABS = WIRE_TABS;
 // EMD returned is confirmed on its own (Luke, Oct 15: "a wire may come in and
 // be only the assignment fee and EM is never returned") — only where VPG put
 // up earnest money; saved on the deal's own "EMD returned?".

@@ -36,7 +36,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
   const [focus, setFocus] = useState(null);   // rep id shown on the chart, or null = team
   const weeks = weekSeries(sc, 8);
   const score = (w, id) => w?.reps[id]?.s.score ?? null;
-  const teamOf = (w) => avgOf(Object.values(w.reps).map((r) => r.s.score));
+  const teamOf = (w) => (w ? avgOf(Object.values(w.reps).map((r) => r.s.score)) : null);
   const podOf = (w, p) => avgOf(p.reps.map((id) => score(w, id)).filter((v) => v != null));
   // Like the Conversations tab, compare finished weeks only: the week in
   // progress is shown as "so far" and never in a change.
