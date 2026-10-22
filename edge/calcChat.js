@@ -8,38 +8,39 @@
 // dashboard data, no tools.
 import Anthropic from '@anthropic-ai/sdk';
 import { MODEL, costOf } from './chat.js';
-import { seller, multifamily, KINDS, CASH_FLOW_GOAL, DOWN_MAX_PCT, COC_TARGET } from '../src/toolkit/calc.js';
+import { seller, multifamily, solveSeller, solveMf, notesFor, KINDS, CASH_FLOW_GOAL, DOWN_MAX_PCT, COC_TARGET, MF_CASH_FLOW_GOAL, DSCR_MIN, REFI_LTV_MAX } from '../src/toolkit/calc.js';
 
 export const CALC_DAILY = 25;
 export const threadOf = (u) => `calc:${u.email}`;
 
-export const CALC_BRIEFING = `You help the team of Valley Property Group (VPG), a real-estate wholesaling and creative-finance company, with the two calculators in the dashboard's Toolkit. The person asking is on the team (an acquisition rep, a pod lead, the transaction coordinator or an owner). Explain how the numbers are worked out, why a result looks the way it does, and what would change it.
+export const CALC_BRIEFING = `You help the team of Valley Property Group (VPG), a real-estate wholesaling and creative-finance company, with the two calculators in the dashboard's Toolkit. The person asking is on the team (an acquisition rep, a pod lead, the transaction coordinator or an owner). Explain how the numbers are worked out, why a result looks the way it does, and what would change it. VPG puts a deal under contract and assigns it to an investor buyer, who pays VPG's assignment fee in cash at closing — so the fee is part of the buyer's cash in.
 
-SELLER FINANCE CALCULATOR (VPG's rules)
-- Inputs: purchase price; down payment — must be under ${DOWN_MAX_PCT}% of the price; amount the seller finances = price − down payment; interest rate (a year); amortization (years); balloon (after how many years, 0 / empty = none); monthly taxes, insurance, HOA; for an investment the monthly rent and maintenance / vacancy (% of rent, optional).
-- Monthly principal & interest (P&I) = the standard loan payment on the financed amount: r = rate ÷ 12, n = years × 12, P&I = financed × r ÷ (1 − (1 + r)^−n); with a 0% rate, financed ÷ n.
-- Total monthly payment = P&I + taxes + insurance + HOA.
-- Balance at the balloon = what's still owed after (balloon years × 12) payments: financed × (1 + r)^k − P&I × ((1 + r)^k − 1) ÷ r.
-- Total interest paid = P&I × number of payments made (up to the balloon, or the full term) − principal paid off in that time.
-- Cash flow (investments) = rent − maintenance/vacancy (rent × %) − total monthly payment. VPG's goal: $${CASH_FLOW_GOAL}+ a month.
-- Equity created over time = down payment + principal paid off by the end of each year (holding the value at the purchase price — no appreciation).
-- Effective yield to the seller = (1 + rate ÷ 12)^12 − 1 — the note rate compounded monthly.
-- Levers to raise cash flow: a longer amortization, a lower rate, a lower price, a bigger down payment (smaller loan, lower P&I — but it must stay under ${DOWN_MAX_PCT}%), higher rent, a lower maintenance / vacancy assumption. A balloon changes nothing monthly — it only sets when the remaining balance is due.
+GOALS — recommended, not required: seller finance $${CASH_FLOW_GOAL}+ a month cash flow and ${COC_TARGET}%+ cash-on-cash; multifamily ${COC_TARGET}%+ cash-on-cash on current rents and $${MF_CASH_FLOW_GOAL.toLocaleString('en-US')}+ a year cash flow; lenders want debt coverage of ${DSCR_MIN}×+. The only hard rule: a seller-finance down payment under ${DOWN_MAX_PCT}% of the price.
+
+SELLER FINANCE CALCULATOR
+- Inputs: purchase price; down payment (under ${DOWN_MAX_PCT}%); seller financing = price − down; interest rate; amortized over N years, or interest only; balloon (years, empty = none); monthly taxes, insurance, HOA; for an investment the monthly rent, maintenance / vacancy % of rent, management % of rent (8–10% if they hire a manager) and a repair reserve $ a month; the buyer's cash in = down + closing costs (% of price, 2.5% default) + VPG's assignment fee + rehab; appreciation % a year (optional); the refinance rate (7% default).
+- P&I: r = rate ÷ 12, n = years × 12, payment = financed × r ÷ (1 − (1 + r)^−n); interest only = financed × r.
+- Total payment = P&I + taxes + insurance + HOA.
+- Cash flow = rent − maintenance/vacancy − management − repair reserve − total payment. Cash-on-cash = cash flow × 12 ÷ the buyer's cash in.
+- Balance at the balloon = what's still owed after the balloon's months of payments (the full amount if interest only). Total interest = payments made − principal paid off.
+- Refinance check at the balloon: value then = price × (1 + appreciation)^years; owed ÷ value should be ${REFI_LTV_MAX}% or less for most lenders; the new payment = the balance over 30 years at the refinance rate (+ taxes, insurance, HOA), and the cash flow after.
+- Equity each year = value that year − what's still owed.
+- Effective yield to the seller = (1 + rate ÷ 12)^12 − 1.
+- "What it takes": the highest price (down payment kept at the same share) for $${CASH_FLOW_GOAL} a month and for ${COC_TARGET}% cash-on-cash, and the highest rate for $${CASH_FLOW_GOAL} a month.
 
 MULTIFAMILY CALCULATOR (from VPG's multifamily sheet)
-- Inputs: sale price (and list price for reference); units with rent now, market rent and square feet; property tax a year; monthly insurance (~$25 per unit), HOA, gas & electric, water, sewer, garbage (usually the tenants'), lawn & snow ($50–$100); management (10% minimum), vacancy (5% minimum), maintenance (12% minimum) — each a % of rent; financing: down payment % (20% if unsure), interest rate, term (years), rehab, closing costs (1% of the price).
-- Worked twice: CURRENT (rents now) and STABILIZED (market rents; a unit with no market rent uses its rent now).
-- Monthly expenses = management + taxes ÷ 12 + insurance + HOA + utilities + vacancy + maintenance.
-- NOI (monthly) = rent − expenses. Cap rate = NOI × 12 ÷ sale price.
-- Mortgage = the loan payment on price × (1 − down %) at the rate over the term.
-- Cash flow = NOI − mortgage (monthly; × 12 for the year).
-- Cash in = down payment + closing costs + rehab. Cash-on-cash (ROI) = yearly cash flow ÷ cash in. VPG's target: ${COC_TARGET}–12%.
+- Inputs: our contract price and our assignment fee (the buyer's total = both; the lender lends on the contract price, the fee is cash); units with rent now, market rent, square feet and a vacant box; property tax a year (the current bill) or a tax rate % of the price to estimate it after the sale; monthly insurance ($40–80 per unit), HOA, gas & electric, water, sewer, garbage, lawn & snow; repair reserve $ per unit a year ($250–300); management (10% min), vacancy (5% min), maintenance (12% min) — % of rent; a cash-buyer switch, else down % (20%), rate (7%), term; closing (2.5% of the price) and rehab.
+- CURRENT RENTS are what a deal is graded on: each unit's rent now, but a vacant unit (or one at $0) counts its market rent. MARKET RENTS show the upside.
+- Monthly expenses = management + taxes + insurance + HOA + utilities + vacancy + maintenance + repair reserve. NOI = rent − expenses. Cap rate = NOI × 12 ÷ (price + fee).
+- Mortgage = the loan payment on price × (1 − down %); none for a cash buyer. Debt coverage = NOI ÷ mortgage.
+- Cash flow = NOI − mortgage. Cash in = down + closing + rehab + fee. Cash-on-cash = cash flow × 12 ÷ cash in.
+- "What we can pay": the highest contract price (fee unchanged) that still gives ${COC_TARGET}% on current rents.
 
 HOW TO ANSWER
-- Use the calculation in CURRENT CALCULATION when there is one: quote its numbers, and when asked how to reach a goal, work out the change needed (e.g. the rate or price that gets cash flow to $${CASH_FLOW_GOAL}) and show the arithmetic briefly.
-- Only VPG's method above. No outside market data (rents, rates, values in an area) — if they ask, say the calculator uses what they type in.
+- Use the calculation in CURRENT CALCULATION when there is one: quote its numbers, and when asked how to reach a goal, work out the change needed and show the arithmetic briefly.
+- Only VPG's method above. No outside market data (rents, rates, values, tax rates in an area) — if they ask, say the calculator uses what they type in.
 - Short, plain words, numbers rounded to dollars (rates to two decimals). Lead with the answer. No preamble.
-- You can't change or save anything — they edit the fields and press Save.`;
+- You can't change or save anything — they edit the fields and press Save. The offer message to the agent is made with "Create Message / Email" under the calculator.`;
 
 const r$ = (x) => `$${Math.round(x || 0).toLocaleString('en-US')}`;
 const pct = (x) => `${(x || 0).toFixed(2)}%`;
@@ -48,20 +49,27 @@ const pct = (x) => `${(x || 0).toFixed(2)}%`;
 export function calcContext(calc) {
   if (!calc || !KINDS[calc.kind]) return 'CURRENT CALCULATION: none open.';
   const i = calc.inputs || {};
+  const f = (k) => i[k] || '—';
+  const notes = notesFor(calc.kind, i).map((n) => `- ${n.text}`).join('\n');
   if (calc.kind === 'seller') {
     const s = seller(i);
+    const sv = solveSeller(i);
     return [`CURRENT CALCULATION: Seller finance${calc.title ? ` — ${calc.title}` : ''}`,
-      `Inputs: price ${i.price || '—'}, down payment ${i.down || '—'} (${pct(s.downPct)} of price${s.downOk ? '' : ' — over the 10% limit'}), rate ${i.rate || '—'}%, amortization ${i.amort || '—'} years, balloon ${i.balloon || 'none'} years, taxes ${i.tax || 0}/mo, insurance ${i.ins || 0}/mo, HOA ${i.hoa || 0}/mo, rent ${i.rent || 'not an investment'}, maintenance/vacancy ${i.mv || 0}%.`,
-      `Results: financed ${r$(s.financed)}; P&I ${r$(s.pi)}/mo; total payment ${r$(s.total)}/mo; balance at balloon ${s.balloon ? r$(s.balloonDue) : 'no balloon'}; total interest ${r$(s.interest)} over ${s.interestYears} years; ${s.investment ? `cash flow ${r$(s.cashFlow)}/mo (maintenance/vacancy ${r$(s.mv)}) — goal $${CASH_FLOW_GOAL}` : 'no rent entered'}; seller's yield ${pct(s.yieldPct)}; equity after year 1 ${r$(s.equity[0]?.equity)}, after the last year shown ${r$(s.equity.at(-1)?.equity)}.`].join('\n');
+      `Inputs: price ${f('price')}, down ${f('down')} (${pct(s.downPct)} of price), rate ${f('rate')}%, ${s.io ? 'interest only' : `amortized ${f('amort')} years`}, balloon ${i.balloon || 'none'} years, taxes ${f('tax')}/mo, insurance ${f('ins')}/mo, HOA ${f('hoa')}/mo, rent ${i.rent || 'not an investment'}, maintenance/vacancy ${f('mv')}%, management ${f('mgmt')}%, repair reserve ${f('capex')}/mo, our fee ${f('fee')}, closing ${f('closingPct')}%, rehab ${f('rehab')}, appreciation ${f('appreciation')}%, refinance rate ${f('refiRate')}%.`,
+      `Results: financed ${r$(s.financed)}; P&I ${r$(s.pi)}/mo; total payment ${r$(s.total)}/mo; ${s.investment ? `costs ${r$(s.costs)}/mo; cash flow ${r$(s.cashFlow)}/mo; buyer's cash in ${r$(s.cashIn)}; cash-on-cash ${pct(s.coc)}` : 'no rent entered'}; balance at balloon ${s.balloon ? r$(s.balloonDue) : 'no balloon'}${s.refi ? ` (owed ${pct(s.refi.ltv)} of the ${r$(s.refi.value)} value; refinance payment ${r$(s.refi.total)}/mo; cash flow after ${s.refi.cashFlow == null ? '—' : r$(s.refi.cashFlow)})` : ''}; total interest ${r$(s.interest)} over ${s.interestYears} years; seller's yield ${pct(s.yieldPct)}.`,
+      sv ? `What it takes: highest price for $${CASH_FLOW_GOAL}/mo ${sv.priceForCashFlow == null ? 'not reachable' : r$(sv.priceForCashFlow)}; for ${COC_TARGET}% cash-on-cash ${sv.priceForCoc == null ? 'not reachable' : r$(sv.priceForCoc)}; highest rate for $${CASH_FLOW_GOAL}/mo ${sv.rateForCashFlow == null ? 'not reachable' : pct(sv.rateForCashFlow)}.` : '',
+      notes ? `Flags:\n${notes}` : 'Flags: none.'].filter(Boolean).join('\n');
   }
   const m = multifamily(i);
-  const line = (label, p) => `${label}: rent ${r$(p.rent)}, expenses ${r$(p.expenses)} (management ${r$(p.mgmt)}, taxes ${r$(p.taxes)}, insurance ${r$(p.ins)}, HOA ${r$(p.hoa)}, utilities ${r$(p.utilities)}, vacancy ${r$(p.vacancy)}, maintenance ${r$(p.maint)}), NOI ${r$(p.noi)}/mo, cap rate ${pct(p.cap)}, mortgage ${r$(p.mortgage)}, cash flow ${r$(p.cashFlow)}/mo (${r$(p.yearly)}/yr), cash-on-cash ${pct(p.coc)}.`;
-  const units = (i.units || []).map((u) => `${u.unit || '?'}: ${u.bed || '?'}bd/${u.bath || '?'}ba, rent ${u.rent || '—'}, market ${u.market || '—'}, ${u.sf || '—'} sf`).join('; ');
-  const f = (k) => i[k] || '—';
+  const sv = solveMf(i);
+  const line = (label, p) => `${label}: rent ${r$(p.rent)}, expenses ${r$(p.expenses)} (management ${r$(p.mgmt)}, taxes ${r$(p.taxes)}, insurance ${r$(p.ins)}, HOA ${r$(p.hoa)}, utilities ${r$(p.utilities)}, vacancy ${r$(p.vacancy)}, maintenance ${r$(p.maint)}, repair reserve ${r$(p.capex)}), NOI ${r$(p.noi)}/mo, cap rate ${pct(p.cap)}, mortgage ${r$(p.mortgage)}, debt coverage ${p.dscr == null ? 'n/a (cash)' : `${p.dscr.toFixed(2)}x`}, cash flow ${r$(p.cashFlow)}/mo (${r$(p.yearly)}/yr), cash-on-cash ${pct(p.coc)}.`;
+  const units = (i.units || []).map((u) => `${u.unit || '?'}: ${u.bed || '?'}bd/${u.bath || '?'}ba, rent ${u.vacant === 'yes' ? 'vacant' : u.rent || '—'}, market ${u.market || '—'}, ${u.sf || '—'} sf`).join('; ');
   return [`CURRENT CALCULATION: Multifamily${calc.title ? ` — ${calc.title}` : ''}`,
-    `Inputs: sale price ${i.price || '—'}, list price ${i.list || '—'}; units — ${units || 'none'}; tax ${f('taxYear')}/yr, insurance ${f('ins')}/mo, HOA ${f('hoa')}, gas & electric ${f('gas')}, water ${f('water')}, sewer ${f('sewer')}, garbage ${f('garbage')}, lawn ${f('lawn')}; management ${f('mgmt')}%, vacancy ${f('vacancy')}%, maintenance ${f('maint')}%; down ${f('downPct')}%, rate ${f('rate')}%, term ${f('term')} years, rehab ${f('rehab')}, closing ${f('closingPct')}%.`,
-    `Cash in: down ${r$(m.down)} + closing ${r$(m.closing)} + rehab ${r$(m.rehab)} = ${r$(m.cashIn)}.`,
-    line('Current', m.current), line('Stabilized', m.stabilized)].join('\n');
+    `Inputs: our contract price ${f('price')}, our fee ${f('fee')}, list price ${f('list')}; units — ${units || 'none'}; tax ${i.taxRate ? `estimated at ${i.taxRate}% of the price` : `${f('taxYear')}/yr`}, insurance ${f('ins')}/mo, HOA ${f('hoa')}, gas & electric ${f('gas')}, water ${f('water')}, sewer ${f('sewer')}, garbage ${f('garbage')}, lawn ${f('lawn')}, repair reserve ${f('capex')}/unit/yr; management ${f('mgmt')}%, vacancy ${f('vacancy')}%, maintenance ${f('maint')}%; ${m.cash ? 'cash buyer' : `down ${f('downPct')}%, rate ${f('rate')}%, term ${f('term')} years`}, rehab ${f('rehab')}, closing ${f('closingPct')}%.`,
+    `Cash in: down ${r$(m.down)} + closing ${r$(m.closing)} + rehab ${r$(m.rehab)} + our fee ${r$(m.fee)} = ${r$(m.cashIn)}.`,
+    line('Current rents (graded)', m.current), line('Market rents (upside)', m.stabilized),
+    sv ? `Most we can contract at for ${COC_TARGET}% cash-on-cash: ${sv.priceForCoc == null ? 'not reachable' : r$(sv.priceForCoc)}.` : '',
+    notes ? `Flags:\n${notes}` : 'Flags: none.'].filter(Boolean).join('\n');
 }
 
 // Ask. history = this person's last messages; returns { text, usage, cost }.
