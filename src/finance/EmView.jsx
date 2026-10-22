@@ -29,11 +29,13 @@ const vpgIn = (d) => payer(d) === 'VPG' || payer(d) === 'VPG + BUYER';
 // The three lists. Out = open deals with VPG's money in (VPG or VPG +
 // Buyer); At risk = open deals where only VPG's money is in (no buyer EM
 // behind it yet); Not returned = closed deals where VPG put money in and the
-// deal doesn't say it came back.
+// deal doesn't say it came back; Cancelled the same for cancelled deals.
 const EM_VIEWS = [
   ['out', 'EM Out', 'Open deals · VPG or VPG + Buyer', (d) => isOpen(d) && vpgIn(d)],
   ['risk', 'EM at Risk', 'Open deals · VPG only', (d) => isOpen(d) && payer(d) === 'VPG'],
   ['closed', 'Closed · Not Returned', 'VPG’s EM not marked returned', (d) => up(d.status) === 'COMPLETE' && vpgIn(d) && up(d.emdReturned) !== 'YES'],
+  // Luke, Oct 22: cancelled deals too — EM can sit with title after a cancel.
+  ['cancelled', 'Cancelled · Not Returned', 'Cancelled, VPG’s EM not back', (d) => up(d.status) === 'CANCELLED' && vpgIn(d) && up(d.emdReturned) !== 'YES'],
 ];
 
 export default function EmView() {
@@ -46,13 +48,13 @@ export default function EmView() {
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   const today = laToday();
   const sum = (ds) => ds.reduce((t, d) => t + n(d.emd), 0);
-  const rows = [...lists[view[0]]].sort((a, b) => (view[0] === 'closed' ? String(a.coe || '').localeCompare(String(b.coe || '')) : String(a.ddEnd || a.coe || '9').localeCompare(String(b.ddEnd || b.coe || '9'))));
-  const closed = view[0] === 'closed';
-  const heads = ['Property', 'Stage', 'Acq. manager', 'State', 'EMD paid by', 'EMD', 'Buyer’s EMD', 'Sent on', closed ? 'COE' : 'IP end', closed ? 'Days since COE' : 'COE', closed ? 'EMD returned?' : null].filter(Boolean);
+  const closed = view[0] === 'closed' || view[0] === 'cancelled';
+  const rows = [...lists[view[0]]].sort((a, b) => (closed ? String(a.coe || '').localeCompare(String(b.coe || '')) : String(a.ddEnd || a.coe || '9').localeCompare(String(b.ddEnd || b.coe || '9'))));
+  const heads = ['Property', 'Stage', 'Acq. manager', 'EMD paid by', 'EMD', closed ? null : 'Buyer’s EMD', 'Sent on', closed ? 'COE' : 'IP end', closed ? 'Days since COE' : 'COE', closed ? 'EMD returned?' : null].filter(Boolean);
   return (
     <div className="max-w-[1720px] mx-auto">
-      <FinanceHead eyebrow="Earnest Money" title="EM Out" sub="Where VPG’s earnest money is right now, read from the deal sheet: out on open deals, at risk where it’s VPG’s alone, and closed deals that don’t say it came back." />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      <FinanceHead eyebrow="Earnest Money" title="EM Out" sub="Where VPG’s earnest money is right now, read from the deal sheet: out on open deals, at risk where it’s VPG’s alone, and closed or cancelled deals that don’t say it came back." />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {EM_VIEWS.map(([k, label, , ]) => (
           <Tile key={k} label={label} dot={k === 'out' ? 'navy' : k === 'risk' ? 'amber' : 'red'} tint={k !== 'out' && lists[k].length ? (k === 'risk' ? 'amber' : 'red') : undefined}
             value={money(sum(lists[k]))} sub={`${lists[k].length} deal${lists[k].length === 1 ? '' : 's'}`} onClick={() => setQuery({ view: k === 'out' ? null : k })} active={view[0] === k} />
@@ -74,13 +76,12 @@ export default function EmView() {
                   const ipLate = !closed && ISO.test(d.ddEnd || '') && d.ddEnd < today;
                   return (
                     <tr key={d.id} className="border-t border-[#E5E9F0] align-middle" style={i % 2 ? { background: '#F8FAFC' } : undefined}>
-                      <td className="pl-5 px-3 py-2 font-semibold text-navy-800"><button type="button" onClick={() => open(d.id)} className="text-left hover:underline underline-offset-2">{d.address || d.name}</button></td>
+                      <td className="pl-5 px-3 py-2 font-semibold text-navy-800 min-w-[230px]"><button type="button" onClick={() => open(d.id)} className="text-left hover:underline underline-offset-2">{d.address || d.name}</button></td>
                       <td className="px-3 py-2"><StatusChip status={d.status} /></td>
                       <td className="px-3 py-2">{d.acq ? <Person name={d.acq} /> : '—'}</td>
-                      <td className="px-3 py-2">{d.state || '—'}</td>
                       <td className="px-3 py-2"><ValuePill k="emdPaidBy" v={d.emdPaidBy} /></td>
                       <td className="px-3 py-2 tabular-nums whitespace-nowrap font-semibold">{n(d.emd) ? money(n(d.emd)) : '—'}</td>
-                      <td className="px-3 py-2 tabular-nums whitespace-nowrap">{n(d.buyerEmd) ? money(n(d.buyerEmd)) : '—'}</td>
+                      {!closed && <td className="px-3 py-2 tabular-nums whitespace-nowrap">{n(d.buyerEmd) ? money(n(d.buyerEmd)) : '—'}</td>}
                       <td className="px-3 py-2 whitespace-nowrap">{ISO.test(d.emdSent || '') ? shortDate(d.emdSent) : '—'}</td>
                       {closed ? <>
                         <td className="px-3 py-2 whitespace-nowrap">{ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}</td>
@@ -96,10 +97,10 @@ export default function EmView() {
                 {rows.length === 0 && <tr><td colSpan={heads.length} className="py-10 text-center text-zinc-500">Nothing here.</td></tr>}
                 {rows.length > 0 && (
                   <tr className="border-t-2 border-tan-200 bg-tan-50 font-semibold text-navy-800">
-                    <td className="pl-5 px-3 py-2" colSpan={5}>Total · {rows.length} deal{rows.length === 1 ? '' : 's'}</td>
+                    <td className="pl-5 px-3 py-2" colSpan={4}>Total · {rows.length} deal{rows.length === 1 ? '' : 's'}</td>
                     <td className="px-3 py-2 tabular-nums">{money(sum(rows))}</td>
-                    <td className="px-3 py-2 tabular-nums">{money(rows.reduce((t, d) => t + n(d.buyerEmd), 0))}</td>
-                    <td colSpan={heads.length - 7} />
+                    {!closed && <td className="px-3 py-2 tabular-nums">{money(rows.reduce((t, d) => t + n(d.buyerEmd), 0))}</td>}
+                    <td colSpan={heads.length - (closed ? 5 : 6)} />
                   </tr>
                 )}
               </tbody>

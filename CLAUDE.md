@@ -2276,9 +2276,10 @@ the approval records who).
   **EM Out** (open deals, EMD paid by VPG or VPG + Buyer), **EM at Risk**
   (open, VPG only), **Closed · Not Returned** (Closed, VPG put money in, EMD
   returned? not Yes — with days since COE and Wires In's Returned / Not
-  returned buttons, `EmdCell`, which save the deal). Columns: property (→
-  deal panel), stage, acq. manager, state, EMD paid by, EMD, buyer's EMD,
-  sent on, IP end / COE; a total row. `?view=risk | closed`.
+  returned buttons, `EmdCell`, which save the deal). **Cancelled · Not Returned**
+  (Luke, Oct 22) the same for cancelled deals. Columns: property (→
+  deal panel), stage, acq. manager, EMD paid by, EMD, buyer's EMD (open
+  lists), sent on, IP end / COE; a total row. `?view=risk | closed | cancelled`.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)
