@@ -1183,9 +1183,10 @@ Overrides the Alerts notes above where they differ.
   old `?view=done` links land there); the rail filters inside either tab.
   Completed keeps 7 days (`KEEP_DONE_MS`). The band counters keep their
   own style (see Site-wide building blocks).
-- **Order** (Luke, later Oct 22: "organize lead alerts from earliest to
-  latest top down"): leads and duplicates sort oldest first (after the due
-  date), everything else newest first; Completed stays most recent first.
+- **Order** (Luke, later Oct 22: "leads spotted is still ordered from
+  oldest on top … needs to be the other way around"): leads and duplicates
+  sort newest first like everything else (after the due date); Completed
+  stays most recent first.
 - **Rep · sub-account box** (Luke, later Oct 22: "instead of the state …
   a simple box … the name of the rep and which sub account it is coming from
   — for instance 'Sam - WA'"): every lead shows a box in the rep's colour,
