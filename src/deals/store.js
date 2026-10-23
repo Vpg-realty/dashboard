@@ -47,6 +47,11 @@ export async function saveDeal(id, patch, base) {
   replace(r.deal);
   return r.deal;
 }
+// The site's value of a mismatched field → GHL, as it stands (Luke, Oct 23:
+// "push edit to GHL or push edit to the site"). fields: coe | ipEnd | status.
+export async function pushToGhl(id, fields) {
+  return call(`deals/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ push: fields }) });
+}
 export async function createDeal(fields) {
   const r = await call('deals', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fields }) });
   replace(r.deal);

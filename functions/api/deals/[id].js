@@ -2,12 +2,17 @@
 //        the fields sent; `fixed: { field: value | 'formula' }` sets or clears
 //        a hand-typed number. `base` = the updatedAt the editor started from:
 //        if someone else changed one of the same fields since, → 409.
+//        { push: ['coe' | 'ipEnd' | 'status'] } (Luke, Oct 23: "push edit to
+//        GHL or push edit to the site") → sends the site's current value to
+//        GHL as it stands (ghl_push, scripts/push-ghl.mjs) without changing
+//        the deal; managers may push the COE and IP end.
 // DELETE /api/deals/:id → { ok } (owners; kept in D1 as deleted, logged)
 // GET    /api/deals/:id → { deal, log } — the deal and its change history;
 //        deal.ghlSub = the GHL sub-account it's linked to ({ location, rep,
 //        market }) or null.
 import { currentUser, json } from '../../../edge/auth.js';
 import { canSeeDeals, canEditDeals, canSeeDeal, isOwner, isRepView, rowToDeal, shape, applyEdit, dataOf, SECRET_LOG, REP_LOG, ghlLinks, canManagerEdit, MANAGER_KEYS, ghlPushes, leadValuePush, getSetting } from '../../../edge/deals.js';
+import { stageOf } from '../../../src/deals/math.js';
 
 const ID = /^[a-z0-9]{1,20}$/;
 
@@ -43,6 +48,7 @@ export async function onRequestPatch(context) {
   let body;
   try { body = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const db = context.env.DB;
+  if (Array.isArray(body?.push)) return pushNow(db, user, id, row, body.push);
   if (!canEditDeals(user)) {
     const bad = [...Object.keys(body?.fields || {}).filter((k) => !MANAGER_KEYS.includes(k)), ...Object.keys(body?.fixed || {})];
     if (bad.length) return json({ error: 'Managers can change the COE, IP end and EMD amount only' }, 403);
@@ -74,6 +80,29 @@ export async function onRequestPatch(context) {
   ]);
   const fresh = await db.prepare('SELECT * FROM deals WHERE id = ?').bind(id).first();
   return json({ deal: shape(rowToDeal(fresh), user) });
+}
+
+// The tracker's value → GHL, on demand (the deal panel's "Doesn't match the
+// tracker" rows). A cancel isn't sent (the rep marks it Lost / Abandoned).
+const PUSHABLE = ['coe', 'ipEnd', 'status'];
+const PUSH_WORD = { coe: 'COE', ipEnd: 'IP end', status: 'stage' };
+async function pushNow(db, user, id, row, fields) {
+  const want = fields.filter((f) => PUSHABLE.includes(f));
+  if (!want.length) return json({ error: 'nothing to send' }, 400);
+  if (!canEditDeals(user) && want.includes('status')) return json({ error: 'Managers can send the COE and IP end only' }, 403);
+  const deal = rowToDeal(row);
+  const pushes = ghlPushes({}, { ...deal, status: stageOf(deal) }).filter((p) => want.includes(p.field));
+  if (!pushes.length) return json({ error: want.includes('status') ? 'A cancelled deal isn’t sent to GHL — the rep marks it Lost or Abandoned there' : 'The site has no value to send yet' }, 400);
+  const links = (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results;
+  if (!links.length) return json({ error: 'This deal isn’t linked to a GHL opportunity yet' }, 400);
+  const now = new Date().toISOString();
+  await db.batch([
+    ...links.flatMap((l) => pushes.map((p) => db.prepare("INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')")
+      .bind(id, l.ghl_id, l.location, p.field, p.value, user.name, now))),
+    db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, now, user.email, user.name, '*pushed', 'null', JSON.stringify(pushes.map((p) => `${PUSH_WORD[p.field]} ${p.value}`).join(', '))),
+  ]);
+  return json({ deal: shape(deal, user), queued: pushes });
 }
 
 export async function onRequestDelete(context) {

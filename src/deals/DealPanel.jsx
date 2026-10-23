@@ -7,9 +7,9 @@ import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches } from './math.js';
-import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys } from './store.js';
+import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
-import { nextStep, TONES } from './status.js';
+import { nextStep, TONES, daysBetween } from './status.js';
 import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer, statusLabel } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
@@ -180,7 +180,7 @@ function History({ id }) {
           <div className="min-w-0">
             <div>
               <span className="font-medium">{e.by}</span>{' '}
-              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : (
+              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : e.field === '*pushed' ? <>sent the site's {e.to} to GoHighLevel</> : (
                 <>changed <span className="font-medium">{LABEL[e.field.replace(/^fixed\./, '')] || e.field}</span>{e.field.startsWith('fixed.') && ' (typed number)'}: <span className="text-zinc-500 line-through decoration-zinc-300">{val(e.field, e.from)}</span> → {val(e.field, e.to)}</>
               )}
             </div>
@@ -221,6 +221,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [pushes, setPushes] = useState(null);
   useEffect(() => { if (isNew || !id) return undefined; let on = true; dealHistory(id).then((r) => on && setPushes(r.pushes || [])).catch(() => {}); return () => { on = false; }; }, [id, isNew, base]);
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
+  // "Doesn't match the tracker" fixes (Luke, Oct 23): which row is busy.
+  const [fixing, setFixing] = useState(null);
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -282,6 +284,57 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     onClose();
   }
 
+  // Fix a mismatch on the spot (Luke, Oct 23: "push edit to GHL or push edit
+  // to the site — sometimes we are wrong on the site so GHL could have the
+  // most up to date info"). To GHL: the site's value is queued as it stands
+  // (functions/api/deals/[id] `push`, sent at the next refresh). To the
+  // site: GHL's value is saved here at once (the IP end through the IP days
+  // from the contract date).
+  const FIX_FIELD = { coe: 'coe', ipEnd: 'ddDays', status: 'status' };
+  const mayFix = (m) => !ro || (m.key !== 'status' && editable.has(FIX_FIELD[m.key]));
+  async function fixToGhl(m) {
+    setFixing(m.key); setErr(null);
+    try { await pushToGhl(id, [m.key]); const h = await dealHistory(id); setPushes(h.pushes || []); } catch (e) { setErr(e.message); } finally { setFixing(null); }
+  }
+  async function fixToSite(m) {
+    let fields;
+    if (m.key === 'coe') fields = { coe: m.ghl };
+    else if (m.key === 'status') fields = { status: m.ghl };
+    else {
+      if (!ISO.test(merged.accepted || '')) { setErr('Add the contract date first — the IP end is counted from it.'); return; }
+      fields = { ddDays: daysBetween(merged.accepted, m.ghl) };
+    }
+    setFixing(m.key); setErr(null);
+    try {
+      const d = await saveDeal(id, { fields, fixed: {} }, base);
+      setBase(d.updatedAt);
+      setDraft((dr) => ({ ...dr, fields: Object.fromEntries(Object.entries(dr.fields).filter(([k]) => !(k in fields))) }));
+    } catch (e) { setErr(e.message); } finally { setFixing(null); }
+  }
+  const fixRow = (m) => {
+    const row = mismatchRow(m);
+    if (isNew || !mayFix(m)) return row;
+    const date = m.key !== 'status';
+    const siteVal = date ? shortDate(m.tracker) : statusLabel(m.tracker);
+    const ghlVal = date ? shortDate(m.ghl) : statusLabel(m.ghl);
+    const sent = (pushes || []).find((p) => p.field === m.key && p.status !== 'done' && !p.error);
+    const noPush = m.key === 'status' && m.tracker === 'CANCELLED';
+    const btn = 'rounded-md px-2.5 py-1 text-[12.5px] font-semibold disabled:opacity-50';
+    return {
+      ...row,
+      next: date ? 'Which date is right?' : row.next,
+      extra: (
+        <div className="mt-1 flex flex-col items-start gap-1.5">
+          <div className="flex flex-col items-start gap-1.5">
+            {!noPush && <button type="button" disabled={fixing === m.key || !!sent} onClick={() => fixToGhl(m)} className={`${btn} whitespace-nowrap bg-violet-700 text-white hover:bg-violet-800`}>Site is right · send {siteVal} to GHL ↑</button>}
+            <button type="button" disabled={fixing === m.key} onClick={() => fixToSite(m)} className={`${btn} whitespace-nowrap bg-white text-violet-800 ring-1 ring-inset ring-violet-300 hover:bg-violet-50`}>GHL is right · use {ghlVal} here ↓</button>
+          </div>
+          {sent && <span className="text-[12px] font-normal text-zinc-600">✓ Sent to GHL by {sent.by_name} — it updates at the next refresh (within ~15 min)</span>}
+          {noPush && <span className="text-[12px] font-normal text-zinc-600">A cancel isn’t sent to GHL — the rep marks it Lost or Abandoned there.</span>}
+        </div>
+      ),
+    };
+  };
   async function save() {
     setBusy(true); setErr(null);
     try {
@@ -408,8 +461,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   {/* What doesn't match the tracker (Luke, Oct 16). */}
                   {miss.length > 0 && (
                     <div className="mt-2.5">
-                      <MismatchList rows={miss.map((m) => ({ ...mismatchRow(m), extra: ro ? null : m.key === 'coe' ? <button type="button" onClick={() => setField('coe', m.ghl)} className="underline text-violet-800">or use GHL's date here</button>
-                        : m.key === 'status' && m.fix === 'tracker' ? <button type="button" onClick={() => setField('status', m.ghl)} className="mt-0.5 rounded-md bg-violet-700 text-white px-2.5 py-1 text-[12.5px] font-semibold hover:bg-violet-800">Set to {statusLabel(m.ghl)}</button> : null }))} />
+                      <MismatchList rows={miss.map(fixRow)} />
                     </div>
                   )}
                   <PushNote pushes={pushes} />

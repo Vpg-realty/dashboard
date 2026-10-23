@@ -1299,6 +1299,21 @@ From the approved mock-ups. Overrides the older Active / Today notes.
   checkins | leads`, with "N late" and Claude's grade counts); "N deals
   missing info" names the most common blank fields.
 
+## Fix a mismatch on the spot (Luke, Oct 23)
+
+"Push edit to GHL or push edit to the site — sometimes we are wrong on the
+site so GHL could have the most up to date info." Every row of the deal
+panel's **Doesn't match the tracker** box (Stage, COE, IP end) has two
+buttons for whoever may edit that field (owners / TC; managers COE and IP
+end): **Site is right · send <value> to GHL ↑** — PATCH `/api/deals/:id
+{ push: ['coe' | 'ipEnd' | 'status'] }` queues the site's current value in
+`ghl_push` as it stands (deal unchanged, logged `*pushed` in the deal's
+history; refused for a cancelled stage, a deal not linked to GHL, and
+managers' stage); the row then says "Sent to GHL … within ~15 min" until the
+next refresh — and **GHL is right · use <value> here ↓**, which saves GHL's
+value on the site at once (the IP end as IP days from the contract date;
+needs a contract date). Replaces "or use GHL's date here" / "Set to X".
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
