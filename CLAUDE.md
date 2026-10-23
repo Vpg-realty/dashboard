@@ -1243,6 +1243,29 @@ Overrides the lead-type / Complete / Completed notes above where they differ.
   up once). Leads / duplicates sort newest first regardless of `due` (their
   `due` is only the day the text came in; `TIMED` in AlertsView).
 
+## Lead judge — what counts as a lead (Luke, Oct 23)
+
+Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
+`LEAD_SYSTEM`). Since Oct 19–20 listing agents' replies to the reps' own
+outreach ("make an offer", roof / HVAC answers, price cuts, counters) came in
+as 100+ "leads" a day. Now:
+- **Not a lead**: any text about a property already talked about in the
+  conversation (offers, counters, terms, condition, price changes) —
+  whoever raised it; an address sent as a comp / comparable / recent sale;
+  an address this agent already sent this rep.
+- A new address is a lead only the first time this agent sends it to this
+  rep. A vague or future deal = **warm**; HUD / bank-owned = **cold**; a
+  new listed address = cold.
+- **History**: each text to judge first reads up to a month of its
+  conversation (`historyOf`: one GHL `conversations/messages/export
+  ?conversationId` call per text, last 15 messages, rep / agent / automated
+  via `isManualOutbound`), in place of the 4 texts the day's export held.
+- **Examples**: the last 150 graded leads (`EXAMPLES_MAX`, all grades,
+  "Not a lead" included), only those graded before the current hour, so the
+  set stays the same for an hour and sits in a 1-hour prompt cache (second
+  system block, `ttl: '1h'`). Usage: one 150-row read per run with texts to
+  judge. Claude cost: roughly $2–3 a day (~$60–90 a month) at today's volume.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in

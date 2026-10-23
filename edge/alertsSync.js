@@ -17,6 +17,7 @@
 //    'lead_judged'); the team's answers go along as examples.
 //  - Same address to reps in different pods (dupes).
 import { addrKey, isPending, isOpen } from '../src/deals/math.js';
+import { isManualOutbound } from '../server/messaging.js';
 import { PODS, podsFrom } from '../scripts/scorecard-lib.mjs';
 
 export const GHL = 'https://services.leadconnectorhq.com';
@@ -24,6 +25,9 @@ export const ALL_PARTS = { tasks: true, checkins: true, deals: true, leads: true
 const DAY = 86400000;
 const CHECKIN_DAYS = 30;
 const LEAD_PER_CALL = 25;
+const EXAMPLES_MAX = 150;
+const HISTORY_DAYS = 30;
+const HISTORY_MAX = 15;
 const LEAD_MAX_PER_RUN = 200;
 const JUDGED_KEEP_DAYS = 10;
 // Same address to several reps: spotted leads this many days back.
@@ -39,6 +43,21 @@ const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 // The agent's name for a lead (Luke, Oct 23: "have the name of the agent
 // populate for each"): the contact's name from GHL — one read per new lead
 // (the 2-minute worker's texts carry no names). Best effort.
+// The texts of one conversation before the run being judged: up to a month,
+// the last HISTORY_MAX (one GHL read per new text to judge). Best effort —
+// null keeps the day's few texts.
+export async function historyOf(token, locationId, conv, beforeMs) {
+  if (!token || !conv) return null;
+  try {
+    const q = new URLSearchParams({ locationId, conversationId: conv, channel: 'SMS', startDate: new Date(beforeMs - HISTORY_DAYS * DAY).toISOString(), endDate: new Date(beforeMs + 1000).toISOString(), limit: '100' });
+    const r = await fetch(`${GHL}/conversations/messages/export?${q}`, { headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28', Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const list = ((await r.json())?.messages || []).filter((x) => Date.parse(x.dateAdded) <= beforeMs).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+    // Drop the run being judged (the agent's texts at the end).
+    while (list.length && list[list.length - 1].direction === 'inbound') list.pop();
+    return list.slice(-HISTORY_MAX).map((x) => ({ from: x.direction === 'inbound' ? 'agent' : isManualOutbound(x) ? 'rep' : 'automated', body: String(x.body || '').slice(0, 300) }));
+  } catch { return null; }
+}
 export async function contactName(token, contactId) {
   if (!token || !contactId) return null;
   try {
@@ -93,17 +112,20 @@ Flag a text as a lead when the agent:
 - sends a property address (a street address, even partial, for a house they want the rep to look at or make an offer on), or
 - says a deal or property is coming ("I'll have one next week", "got a pocket listing coming", "my seller is ready to sell", "sending you one tomorrow").
 
+The test (Luke, Oct 23): a lead is a property the agent BRINGS to the rep that they haven't already talked about. Each item shows the conversation's history (up to a month) — read it first.
+
 Not a lead:
-- the address or property is one the rep and agent are already working on in the texts shown before it (contract, inspection, title, closing, a counter on an offer already made),
-- a property that is already listed on the MLS and the agent is just pointing at it with no off-market angle, unless they ask for an offer,
-- small talk, scheduling, thanks, "no deals right now", "sold", questions about VPG, or anything vague with no property and no promise of one.
+- ANY text about a property the rep and agent have already talked about earlier in the history — whoever brought it up. That includes the rep's own outreach on a listing and every reply to it: "make an offer", "send an offer and I'll present it", condition answers (roof, HVAC, repairs, inspection), price reductions, "seller is motivated / will take X", counters, offer terms (down payment, rate, balloon), contract, inspection, title, closing. That's the rep working a property, not a new lead,
+- an address the agent sends as a comp, comparable or recent sale ("here is a recent sale", "comps", "this one sold for …") — they're showing other properties, not offering one,
+- an address this agent already sent this rep before (in the history or the EARLIER LEAD shown),
+- small talk, scheduling, thanks, "no deals right now", "sold", questions about VPG or our buy box (budget, price range, cash or finance), or anything vague with no property and no promise of one.
 
 When the team has answered earlier alerts, follow those examples: they show what this team counts as a lead and how good each kind of lead is.
 
 For every lead also suggest its type (the team decides; learn from their answers):
 - "hot": an address with a seller ready to move, or the agent asks for an offer now,
-- "warm": a real opportunity that isn't ready yet (a deal promised, an address with no urgency),
-- "cold": a long shot — bank-owned (REO), HUD homes, listed properties, vague hopes,
+- "warm": a real opportunity that isn't ready yet (an address with no urgency, or any deal the agent says is coming — even vague or months away, e.g. "one on the horizon early next year"),
+- "cold": a long shot — bank-owned (REO), HUD homes, a new listed address the agent sends for the first time,
 - "wholesale": the agent looks like another wholesaler or investor passing on a contract or assignment (a "potential wholesale"),
 - "not": you flagged it but it probably isn't a lead.
 Set bank_hud true when the property is bank-owned / REO / a HUD home (it is still a lead, a cold one).
@@ -140,19 +162,22 @@ const LEAD_SCHEMA = {
 
 export async function judgeLeads(client, batch, examples) {
   const ids = batch.map((_, i) => `t${i + 1}`);
+  // The team's grades (Luke, Oct 23: "more the better") — up to EXAMPLES_MAX,
+  // the same set for an hour, so they sit in a 1-hour prompt cache.
   const ex = examples.length
-    ? `The team's answers on earlier alerts:\n${examples.map((e) => `- ${VERDICT_WORD[e.verdict] || 'LEAD'}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}\n\n`
+    ? `The team's grades on earlier alerts (follow them — they show what this team counts as a lead and how good each kind is):\n${examples.map((e) => `- ${VERDICT_WORD[e.verdict] || 'LEAD'}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}`
     : '';
   const earlier = (t) => (t.earlier ? `EARLIER LEAD from this agent to this rep, ${Math.max(1, Math.round((t.at - t.earlier.at) / 3600000))} h before: "${String(t.earlier.quote || '').replace(/\s+/g, ' ').slice(0, 300)}"${t.earlier.addr ? ` (address: ${t.earlier.addr})` : ''}\n` : '');
-  const body = batch.map((t, i) => `<item id="${ids[i]}">\n${earlier(t)}${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
+  const body = batch.map((t, i) => `<item id="${ids[i]}">\n${earlier(t)}${t.before.length ? 'CONVERSATION HISTORY (oldest first):\n' : ''}${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: [{ type: 'text', text: LEAD_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: LEAD_SYSTEM, ...(ex ? {} : { cache_control: { type: 'ephemeral', ttl: '1h' } }) },
+      ...(ex ? [{ type: 'text', text: ex, cache_control: { type: 'ephemeral', ttl: '1h' } }] : [])],
     output_config: { effort: 'low', format: { type: 'json_schema', schema: LEAD_SCHEMA } },
-    messages: [{ role: 'user', content: `${ex}For each of these ${batch.length} items, is the agent's last text a lead?\n\n${body}` }],
+    messages: [{ role: 'user', content: `For each of these ${batch.length} items, is the agent's last text a lead?\n\n${body}` }],
   });
   if (response.stop_reason === 'refusal') throw new Error(`refused (${response.stop_details?.category || 'no category'})`);
   if (response.stop_reason === 'max_tokens') throw new Error('hit max_tokens');
@@ -350,7 +375,17 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     return best;
   };
   if (todo.length && judge) {
-    const examples = await rows("SELECT quote, verdict FROM alerts WHERE kind = 'lead' AND verdict IS NOT NULL ORDER BY verdict_at DESC LIMIT 30");
+    // Graded before this hour began, so the set (and the prompt cache) holds
+    // for the hour.
+    const hourStart = new Date(Math.floor(now / 3600000) * 3600000).toISOString();
+    const examples = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'lead' AND verdict IS NOT NULL AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${EXAMPLES_MAX}`, [hourStart]);
+    // A month of each conversation (Luke, Oct 23: "if there has already been
+    // back and forth about the property"), in place of the few texts the
+    // day's export holds.
+    for (const m of todo.slice(0, LEAD_MAX_PER_RUN)) {
+      const h = await historyOf(tokens?.[m.sub.locationId], m.sub.locationId, m.conv, m.at);
+      if (h?.length) m.before = h;
+    }
     for (const m of todo) m.earlier = agentKey(m) ? earlierOf({ ...m, sub: m.sub }) : null;
     for (let i = 0; i < Math.min(todo.length, LEAD_MAX_PER_RUN); i += LEAD_PER_CALL) {
       const batch = todo.slice(i, i + LEAD_PER_CALL);
