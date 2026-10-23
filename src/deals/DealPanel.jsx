@@ -10,7 +10,7 @@ import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, books
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
-import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer, statusLabel } from './format.js';
+import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
@@ -311,27 +311,28 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       setDraft((dr) => ({ ...dr, fields: Object.fromEntries(Object.entries(dr.fields).filter(([k]) => !(k in fields))) }));
     } catch (e) { setErr(e.message); } finally { setFixing(null); }
   }
+  // Two small links under the next step (Luke, Oct 23: "a small link button
+  // at the bottom … cleaner"): the side the next step points at first.
   const fixRow = (m) => {
     const row = mismatchRow(m);
     if (isNew || !mayFix(m)) return row;
-    const date = m.key !== 'status';
-    const siteVal = date ? shortDate(m.tracker) : statusLabel(m.tracker);
-    const ghlVal = date ? shortDate(m.ghl) : statusLabel(m.ghl);
     const sent = (pushes || []).find((p) => p.field === m.key && p.status !== 'done' && !p.error);
     const noPush = m.key === 'status' && m.tracker === 'CANCELLED';
-    const btn = 'rounded-md px-2.5 py-1 text-[12.5px] font-semibold disabled:opacity-50';
+    const what = m.key === 'status' ? 'stage' : 'date';
+    const busyNow = fixing === m.key;
+    const link = 'underline underline-offset-2 text-violet-800 hover:text-violet-950 disabled:opacity-50 disabled:no-underline';
+    const toGhl = noPush ? null : sent
+      ? <span className="text-zinc-500">✓ Sent to GHL — updates within ~15 min</span>
+      : <button type="button" disabled={busyNow} onClick={() => fixToGhl(m)} className={link}>send the site's {what} to GHL</button>;
+    const toSite = <button type="button" disabled={busyNow} onClick={() => fixToSite(m)} className={link}>use GHL's {what} here</button>;
+    const tracker = m.key === 'status' && m.fix === 'tracker';
     return {
       ...row,
-      next: date ? 'Which date is right?' : row.next,
       extra: (
-        <div className="mt-1 flex flex-col items-start gap-1.5">
-          <div className="flex flex-col items-start gap-1.5">
-            {!noPush && <button type="button" disabled={fixing === m.key || !!sent} onClick={() => fixToGhl(m)} className={`${btn} whitespace-nowrap bg-violet-700 text-white hover:bg-violet-800`}>Site is right · send {siteVal} to GHL ↑</button>}
-            <button type="button" disabled={fixing === m.key} onClick={() => fixToSite(m)} className={`${btn} whitespace-nowrap bg-white text-violet-800 ring-1 ring-inset ring-violet-300 hover:bg-violet-50`}>GHL is right · use {ghlVal} here ↓</button>
-          </div>
-          {sent && <span className="text-[12px] font-normal text-zinc-600">✓ Sent to GHL by {sent.by_name} — it updates at the next refresh (within ~15 min)</span>}
-          {noPush && <span className="text-[12px] font-normal text-zinc-600">A cancel isn’t sent to GHL — the rep marks it Lost or Abandoned there.</span>}
-        </div>
+        <span className="inline-flex flex-wrap gap-x-1.5">
+          {tracker ? <>{toSite}{toGhl && <span className="text-zinc-400">·</span>}{toGhl && <>or {toGhl}</>}</>
+            : <>{toGhl}{toGhl && <span className="text-zinc-400">·</span>}<span>{toGhl ? 'or ' : ''}{toSite}</span></>}
+        </span>
       ),
     };
   };
