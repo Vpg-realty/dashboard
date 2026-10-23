@@ -36,6 +36,19 @@ export const MODEL = 'claude-opus-5-5';
 const shortDate = (ms) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric' }).format(new Date(ms));
 const azDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date(ms));
 const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+// The agent's name for a lead (Luke, Oct 23: "have the name of the agent
+// populate for each"): the contact's name from GHL — one read per new lead
+// (the 2-minute worker's texts carry no names). Best effort.
+export async function contactName(token, contactId) {
+  if (!token || !contactId) return null;
+  try {
+    const r = await fetch(`${GHL}/contacts/${encodeURIComponent(contactId)}`, { headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28', Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const c = (await r.json())?.contact || {};
+    const name = c.contactName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '';
+    return String(name).trim().slice(0, 80) || null;
+  } catch { return null; }
+}
 const clip = (x, n) => (x == null ? null : String(x).trim().slice(0, n) || null);
 
 // --- GHL tasks --------------------------------------------------------------
@@ -356,9 +369,10 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         // Cold; each person grades it themself (grading = reviewed).
         const auto = [null, null, null, null, null];
         if (v.bank_hud) v.type = 'cold';
-        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?)
+        const agentName = m.who || await contactName(tokens?.[m.sub.locationId], m.contact);
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at, agent_name) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?)
           ON CONFLICT (ext_id) DO NOTHING`,
-        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip([m.who && `${m.who} (agent)`, v.summary].filter(Boolean).join(' · '), 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at]);
+        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip(v.summary, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at, agentName]);
         if (r[0]?.meta?.changes) {
           status.leads++;
           recent.push({ holder: m.sub.repId, agent: m.phone || null, contact: m.contact || null, addr, quote: m.body, created_at: at });
@@ -368,6 +382,19 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   } else if (todo.length) status.leadError = 'no Claude key here';
   await query("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('lead_judged', ?, ?, 'Alerts') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(judged), iso]);
   }
+  // Agent names for leads that came in before names were looked up (Oct 23):
+  // the deploy's run fills up to 40 a time — '' when GHL has none, so each
+  // lead is looked up once.
+  if (statusKey === 'alerts_sync' && tokens) {
+    const noName = await rows("SELECT id, sub, contact FROM alerts WHERE kind = 'lead' AND done_at IS NULL AND agent_name IS NULL AND contact IS NOT NULL LIMIT 40");
+    const locOf = Object.fromEntries((subs || []).map((x) => [x.key, x.locationId]));
+    for (const a of noName) {
+      const n = await contactName(tokens[locOf[a.sub]], a.contact);
+      await query('UPDATE alerts SET agent_name = ? WHERE id = ?', [n || '', a.id]);
+    }
+    if (noName.length) status.names = noName.length;
+  }
+
   // Duplicates (Luke, Oct 19, reworked Oct 22) — two labels, one alert per
   // pod involved (ext_id dupe:<key>|<pod>), held by that pod's first rep on
   // it, so each pod lead (and the owners) hears another pod's rep has it,

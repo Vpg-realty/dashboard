@@ -60,6 +60,7 @@ const PICK = {
 };
 
 // Soonest first, a timed task before an untimed one on the same day.
+const TIMED = (a) => a.kind !== 'lead' && a.kind !== 'dupe';
 const dueKey = (a) => `${a.due || '9999'} ${a.due_time || '99:99'}`;
 const dayLabel = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
@@ -131,12 +132,25 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             {tags.map((t, i) => <SubTag key={i} t={t} arrow={i > 0} />)}
             <span className={`text-[13.5px] font-bold ${a.addr ? 'text-navy-900' : 'text-zinc-500'}`}>📍 {a.addr || 'No address given'}</span>
+            {/* The agent (Luke, Oct 23), from the GHL contact. */}
+            {a.kind === 'lead' && a.agent_name && <span className="text-[13px] text-zinc-600">· Agent: <b className="font-semibold text-navy-800">{a.agent_name}</b></span>}
+          </div>
+        )}
+        {/* What each reviewer graded it (Luke, Oct 23: "clearly state what a
+            reviewer marked the lead as … to everyone who can see the lead"). */}
+        {a.kind === 'lead' && (a.marks || []).some((m) => m.grade) && (
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11.5px] font-bold uppercase tracking-wide text-zinc-500">Graded</span>
+            {(a.marks || []).filter((m) => m.grade).map((m) => (
+              <span key={m.who} className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12.5px] font-bold ${LEAD_TYPE[m.grade]?.on || 'bg-zinc-600 text-white'}`}>
+                {LEAD_TYPE[m.grade]?.label || m.grade} <span className="font-medium opacity-90">— {m === mine ? 'you' : m.name}</span>
+              </span>
+            ))}
           </div>
         )}
         <div className={`font-semibold text-navy-800 leading-snug ${done && a.kind !== 'lead' ? 'line-through decoration-zinc-400' : ''}`}>
           {isNew && !done && <span className="mr-1.5 rounded px-1.5 py-px text-[11px] font-bold bg-rose-600 text-white align-[1px]">NEW</span>}
           <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${k.tag}`}>{k.label}</span>
-          {type && <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${type.chip}`}>{type.label}</span>}
           {/* Claude's proposed grade, always shown (Luke, Oct 22). */}
           {a.kind === 'lead' && HINT_WORD[a.hint] && <span title="Claude's proposed grade — your pick is what counts, and it teaches Claude" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
@@ -152,7 +166,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
         </div>
         {/* Who else has reviewed it and the type each gave (Luke, Oct 22) —
             it stays open for you until you grade it yourself. */}
-        {others.length > 0 && (
+        {others.length > 0 && a.kind !== 'lead' && (
           <div className="mt-1 text-[12px] font-semibold text-emerald-800">
             ✓ Reviewed by {others.map((m) => `${m.name}${m.grade ? ` · ${LEAD_TYPE[m.grade]?.label || m.grade}` : ''}`).join(', ')}
           </div>
@@ -278,9 +292,10 @@ export default function AlertsView() {
   const tab = query.get('tab') === 'done' || query.get('view') === 'done' ? 'done' : 'active';
   const myMark = (a) => (a.marks || []).find((m) => keys.includes(m.who));
   const doneAt = (a) => a.done_at || myMark(a)?.at || null;
-  // The lead type filter (Luke, Oct 22): Active filters on Claude's proposed
-  // grade, Reviewed on ours (your grade, else the latest given).
-  const typeOf = (a) => (tab === 'done' ? myMark(a)?.grade || a.verdict : a.hint) || null;
+  // The lead type filter (Luke, Oct 22–23): a grade someone gave overrides
+  // Claude's — Active filters on the latest grade given (else Claude's
+  // proposal), Reviewed on yours (else the latest given).
+  const typeOf = (a) => (tab === 'done' ? myMark(a)?.grade || a.verdict : a.verdict || a.hint) || null;
   const typeQ = view === 'leads' && TYPES.includes(query.get('type')) ? query.get('type') : null;
   const isDone = (a) => !!doneAt(a);
   const scoped = useMemo(() => {
@@ -297,9 +312,11 @@ export default function AlertsView() {
   const shown = inView.filter((a) => !typeQ || typeOf(a) === typeQ).sort((x, y) => (
     tab === 'done' ? (doneAt(y) > doneAt(x) ? 1 : -1)
       : (x.kind === 'lead') !== (y.kind === 'lead') ? (x.kind === 'lead' ? -1 : 1)
-        : dueKey(x) !== dueKey(y) ? (dueKey(x) < dueKey(y) ? -1 : 1)
-          // Newest first, leads and duplicates too (Luke, Oct 22).
-          : (y.created_at > x.created_at ? 1 : -1)));
+        // Leads and duplicates newest first, top down (Luke, Oct 22–23) — their
+        // `due` is only the day the text came in, so it isn't a sort key.
+        : !TIMED(x) && !TIMED(y) ? (y.created_at > x.created_at ? 1 : -1)
+          : dueKey(x) !== dueKey(y) ? (dueKey(x) < dueKey(y) ? -1 : 1)
+            : (y.created_at > x.created_at ? 1 : -1)));
 
 
   const late = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today).length;
@@ -373,11 +390,11 @@ export default function AlertsView() {
               <span className="font-semibold text-[15px]">{title}</span>
               <span className="ml-auto rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold px-2 py-0.5">{shown.length} {tab === 'done' ? 'reviewed' : 'open'}</span>
             </div>
-            {/* Lead type filter (Luke, Oct 22): Active by Claude's proposed
-                grade, Reviewed by ours. */}
+            {/* Lead type filter (Luke, Oct 22–23): the latest grade anyone
+                gave, else Claude's proposal. */}
             {data && view === 'leads' && (
               <div className="px-4 md:px-5 py-2 border-b border-tan-100 bg-tan-50/40">
-                <MarketChips label={tab === 'done' ? 'Graded' : 'Claude’s grade'} allLabel="All" value={typeQ} onChange={(v) => setQuery({ type: v })}
+                <MarketChips label={tab === 'done' ? 'Graded' : 'Grade'} allLabel="All" value={typeQ} onChange={(v) => setQuery({ type: v })}
                   options={TYPES.map((v) => ({ id: v, label: LEAD_TYPE[v].label, count: inView.filter((a) => typeOf(a) === v).length }))} />
               </div>
             )}

@@ -51,6 +51,7 @@ import WhoWorksWhere from '../territory/WhoWorksWhere.jsx';
 import RepsStates from '../territory/RepsStates.jsx';
 import MyZips from '../zips/MyZips.jsx';
 import AllZips from '../zips/AllZips.jsx';
+import CashOffer from '../toolkit/CashOffer.jsx';
 import ProofOfFunds from '../toolkit/ProofOfFunds.jsx';
 import TitleAgencies from '../toolkit/TitleAgencies.jsx';
 import SellerFinance from '../toolkit/SellerFinance.jsx';
@@ -68,7 +69,7 @@ const VIEWS = {
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView,
-  'tk-pof': ProofOfFunds, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs,
+  'tk-pof': ProofOfFunds, 'tk-offer': CashOffer, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 

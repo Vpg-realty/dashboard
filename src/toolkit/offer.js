@@ -32,6 +32,7 @@ export function coeDefault(now = Date.now()) {
 export function missingFor(kind, i) {
   const need = [['state', 'Market'], ['emd', 'EMD'], ['ipDays', 'Inspection period'], ['title', 'Title company']];
   if (kind === 'seller') need.push(['price', 'Price'], ['rate', 'Interest rate']);
+  else if (kind === 'cash') { need.unshift(['address', 'Property']); need.push(['price', 'Price']); }
   else need.push(['price', 'Price']);
   return need.filter(([k]) => !String(i[k] ?? '').trim()).map(([, l]) => l);
 }
@@ -52,6 +53,13 @@ export function offerMessage(kind, i) {
       `Amortization: ${i.io === 'yes' ? 'Interest only' : years(i.amort)}`,
       `Term/Balloon: ${num(i.balloon) ? years(i.balloon) : 'None'}`,
     ].join('\n');
+  }
+  // The cash offer template (Luke, Oct 23: "a simple offer template for cash
+  // offers") = the standard offer with the property on top and any extra
+  // terms at the foot.
+  if (kind === 'cash') {
+    const extra = String(i.terms || '').trim();
+    return [`Property: ${String(i.address || '').trim()}`, '', `Cash Offer: ${$(i.price)}`, `EMD: ${$(i.emd)}`, signer, ...close, ...(extra ? ['', extra] : [])].join('\n');
   }
   return [`Price: ${$(i.price)}`, `EMD: ${$(i.emd)}`, signer, ...close].join('\n');
 }
