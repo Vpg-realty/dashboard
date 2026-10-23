@@ -1312,11 +1312,14 @@ logged `*pushed` in the deal's history; refused for a cancelled stage, a
 deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
 days from the contract date; needs a contract date). The link the next step
 points at comes first. Replaces "or use GHL's date here" / "Set to X".
-- **Summary tile** (same day, Luke: "boxy and clunky"): no cell borders,
-  small tan uppercase labels, one rule between the money row and the dates
-  row; COE = the date plus "in N days" / "tomorrow" / "closing today" / "N
-  days late" in colour (`CoeWhen`); Inspection period = start ── N days ──
-  end, the end time under it (`IpMini`, the small DdTimeline).
+- **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
+  clear these are status tiles"): under the header a "Deal Status" band with
+  the worst tile's word (Needs attention / Coming up / All good · closing in
+  N days / Closed / Cancelled), then six tiles (`StatusTile`, `tileStatus` in
+  DealPanel.jsx) — Contracted, Assigned at, Gross; EMD, Inspection (Start ──
+  N days ── End, `IpSpan`), COE — each with a line icon whose square takes
+  the tile's status colour (green / amber / red / grey) and a status word
+  ("In · VPG + Buyer", "Ended · buyer in", "in 18 days", "2 days late").
 
 ## A cancel that still makes money (Luke, Oct 23)
 
@@ -1338,6 +1341,26 @@ commissions like a closing (lines.js); Wires In expects the money; the
 Earnest Money tab notes "kept buyer's $5,000" under the stage; the company
 outlook and Road to Hawaii count the money (not as a closing); Aiza's TC
 line counts it in the month it was cancelled (unchanged rule).
+
+## Cancel → Lost or Abandoned in GHL; quieter GHL box; Act Now facts (Luke, Oct 23)
+
+- **Cancel on the site picks GHL's outcome**: a cancelled deal shows **In
+  GHL, mark it** (`cancelAs`: LOST | ABANDONED, next to Stage). With one
+  picked, `ghlPushes` sends the status as LOST / ABANDONED and push-ghl.mjs
+  sets the opportunity's `status` ('lost' / 'abandoned') — no stage move.
+  With none picked a cancel still isn't sent. The other way is unchanged: a
+  rep moving it to Lost / Abandoned in GHL cancels it on the sheet (the
+  sync). The mismatch row reads "Mark it Lost in GHL" with Update GHL. Not
+  handled: a deal reopened on the site after GHL marked it lost keeps GHL's
+  lost status (only the stage moves) — reopen it in GHL too.
+- **The deal panel's GHL box** shows only when something doesn't match (or
+  GHL has a COE the site lacks); a matching deal shows just the "GHL ·
+  <stage>" chip in the header (Luke: "why does the GHL info pop up? looks
+  like it matches").
+- **Act Now cards**: the dates and money sit in one small box (`MiniFacts`:
+  IP end, COE, contract — or COE, contract, gross once assigned; no EMD,
+  it's a chip under the address) left of Open deal and the quick button; the
+  quick buttons only open the deal on that field (`ACTION_TIP`).
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 

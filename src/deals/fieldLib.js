@@ -12,8 +12,9 @@ export const LIST_OF = {
 // Cancelled — matching the GHL stages), in that order, not A → Z.
 // EMD returned? adds Lost (Luke, Oct 22) — with its reason in emdLostWhy.
 export const EMD_LOST_WHY = ['PAST_IP', 'NON_REFUNDABLE', 'BUYER_DEFAULT'];
-export const FIXED_LISTS = { retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
-export const KEEP_ORDER = new Set(['ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
+export const CANCEL_AS = ['LOST', 'ABANDONED'];
+export const FIXED_LISTS = { cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
+export const KEEP_ORDER = new Set(['cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
 // Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
 // "Custom" to type it in.
 export const PICK_FROM_PAST = new Set(['buyer', 'title']);

@@ -40,7 +40,9 @@ export const canManagerEdit = (u) => u?.role === 'manager' && !!u.rep_id;
 // Dispo Active, Assigned and Closed are sent; Cancelled is NOT (Luke: the rep
 // marks it Lost or Abandoned in GHL — Abandoned when it may come back).
 export const GHL_PUSH_FIELDS = ['address', 'title', 'coe', 'ipEnd', 'price', 'status'];
-const PUSH_STATUS = new Set(['UNDER_CONTRACT', 'DISPO_ACTIVE', 'ASSIGNED', 'COMPLETE']);
+// A cancel goes as Lost or Abandoned once someone picks which (`cancelAs`,
+// Luke Oct 23); with none picked it isn't sent.
+const PUSH_STATUS = new Set(['UNDER_CONTRACT', 'DISPO_ACTIVE', 'ASSIGNED', 'COMPLETE', 'LOST', 'ABANDONED']);
 const ipEndOf = (d) => (DATE.test(d?.accepted || '') && Number.isFinite(Number(d?.ddDays)) && d.ddDays !== '' && d.ddDays != null
   ? new Date(Date.parse(`${d.accepted}T12:00:00Z`) + Number(d.ddDays) * 86_400_000).toISOString().slice(0, 10) : null);
 // The GHL lead value follows the sheet's net assignment (Luke, Oct 22: one
@@ -57,7 +59,8 @@ export function leadValuePush(before, after, rules, lists) {
   return b != null && a !== b ? [{ field: 'netAssign', value: String(b) }] : [];
 }
 export function ghlPushes(before, after) {
-  const v = (d, f) => (f === 'ipEnd' ? ipEndOf(d) : d?.[f] ?? null);
+  const cancelOf = (d) => (String(d?.status || '').toUpperCase() === 'CANCELLED' ? String(d?.cancelAs || '').toUpperCase() || 'CANCELLED' : d?.status ?? null);
+  const v = (d, f) => (f === 'ipEnd' ? ipEndOf(d) : f === 'status' ? cancelOf(d) : d?.[f] ?? null);
   const sendable = (f, b) => b != null && (f !== 'status' || PUSH_STATUS.has(b)) && (f !== 'price' || Number(b) > 0);
   return GHL_PUSH_FIELDS.map((f) => [f, v(before, f), v(after, f)]).filter(([f, a, b]) => a !== b && sendable(f, b)).map(([f, , b]) => ({ field: f, value: String(b) }));
 }
@@ -86,6 +89,10 @@ export function clean(key, v) {
   }
   if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
   // EMD returned? (Yes / No / Lost / N/A) and why it was lost — Luke, Oct 22.
+  if (key === 'cancelAs') {
+    const s = String(v).trim().toUpperCase();
+    return ['LOST', 'ABANDONED'].includes(s) ? { value: s } : { error: `${f.label}: pick Lost or Abandoned` };
+  }
   if (key === 'emdReturned' || key === 'emdLostWhy') {
     const s = String(v).trim().toUpperCase();
     if (key === 'emdReturned') return ['YES', 'NO', 'LOST', 'NA', 'N/A'].includes(s) ? { value: s } : { error: `${f.label}: pick Yes, No, Lost or N/A` };

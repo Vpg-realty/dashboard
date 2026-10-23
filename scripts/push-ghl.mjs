@@ -99,7 +99,9 @@ export async function runPush({ query, fields, tokens, locationOf, put, complete
     const stageOf = (r) => ids.stages?.[STATUS_STAGE[r.value]] || null;
     // netAssign is the opportunity's own lead value (monetaryValue, Oct 22) —
     // no custom field id needed.
-    const has = (r) => (r.field === 'status' ? !!stageOf(r) && !!ids.stages?.pipelineId : r.field === 'netAssign' || !!ids[r.field]);
+    // Lost / Abandoned is the opportunity's status, not a stage (Oct 23).
+    const asStatus = (r) => r.field === 'status' && (r.value === 'LOST' || r.value === 'ABANDONED');
+    const has = (r) => (asStatus(r) ? true : r.field === 'status' ? !!stageOf(r) && !!ids.stages?.pipelineId : r.field === 'netAssign' || !!ids[r.field]);
     const missing = u.rows.filter((r) => !has(r));
     const ok = u.rows.filter(has);
     for (const r of missing) await query("UPDATE ghl_push SET status = 'failed', error = ?, done_at = ? WHERE id = ?", [r.field === 'status' ? `this sub-account's pipeline has no ${STATUS_STAGE[r.value] || r.value} stage` : `this sub-account has no ${r.field} field in GHL`, iso, r.id]);
@@ -113,7 +115,7 @@ export async function runPush({ query, fields, tokens, locationOf, put, complete
       const body = {
         ...(custom.length ? { customFields: custom.map((r) => ({ id: ids[r.field], field_value: r.value })) } : {}),
         ...(lv ? { monetaryValue: Number(lv.value) } : {}),
-        ...(st ? { pipelineId: ids.stages.pipelineId, pipelineStageId: stageOf(st) } : {}),
+        ...(st && asStatus(st) ? { status: st.value.toLowerCase() } : st ? { pipelineId: ids.stages.pipelineId, pipelineStageId: stageOf(st) } : {}),
       };
       try { await put(u.ghlId, token, body); } catch (e) { error = String(e.message || e).slice(0, 300); }
     }
