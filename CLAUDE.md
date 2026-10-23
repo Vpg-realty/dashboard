@@ -1266,6 +1266,39 @@ as 100+ "leads" a day. Now:
   system block, `ttl: '1h'`). Usage: one 150-row read per run with texts to
   judge. Claude cost: roughly $2–3 a day (~$60–90 a month) at today's volume.
 
+## Today at a Glance + Deals › Active rework (Luke, Oct 23)
+
+From the approved mock-ups. Overrides the older Active / Today notes.
+- **One way to read a row** (both pages): the property address on top and
+  largest → the problem in one plain line → a grey line with what to do →
+  the rep · sub-account box (`RepTag`, src/shell/RepTag.jsx — "Sam · TN" in
+  the rep's colour, also used for Alerts' style) and the stage chip.
+  `urgency(d, today)` (src/deals/urgency.js) is the one place that words a
+  tracker deal's problem: section (`act` past a deadline or within 24 h /
+  `week` within 7 days or the next thing to fill in / `ok`), headline, why it
+  matters, what to do and the panel field a quick button opens (`focus`).
+  `dealTag(d)` = the deal's GHL sub-account (`ghlSub`), else acq. manager +
+  state. `personColor` moved to src/deals/personColor.js.
+- **Deals › Active** (ActiveView.jsx): sections by urgency — Act Now (dark
+  red), This Week, Missing Info, On Track and In GHL, Not on the Sheet (the
+  last two folded by default; folds per device `vpg.active.folds2`). Act Now
+  cards carry a problem box (Why it matters / Do) and facts on the right
+  (IP end, COE, contract, EMD — or COE, contract, assignment, gross once
+  assigned) with Open deal + a quick button (Cancel… / Mark Closed… / Set
+  EMD… → the deal panel on that field). This Week / On Track are slim cards.
+  Missing Info lists each deal's blank fields as chips (all categories). Band
+  counters Act now / This week / On track / Missing info (`?only=act|week|ok|
+  need`), a Stage switch in the band (`?stage=uc|dispo|asg`; old `?only=asg|
+  buyer` links read as a stage). The wide sheet columns, in-place editing,
+  the IP-ends-in-48 h list and the colour key are gone from this page (All
+  Deals keeps the sheet; the IP alerts are Act Now / This Week cards).
+- **Today at a Glance** (TodayCard.jsx): rows in the same order; closings
+  today fold into one row listing the addresses (→ Calendar); tasks / GHL
+  tasks, 30-day check-ins and the person's own leads each fold into one row
+  once there are more than 3 (`FOLD_OVER`; → Alerts `?view=tasks |
+  checkins | leads`, with "N late" and Claude's grade counts); "N deals
+  missing info" names the most common blank fields.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
