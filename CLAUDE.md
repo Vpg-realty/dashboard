@@ -1305,16 +1305,18 @@ From the approved mock-ups. Overrides the older Active / Today notes.
 site so GHL could have the most up to date info." Every row of the deal
 panel's **Doesn't match the tracker** box (Stage, COE, IP end) keeps its
 next-step text with two small underlined links under it (Luke: "too bulky …
-a small link button at the bottom"), for whoever may edit that field
-(owners / TC; managers COE and IP end): **send the site's date / stage to
-GHL** — PATCH `/api/deals/:id { push: ['coe' | 'ipEnd' | 'status'] }`
+a small link button at the bottom … remove the or"), for whoever may edit
+that field (owners / TC; managers COE and IP end): **Update GHL ↑** — PATCH `/api/deals/:id { push: ['coe' | 'ipEnd' | 'status'] }`
 queues the site's current value in `ghl_push` as it stands (deal unchanged,
 logged `*pushed` in the deal's history; refused for a cancelled stage, a
-deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL
-— updates within ~15 min" until the next refresh — and **use GHL's date /
-stage here**, which saves GHL's value on the site at once (the IP end as IP
+deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
 days from the contract date; needs a contract date). The link the next step
 points at comes first. Replaces "or use GHL's date here" / "Set to X".
+- **Summary tile** (same day, Luke: "boxy and clunky"): no cell borders,
+  small tan uppercase labels, one rule between the money row and the dates
+  row; COE = the date plus "in N days" / "tomorrow" / "closing today" / "N
+  days late" in colour (`CoeWhen`); Inspection period = start ── N days ──
+  end, the end time under it (`IpMini`, the small DdTimeline).
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 

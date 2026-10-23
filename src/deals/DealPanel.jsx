@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
-import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
+import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
 import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
@@ -73,6 +73,38 @@ function DdTimeline({ d }) {
       </div>
       <DdEnd p={b} label="Ends" right extra={<div className={`mt-0.5 text-[12.5px] font-semibold ${end ? 'text-navy-700' : 'text-zinc-400 font-normal'}`}>{end ? `at ${end}` : 'no end time set'}</div>} />
     </div>
+  );
+}
+
+// The summary tile's dates (Luke, Oct 23: "boxy and clunky … COE … a clear
+// date with how many days left, day of, late"; the IP "should match the main
+// section, but smaller — start and end with days in the middle").
+function CoeWhen({ coe }) {
+  if (!coe) return <span className="text-zinc-300">—</span>;
+  const n = ISO.test(coe) ? daysBetween(laToday(), coe) : null;
+  const when = n == null ? null : n < 0 ? [`${-n} day${n === -1 ? '' : 's'} late`, 'text-[#9f1239]'] : n === 0 ? ['closing today', 'text-red-600'] : n === 1 ? ['tomorrow', 'text-red-600'] : [`in ${n} days`, n <= 3 ? 'text-[#B54708]' : 'text-zinc-500'];
+  return (
+    <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+      {shortDate(coe)}
+      {when && <span className={`text-[12.5px] font-semibold ${when[1]}`}>{when[0]}</span>}
+    </span>
+  );
+}
+function IpMini({ d }) {
+  const n = Number(d.ddDays);
+  const end = showEndTime(d);
+  return (
+    <span className="block">
+      <span className="flex items-center gap-2 whitespace-nowrap">
+        <span>{d.accepted ? shortDate(d.accepted) : '—'}</span>
+        <span className="relative flex-1 min-w-[56px] max-w-[110px] h-5 flex items-center justify-center">
+          <span className="absolute inset-x-0 top-1/2 h-px bg-tan-400" />
+          <span className="relative bg-white px-1.5 text-[11.5px] font-semibold text-tan-700">{Number.isFinite(n) && n > 0 ? `${n} day${n === 1 ? '' : 's'}` : '—'}</span>
+        </span>
+        <span>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>
+      </span>
+      {end && <span className="block text-[11.5px] font-medium text-zinc-500 text-right truncate">ends {end}</span>}
+    </span>
   );
 }
 
@@ -318,22 +350,16 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     if (isNew || !mayFix(m)) return row;
     const sent = (pushes || []).find((p) => p.field === m.key && p.status !== 'done' && !p.error);
     const noPush = m.key === 'status' && m.tracker === 'CANCELLED';
-    const what = m.key === 'status' ? 'stage' : 'date';
     const busyNow = fixing === m.key;
     const link = 'underline underline-offset-2 text-violet-800 hover:text-violet-950 disabled:opacity-50 disabled:no-underline';
     const toGhl = noPush ? null : sent
-      ? <span className="text-zinc-500">✓ Sent to GHL — updates within ~15 min</span>
-      : <button type="button" disabled={busyNow} onClick={() => fixToGhl(m)} className={link}>send the site's {what} to GHL</button>;
-    const toSite = <button type="button" disabled={busyNow} onClick={() => fixToSite(m)} className={link}>use GHL's {what} here</button>;
-    const tracker = m.key === 'status' && m.fix === 'tracker';
+      ? <span className="text-zinc-500">✓ Sent to GHL</span>
+      : <button type="button" disabled={busyNow} onClick={() => fixToGhl(m)} className={link}>Update GHL ↑</button>;
+    const toSite = <button type="button" disabled={busyNow} onClick={() => fixToSite(m)} className={link}>Update site ↓</button>;
+    const first = m.key === 'status' && m.fix === 'tracker' ? [toSite, toGhl] : [toGhl, toSite];
     return {
       ...row,
-      extra: (
-        <span className="inline-flex flex-wrap gap-x-1.5">
-          {tracker ? <>{toSite}{toGhl && <span className="text-zinc-400">·</span>}{toGhl && <>or {toGhl}</>}</>
-            : <>{toGhl}{toGhl && <span className="text-zinc-400">·</span>}<span>{toGhl ? 'or ' : ''}{toSite}</span></>}
-        </span>
-      ),
+      extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}</span>,
     };
   };
   async function save() {
@@ -376,13 +402,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       ['Gross assignment', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : dash],
     ],
     [
-      ['COE', <CoeChip key="coe" coe={merged.coe} />],
-      ['Inspection period', merged.accepted || merged.ddEnd ? (
-        <span className="text-[15px]" title={showEndTime(merged) || undefined}>
-          {merged.accepted ? shortDate(merged.accepted, { year: false }) : '—'} → {merged.ddEnd ? shortDate(merged.ddEnd, { year: false }) : '—'}
-          {merged.ddEndTime ? <span className="block text-[11.5px] font-medium text-zinc-500 truncate">ends {showEndTime(merged)}</span> : null}
-        </span>
-      ) : dash],
+      ['COE', <CoeWhen key="coe" coe={merged.coe} />],
+      ['Inspection period', merged.accepted || merged.ddEnd ? <IpMini key="ip" d={merged} /> : dash],
       ['EMD', <span key="emd" className="inline-flex flex-wrap items-center gap-1.5"><EmdPill deal={merged} />{merged.emd ? <span className="text-[13px] font-medium text-zinc-500">{money(merged.emd)}</span> : null}</span>],
     ],
   ];
@@ -422,11 +443,11 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         {!isNew && tab === 'details' && (
           <div className="shrink-0 bg-white border-b border-tan-200 divide-y divide-tan-100">
             {facts.map((row, i) => (
-              <div key={i} className="grid grid-cols-3">
+              <div key={i} className={`grid grid-cols-3 gap-x-6 px-6 ${i ? 'pt-2.5 pb-3.5' : 'pt-3.5 pb-2.5 border-b border-tan-100'}`}>
                 {row.map(([l, v]) => (
-                  <div key={l} className="px-4 py-2.5 [&:not(:last-child)]:border-r border-tan-100 min-w-0">
-                    <div className="text-[11.5px] font-medium text-zinc-500 whitespace-nowrap">{l}</div>
-                    <div className="mt-1 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
+                  <div key={l} className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-tan-600 whitespace-nowrap">{l}</div>
+                    <div className="mt-0.5 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
                   </div>
                 ))}
               </div>
