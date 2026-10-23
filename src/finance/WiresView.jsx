@@ -9,7 +9,7 @@
 import { WIRE_TABS } from './tabs.js';
 import { useMemo, useState } from 'react';
 import { useDeals, saveDeal } from '../deals/store.js';
-import { booksOpen, isBlank } from '../deals/math.js';
+import { booksOpen, isBlank, keptMoney } from '../deals/math.js';
 import { Loading, StatusChip } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, primaryCls } from '../deals/format.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
@@ -52,6 +52,7 @@ export function EmdCell({ d, raw, lost = true }) {
         <span className="text-[12px] font-semibold text-[#B42318] mr-1">Why?</span>
         {btn('_ip', 'Past IP', RED, () => save({ emdReturned: 'LOST', emdLostWhy: 'PAST_IP' }))}
         {btn('_nr', 'Non-refundable', RED, () => save({ emdReturned: 'LOST', emdLostWhy: 'NON_REFUNDABLE' }))}
+        {btn('_bd', 'Buyer default', RED, () => save({ emdReturned: 'LOST', emdLostWhy: 'BUYER_DEFAULT' }))}
         <button type="button" onClick={() => setWhy(false)} className="h-7 px-1.5 text-[12px] text-zinc-500 hover:text-zinc-800">Cancel</button>
       </span>
     );
@@ -106,7 +107,8 @@ export default function WiresView({ embedded = false }) {
   const today = laToday();
   const rawById = useMemo(() => new Map(s.raw.map((d) => [d.id, d])), [s.raw]);
   const deals = useMemo(() => s.deals
-    .filter((d) => up(d.status) !== 'CANCELLED' && (up(d.status) === 'COMPLETE' || booksOpen(d)) && (n(d.wireExpected) > 0 || ISO.test(d.wireDate || '')))
+    // A cancel where VPG kept the buyer's EMD expects that money in (Oct 23).
+    .filter((d) => (up(d.status) !== 'CANCELLED' || keptMoney(d)) && (up(d.status) === 'COMPLETE' || keptMoney(d) || booksOpen(d)) && (n(d.wireExpected) > 0 || ISO.test(d.wireDate || '')))
     .sort((a, b) => String(b.coe || '').localeCompare(String(a.coe || ''))), [s.deals]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   const waiting = deals.filter((d) => wireState(d) === 'waiting');

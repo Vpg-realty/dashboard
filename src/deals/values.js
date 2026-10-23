@@ -10,7 +10,7 @@ import { statusLabel } from './format.js';
 const KEEP = new Set(['VPG', 'JV', 'CFAR', 'EMD', 'DD', 'COE', 'TC', 'LLC', 'AZ', 'CO', 'GHL']);
 const SPECIAL = {
   NA: 'N/A', 'N/A': 'N/A', Y: 'Yes', N: 'No', YES: 'Yes', NO: 'No',
-  LOST: 'Lost', PAST_IP: 'Past inspection period', NON_REFUNDABLE: 'Non-refundable',
+  LOST: 'Lost', PAST_IP: 'Past inspection period', NON_REFUNDABLE: 'Non-refundable', BUYER_DEFAULT: 'Buyer default',
   "FINDER'S FEE": "Finder's fee", 'ON-MARKET': 'On-market', 'OFF-MARKET': 'Off-market',
 };
 

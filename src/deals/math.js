@@ -34,6 +34,9 @@ export const FIELDS = [
   // Luke, Oct 14: how much earnest money the buyer placed — reference only,
   // no formula uses it (shown right of EMD amount).
   ['buyerEmd', "Buyer's EMD", 'emd', 'money'],
+  // Luke, Oct 23: a cancel can still make money — the buyer defaulted and
+  // their EMD comes to VPG (shown only on a cancelled deal; see keptMoney).
+  ['emdKept', "Buyer's EMD we kept", 'emd', 'money'],
   ['optionFee', 'Option fee amount', 'emd', 'money'],
   ['cfar', 'Cancel for any reason?', 'emd', 'list'],
   ['emdDue', 'EMD due date', 'emd', 'date', 'calc'],
@@ -253,12 +256,25 @@ const legacyDispo = (d) => is(d.status, 'COMPLETE') && !isBlank(d.dispoTeam);
 
 // The sheet's formulas, column by column (AE … AT, Q, V, W). `rules` and
 // `lists` come from D1. Returns the deal with every computed field filled.
+// A cancelled deal that still made money (Luke, Oct 23 — 122 Berkshire: the
+// buyer defaulted, VPG keeps their $5,000 EMD and forfeits its own $1,000):
+// gross = the buyer's EMD kept − VPG's EMD lost; commissions, TC fee and
+// profit as on a closed deal. Still a cancel for the close rate, the closed
+// count and sold volume.
+export const keptMoney = (d) => is(stageOf(d), 'CANCELLED') && num(d?.emdKept) > 0;
+// Deals whose money counts: closed, or cancelled with EMD kept.
+export const earned = (d) => is(stageOf(d), 'COMPLETE') || keptMoney(d);
+
 export function compute(deal, rules, lists) {
   const d = { ...deal, status: deal.status == null ? deal.status : stageOf(deal) };
   const fx = deal.fixed || {};
   const set = (k, v) => { d[k] = k in fx ? fx[k] : v; };
   const r = pickRules(rules, deal);
-  const cancelled = is(d.status, 'CANCELLED');
+  const kept = keptMoney(d);
+  const cancelled = is(d.status, 'CANCELLED') && !kept;
+  // Commission / TC rules read a kept-money cancel as a closing.
+  const asDone = kept ? { ...d, status: 'COMPLETE' } : d;
+  const keptGross = kept ? num(d.emdKept) - (is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST') ? num(d.emd) : 0) : 0;
   const finders = is(d.dealType, "FINDER'S FEE");
 
   d.emdStatus = emdStatusOf(d);
@@ -267,12 +283,12 @@ export function compute(deal, rules, lists) {
   set('ddEnd', addDays(d.accepted, num(d.ddDays)));
   // An Unknown final assignment price (Oct 22) leaves net loss % blank.
   set('netLoss', String(d.finalAssign).toUpperCase() === 'UNKNOWN' ? null : num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
-  set('grossAssign', cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
-  set('tcFee', statusIn(d, r.tcFeeStatuses) ? num(r.tcFee) : 0);
+  set('grossAssign', kept ? keptGross : cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
+  set('tcFee', statusIn(asDone, r.tcFeeStatuses) ? num(r.tcFee) : 0);
   // VPG always sells the deal now (Luke, Oct 14): net = gross − additional
   // fees, no 50/50 split. Closed deals with a dispo team on file keep the
   // sheet's formula for that team (legacyDispo).
-  set('netAssign', cancelled ? 0
+  set('netAssign', kept ? keptGross - num(d.addlFees) : cancelled ? 0
     : !legacyDispo(d) ? (finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price)) - num(d.addlFees)
       : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - num(d.addlFees)
         : finders ? num(d.vpgAssign) - num(d.addlFees) * 0.5
@@ -280,7 +296,7 @@ export function compute(deal, rules, lists) {
   set('emdReturn', is(d.emdPaidBy, 'VPG + BUYER') || is(d.emdPaidBy, 'VPG') ? num(d.emd) : is(d.emdPaidBy, 'BUYER') ? 'PAID BY BUYER' : 0);
   set('wireExpected', finders && legacyDispo(d) ? num(d.vpgAssign) - num(d.addlFees) * 0.5 + num(d.emdReturn)
     : d.emdReturn === 'PAID BY BUYER' ? num(d.netAssign)
-      : cancelled ? num(d.emd) : num(d.netAssign) + num(d.emdReturn));
+      : kept ? num(d.emdKept) : cancelled ? num(d.emd) : num(d.netAssign) + num(d.emdReturn));
   set('commBase', cancelled ? 0 : num(d.netAssign) - num(d.tcFee));
 
   const noComm = (p) => (r.noCommission || []).some((n) => is(n, p));
@@ -289,7 +305,7 @@ export function compute(deal, rules, lists) {
   // stage is changed to assigned or closed" — "but TC would still count").
   // An open deal with no buyer owes no acq / dispo / manager / override yet;
   // the TC's follows its own rule. Cancelled deals are unchanged.
-  const waiting = !cancelled && !is(d.status, 'COMPLETE') && !isAssigned(d);
+  const waiting = !kept && !cancelled && !is(d.status, 'COMPLETE') && !isAssigned(d);
   const ofNet = Object.entries(r.acqOfNet || {}).find(([n]) => is(n, d.acq));
   set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : ofNet ? num(d.netAssign) * ofNet[1] : num(d.commBase) * num(r.acqRate));
   set('dispoComm', waiting || noComm(d.dispoMember) ? 0
@@ -313,11 +329,12 @@ export function compute(deal, rules, lists) {
   set('mgrComm', mgrRep && !waiting ? num(d.commBase) * num(m.rate) : 0);
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];
-  set('override', !waiting && o.name && statusMatches(d, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
-  set('tcComm', statusIn(d, r.tcCommStatuses) ? num(r.tcComm) : 0);
+  set('override', !waiting && o.name && statusMatches(asDone, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
+  set('tcComm', statusIn(asDone, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);
-  const emdLost = is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST');
+  // A kept-money cancel already took VPG's lost EMD out of its gross.
+  const emdLost = !kept && (is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST'));
   set('grossProfit', emdLost ? num(d.netAssign) - num(d.emd) : cancelled ? -num(d.optionFee) - paid : num(d.netAssign));
   set('netProfit', emdLost ? num(d.netAssign) - num(d.emd) - paid : cancelled ? -num(d.optionFee) - paid : num(d.netAssign) - paid);
   return d;

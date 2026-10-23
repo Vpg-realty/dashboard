@@ -89,7 +89,7 @@ export function clean(key, v) {
   if (key === 'emdReturned' || key === 'emdLostWhy') {
     const s = String(v).trim().toUpperCase();
     if (key === 'emdReturned') return ['YES', 'NO', 'LOST', 'NA', 'N/A'].includes(s) ? { value: s } : { error: `${f.label}: pick Yes, No, Lost or N/A` };
-    return ['PAST_IP', 'NON_REFUNDABLE'].includes(s) ? { value: s } : { error: `${f.label}: pick past inspection period or non-refundable` };
+    return ['PAST_IP', 'NON_REFUNDABLE', 'BUYER_DEFAULT'].includes(s) ? { value: s } : { error: `${f.label}: pick past inspection period, non-refundable or buyer default` };
   }
   if (key === 'status') {
     const s = String(v).trim().toUpperCase();

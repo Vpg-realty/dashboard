@@ -68,7 +68,7 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal, periodKe
       <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
         <BandStat shade="tan" label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
         <BandStat shade="tan" label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-        <BandStat shade="tan" label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub="after additional fees" />
+        <BandStat shade="tan" label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub={now.keptN ? `incl. ${compact(now.keptNet)} EMD kept · ${now.keptN} cancel${now.keptN === 1 ? '' : 's'}` : 'after additional fees'} />
         {owner && <BandStat shade="tan" feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
         {owner && <BandStat shade="tan" label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
         {owner && <BandStat shade="tan" label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}

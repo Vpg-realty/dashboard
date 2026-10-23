@@ -11,7 +11,7 @@
 // already says YES / N/A, then it was settled in the sheet (`sheet: true`).
 // An approved line whose commission has changed since (a price or rule was
 // edited) is flagged `changed` and needs approving again.
-import { payouts, isAssigned, isOpen } from '../deals/math.js';
+import { payouts, isAssigned, isOpen, keptMoney } from '../deals/math.js';
 
 export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC' };
 export const METHODS = { ACH: 'ACH', CHECK: 'Check', WIRE: 'Wire', ZELLE: 'Zelle', OTHER: 'Other' };
@@ -64,7 +64,9 @@ export function buildLines(deals, rules, rows = []) {
   const out = [];
   const seen = new Set();
   for (const d of deals) {
-    const closed = isClosed(d);
+    // A cancel where VPG kept the buyer's EMD pays commissions like a
+    // closing (Luke, Oct 23).
+    const closed = isClosed(d) || keptMoney(d);
     const tcMonthly = tcOnFinish(d);
     if (!closed && !tcMonthly) continue;
     for (const p of payouts(d, rules)) {
