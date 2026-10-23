@@ -40,7 +40,7 @@ export default function OfferMessage({ c, kind }) {
   const subject = `Offer — ${c.form.opp?.label || c.form.title || 'property'}`;
   const ro = !c.canEdit;
   return (
-    <Panel title={kind === 'seller' ? 'Creative Offer — Message to the Agent' : 'Offer — Message to the Agent'} sub="Fill in the terms, then create the message" bodyClass="p-5 flex flex-col gap-4">
+    <Panel title={kind === 'seller' ? 'Creative Offer — Message to the Agent' : kind === 'cash' ? 'Cash Offer — Message to the Agent' : 'Offer — Message to the Agent'} sub="Fill in the terms, then create the message" bodyClass="p-5 flex flex-col gap-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 items-start">
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Market
           <SearchSelect value={state || null} onChange={(v) => c.setInput('state', v || '')} options={US_STATES.map((s) => ({ value: s, label: s }))} placeholder="Pick the state" disabled={ro} />

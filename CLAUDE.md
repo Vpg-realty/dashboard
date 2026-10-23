@@ -1231,8 +1231,17 @@ Overrides the lead-type / Complete / Completed notes above where they differ.
   always shows as "Claude: hot lead"; bank-owned / HUD homes come proposed as
   Cold (no longer pre-set as the grade).
 - **Lead type filter** on Leads Spotted (`?type=`, the MarketChips row): on
-  Active it filters by Claude's proposed grade, on Reviewed by ours (your
-  grade, else the latest given).
+  Active it filters by the latest grade anyone gave (Oct 23, Luke: a person's
+  grade overrides Claude's), else Claude's proposal; on Reviewed by yours,
+  else the latest given.
+- **Oct 23** (Luke): each lead shows a **Graded** row — one chip per grade
+  in the type's colour, "Hot lead — Anthony", for everyone who sees it — and
+  the **agent's name** (`alerts.agent_name`, added Oct 23 with ALTER TABLE):
+  `contactName` (edge/alertsSync.js) reads the GHL contact once per new lead
+  (the worker's texts carry no names); the deploy's sync fills up to 40 open
+  leads a run that came in before (`''` when GHL has none, so each is looked
+  up once). Leads / duplicates sort newest first regardless of `due` (their
+  `due` is only the day the text came in; `TIMED` in AlertsView).
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
@@ -1475,6 +1484,13 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   Calculations), the picked group's pages in the left rail — `groupTabs` on
   the section (AppShell draws one top tab per `group`; settings/Frame.jsx
   lists only that group in the rail). Get Zips stays its own sidebar entry.
+- **Cash Offer** (Luke, Oct 23: "a simple offer template for cash offers …
+  export to text or email"): Toolkit › Documents › Cash Offer
+  (`/toolkit/offer`, `CashOffer.jsx`): property address, cash offer, other
+  terms, then the same terms block as the calculators (`OfferMessage` kind
+  `cash`: market → signer, EMD, IP, COE, title) → Property / Cash Offer / EMD
+  / Signer / IP / COE / Title / extra terms; Copy, Email, Text. A draft on
+  the device only (localStorage `vpg.cashOffer`).
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All

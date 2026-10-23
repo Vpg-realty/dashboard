@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS alerts (
   -- digits) for repeat / duplicate checks, and Claude's hint — a suggested
   -- lead type, or for dupes 'duplicate' | 'potential'
   agent TEXT,
-  hint TEXT
+  hint TEXT,
+  agent_name TEXT              -- a lead's agent, from the GHL contact (Oct 23; ALTER TABLE on live D1)
 );
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
 -- Oct 19: the sync and the red-dot poll scanned the whole table every time
