@@ -1299,6 +1299,46 @@ From the approved mock-ups. Overrides the older Active / Today notes.
   checkins | leads`, with "N late" and Claude's grade counts); "N deals
   missing info" names the most common blank fields.
 
+## Fix a mismatch on the spot (Luke, Oct 23)
+
+"Push edit to GHL or push edit to the site — sometimes we are wrong on the
+site so GHL could have the most up to date info." Every row of the deal
+panel's **Doesn't match the tracker** box (Stage, COE, IP end) keeps its
+next-step text with two small underlined links under it (Luke: "too bulky …
+a small link button at the bottom … remove the or"), for whoever may edit
+that field (owners / TC; managers COE and IP end): **Update GHL ↑** — PATCH `/api/deals/:id { push: ['coe' | 'ipEnd' | 'status'] }`
+queues the site's current value in `ghl_push` as it stands (deal unchanged,
+logged `*pushed` in the deal's history; refused for a cancelled stage, a
+deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
+days from the contract date; needs a contract date). The link the next step
+points at comes first. Replaces "or use GHL's date here" / "Set to X".
+- **Summary tile** (same day, Luke: "boxy and clunky"): no cell borders,
+  small tan uppercase labels, one rule between the money row and the dates
+  row; COE = the date plus "in N days" / "tomorrow" / "closing today" / "N
+  days late" in colour (`CoeWhen`); Inspection period = start ── N days ──
+  end, the end time under it (`IpMini`, the small DdTimeline).
+
+## A cancel that still makes money (Luke, Oct 23)
+
+122 Berkshire: the buyer didn't perform, VPG keeps their $5,000 EMD and
+forfeits its own $1,000 — $4,000 profit, commissions paid on it. On a
+cancelled deal the EMD group shows **Buyer's EMD we kept** (`emdKept`);
+VPG's own EMD is EMD returned? = Lost with the new reason **Buyer default**
+(`BUYER_DEFAULT`, also a choice in Wires / Earnest Money's Lost chooser).
+`keptMoney(d)` (math.js) = Cancelled with `emdKept` > 0: compute() gives
+gross = kept − VPG's lost EMD, net = gross − additional fees, the TC fee,
+acq / dispo / manager / override / TC commissions and profit as on a closed
+deal (rules read it as COMPLETE, `asDone`), wire expected = the kept amount.
+`earned(d)` = closed or kept. Where it shows: the deal panel header ("$4,000
+kept · buyer's EMD") and All Deals' Stage cell ("$4,000 kept"); Finance
+Overview's money (gross / net / profit / commissions) includes it with a
+note under Net assignment ("incl. $4.0K EMD kept · 1 cancel") — not the
+closed count, close rate, avg net / closed or sold volume; Payouts lists its
+commissions like a closing (lines.js); Wires In expects the money; the
+Earnest Money tab notes "kept buyer's $5,000" under the stage; the company
+outlook and Road to Hawaii count the money (not as a closing); Aiza's TC
+line counts it in the month it was cancelled (unchanged rule).
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in

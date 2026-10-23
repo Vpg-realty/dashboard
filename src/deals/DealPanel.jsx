@@ -6,11 +6,11 @@
 import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
-import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches } from './math.js';
-import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys } from './store.js';
-import { StatusChip, GhlChip, Notice, StepPill, CoeChip } from './ui.jsx';
-import { nextStep, TONES } from './status.js';
-import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer, statusLabel } from './format.js';
+import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
+import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
+import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
+import { nextStep, TONES, daysBetween } from './status.js';
+import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
@@ -73,6 +73,38 @@ function DdTimeline({ d }) {
       </div>
       <DdEnd p={b} label="Ends" right extra={<div className={`mt-0.5 text-[12.5px] font-semibold ${end ? 'text-navy-700' : 'text-zinc-400 font-normal'}`}>{end ? `at ${end}` : 'no end time set'}</div>} />
     </div>
+  );
+}
+
+// The summary tile's dates (Luke, Oct 23: "boxy and clunky … COE … a clear
+// date with how many days left, day of, late"; the IP "should match the main
+// section, but smaller — start and end with days in the middle").
+function CoeWhen({ coe }) {
+  if (!coe) return <span className="text-zinc-300">—</span>;
+  const n = ISO.test(coe) ? daysBetween(laToday(), coe) : null;
+  const when = n == null ? null : n < 0 ? [`${-n} day${n === -1 ? '' : 's'} late`, 'text-[#9f1239]'] : n === 0 ? ['closing today', 'text-red-600'] : n === 1 ? ['tomorrow', 'text-red-600'] : [`in ${n} days`, n <= 3 ? 'text-[#B54708]' : 'text-zinc-500'];
+  return (
+    <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+      {shortDate(coe)}
+      {when && <span className={`text-[12.5px] font-semibold ${when[1]}`}>{when[0]}</span>}
+    </span>
+  );
+}
+function IpMini({ d }) {
+  const n = Number(d.ddDays);
+  const end = showEndTime(d);
+  return (
+    <span className="block">
+      <span className="flex items-center gap-2 whitespace-nowrap">
+        <span>{d.accepted ? shortDate(d.accepted) : '—'}</span>
+        <span className="relative flex-1 min-w-[56px] max-w-[110px] h-5 flex items-center justify-center">
+          <span className="absolute inset-x-0 top-1/2 h-px bg-tan-400" />
+          <span className="relative bg-white px-1.5 text-[11.5px] font-semibold text-tan-700">{Number.isFinite(n) && n > 0 ? `${n} day${n === 1 ? '' : 's'}` : '—'}</span>
+        </span>
+        <span>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>
+      </span>
+      {end && <span className="block text-[11.5px] font-medium text-zinc-500 text-right truncate">ends {end}</span>}
+    </span>
   );
 }
 
@@ -180,7 +212,7 @@ function History({ id }) {
           <div className="min-w-0">
             <div>
               <span className="font-medium">{e.by}</span>{' '}
-              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : (
+              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : e.field === '*pushed' ? <>sent the site's {e.to} to GoHighLevel</> : (
                 <>changed <span className="font-medium">{LABEL[e.field.replace(/^fixed\./, '')] || e.field}</span>{e.field.startsWith('fixed.') && ' (typed number)'}: <span className="text-zinc-500 line-through decoration-zinc-300">{val(e.field, e.from)}</span> → {val(e.field, e.to)}</>
               )}
             </div>
@@ -221,6 +253,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [pushes, setPushes] = useState(null);
   useEffect(() => { if (isNew || !id) return undefined; let on = true; dealHistory(id).then((r) => on && setPushes(r.pushes || [])).catch(() => {}); return () => { on = false; }; }, [id, isNew, base]);
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
+  // "Doesn't match the tracker" fixes (Luke, Oct 23): which row is busy.
+  const [fixing, setFixing] = useState(null);
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -282,6 +316,52 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     onClose();
   }
 
+  // Fix a mismatch on the spot (Luke, Oct 23: "push edit to GHL or push edit
+  // to the site — sometimes we are wrong on the site so GHL could have the
+  // most up to date info"). To GHL: the site's value is queued as it stands
+  // (functions/api/deals/[id] `push`, sent at the next refresh). To the
+  // site: GHL's value is saved here at once (the IP end through the IP days
+  // from the contract date).
+  const FIX_FIELD = { coe: 'coe', ipEnd: 'ddDays', status: 'status' };
+  const mayFix = (m) => !ro || (m.key !== 'status' && editable.has(FIX_FIELD[m.key]));
+  async function fixToGhl(m) {
+    setFixing(m.key); setErr(null);
+    try { await pushToGhl(id, [m.key]); const h = await dealHistory(id); setPushes(h.pushes || []); } catch (e) { setErr(e.message); } finally { setFixing(null); }
+  }
+  async function fixToSite(m) {
+    let fields;
+    if (m.key === 'coe') fields = { coe: m.ghl };
+    else if (m.key === 'status') fields = { status: m.ghl };
+    else {
+      if (!ISO.test(merged.accepted || '')) { setErr('Add the contract date first — the IP end is counted from it.'); return; }
+      fields = { ddDays: daysBetween(merged.accepted, m.ghl) };
+    }
+    setFixing(m.key); setErr(null);
+    try {
+      const d = await saveDeal(id, { fields, fixed: {} }, base);
+      setBase(d.updatedAt);
+      setDraft((dr) => ({ ...dr, fields: Object.fromEntries(Object.entries(dr.fields).filter(([k]) => !(k in fields))) }));
+    } catch (e) { setErr(e.message); } finally { setFixing(null); }
+  }
+  // Two small links under the next step (Luke, Oct 23: "a small link button
+  // at the bottom … cleaner"): the side the next step points at first.
+  const fixRow = (m) => {
+    const row = mismatchRow(m);
+    if (isNew || !mayFix(m)) return row;
+    const sent = (pushes || []).find((p) => p.field === m.key && p.status !== 'done' && !p.error);
+    const noPush = m.key === 'status' && m.tracker === 'CANCELLED';
+    const busyNow = fixing === m.key;
+    const link = 'underline underline-offset-2 text-violet-800 hover:text-violet-950 disabled:opacity-50 disabled:no-underline';
+    const toGhl = noPush ? null : sent
+      ? <span className="text-zinc-500">✓ Sent to GHL</span>
+      : <button type="button" disabled={busyNow} onClick={() => fixToGhl(m)} className={link}>Update GHL ↑</button>;
+    const toSite = <button type="button" disabled={busyNow} onClick={() => fixToSite(m)} className={link}>Update site ↓</button>;
+    const first = m.key === 'status' && m.fix === 'tracker' ? [toSite, toGhl] : [toGhl, toSite];
+    return {
+      ...row,
+      extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}</span>,
+    };
+  };
   async function save() {
     setBusy(true); setErr(null);
     try {
@@ -322,13 +402,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       ['Gross assignment', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : dash],
     ],
     [
-      ['COE', <CoeChip key="coe" coe={merged.coe} />],
-      ['Inspection period', merged.accepted || merged.ddEnd ? (
-        <span className="text-[15px]" title={showEndTime(merged) || undefined}>
-          {merged.accepted ? shortDate(merged.accepted, { year: false }) : '—'} → {merged.ddEnd ? shortDate(merged.ddEnd, { year: false }) : '—'}
-          {merged.ddEndTime ? <span className="block text-[11.5px] font-medium text-zinc-500 truncate">ends {showEndTime(merged)}</span> : null}
-        </span>
-      ) : dash],
+      ['COE', <CoeWhen key="coe" coe={merged.coe} />],
+      ['Inspection period', merged.accepted || merged.ddEnd ? <IpMini key="ip" d={merged} /> : dash],
       ['EMD', <span key="emd" className="inline-flex flex-wrap items-center gap-1.5"><EmdPill deal={merged} />{merged.emd ? <span className="text-[13px] font-medium text-zinc-500">{money(merged.emd)}</span> : null}</span>],
     ],
   ];
@@ -346,6 +421,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
               <h2 className="mt-1 text-[22px] font-semibold tracking-tight break-words">{merged.address || 'New deal'}</h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <StatusChip status={merged.status} />
+                {keptMoney(merged) && <span title="Cancelled — the buyer's EMD was kept. Commissions are paid on it like a closing." className="rounded-md bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200 px-2 py-0.5 text-[12px] font-semibold">{money(merged.netAssign)} kept · buyer's EMD</span>}
                 {!isNew && !step.done && <StepPill step={step} />}
                 <GhlChip g={g} />
                 {!isNew && (
@@ -368,11 +444,11 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         {!isNew && tab === 'details' && (
           <div className="shrink-0 bg-white border-b border-tan-200 divide-y divide-tan-100">
             {facts.map((row, i) => (
-              <div key={i} className="grid grid-cols-3">
+              <div key={i} className={`grid grid-cols-3 gap-x-6 px-6 ${i ? 'pt-2.5 pb-3.5' : 'pt-3.5 pb-2.5 border-b border-tan-100'}`}>
                 {row.map(([l, v]) => (
-                  <div key={l} className="px-4 py-2.5 [&:not(:last-child)]:border-r border-tan-100 min-w-0">
-                    <div className="text-[11.5px] font-medium text-zinc-500 whitespace-nowrap">{l}</div>
-                    <div className="mt-1 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
+                  <div key={l} className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-tan-600 whitespace-nowrap">{l}</div>
+                    <div className="mt-0.5 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
                   </div>
                 ))}
               </div>
@@ -408,8 +484,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   {/* What doesn't match the tracker (Luke, Oct 16). */}
                   {miss.length > 0 && (
                     <div className="mt-2.5">
-                      <MismatchList rows={miss.map((m) => ({ ...mismatchRow(m), extra: ro ? null : m.key === 'coe' ? <button type="button" onClick={() => setField('coe', m.ghl)} className="underline text-violet-800">or use GHL's date here</button>
-                        : m.key === 'status' && m.fix === 'tracker' ? <button type="button" onClick={() => setField('status', m.ghl)} className="mt-0.5 rounded-md bg-violet-700 text-white px-2.5 py-1 text-[12.5px] font-semibold hover:bg-violet-800">Set to {statusLabel(m.ghl)}</button> : null }))} />
+                      <MismatchList rows={miss.map(fixRow)} />
                     </div>
                   )}
                   <PushNote pushes={pushes} />
@@ -454,7 +529,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                     <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.

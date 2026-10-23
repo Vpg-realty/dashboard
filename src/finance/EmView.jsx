@@ -27,7 +27,7 @@ const payer = (d) => up(d.emdPaidBy);
 const vpgIn = (d) => payer(d) === 'VPG' || payer(d) === 'VPG + BUYER';
 // Settled: back (Yes) or written off (Lost).
 const gone = (d) => ['YES', 'LOST'].includes(up(d.emdReturned));
-const WHY = { PAST_IP: 'Past inspection period', NON_REFUNDABLE: 'Non-refundable' };
+const WHY = { PAST_IP: 'Past inspection period', NON_REFUNDABLE: 'Non-refundable', BUYER_DEFAULT: 'Buyer default' };
 
 // The three lists. Out = open deals with VPG's money in (VPG or VPG +
 // Buyer); At risk = open deals where only VPG's money is in (no buyer EM
@@ -41,7 +41,7 @@ const EM_VIEWS = [
   ['cancelled', 'Cancelled · Not Returned', 'Cancelled, VPG’s EM not back', (d) => up(d.status) === 'CANCELLED' && vpgIn(d) && !gone(d)],
   // Luke, Oct 22: EM the seller kept (past the IP, or non-refundable) —
   // dismissed from the lists above and counted as a loss on the deal.
-  ['lost', 'EM Lost', 'Past IP or non-refundable', (d) => vpgIn(d) && up(d.emdReturned) === 'LOST'],
+  ['lost', 'EM Lost', 'Past IP, non-refundable or buyer default', (d) => vpgIn(d) && up(d.emdReturned) === 'LOST'],
 ];
 
 export default function EmView() {
@@ -84,7 +84,7 @@ export default function EmView() {
                   return (
                     <tr key={d.id} className="border-t border-[#E5E9F0] align-middle" style={i % 2 ? { background: '#F8FAFC' } : undefined}>
                       <td className="pl-5 px-3 py-2 font-semibold text-navy-800 min-w-[230px]"><button type="button" onClick={() => open(d.id)} className="text-left hover:underline underline-offset-2">{d.address || d.name}</button></td>
-                      <td className="px-3 py-2"><StatusChip status={d.status} /></td>
+                      <td className="px-3 py-2"><StatusChip status={d.status} />{n(d.emdKept) > 0 && up(d.status) === 'CANCELLED' && <div className="mt-0.5 text-[11.5px] font-semibold text-[#15803D] whitespace-nowrap">kept buyer’s {money(n(d.emdKept))}</div>}</td>
                       <td className="px-3 py-2">{d.acq ? <Person name={d.acq} /> : '—'}</td>
                       <td className="px-3 py-2"><ValuePill k="emdPaidBy" v={d.emdPaidBy} /></td>
                       <td className="px-3 py-2 tabular-nums whitespace-nowrap font-semibold">{n(d.emd) ? money(n(d.emd)) : '—'}</td>

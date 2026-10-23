@@ -3,7 +3,7 @@
 // assigned with a VPG price), the commissions both will pay out and the net
 // profit left. The numbers are the tracker's own (math.js compute), so they
 // match All deals and the Deal Summary.
-import { payouts, isOpen } from '../deals/math.js';
+import { payouts, isOpen, earned } from '../deals/math.js';
 import { assigned, hasAssignPrice } from '../deals/status.js';
 import { laToday } from '../utils/historyRange.js';
 
@@ -28,14 +28,15 @@ export function outlookRanges(today = laToday()) {
 
 export function outlook(deals, rules, range) {
   const inR = (d) => ISO.test(d.coe || '') && d.coe >= range.from && d.coe <= range.to;
-  const closed = deals.filter((d) => d.status === 'COMPLETE' && inR(d));
+  // Closings plus cancels where VPG kept the buyer's EMD (Oct 23).
+  const closed = deals.filter((d) => earned(d) && inR(d));
   const lined = deals.filter((d) => isOpen(d) && assigned(d) && hasAssignPrice(d) && inR(d));
   const noBuyer = deals.filter((d) => isOpen(d) && !assigned(d) && inR(d));
   const pay = (ds) => ds.reduce((t, d) => t + payouts(d, rules).reduce((x, p) => x + n(p.amount), 0), 0);
   const sum = (ds, k) => ds.reduce((t, d) => t + n(d[k]), 0);
   const wires = deals.filter((d) => ISO.test(d.wireDate || '') && d.wireDate >= range.from && d.wireDate <= range.to);
   return {
-    closed: closed.length, closedNet: sum(closed, 'netAssign'),
+    closed: closed.filter((d) => d.status === 'COMPLETE').length, closedNet: sum(closed, 'netAssign'),
     lined: lined.length, linedNet: sum(lined, 'netAssign'),
     net: sum(closed, 'netAssign') + sum(lined, 'netAssign'),
     payouts: pay(closed) + pay(lined),

@@ -19,7 +19,7 @@ import { stageColor } from '../shell/stages.js';
 import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl } from './math.js';
+import { FIELDS, GROUPS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl, keptMoney } from './math.js';
 import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
 import { useDeals, ghlDeals, addrKeys, GHL_STAGE } from './store.js';
@@ -327,6 +327,7 @@ export default function AllDealsView() {
                       if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
                         shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the stage here was set by hand (a cancel is marked Lost or Abandoned in GHL by the rep)`} className="text-[10.5px] font-semibold not-italic" style={{ color: stageColor(d.ghlStage) }}>GHL: {d.ghlStage}</span></span>;
                       }
+                      if (f.key === 'status' && keptMoney(d)) shown = <span className="inline-flex items-center gap-1">{shown}<span title="The buyer's EMD was kept — commissions are paid on it" className="text-[10.5px] font-semibold text-emerald-700">{money(d.netAssign)} kept</span></span>;
                       const pay = payMap.get(d.id);
                       const line = pay && partOfField(f.key) ? pay.parts[partOfField(f.key)] : null;
                       if (line) {

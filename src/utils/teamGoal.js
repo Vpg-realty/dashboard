@@ -4,7 +4,7 @@
 // deals assigned with a VPG price, by COE inside the stretch. The totals are
 // added up at build time (scripts/team-goal.mjs → data.json `goal`) — the TV
 // can't read the tracker's money fields itself.
-import { isOpen } from '../deals/math.js';
+import { isOpen, keptMoney } from '../deals/math.js';
 import { assigned, hasAssignPrice } from '../deals/status.js';
 import { daysInclusive } from './historyRange.js';
 
@@ -17,9 +17,11 @@ const n = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 export function goalTotals(deals, goal = TEAM_GOAL) {
   const inR = (d) => ISO.test(d.coe || '') && d.coe >= goal.from && d.coe <= goal.to;
   const closed = deals.filter((d) => d.status === 'COMPLETE' && inR(d));
+  // A cancel where VPG kept the buyer's EMD counts toward the goal, not as a closing (Oct 23).
+  const kept = deals.filter((d) => keptMoney(d) && inR(d));
   const lined = deals.filter((d) => isOpen(d) && assigned(d) && hasAssignPrice(d) && inR(d));
   const sum = (ds) => Math.round(ds.reduce((t, d) => t + n(d.netAssign), 0));
-  return { closed: sum(closed), closedN: closed.length, lined: sum(lined), linedN: lined.length };
+  return { closed: sum([...closed, ...kept]), closedN: closed.length, lined: sum(lined), linedN: lined.length };
 }
 
 // Where the team should be by the end of `today` (a Pacific date): the goal
