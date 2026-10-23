@@ -173,7 +173,7 @@ function PushNote({ pushes, boxed }) {
   for (const p of pushes) if (!latest.has(p.field)) latest.set(p.field, p);
   const rows = [...latest.values()];
   if (!rows.length) return null;
-  const STAGE_OF = { ASSIGNED: 'Assigned', COMPLETE: 'Closed', CANCELLED: 'Lost' };
+  const STAGE_OF = { UNDER_CONTRACT: 'Under Contract', DISPO_ACTIVE: 'Dispo Active', ASSIGNED: 'Assigned', COMPLETE: 'Closed', LOST: 'Lost', ABANDONED: 'Abandoned' };
   const val = (p) => (p.field === 'coe' || p.field === 'ipEnd' ? shortDate(p.value)
     : p.field === 'status' ? STAGE_OF[p.value] || p.value
       : p.field === 'price' ? `$${Number(p.value).toLocaleString('en-US')}` : String(p.value).split('\n')[0]);
@@ -349,7 +349,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     const row = mismatchRow(m);
     if (isNew || !mayFix(m)) return row;
     const sent = (pushes || []).find((p) => p.field === m.key && p.status !== 'done' && !p.error);
-    const noPush = m.key === 'status' && m.tracker === 'CANCELLED';
+    const cancelAs = String(merged.cancelAs || '').toUpperCase();
+    const noPush = m.key === 'status' && m.tracker === 'CANCELLED' && !cancelAs;
     const busyNow = fixing === m.key;
     const link = 'underline underline-offset-2 text-violet-800 hover:text-violet-950 disabled:opacity-50 disabled:no-underline';
     const toGhl = noPush ? null : sent
@@ -357,6 +358,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       : <button type="button" disabled={busyNow} onClick={() => fixToGhl(m)} className={link}>Update GHL ↑</button>;
     const toSite = <button type="button" disabled={busyNow} onClick={() => fixToSite(m)} className={link}>Update site ↓</button>;
     const first = m.key === 'status' && m.fix === 'tracker' ? [toSite, toGhl] : [toGhl, toSite];
+    if (m.key === 'status' && m.tracker === 'CANCELLED' && cancelAs) row.next = `Mark it ${cancelAs === 'LOST' ? 'Lost' : 'Abandoned'} in GHL`;
     return {
       ...row,
       extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}</span>,
@@ -474,7 +476,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
           {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
             <div className="flex flex-col gap-4">
-              {(g || miss.length > 0) && (
+              {/* Only when GHL and the site disagree (Luke, Oct 23: "why does the GHL info pop up? looks like it matches"). */}
+              {(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && (
                 <Notice tone="violet">
                   {g ? <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
                     : <div className="font-medium">In GoHighLevel: <StageChip stage={merged.ghlStage} /></div>}
@@ -490,7 +493,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                   <PushNote pushes={pushes} />
                 </Notice>
               )}
-              {!(g || miss.length > 0) && <PushNote pushes={pushes} boxed />}
+              {!(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && <PushNote pushes={pushes} boxed />}
               {ip && (
                 <div className={`rounded-lg border px-3.5 py-2.5 ${ip.tone === 'red' ? 'border-[#F5C2BD] bg-[#FDF1F0] text-[#7A271A]' : 'border-[#F5D9A8] bg-[#FFF8E6] text-[#7A4A06]'}`}>
                   <div className="font-semibold">{ip.text}</div>
@@ -529,7 +532,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                     <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
                   </h3>
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.

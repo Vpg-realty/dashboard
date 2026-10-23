@@ -1339,6 +1339,26 @@ Earnest Money tab notes "kept buyer's $5,000" under the stage; the company
 outlook and Road to Hawaii count the money (not as a closing); Aiza's TC
 line counts it in the month it was cancelled (unchanged rule).
 
+## Cancel → Lost or Abandoned in GHL; quieter GHL box; Act Now facts (Luke, Oct 23)
+
+- **Cancel on the site picks GHL's outcome**: a cancelled deal shows **In
+  GHL, mark it** (`cancelAs`: LOST | ABANDONED, next to Stage). With one
+  picked, `ghlPushes` sends the status as LOST / ABANDONED and push-ghl.mjs
+  sets the opportunity's `status` ('lost' / 'abandoned') — no stage move.
+  With none picked a cancel still isn't sent. The other way is unchanged: a
+  rep moving it to Lost / Abandoned in GHL cancels it on the sheet (the
+  sync). The mismatch row reads "Mark it Lost in GHL" with Update GHL. Not
+  handled: a deal reopened on the site after GHL marked it lost keeps GHL's
+  lost status (only the stage moves) — reopen it in GHL too.
+- **The deal panel's GHL box** shows only when something doesn't match (or
+  GHL has a COE the site lacks); a matching deal shows just the "GHL ·
+  <stage>" chip in the header (Luke: "why does the GHL info pop up? looks
+  like it matches").
+- **Act Now cards**: the dates and money sit in one small box (`MiniFacts`:
+  IP end, COE, contract — or COE, contract, gross once assigned; no EMD,
+  it's a chip under the address) left of Open deal and the quick button; the
+  quick buttons only open the deal on that field (`ACTION_TIP`).
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in

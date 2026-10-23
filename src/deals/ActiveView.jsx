@@ -97,13 +97,27 @@ function Section({ id, title, note, count, folds, children }) {
   );
 }
 
-function Facts({ rows }) {
+// Act Now's small facts box: label over value, side by side.
+function MiniFacts({ rows }) {
   return (
-    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-      {rows.map(([k, v, cls]) => [<span key={`${k}k`} className="text-zinc-500">{k}</span>, <span key={`${k}v`} className={`font-semibold tabular-nums ${cls || 'text-navy-900'}`}>{v}</span>])}
+    <div className="flex rounded-lg border border-tan-200 bg-tan-50/60 divide-x divide-tan-200">
+      {rows.map(([k, v, cls]) => (
+        <div key={k} className="px-3 py-1.5 min-w-0">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-tan-600 whitespace-nowrap">{k}</div>
+          <div className={`text-[13px] font-semibold tabular-nums whitespace-nowrap ${cls || 'text-navy-900'}`}>{v}</div>
+        </div>
+      ))}
     </div>
   );
 }
+// What the quick buttons do (they only open the deal on that field — nothing
+// changes until it's saved there).
+const ACTION_TIP = {
+  'Cancel…': 'Opens the deal on its Stage — pick Cancelled, then Lost or Abandoned for GHL, and Save',
+  'Mark Closed…': 'Opens the deal on its Stage — pick Closed and Save',
+  'Set EMD…': 'Opens the deal on EMD paid by',
+  'Fill in': 'Opens the deal on the field to fill in',
+};
 
 const ghostBtn = 'h-[34px] px-3.5 rounded-[9px] text-[13px] font-semibold inline-flex items-center whitespace-nowrap ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50';
 const navyBtn = 'h-[34px] px-3.5 rounded-[9px] text-[13px] font-semibold inline-flex items-center whitespace-nowrap bg-navy-700 text-white hover:bg-navy-800';
@@ -195,25 +209,28 @@ export default function ActiveView() {
   const bigCard = (d) => {
     const u = d.u;
     const asg = assigned(d);
+    // The dates and money in one small box top right, beside the buttons
+    // (Luke, Oct 23: the stacked list was "too busy"; EMD is already a chip
+    // under the address).
     const facts = asg
-      ? [coeFact(d), ['Contract', money(d.price)], ['Assignment', hasAssignPrice(d) ? money(d.vpgAssign) : '—'], gross(d)]
-      : [ipFact(d), coeFact(d), ['Contract', money(d.price)], ['EMD', typeof d.emd === 'number' && d.emd > 0 ? money(d.emd) : '—']];
+      ? [coeFact(d), ['Contract', money(d.price)], gross(d)]
+      : [ipFact(d), coeFact(d), ['Contract', money(d.price)]];
     return (
-      <div key={d.id} className="grid md:grid-cols-[1fr_270px] gap-4 px-5 py-4">
-        <div className="min-w-0">
-          {address(d)}
-          {tagRow(d)}
-          <div className={`mt-2 rounded-lg border-l-4 px-3 py-2 ${PROBLEM[u.tone]}`}>
-            <div className="text-[14.5px] font-semibold">{u.head}</div>
-            <div className="text-[13px] text-zinc-700">{u.why && <><b>Why it matters:</b> {u.why} </>}<b>Do:</b> {u.todo}</div>
+      <div key={d.id} className="px-5 py-4">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+          <div className="min-w-0 flex-1 basis-[320px]">
+            {address(d)}
+            {tagRow(d)}
+          </div>
+          <MiniFacts rows={facts} />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => open(d.id)} className={navyBtn}>Open deal</button>
+            {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn} title={ACTION_TIP[u.action]}>{u.action}</button>}
           </div>
         </div>
-        <div className="text-[13px]">
-          <Facts rows={facts} />
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            <button type="button" onClick={() => open(d.id)} className={navyBtn}>Open deal</button>
-            {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn}>{u.action}</button>}
-          </div>
+        <div className={`mt-2 rounded-lg border-l-4 px-3 py-2 ${PROBLEM[u.tone]}`}>
+          <div className="text-[14.5px] font-semibold">{u.head}</div>
+          <div className="text-[13px] text-zinc-700">{u.why && <><b>Why it matters:</b> {u.why} </>}<b>Do:</b> {u.todo}</div>
         </div>
       </div>
     );

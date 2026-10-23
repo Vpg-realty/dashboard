@@ -17,6 +17,9 @@ export const FIELDS = [
   // Next to the GHL stage (Luke, Oct 14: the GHL stage takes over the deal
   // status — the sync sets it on every stage move, people can still edit it).
   ['status', 'Stage', 'contract', 'list'],
+  // Luke, Oct 23: a deal cancelled on the site picks what it becomes in GHL —
+  // Lost or Abandoned (sent as the opportunity's status, push-ghl.mjs).
+  ['cancelAs', 'In GHL, mark it', 'contract', 'list'],
   ['acq', 'Acq. manager', 'contract', 'person'],
   ['coe', 'COE', 'contract', 'date'],
   ['accepted', 'Contract acceptance', 'contract', 'date'],
