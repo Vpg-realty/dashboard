@@ -23,7 +23,6 @@ import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { PILL_TONE } from './values.js';
 import MismatchList from './Mismatch.jsx';
-import { EmdPill } from './pills.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
@@ -76,36 +75,77 @@ function DdTimeline({ d }) {
   );
 }
 
-// The summary tile's dates (Luke, Oct 23: "boxy and clunky … COE … a clear
-// date with how many days left, day of, late"; the IP "should match the main
-// section, but smaller — start and end with days in the middle").
-function CoeWhen({ coe }) {
-  if (!coe) return <span className="text-zinc-300">—</span>;
-  const n = ISO.test(coe) ? daysBetween(laToday(), coe) : null;
-  const when = n == null ? null : n < 0 ? [`${-n} day${n === -1 ? '' : 's'} late`, 'text-[#9f1239]'] : n === 0 ? ['closing today', 'text-red-600'] : n === 1 ? ['tomorrow', 'text-red-600'] : [`in ${n} days`, n <= 3 ? 'text-[#B54708]' : 'text-zinc-500'];
+// The deal's status tiles (Luke, Oct 23 — option A2 of the mock-ups: "make
+// it clear these are status tiles"): a "Deal Status" band with the worst
+// tile's word, then six tiles — contracted, assigned at, gross; EMD,
+// inspection (start ── days ── end), COE — each with a line icon whose square
+// takes its status colour, and a status word under the value.
+const TILE_TONE = {
+  ok: { ico: 'bg-[#ecfdf3] text-[#15803d]', pill: 'bg-[#ecfdf3] text-[#15803d]' },
+  warn: { ico: 'bg-[#fef6e7] text-[#b54708]', pill: 'bg-[#fef6e7] text-[#b54708]' },
+  bad: { ico: 'bg-[#fdf1f0] text-[#b42318]', pill: 'bg-[#fdf1f0] text-[#b42318]' },
+  done: { ico: 'bg-[#eef2f6] text-[#475569]', pill: 'bg-[#eef2f6] text-[#475569]' },
+  plain: { ico: 'bg-tan-100 text-navy-700', pill: '' },
+};
+const RANK = { bad: 3, warn: 2, ok: 1, done: 0, plain: 0 };
+const ICON = {
+  pen: <><path d="M4 20h4l10-10-4-4L4 16z" /><path d="M13 7l4 4" /></>,
+  arrow: <><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></>,
+  trend: <><path d="M4 17l6-6 4 4 6-7" /><path d="M15 8h5v5" /></>,
+  shield: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>,
+  search: <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>,
+  cal: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></>,
+};
+function StatusTile({ icon, label, tone = 'plain', word, children }) {
+  const t = TILE_TONE[tone] || TILE_TONE.plain;
   return (
-    <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
-      {shortDate(coe)}
-      {when && <span className={`text-[12.5px] font-semibold ${when[1]}`}>{when[0]}</span>}
+    <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2 flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <span className={`grid place-items-center w-6 h-6 rounded-md shrink-0 ${t.ico}`} aria-hidden="true">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{ICON[icon]}</svg>
+        </span>
+        <span className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-tan-600 whitespace-nowrap">{label}</span>
+      </div>
+      <div className="text-[16.5px] font-bold tabular-nums text-navy-900 truncate">{children}</div>
+      {word && <span className={`self-start inline-flex items-center gap-1.5 rounded-full px-2 py-[1px] text-[11.5px] font-bold whitespace-nowrap ${t.pill}`}><span className="w-1.5 h-1.5 rounded-full bg-current" />{word}</span>}
+    </div>
+  );
+}
+function IpSpan({ d }) {
+  const n = Number(d.ddDays);
+  return (
+    <span className="grid grid-cols-[auto_minmax(14px,1fr)_auto] items-end gap-x-1.5 text-[14.5px]">
+      <span><span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-tan-600">Start</span>{d.accepted ? shortDate(d.accepted) : '—'}</span>
+      <span className="relative h-5 flex items-center justify-center" title={showEndTime(d) ? `ends ${showEndTime(d)}` : undefined}>
+        <span className="absolute inset-x-0 top-1/2 h-px bg-tan-400" />
+        <span className="relative bg-white px-1 text-[10.5px] font-bold text-tan-700 whitespace-nowrap">{Number.isFinite(n) && n > 0 ? `${n} days` : '—'}</span>
+      </span>
+      <span className="text-right"><span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-tan-600">End</span>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>
     </span>
   );
 }
-function IpMini({ d }) {
-  const n = Number(d.ddDays);
-  const end = showEndTime(d);
-  return (
-    <span className="block">
-      <span className="flex items-center gap-2 whitespace-nowrap">
-        <span>{d.accepted ? shortDate(d.accepted) : '—'}</span>
-        <span className="relative flex-1 min-w-[56px] max-w-[110px] h-5 flex items-center justify-center">
-          <span className="absolute inset-x-0 top-1/2 h-px bg-tan-400" />
-          <span className="relative bg-white px-1.5 text-[11.5px] font-semibold text-tan-700">{Number.isFinite(n) && n > 0 ? `${n} day${n === 1 ? '' : 's'}` : '—'}</span>
-        </span>
-        <span>{d.ddEnd ? shortDate(d.ddEnd) : '—'}</span>
-      </span>
-      {end && <span className="block text-[11.5px] font-medium text-zinc-500 text-right truncate">ends {end}</span>}
-    </span>
-  );
+// Each tile's word and colour.
+function tileStatus(d) {
+  const today = laToday();
+  const st = String(d.status || '').toUpperCase();
+  const finished = st === 'COMPLETE' || st === 'CANCELLED';
+  const asg = st === 'ASSIGNED' || (typeof d.vpgAssign === 'number' && d.vpgAssign > 0);
+  const days = (iso) => (ISO.test(iso || '') ? daysBetween(today, iso) : null);
+  const by = String(d.emdPaidBy || '').toUpperCase();
+  const emd = by === 'BUYER' ? ['ok', 'In · Buyer'] : by === 'VPG + BUYER' ? ['ok', 'In · VPG + Buyer'] : by === 'VPG' ? [asg ? 'bad' : 'warn', 'In · VPG only'] : finished ? ['done', 'Not placed'] : ['bad', 'Pending'];
+  const ipN = days(d.ddEnd);
+  const ip = finished ? ['done', st === 'COMPLETE' ? 'Closed' : 'Cancelled']
+    : ipN == null ? ['warn', 'End not set']
+      : asg ? (ipN < 0 ? ['done', 'Ended · buyer in'] : ['ok', 'Buyer in'])
+        : ipN < 0 ? ['bad', 'Ended · no buyer'] : ipN <= 1 ? ['bad', ipN === 0 ? 'Ends today · no buyer' : 'Ends tomorrow · no buyer'] : ipN <= 3 ? ['warn', `Ends in ${ipN} days`] : ['ok', `${ipN} days left`];
+  const coeN = days(d.coe);
+  const coe = st === 'COMPLETE' ? ['done', 'Closed'] : st === 'CANCELLED' ? ['done', 'Cancelled']
+    : coeN == null ? ['warn', 'Not set'] : coeN < 0 ? ['bad', `${-coeN} day${coeN === -1 ? '' : 's'} late`]
+      : coeN === 0 ? ['bad', 'Closing today'] : coeN === 1 ? ['bad', 'Tomorrow'] : coeN <= 3 ? ['warn', `in ${coeN} days`] : ['ok', `in ${coeN} days`];
+  const worst = [emd, ip, coe].reduce((w, x) => (RANK[x[0]] > RANK[w[0]] ? x : w), ['ok', '']);
+  const band = finished ? ['done', st === 'COMPLETE' ? 'Closed' : 'Cancelled']
+    : worst[0] === 'bad' ? ['bad', 'Needs attention'] : worst[0] === 'warn' ? ['warn', 'Coming up'] : ['ok', coeN != null && coeN >= 0 ? `All good · closing in ${coeN} day${coeN === 1 ? '' : 's'}` : 'All good'];
+  return { emd, ip, coe, band };
 }
 
 // Shorter names for the section jump bar so it fits on one line.
@@ -397,19 +437,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   // keep gross, Oct 14); row 2 the dates and EMD — COE, the inspection period
   // from contract date to IP end (with its time), and EMD status + who placed it.
   const dash = <span className="text-zinc-300">—</span>;
-  const facts = [
-    [
-      ['Contracted price', retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)],
-      ['Assignment price', vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>],
-      ['Gross assignment', typeof merged.grossAssign === 'number' && !noBuyer(merged) ? money(merged.grossAssign) : dash],
-    ],
-    [
-      ['COE', <CoeWhen key="coe" coe={merged.coe} />],
-      ['Inspection period', merged.accepted || merged.ddEnd ? <IpMini key="ip" d={merged} /> : dash],
-      ['EMD', <span key="emd" className="inline-flex flex-wrap items-center gap-1.5"><EmdPill deal={merged} />{merged.emd ? <span className="text-[13px] font-medium text-zinc-500">{money(merged.emd)}</span> : null}</span>],
-    ],
-  ];
-
+  const ts = tileStatus(merged);
+  const grossOk = typeof merged.grossAssign === 'number' && !noBuyer(merged);
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-navy-900/30" onClick={close} />
@@ -444,17 +473,21 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           )}
         </header>
         {!isNew && tab === 'details' && (
-          <div className="shrink-0 bg-white border-b border-tan-200 divide-y divide-tan-100">
-            {facts.map((row, i) => (
-              <div key={i} className={`grid grid-cols-3 gap-x-6 px-6 ${i ? 'pt-2.5 pb-3.5' : 'pt-3.5 pb-2.5 border-b border-tan-100'}`}>
-                {row.map(([l, v]) => (
-                  <div key={l} className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-tan-600 whitespace-nowrap">{l}</div>
-                    <div className="mt-0.5 text-[17px] font-semibold tabular-nums text-navy-800 truncate">{v}</div>
-                  </div>
-                ))}
+          <div className="shrink-0 border-b border-tan-200">
+            <div className="px-5 pt-2.5 pb-3 bg-tan-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-navy-700">Deal Status</span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${TILE_TONE[ts.band[0]].pill}`}><span className="w-1.5 h-1.5 rounded-full bg-current" />{ts.band[1]}</span>
               </div>
-            ))}
+              <div className="grid grid-cols-3 gap-2">
+                <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
+                <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
+                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : 'plain'}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : dash}</StatusTile>
+                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
+                <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
+                <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
+              </div>
+            </div>
           </div>
         )}
 

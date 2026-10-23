@@ -1312,11 +1312,14 @@ logged `*pushed` in the deal's history; refused for a cancelled stage, a
 deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
 days from the contract date; needs a contract date). The link the next step
 points at comes first. Replaces "or use GHL's date here" / "Set to X".
-- **Summary tile** (same day, Luke: "boxy and clunky"): no cell borders,
-  small tan uppercase labels, one rule between the money row and the dates
-  row; COE = the date plus "in N days" / "tomorrow" / "closing today" / "N
-  days late" in colour (`CoeWhen`); Inspection period = start ── N days ──
-  end, the end time under it (`IpMini`, the small DdTimeline).
+- **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
+  clear these are status tiles"): under the header a "Deal Status" band with
+  the worst tile's word (Needs attention / Coming up / All good · closing in
+  N days / Closed / Cancelled), then six tiles (`StatusTile`, `tileStatus` in
+  DealPanel.jsx) — Contracted, Assigned at, Gross; EMD, Inspection (Start ──
+  N days ── End, `IpSpan`), COE — each with a line icon whose square takes
+  the tile's status colour (green / amber / red / grey) and a status word
+  ("In · VPG + Buyer", "Ended · buyer in", "in 18 days", "2 days late").
 
 ## A cancel that still makes money (Luke, Oct 23)
 
