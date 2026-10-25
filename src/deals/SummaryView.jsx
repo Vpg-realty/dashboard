@@ -13,7 +13,10 @@ import { money, compact } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
-import { setQuery, useLocation } from '../shell/router.js';
+import { setQuery, useLocation, linkProps } from '../shell/router.js';
+import { CANCEL_REASONS } from './fieldLib.js';
+import { pretty } from './values.js';
+import { isBlank } from './math.js';
 import { Person } from './people.jsx';
 import { FinanceHead } from '../finance/ui.jsx';
 import SummaryFile from './SummaryFile.jsx';
@@ -27,6 +30,7 @@ const VIEWS = [
   ['dispo', 'Dispo reps', 'Who sold them'],
   ['state', 'State by state', 'Where the deals are'],
   ['months', 'Month by month', 'The year, month by month'],
+  ['cancels', 'Cancellations', 'Why deals fell through'],
 ];
 
 const dim = (v, f = (x) => x) => (v ? f(v) : <span className="text-zinc-300">0</span>);
@@ -194,6 +198,62 @@ function GroupTable({ kind, rows, prev, owner }) {
   );
 }
 
+// Cancellations by reason (Luke, Oct 25): the period's cancelled deals by
+// their cancellation reason (CancelDialog.jsx) — a reason picks the list
+// below (`?reason=`), with what happened to the EMD on each.
+const REASON_ROWS = [...CANCEL_REASONS, 'NONE'];
+const reasonOf = (d) => (isBlank(d.cancelReason) ? 'NONE' : d.cancelReason);
+const reasonLabel = (r) => (r === 'NONE' ? 'No reason given' : pretty('cancelReason', r));
+const ourLost = (d) => (['LOST', 'NO'].includes(String(d.emdReturned || '').toUpperCase()) ? Number(d.emd) || 0 : 0);
+function Cancels({ list, reason, onOpenDeal }) {
+  const cancelled = list.filter((d) => d.status === 'CANCELLED');
+  const rows = REASON_ROWS.map((r) => {
+    const ds = cancelled.filter((d) => reasonOf(d) === r);
+    return { r, n: ds.length, lost: ds.reduce((t, d) => t + ourLost(d), 0), kept: ds.reduce((t, d) => t + (Number(d.emdKept) || 0), 0) };
+  }).filter((x) => x.n || x.r !== 'NONE');
+  const shown = reason ? cancelled.filter((d) => reasonOf(d) === reason) : cancelled;
+  const pick = (r) => setQuery({ reason: reason === r ? null : r });
+  return (
+    <div className="grid gap-4">
+      <Card title="Cancellations by Reason" sub={`${cancelled.length} cancelled in this period · click a reason to see its deals`}>
+        <table className="w-full text-[13.5px]">
+          <thead className="bg-navy-50/60 text-navy-800"><tr>{['Reason', 'Deals', 'Share', 'Our EMD lost', "Buyer's EMD kept"].map((c, i) => <th key={c} className={`${i ? 'text-right' : 'pl-5 text-left'} px-3 py-2.5 font-medium whitespace-nowrap`}>{c}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((x) => (
+              <tr key={x.r} onClick={() => x.n && pick(x.r)} className={`border-t border-tan-100 ${x.n ? 'cursor-pointer hover:bg-tan-50' : ''} ${reason === x.r ? 'bg-tan-100/70' : ''}`}>
+                <td className="pl-5 px-3 py-2.5 font-medium text-navy-800">{reasonLabel(x.r)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{dim(x.n, (v) => <span className="font-semibold text-red-700">{v}</span>)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">{cancelled.length ? pctTxt(x.n / cancelled.length) : '—'}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{x.lost ? <span className="text-red-700">−{money(x.lost)}</span> : dim(0)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{x.kept ? <span className="text-emerald-700">{money(x.kept)}</span> : dim(0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+      <Card title={reason ? `Cancelled · ${reasonLabel(reason)}` : 'Every Cancelled Deal'} sub={`${shown.length} deal${shown.length === 1 ? '' : 's'}`}
+        right={<span className="flex items-center gap-3">{reason && <button type="button" onClick={() => setQuery({ reason: null })} className="font-semibold">All reasons ×</button>}<a {...linkProps(`/deals/all?status=CANCELLED${reason ? `&reason=${reason}` : ''}`)} className="font-semibold">Open in All Deals →</a></span>}>
+        <table className="w-full text-[13.5px]">
+          <thead className="bg-navy-50/60 text-navy-800"><tr>{['Property', 'Acq. manager', 'State', 'Reason', 'Our EMD', "Buyer's EMD kept"].map((c, i) => <th key={c} className={`${i > 3 ? 'text-right' : 'text-left'} ${i ? '' : 'pl-5'} px-3 py-2.5 font-medium whitespace-nowrap`}>{c}</th>)}</tr></thead>
+          <tbody>
+            {shown.map((d) => (
+              <tr key={d.id} onClick={() => onOpenDeal(d.id)} className="border-t border-tan-100 cursor-pointer hover:bg-tan-50">
+                <td className="pl-5 px-3 py-2.5 font-medium text-navy-800">{d.address}</td>
+                <td className="px-3 py-2.5"><Person name={d.acq} /></td>
+                <td className="px-3 py-2.5">{d.state || '—'}</td>
+                <td className="px-3 py-2.5">{reasonLabel(reasonOf(d))}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{ourLost(d) ? <span className="text-red-700">lost −{money(ourLost(d))}</span> : isBlank(d.emdReturned) ? <span className="text-zinc-500">{Number(d.emd) ? 'coming back' : '—'}</span> : pretty('emdReturned', d.emdReturned)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums">{Number(d.emdKept) ? <span className="text-emerald-700">{money(d.emdKept)}</span> : <span className="text-zinc-300">—</span>}</td>
+              </tr>
+            ))}
+            {!shown.length && <tr><td colSpan={6} className="px-5 py-6 text-center text-zinc-500">No cancelled deals here.</td></tr>}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
 function Months({ data, owner }) {
   if (!data.months) return <Card title="Month by month"><div className="px-5 py-8 text-center text-zinc-500">Pick a period inside one year (a month, quarter or year) to see it month by month.</div></Card>;
   const maxNet = Math.max(1, ...data.months.map((m) => m.net));
@@ -251,6 +311,7 @@ export default function SummaryView() {
     const groups = Object.fromEntries(Object.keys(KINDS).map((k) => [k, groupStats(list, k)]));
     const prevGroups = prevList ? Object.fromEntries(Object.keys(KINDS).map((k) => [k, new Map(groupStats(prevList, k).map((r) => [r.key, r]))])) : null;
     return {
+      list,
       now: stats(list), then: prevList ? stats(prevList) : null, groups, prevGroups, year,
       // Month by month always goes by the closing date (COE) — Luke, Oct 16:
       // "net assignment by month should be calculated based on the close
@@ -263,7 +324,7 @@ export default function SummaryView() {
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   // Nothing on file for the compare period: say so instead of "▲ vs 0".
   const then = data.then && data.then.contracts > 0 ? data.then : null;
-  const counts = { acq: data.groups.acq.length, dispo: data.groups.dispo.length, state: data.groups.state.length };
+  const counts = { cancels: data.now.cancelled, acq: data.groups.acq.length, dispo: data.groups.dispo.length, state: data.groups.state.length };
 
   return (
     <div className="max-w-[1720px] mx-auto">
@@ -275,6 +336,7 @@ export default function SummaryView() {
           {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} periodKey={period.key} />}
           {(view === 'acq' || view === 'dispo' || view === 'state') && <GroupTable kind={view} rows={data.groups[view]} prev={then ? data.prevGroups[view] : null} now={data.now} owner={owner} />}
           {view === 'months' && <Months data={data} owner={owner} />}
+          {view === 'cancels' && <Cancels list={data.list} reason={query.get('reason')} onOpenDeal={open} />}
         </div>
       </div>
       {file && <SummaryFile file={file} deals={s.deals} owner={owner} onOpenDeal={open} />}

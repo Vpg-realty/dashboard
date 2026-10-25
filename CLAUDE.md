@@ -1402,7 +1402,14 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   EMD paid by isn't VPG or VPG + Buyer) — and, on a buyer default, how much of
   the buyer's EMD we keep (`emdKept`, filled from Buyer's EMD). A reason fills
   in the likely answers; the profit / loss shows live; "Cancel the deal"
-  saves it all at once. The All Deals cell still sets the stage directly.
+  saves it all at once. **Everywhere the stage is set**: the deal panel (any
+  page that opens it) and an All Deals Stage cell (`EditableCell` opens the
+  same pop-up over the page, `page` prop).
+- **Reason filter** (Luke, Oct 25): All Deals has "Any cancel reason"
+  (`?reason=BUYER_DEFAULT …` or `NONE` = cancelled with no reason given);
+  Finance Overview's rail has **Cancellations** (`?view=cancels`): the
+  period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
+  a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
