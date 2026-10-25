@@ -89,6 +89,10 @@ export function clean(key, v) {
   }
   if (key === 'ddEndTz' && !ZONE_KEYS.includes(String(v).toUpperCase())) return { error: `${f.label}: pick a time zone` };
   // EMD returned? (Yes / No / Lost / N/A) and why it was lost — Luke, Oct 22.
+  if (key === 'cancelReason') {
+    const s = String(v).trim().toUpperCase();
+    return ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'].includes(s) ? { value: s } : { error: `${f.label}: pick buyer default, seller default, retrade not accepted or unable to sell` };
+  }
   if (key === 'cancelAs') {
     const s = String(v).trim().toUpperCase();
     return ['LOST', 'ABANDONED'].includes(s) ? { value: s } : { error: `${f.label}: pick Lost or Abandoned` };

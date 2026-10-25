@@ -19,6 +19,9 @@ export const FIELDS = [
   ['status', 'Stage', 'contract', 'list'],
   // Luke, Oct 23: a deal cancelled on the site picks what it becomes in GHL —
   // Lost or Abandoned (sent as the opportunity's status, push-ghl.mjs).
+  // Luke, Oct 25: why it was cancelled — picked in the cancel pop-up
+  // (CancelDialog.jsx), shown only on a cancelled deal.
+  ['cancelReason', 'Cancellation reason', 'contract', 'list'],
   ['cancelAs', 'In GHL, mark it', 'contract', 'list'],
   ['acq', 'Acq. manager', 'contract', 'person'],
   ['coe', 'COE', 'contract', 'date'],

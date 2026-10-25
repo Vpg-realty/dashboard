@@ -21,7 +21,9 @@ import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
-import { PILL_TONE } from './values.js';
+import { PILL_TONE, pretty } from './values.js';
+import CancelDialog from './CancelDialog.jsx';
+import { stageOf } from './math.js';
 import MismatchList from './Mismatch.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
@@ -148,8 +150,43 @@ function tileStatus(d) {
   return { emd, ip, coe, band };
 }
 
-// Shorter names for the section jump bar so it fits on one line.
-const NAV_SHORT = { pay: 'Commissions', notes: 'Notes' };
+// The panel's sections in the order a deal moves (Luke, Oct 25 — option S2 of
+// the mock-ups): each holds one or two of the sheet's field groups. The
+// section for the deal's stage opens by itself and says "You are here"; the
+// others fold to one line with what's in them and ✓ / "N missing". Any
+// section opens with a click and stays open; which ones are open is kept per
+// deal on this device (localStorage `vpg.deal.open.<id>`).
+const SECTIONS = [
+  { id: 'contract', label: 'The Contract', short: 'Contract', groups: ['contract', 'title'] },
+  { id: 'emd', label: 'Earnest Money & Inspection', short: 'EMD & Inspection', groups: ['emd', 'dd'] },
+  { id: 'dispo', label: 'Selling It', short: 'Selling It', groups: ['dispo'] },
+  { id: 'money', label: 'The Money', short: 'Money', groups: ['money', 'pay'] },
+  { id: 'notes', label: 'Notes & Links', short: 'Notes', groups: ['notes'] },
+];
+const SUB_LABEL = { contract: 'Contract', title: 'Title', emd: 'Earnest Money', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
+const HERE = { UNDER_CONTRACT: 'emd', DISPO_ACTIVE: 'dispo', ASSIGNED: 'dispo', COMPLETE: 'money', CANCELLED: 'emd' };
+const secOfGroup = (gid) => SECTIONS.find((x) => x.groups.includes(gid))?.id;
+const openKey = (id) => `vpg.deal.open.${id}`;
+function readOpen(id) {
+  try { const v = JSON.parse(localStorage.getItem(openKey(id)) || 'null'); return Array.isArray(v) ? v : null; } catch { return null; }
+}
+function writeOpen(id, list) {
+  try { localStorage.setItem(openKey(id), JSON.stringify(list)); } catch { /* private window */ }
+}
+const first = (v) => String(v || '').trim().split(' ')[0];
+const clip = (v, n) => { const t = String(v || '').split('\n')[0].trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+// One line that says what's in a folded section.
+function summaryOf(sec, d, { owner, ro }) {
+  const has = (v) => !isBlank(v);
+  const parts = {
+    contract: [first(d.acq), has(d.dealType) && pretty('dealType', d.dealType), ISO.test(d.accepted || '') && `${shortDate(d.accepted)} → COE ${ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}`, typeof d.price === 'number' && d.price > 0 && money(d.price), has(d.title) && clip(d.title, 28)],
+    emd: [typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)} EMD` : 'No EMD amount', has(d.emdPaidBy) && String(d.emdPaidBy).toUpperCase() !== 'PENDING' ? pretty('emdPaidBy', d.emdPaidBy) : 'not placed yet', ISO.test(d.ddEnd || '') && `IP ends ${shortDate(d.ddEnd)}`],
+    dispo: [first(d.dispoMember), owner && has(d.buyer) && clip(d.buyer, 26), typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? `Assigned at ${money(d.vpgAssign)}` : 'No buyer yet'],
+    money: noBuyer(d) && !keptMoney(d) ? ['No buyer yet'] : [typeof d.grossAssign === 'number' && `Gross ${money(d.grossAssign)}`, !ro && typeof d.netAssign === 'number' && `Net ${money(d.netAssign)}`, owner && typeof d.netProfit === 'number' && `Profit ${money(d.netProfit)}`],
+    notes: [ro ? null : has(d.notes) ? clip(d.notes, 50) : 'No notes', has(d.links) && 'Zillow link'],
+  }[sec] || [];
+  return parts.filter(Boolean).join(' · ');
+}
 
 const BOX = 'rounded-lg p-2 ring-1 ring-inset';
 const BOX_TONE = {
@@ -296,6 +333,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
   // "Doesn't match the tracker" fixes (Luke, Oct 23): which row is busy.
   const [fixing, setFixing] = useState(null);
+  // The cancel pop-up (Luke, Oct 25): open while the stage is being set to Cancelled.
+  const [cancelAsk, setCancelAsk] = useState(false);
+  // Sections opened by hand on this deal (null = the defaults: the stage's section and any with something missing).
+  const [userOpen, setUserOpen] = useState(() => (id ? readOpen(id) : null));
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -323,6 +364,13 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  // Sections opened for a moment (a jump-bar click, a Needs info chip, ?focus=) — not remembered.
+  const [forced, setForced] = useState([]);
+  const goField = (key) => {
+    const sec = secOfGroup(FIELDS.find((f) => f.key === key)?.group);
+    if (sec) setForced((x) => (x.includes(sec) ? x : [...x, sec]));
+    setTimeout(() => jumpTo(key), 60);
+  };
   // Opened from a Needs info alert (?focus=<field> or focus=need): jump to
   // that field (or the first missing one) once.
   const jumped = useRef(null);
@@ -330,7 +378,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     if (!focus || !merged || jumped.current === focus) return;
     jumped.current = focus;
     const key = focus === 'need' ? needsInfo(merged, { owner, readOnly: ro })[0]?.fields[0] : focus;
-    if (key) setTimeout(() => jumpTo(key), 150);
+    if (key) setTimeout(() => goField(key), 150);
   });
 
   if (!raw) return null;
@@ -346,6 +394,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const need = new Set(needs.flatMap((x) => x.fields));
   // One edit can carry another field with it (retrade → the price; edits.js).
   const setField = (k, v) => {
+    // Cancelling asks the cancel questions first (CancelDialog).
+    if (k === 'status' && String(v).toUpperCase() === 'CANCELLED' && !isNew && stageOf(merged) !== 'CANCELLED') { setCancelAsk(true); return; }
     const now = { ...raw, ...draft.fields };
     const patch = editFields(now, k, v);
     if (k === 'retrade' && 'price' in patch) { setFlash(true); setTimeout(() => setFlash(false), 900); }
@@ -416,6 +466,15 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}{fixErr?.key === m.key && <span className="basis-full text-red-700 no-underline">{fixErr.msg}</span>}</span>,
     };
   };
+  async function confirmCancel(fields) {
+    setBusy(true); setErr(null);
+    try {
+      const d = await saveDeal(id, { fields: { ...draft.fields, ...fields }, fixed: draft.fixed }, base);
+      setBase(d.updatedAt);
+      setDraft({ fields: {}, fixed: {} });
+      setCancelAsk(false);
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  }
   async function save() {
     setBusy(true); setErr(null);
     try {
@@ -451,133 +510,26 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const dash = <span className="text-zinc-300">—</span>;
   const ts = tileStatus(merged);
   const grossOk = typeof merged.grossAssign === 'number' && !noBuyer(merged);
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-navy-900/30" onClick={close} />
-      <section className="relative w-full max-w-[760px] h-full bg-tan-100 shadow-2xl flex flex-col" role="dialog" aria-label={merged.address || 'New deal'}>
-        {!isNew && <span className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${TONES[step.tone].bar}`} />}
-        <header className="shrink-0 bg-navy-700 text-white px-6 pt-5 pb-0 relative overflow-hidden">
-          <svg viewBox="0 0 1000 1000" className="absolute -right-10 -top-16 w-60 h-60 opacity-[0.07] pointer-events-none" aria-hidden="true"><path d="M320 108 L653 686 L535 890 L203 314 Z" fill="#fff" /><path d="M514 308 H693 A104 104 0 0 1 783 464 L693 618 Z" fill="#ad9b7a" /></svg>
-          <div className="flex items-start gap-3 relative">
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && (editable.size ? ' · you can fix the COE, IP end and EMD' : ' · view only')}</div>
-              <h2 className="mt-1 text-[22px] font-semibold tracking-tight break-words">{merged.address || 'New deal'}</h2>
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <StatusChip status={merged.status} />
-                {keptMoney(merged) && <span title="Cancelled — the buyer's EMD was kept. Commissions are paid on it like a closing." className="rounded-md bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200 px-2 py-0.5 text-[12px] font-semibold">{money(merged.netAssign)} kept · buyer's EMD</span>}
-                {!isNew && !step.done && <StepPill step={step} />}
-                <GhlChip g={g} />
-                {!isNew && (
-                  <span className="text-[12px] text-white/75 ml-1" title={raw.ghlSub?.location ? `GHL location ${raw.ghlSub.location}` : 'No GHL opportunity is linked to this deal'}>
-                    {raw.ghlSub ? <>GHL sub-account: <span className="font-semibold text-white">{[raw.ghlSub.rep || 'unknown', raw.ghlSub.market].filter(Boolean).join(' · ')}</span></> : 'Not linked to GHL'}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button onClick={close} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
-          </div>
-          {!isNew && (
-            <nav className="flex gap-5 mt-4 relative">
-              {[['details', 'Details'], ['history', 'History']].map(([k, l]) => (
-                <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
-              ))}
-            </nav>
-          )}
-        </header>
-        {!isNew && tab === 'details' && (
-          <div className="shrink-0 border-b border-tan-200">
-            <div className="px-5 pt-2.5 pb-3 bg-tan-50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-navy-700">Deal Status</span>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${TILE_TONE[ts.band[0]].pill}`}><span className="w-1.5 h-1.5 rounded-full bg-current" />{ts.band[1]}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
-                <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
-                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : 'plain'}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : dash}</StatusTile>
-                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
-                <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
-                <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!isNew && tab === 'details' && (
-          <nav className="shrink-0 flex flex-wrap gap-x-0.5 gap-y-1 bg-navy-700 border-y border-navy-800 px-3 py-1.5" aria-label="Jump to a section">
-            {groups.map(([gid, glabel]) => {
-              const missing = FIELDS.some((f) => f.group === gid && need.has(f.key));
-              return (
-                <button key={gid} type="button" onClick={() => { const el = bodyRef.current?.querySelector(`#deal-g-${gid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(gid); } }}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${onSec === gid ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
-                  {ro && gid === 'notes' ? 'Zillow Link' : NAV_SHORT[gid] || glabel}
-                  {missing && <span className="w-1.5 h-1.5 rounded-full bg-[#F04438] ring-1 ring-white/70" title="Something is needed here" />}
-                </button>
-              );
-            })}
-          </nav>
-        )}
-
-        <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
-            <div className="flex flex-col gap-4">
-              {/* Only when GHL and the site disagree (Luke, Oct 23: "why does the GHL info pop up? looks like it matches"). */}
-              {(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && (
-                <Notice tone="violet">
-                  {g ? <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
-                    : <div className="font-medium">In GoHighLevel: <StageChip stage={merged.ghlStage} /></div>}
-                  {g && <div className="text-[12.5px] mt-0.5">IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
-                    {g.coe && !ro && !ISO.test(merged.coe || '') && <> · <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's COE</button></>}
-                  </div>}
-                  {/* What doesn't match the tracker (Luke, Oct 16). */}
-                  {miss.length > 0 && (
-                    <div className="mt-2.5">
-                      <MismatchList rows={miss.map(fixRow)} />
-                    </div>
-                  )}
-                  <PushNote pushes={pushes} />
-                </Notice>
-              )}
-              {!(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && <PushNote pushes={pushes} boxed />}
-              {ip && (
-                <div className={`rounded-lg border px-3.5 py-2.5 ${ip.tone === 'red' ? 'border-[#F5C2BD] bg-[#FDF1F0] text-[#7A271A]' : 'border-[#F5D9A8] bg-[#FFF8E6] text-[#7A4A06]'}`}>
-                  <div className="font-semibold">{ip.text}</div>
-                  <div className="text-[12.5px] mt-0.5">The inspection period ends {new Date(ip.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} Arizona time ({showEndTime(merged) || 'end of day'}) and the deal hasn't been moved to Assigned yet.</div>
-                </div>
-              )}
-              {needs.length > 0 && (
-                <div className="rounded-lg border border-[#F5C2BD] bg-[#FDF1F0] px-3.5 py-2.5 text-[#7A271A]">
-                  <div className="font-semibold">Needs info — {need.size} field{need.size === 1 ? '' : 's'} to fill in</div>
-                  <div className="mt-1.5 flex flex-col gap-1.5">
-                    {needs.map(({ cat, fields }) => (
-                      <div key={cat.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-[12.5px] font-medium">{cat.label}:</span>
-                        {fields.map((k) => (
-                          <button key={k} type="button" onClick={() => jumpTo(k)} className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5]">{LABEL[k]}</button>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {warn.length > 0 && <Notice tone="amber"><ul className="list-disc pl-4 space-y-0.5">{warn.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
-              {owner && pay.length > 0 && (
-                <div className="rounded-xl border border-tan-200 bg-white px-4 py-3">
-                  <div className="text-xs font-semibold text-navy-700 mb-1.5">Commissions on this deal</div>
-                  <div className="flex flex-wrap gap-x-5 gap-y-1">
-                    {pay.map((p) => <span key={p.part}><span className="text-zinc-500">{p.who.split(' ')[0]} ({p.part})</span> <span className="font-semibold tabular-nums">{money(p.amount)}</span></span>)}
-                    <span className="ml-auto"><span className="text-zinc-500">Net profit</span> <span className="font-semibold tabular-nums">{noBuyer(merged) ? <span className="font-normal text-zinc-400">no buyer yet</span> : money(merged.netProfit)}</span></span>
-                  </div>
-                </div>
-              )}
-              {groups.map(([gid, glabel], gi) => (
-                <section key={gid} id={`deal-g-${gid}`} data-sec={gid} className="scroll-mt-3 rounded-xl border border-tan-200 bg-white shadow-[0_1px_2px_rgba(27,56,95,0.04)] overflow-hidden">
-                  <h3 className={`flex items-center gap-2.5 px-4 py-2.5 ${PANEL_HEAD}`}>
-                    <span className={PANEL_NUM}>{gi + 1}</span>
-                    <span className="text-[14px] font-semibold text-white">{ro && gid === 'notes' ? 'Zillow link' : glabel}</span>
-                  </h3>
+  // Sections (S2): which are visible to this person, which is "you are here",
+  // which are open.
+  const secs = SECTIONS.map((x) => ({ ...x, groups: x.groups.filter((gid) => groups.some(([g2]) => g2 === gid)) })).filter((x) => x.groups.length);
+  const here = isNew ? null : (secs.find((x) => x.id === HERE[stageOf(merged)]) || secs[0])?.id;
+  const missingIn = (sec) => FIELDS.filter((f) => sec.groups.includes(f.group) && need.has(f.key)).length;
+  const defaultOpen = isNew ? secs.map((x) => x.id) : secs.filter((x) => x.id === here || missingIn(x) > 0).map((x) => x.id);
+  const openList = [...new Set([...(userOpen || defaultOpen), ...forced])];
+  const toggle = (sid) => {
+    const next = openList.includes(sid) ? openList.filter((x) => x !== sid) : [...openList, sid];
+    setForced((f) => f.filter((x) => x !== sid));
+    setUserOpen(next);
+    if (id) writeOpen(id, next);
+  };
+  const showSec = (sid) => {
+    setForced((x) => (x.includes(sid) ? x : [...x, sid]));
+    setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
+  };
+  const groupGrid = (gid) => (
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.
@@ -659,8 +611,194 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                       );
                     })}
                   </div>
-                </section>
+  );
+  // The Money (owners / TC): from the price to the profit, top to bottom.
+  const moneyRows = (() => {
+    if (ro) return null;
+    const rows = [];
+    const add = (label, v, kind) => rows.push({ label, v, kind });
+    const lostEmd = ['NO', 'LOST'].includes(String(merged.emdReturned || '').toUpperCase()) ? Number(merged.emd) || 0 : 0;
+    if (keptMoney(merged)) {
+      add("Buyer's EMD we kept", merged.emdKept);
+      if (lostEmd) add('Our EMD lost', -lostEmd, 'minus');
+    } else if (stageOf(merged) === 'CANCELLED') {
+      return { cancelled: true, lostEmd, profit: merged.netProfit };
+    } else if (noBuyer(merged)) {
+      return { none: true };
+    } else {
+      add('Assigned at', merged.vpgAssign);
+      if (merged.grossAssign !== merged.vpgAssign) add('Contracted price', -(Number(merged.price) || 0), 'minus');
+    }
+    add('Gross assignment', merged.grossAssign, 'sum');
+    if (Number(merged.addlFees)) add('Additional fees', -Number(merged.addlFees), 'minus');
+    add('Net assignment', merged.netAssign, 'sum');
+    if (owner) {
+      for (const p of pay) add(`${p.part[0].toUpperCase()}${p.part.slice(1)} · ${first(p.who)}`, -p.amount, 'minus');
+      add('Net profit', merged.netProfit, 'total');
+    }
+    return { rows };
+  })();
+  const moneyBox = moneyRows && (
+    <div className="mx-2 mt-2 rounded-lg border border-tan-200 bg-tan-50/60 px-3.5 py-2.5 text-[13.5px] tabular-nums">
+      {moneyRows.none ? <span className="text-zinc-500">No buyer yet — the money fills in once the deal is assigned.</span>
+        : moneyRows.cancelled ? <span className="text-zinc-600">Cancelled{moneyRows.lostEmd ? <> · our EMD lost <span className="font-semibold text-[#B42318]">−{money(moneyRows.lostEmd)}</span></> : ' · no money in or out'}</span>
+          : moneyRows.rows.map((r, i) => (
+            <div key={i} className={`flex justify-between gap-3 py-1 ${r.kind === 'total' ? 'border-t-2 border-navy-700 mt-1 pt-1.5 font-bold text-navy-800' : r.kind === 'sum' ? 'border-t border-tan-200 font-semibold text-navy-800' : 'text-zinc-700'}`}>
+              <span>{r.label}</span>
+              <span className={r.kind === 'minus' ? 'text-[#B42318]' : r.kind === 'total' ? (Number(r.v) >= 0 ? 'text-[#15803d]' : 'text-[#B42318]') : ''}>{r.kind === 'minus' ? `− ${money(-r.v)}` : money(r.v)}</span>
+            </div>
+          ))}
+    </div>
+  );
+  const sectionCard = (sec, si) => {
+    const open = openList.includes(sec.id);
+    const n = missingIn(sec);
+    const isHere = sec.id === here;
+    if (!open) {
+      return (
+        <button key={sec.id} id={`deal-s-${sec.id}`} data-sec={sec.id} type="button" onClick={() => toggle(sec.id)}
+          className="scroll-mt-3 w-full text-left flex items-center gap-3 rounded-xl border border-tan-300 bg-white px-4 py-3 shadow-[0_1px_3px_rgba(27,56,95,0.08)] hover:border-navy-300 hover:bg-tan-50/40">
+          <span className={PANEL_NUM}>{si + 1}</span>
+          <span className="font-semibold text-navy-800 text-[14px] shrink-0">{sec.label}</span>
+          <span className="flex-1 min-w-0 truncate text-[13px] text-zinc-500">{summaryOf(sec.id, merged, { owner, ro })}</span>
+          {n > 0 ? <span className="shrink-0 rounded-full bg-[#FDF1F0] text-[#B42318] px-2 py-0.5 text-[11.5px] font-bold">{n} missing</span>
+            : <span className="shrink-0 rounded-full bg-[#ECFDF3] text-[#15803d] px-2 py-0.5 text-[11.5px] font-bold">✓</span>}
+          <span className="shrink-0 text-[12.5px] font-semibold text-navy-700 underline underline-offset-2">{ro ? 'Show' : 'Edit'} ▸</span>
+        </button>
+      );
+    }
+    return (
+      <section key={sec.id} id={`deal-s-${sec.id}`} data-sec={sec.id} className="scroll-mt-3 rounded-xl border border-tan-300 bg-white shadow-[0_2px_8px_rgba(27,56,95,0.10)] overflow-hidden">
+        <h3 className={`flex items-center gap-2.5 px-4 py-2.5 ${PANEL_HEAD}`}>
+          <span className={PANEL_NUM}>{si + 1}</span>
+          <span className="text-[14px] font-semibold text-white">{ro && sec.id === 'notes' ? 'Zillow Link' : sec.label}</span>
+          {isHere && <span className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-tan-400">You are here</span>}
+          <span className="ml-auto flex items-center gap-2">
+            {n > 0 && <span className="rounded-full bg-[#FDF1F0] text-[#B42318] px-2 py-0.5 text-[11.5px] font-bold">{n} missing</span>}
+            <button type="button" onClick={() => toggle(sec.id)} className="text-[12px] font-semibold text-white/75 hover:text-white">Fold ▴</button>
+          </span>
+        </h3>
+        {sec.id === 'money' && moneyBox}
+        {sec.groups.map((gid) => (
+          <div key={gid} id={`deal-g-${gid}`} className={sec.groups.length > 1 ? 'border-t border-tan-100 first-of-type:border-t-0' : ''}>
+            {sec.groups.length > 1 && <div className="px-4 pt-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-tan-700">{SUB_LABEL[gid]}</div>}
+            {groupGrid(gid)}
+          </div>
+        ))}
+      </section>
+    );
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-navy-900/30" onClick={close} />
+      <section className="relative w-full max-w-[760px] h-full bg-tan-100 shadow-2xl flex flex-col" role="dialog" aria-label={merged.address || 'New deal'}>
+        {!isNew && <span className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${TONES[step.tone].bar}`} />}
+        <header className="shrink-0 bg-navy-700 text-white px-6 pt-5 pb-0 relative overflow-hidden">
+          <svg viewBox="0 0 1000 1000" className="absolute -right-10 -top-16 w-60 h-60 opacity-[0.07] pointer-events-none" aria-hidden="true"><path d="M320 108 L653 686 L535 890 L203 314 Z" fill="#fff" /><path d="M514 308 H693 A104 104 0 0 1 783 464 L693 618 Z" fill="#ad9b7a" /></svg>
+          <div className="flex items-start gap-3 relative">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New deal' : `Deal · ${merged.acq || 'no acq. manager'}`}{ro && (editable.size ? ' · you can fix the COE, IP end and EMD' : ' · view only')}</div>
+              <h2 className="mt-1 text-[22px] font-semibold tracking-tight break-words">{merged.address || 'New deal'}</h2>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <StatusChip status={merged.status} />
+                {keptMoney(merged) && <span title="Cancelled — the buyer's EMD was kept. Commissions are paid on it like a closing." className="rounded-md bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200 px-2 py-0.5 text-[12px] font-semibold">{money(merged.netAssign)} kept · buyer's EMD</span>}
+                {!isNew && !step.done && <StepPill step={step} />}
+                <GhlChip g={g} />
+                {!isNew && (
+                  <span className="text-[12px] text-white/75 ml-1" title={raw.ghlSub?.location ? `GHL location ${raw.ghlSub.location}` : 'No GHL opportunity is linked to this deal'}>
+                    {raw.ghlSub ? <>GHL sub-account: <span className="font-semibold text-white">{[raw.ghlSub.rep || 'unknown', raw.ghlSub.market].filter(Boolean).join(' · ')}</span></> : 'Not linked to GHL'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button onClick={close} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+          </div>
+          {!isNew && (
+            <nav className="flex gap-5 mt-4 relative">
+              {[['details', 'Details'], ['history', 'History']].map(([k, l]) => (
+                <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
+            </nav>
+          )}
+        </header>
+        {!isNew && tab === 'details' && (
+          <div className="shrink-0 border-b border-tan-200">
+            <div className="px-5 pt-2.5 pb-3 bg-tan-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-navy-700">Deal Status</span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${TILE_TONE[ts.band[0]].pill}`}><span className="w-1.5 h-1.5 rounded-full bg-current" />{ts.band[1]}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
+                <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
+                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : 'plain'}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : dash}</StatusTile>
+                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
+                <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
+                <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isNew && tab === 'details' && (
+          <nav className="shrink-0 flex flex-wrap gap-x-0.5 gap-y-1 bg-navy-700 border-y border-navy-800 px-3 py-1.5" aria-label="Jump to a section">
+            {secs.map((sec) => {
+              const missing = missingIn(sec) > 0;
+              return (
+                <button key={sec.id} type="button" onClick={() => showSec(sec.id)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-semibold whitespace-nowrap ${onSec === sec.id ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+                  {ro && sec.id === 'notes' ? 'Zillow Link' : sec.short}
+                  {missing && <span className="w-1.5 h-1.5 rounded-full bg-[#F04438] ring-1 ring-white/70" title="Something is needed here" />}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
+          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
+            <div className="flex flex-col gap-4">
+              {/* Only when GHL and the site disagree (Luke, Oct 23: "why does the GHL info pop up? looks like it matches"). */}
+              {(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && (
+                <Notice tone="violet">
+                  {g ? <div className="font-medium">In GoHighLevel: <StageChip stage={g.stage} /> · {g.repName}</div>
+                    : <div className="font-medium">In GoHighLevel: <StageChip stage={merged.ghlStage} /></div>}
+                  {g && <div className="text-[12.5px] mt-0.5">IP end {shortDate(g.ipEnd)} · COE {shortDate(g.coe)}{g.value ? ` · value ${money(g.value)}` : ''}
+                    {g.coe && !ro && !ISO.test(merged.coe || '') && <> · <button onClick={() => setField('coe', g.coe)} className="underline">use GHL's COE</button></>}
+                  </div>}
+                  {/* What doesn't match the tracker (Luke, Oct 16). */}
+                  {miss.length > 0 && (
+                    <div className="mt-2.5">
+                      <MismatchList rows={miss.map(fixRow)} />
+                    </div>
+                  )}
+                  <PushNote pushes={pushes} />
+                </Notice>
+              )}
+              {!(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && <PushNote pushes={pushes} boxed />}
+              {ip && (
+                <div className={`rounded-lg border px-3.5 py-2.5 ${ip.tone === 'red' ? 'border-[#F5C2BD] bg-[#FDF1F0] text-[#7A271A]' : 'border-[#F5D9A8] bg-[#FFF8E6] text-[#7A4A06]'}`}>
+                  <div className="font-semibold">{ip.text}</div>
+                  <div className="text-[12.5px] mt-0.5">The inspection period ends {new Date(ip.at).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} Arizona time ({showEndTime(merged) || 'end of day'}) and the deal hasn't been moved to Assigned yet.</div>
+                </div>
+              )}
+              {needs.length > 0 && (
+                <div className="rounded-lg border border-[#F5C2BD] bg-[#FDF1F0] px-3.5 py-2.5 text-[#7A271A]">
+                  <div className="font-semibold">Needs info — {need.size} field{need.size === 1 ? '' : 's'} to fill in</div>
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    {needs.map(({ cat, fields }) => (
+                      <div key={cat.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-[12.5px] font-medium">{cat.label}:</span>
+                        {fields.map((k) => (
+                          <button key={k} type="button" onClick={() => goField(k)} className="rounded px-1.5 py-0.5 text-[11.5px] font-medium bg-[#FDECEA] text-[#B42318] ring-1 ring-inset ring-[#F5C2BD] hover:bg-[#FBD9D5]">{LABEL[k]}</button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {warn.length > 0 && <Notice tone="amber"><ul className="list-disc pl-4 space-y-0.5">{warn.map((w) => <li key={w}>{w}</li>)}</ul></Notice>}
+              {secs.map((sec, si) => sectionCard(sec, si))}
               {!isNew && owner && (
                 <div className="pt-1 flex items-center justify-between text-xs text-zinc-500">
                   <span>Last changed {raw.updatedBy ? `by ${raw.updatedBy}` : ''} {raw.updatedAt ? new Date(raw.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
@@ -678,6 +816,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
         )}
+        {cancelAsk && <CancelDialog deal={merged} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmCancel} />}
         {leaving && (
           <div className="absolute inset-0 z-20 grid place-items-center bg-navy-900/40 p-6" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-title">
             <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl border border-tan-200 p-5">

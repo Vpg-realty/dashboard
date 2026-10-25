@@ -1373,6 +1373,37 @@ line counts it in the month it was cancelled (unchanged rule).
   it's a chip under the address) left of Open deal and the quick button; the
   quick buttons only open the deal on that field (`ACTION_TIP`).
 
+## Deal panel sections + the cancel pop-up (Luke, Oct 25)
+
+From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
+- **Sections in deal order** (`SECTIONS` in DealPanel.jsx): The Contract
+  (contract + title fields), Earnest Money & Inspection (emd + dd), Selling It
+  (dispo), The Money (money + pay), Notes & Links — each a numbered card with
+  small group titles inside when it holds two of the sheet's groups. The
+  stage's section (`HERE`: Under Contract → EMD & Inspection, Dispo Active /
+  Assigned → Selling It, Closed → The Money, Cancelled → EMD) opens by itself
+  with "You are here", plus any section with a missing field; the others fold
+  to one line (`summaryOf`) with ✓ / "N missing" and Edit ▸. Any section opens
+  with a click and stays open; the open set is kept per deal on the device
+  (localStorage `vpg.deal.open.<id>`). The jump bar, Needs info chips and
+  `?focus=` open the section first (`goField`). **The Money** starts with a
+  breakdown from the price to the profit (assigned at − contracted = gross −
+  additional fees = net − each commission = net profit; a kept-EMD cancel
+  starts from the buyer's EMD kept), replacing the old "Commissions on this
+  deal" box; reps don't get it.
+- **Cancel pop-up** (`CancelDialog.jsx`, fields in `cancel.js`): setting the
+  Stage to Cancelled in the deal panel asks, in order: **Cancellation reason**
+  (new field `cancelReason`: Buyer default / Seller default / Retrade not
+  accepted / Cancelled / unable to sell — `CANCEL_REASONS`, checked by
+  `clean`), In GHL Lost / Abandoned (`cancelAs`), **Our EMD** — Coming back
+  (EMD returned? left empty, so Finance › Earnest Money lists it until it's
+  marked Yes) / Lost (`emdReturned` LOST, `emdLostWhy` = Buyer default on a
+  buyer default, else Past IP) / Not placed (N/A; picked automatically when
+  EMD paid by isn't VPG or VPG + Buyer) — and, on a buyer default, how much of
+  the buyer's EMD we keep (`emdKept`, filled from Buyer's EMD). A reason fills
+  in the likely answers; the profit / loss shows live; "Cancel the deal"
+  saves it all at once. The All Deals cell still sets the stage directly.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in

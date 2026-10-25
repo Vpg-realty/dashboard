@@ -13,8 +13,10 @@ export const LIST_OF = {
 // EMD returned? adds Lost (Luke, Oct 22) — with its reason in emdLostWhy.
 export const EMD_LOST_WHY = ['PAST_IP', 'NON_REFUNDABLE', 'BUYER_DEFAULT'];
 export const CANCEL_AS = ['LOST', 'ABANDONED'];
-export const FIXED_LISTS = { cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
-export const KEEP_ORDER = new Set(['cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
+// Why a deal was cancelled (Luke, Oct 25).
+export const CANCEL_REASONS = ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
+export const FIXED_LISTS = { cancelReason: CANCEL_REASONS, cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
+export const KEEP_ORDER = new Set(['cancelReason', 'cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
 // Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
 // "Custom" to type it in.
 export const PICK_FROM_PAST = new Set(['buyer', 'title']);
