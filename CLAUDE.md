@@ -1312,6 +1312,17 @@ logged `*pushed` in the deal's history; refused for a cancelled stage, a
 deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
 days from the contract date; needs a contract date). The link the next step
 points at comes first. Replaces "or use GHL's date here" / "Set to X".
+- **IP end never before the start** (Luke, Oct 25 — 109 E Washington, back
+  after a cancel with a new contract date, kept the sheet's typed IP end of
+  Oct 10, so Update site ↓ set IP days 0 → 0 and nothing moved): compute()
+  ignores a typed (`fixed`) IP end earlier than the contract date and uses
+  contract date + IP days; negative IP days leave it blank and the server
+  refuses them. A typed IP end stops being typed when the contract date or IP
+  days are saved (`applyEdit`, edge/deals.js; the panel previews the same): a
+  new contract date keeps the typed span as IP days, so the IP keeps its
+  length from the new start. Update site ↓ refuses a GHL IP end before the
+  contract date, and every Update GHL / Update site error shows under its
+  own mismatch row.
 - **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
   clear these are status tiles"): under the header a "Deal Status" band with
   the worst tile's word (Needs attention / Coming up / All good · closing in

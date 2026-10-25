@@ -273,6 +273,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [tab, setTab] = useState('details');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [fixErr, setFixErr] = useState(null); // { key, msg } — shown under that mismatch row
   const [base, setBase] = useState(raw?.updatedAt);
   const [flash, setFlash] = useState(false);
   // Leaving with unsaved edits (Luke, Oct 15: "warning me when I click out …
@@ -348,7 +349,16 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     const now = { ...raw, ...draft.fields };
     const patch = editFields(now, k, v);
     if (k === 'retrade' && 'price' in patch) { setFlash(true); setTimeout(() => setFlash(false), 900); }
-    setDraft((d) => ({ ...d, fields: { ...d.fields, ...patch } }));
+    // An older typed IP end gives way when the contract date or IP days
+    // change — a new start keeps the same number of IP days (Luke, Oct 25;
+    // the server does the same, edge/deals.js applyEdit).
+    const typedEnd = raw.fixed?.ddEnd;
+    const ddFix = (k === 'accepted' || k === 'ddDays') && typedEnd != null && draft.fixed.ddEnd === undefined;
+    if (ddFix && k === 'accepted' && !('ddDays' in draft.fields) && ISO.test(typedEnd) && ISO.test(raw.accepted || '')) {
+      const span = daysBetween(raw.accepted, typedEnd);
+      if (span >= 0) patch.ddDays = span;
+    }
+    setDraft((d) => ({ ...d, fields: { ...d.fields, ...patch }, fixed: ddFix && !ro ? { ...d.fixed, ddEnd: 'formula' } : d.fixed }));
   };
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
   function close() {
@@ -365,23 +375,25 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const FIX_FIELD = { coe: 'coe', ipEnd: 'ddDays', status: 'status' };
   const mayFix = (m) => !ro || (m.key !== 'status' && editable.has(FIX_FIELD[m.key]));
   async function fixToGhl(m) {
-    setFixing(m.key); setErr(null);
-    try { await pushToGhl(id, [m.key]); const h = await dealHistory(id); setPushes(h.pushes || []); } catch (e) { setErr(e.message); } finally { setFixing(null); }
+    setFixing(m.key); setErr(null); setFixErr(null);
+    try { await pushToGhl(id, [m.key]); const h = await dealHistory(id); setPushes(h.pushes || []); } catch (e) { setFixErr({ key: m.key, msg: e.message }); } finally { setFixing(null); }
   }
   async function fixToSite(m) {
     let fields;
     if (m.key === 'coe') fields = { coe: m.ghl };
     else if (m.key === 'status') fields = { status: m.ghl };
     else {
-      if (!ISO.test(merged.accepted || '')) { setErr('Add the contract date first — the IP end is counted from it.'); return; }
+      if (!ISO.test(merged.accepted || '')) { setFixErr({ key: m.key, msg: 'Add the contract date first — the IP end is counted from it.' }); return; }
+      // Never an IP end before the start (Luke, Oct 25).
+      if (m.ghl < merged.accepted) { setFixErr({ key: m.key, msg: `GHL’s IP end (${m.ghl}) is before the contract date (${merged.accepted}) — fix it in GHL, or change the IP days here.` }); return; }
       fields = { ddDays: daysBetween(merged.accepted, m.ghl) };
     }
-    setFixing(m.key); setErr(null);
+    setFixing(m.key); setErr(null); setFixErr(null);
     try {
       const d = await saveDeal(id, { fields, fixed: {} }, base);
       setBase(d.updatedAt);
       setDraft((dr) => ({ ...dr, fields: Object.fromEntries(Object.entries(dr.fields).filter(([k]) => !(k in fields))) }));
-    } catch (e) { setErr(e.message); } finally { setFixing(null); }
+    } catch (e) { setFixErr({ key: m.key, msg: e.message }); } finally { setFixing(null); }
   }
   // Two small links under the next step (Luke, Oct 23: "a small link button
   // at the bottom … cleaner"): the side the next step points at first.
@@ -401,7 +413,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     if (m.key === 'status' && m.tracker === 'CANCELLED' && cancelAs) row.next = `Mark it ${cancelAs === 'LOST' ? 'Lost' : 'Abandoned'} in GHL`;
     return {
       ...row,
-      extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}</span>,
+      extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}{fixErr?.key === m.key && <span className="basis-full text-red-700 no-underline">{fixErr.msg}</span>}</span>,
     };
   };
   async function save() {

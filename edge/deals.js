@@ -102,6 +102,7 @@ export function clean(key, v) {
     const s = String(v).trim().toUpperCase();
     return STATUS_KEYS.includes(s) ? { value: s } : { error: `${f.label}: pick Under Contract, Dispo Active, Assigned, Closed or Cancelled` };
   }
+  if (key === 'ddDays' && typeof v === 'number' && v < 0) return { error: 'IP days: the IP end can’t be before the contract date' };
   if (f.type === 'money' || f.type === 'number' || f.type === 'percent') {
     if (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e10) return { value: v };
     if (typeof v === 'string' && v.length <= 40) return { value: v.trim() }; // e.g. "PAID BY BUYER"
@@ -203,6 +204,20 @@ export function applyEdit(deal, body, user) {
     const c = clean(k, v);
     if (c.error) return c;
     if (!had || next.fixed[k] !== c.value) { changes.push([`fixed.${k}`, had ? next.fixed[k] : 'formula', c.value]); next.fixed[k] = c.value; }
+  }
+  // The IP end follows the contract date + IP days (Luke, Oct 25). An older
+  // typed IP end (from the sheet) stops being typed when either changes: a new
+  // contract date keeps the same number of IP days from the new start (the
+  // typed span, when it isn't negative), and IP days sent on purpose win.
+  const ddTyped = next.fixed.ddEnd;
+  const newStart = changes.some(([k]) => k === 'accepted');
+  if (ddTyped != null && !('ddEnd' in (body.fixed || {})) && (newStart || 'ddDays' in (body.fields || {}))) {
+    if (newStart && !('ddDays' in (body.fields || {})) && DATE.test(ddTyped) && DATE.test(deal.accepted || '')) {
+      const span = Math.round((Date.parse(`${ddTyped}T12:00:00Z`) - Date.parse(`${deal.accepted}T12:00:00Z`)) / 86_400_000);
+      if (span >= 0 && next.ddDays !== span) { changes.push(['ddDays', next.ddDays ?? null, span]); next.ddDays = span; }
+    }
+    changes.push(['fixed.ddEnd', ddTyped, 'formula']);
+    delete next.fixed.ddEnd;
   }
   if (!Object.keys(next.fixed).length) delete next.fixed;
   // Bookkeeping is locked until the COE date (or the deal is closed) — Luke,

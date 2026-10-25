@@ -283,7 +283,13 @@ export function compute(deal, rules, lists) {
   d.emdStatus = emdStatusOf(d);
   set('emdDue', addDays(d.accepted, 2));
   set('ddStart', addDays(d.accepted, 1));
-  set('ddEnd', addDays(d.accepted, num(d.ddDays)));
+  // IP end = contract date + IP days. An older typed IP end (`fixed`, from the
+  // sheet) never sits before the contract date (Luke, Oct 25 — 109 E Washington
+  // came back after a cancel with a new contract date and kept its old end);
+  // negative days leave it blank.
+  const ddFormula = num(d.ddDays) < 0 ? null : addDays(d.accepted, num(d.ddDays));
+  if (DAY.test(fx.ddEnd || '') && DAY.test(d.accepted || '') && fx.ddEnd < d.accepted) d.ddEnd = ddFormula;
+  else set('ddEnd', ddFormula);
   // An Unknown final assignment price (Oct 22) leaves net loss % blank.
   set('netLoss', String(d.finalAssign).toUpperCase() === 'UNKNOWN' ? null : num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
   set('grossAssign', kept ? keptGross : cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
