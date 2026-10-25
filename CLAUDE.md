@@ -1312,6 +1312,17 @@ logged `*pushed` in the deal's history; refused for a cancelled stage, a
 deal not linked to GHL, and managers' stage); it then reads "✓ Sent to GHL" until the next refresh — and **Update site ↓**, which saves GHL's value on the site at once (the IP end as IP
 days from the contract date; needs a contract date). The link the next step
 points at comes first. Replaces "or use GHL's date here" / "Set to X".
+- **IP end never before the start** (Luke, Oct 25 — 109 E Washington, back
+  after a cancel with a new contract date, kept the sheet's typed IP end of
+  Oct 10, so Update site ↓ set IP days 0 → 0 and nothing moved): compute()
+  ignores a typed (`fixed`) IP end earlier than the contract date and uses
+  contract date + IP days; negative IP days leave it blank and the server
+  refuses them. A typed IP end stops being typed when the contract date or IP
+  days are saved (`applyEdit`, edge/deals.js; the panel previews the same): a
+  new contract date keeps the typed span as IP days, so the IP keeps its
+  length from the new start. Update site ↓ refuses a GHL IP end before the
+  contract date, and every Update GHL / Update site error shows under its
+  own mismatch row.
 - **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
   clear these are status tiles"): under the header a "Deal Status" band with
   the worst tile's word (Needs attention / Coming up / All good · closing in
@@ -1361,6 +1372,37 @@ line counts it in the month it was cancelled (unchanged rule).
   IP end, COE, contract — or COE, contract, gross once assigned; no EMD,
   it's a chip under the address) left of Open deal and the quick button; the
   quick buttons only open the deal on that field (`ACTION_TIP`).
+
+## Deal panel sections + the cancel pop-up (Luke, Oct 25)
+
+From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
+- **Sections in deal order** (`SECTIONS` in DealPanel.jsx): The Contract
+  (contract + title fields), Earnest Money & Inspection (emd + dd), Selling It
+  (dispo), The Money (money + pay), Notes & Links — each a numbered card with
+  small group titles inside when it holds two of the sheet's groups. The
+  stage's section (`HERE`: Under Contract → EMD & Inspection, Dispo Active /
+  Assigned → Selling It, Closed → The Money, Cancelled → EMD) opens by itself
+  with "You are here", plus any section with a missing field; the others fold
+  to one line (`summaryOf`) with ✓ / "N missing" and Edit ▸. Any section opens
+  with a click and stays open; the open set is kept per deal on the device
+  (localStorage `vpg.deal.open.<id>`). The jump bar, Needs info chips and
+  `?focus=` open the section first (`goField`). **The Money** starts with a
+  breakdown from the price to the profit (assigned at − contracted = gross −
+  additional fees = net − each commission = net profit; a kept-EMD cancel
+  starts from the buyer's EMD kept), replacing the old "Commissions on this
+  deal" box; reps don't get it.
+- **Cancel pop-up** (`CancelDialog.jsx`, fields in `cancel.js`): setting the
+  Stage to Cancelled in the deal panel asks, in order: **Cancellation reason**
+  (new field `cancelReason`: Buyer default / Seller default / Retrade not
+  accepted / Cancelled / unable to sell — `CANCEL_REASONS`, checked by
+  `clean`), In GHL Lost / Abandoned (`cancelAs`), **Our EMD** — Coming back
+  (EMD returned? left empty, so Finance › Earnest Money lists it until it's
+  marked Yes) / Lost (`emdReturned` LOST, `emdLostWhy` = Buyer default on a
+  buyer default, else Past IP) / Not placed (N/A; picked automatically when
+  EMD paid by isn't VPG or VPG + Buyer) — and, on a buyer default, how much of
+  the buyer's EMD we keep (`emdKept`, filled from Buyer's EMD). A reason fills
+  in the likely answers; the profit / loss shows live; "Cancel the deal"
+  saves it all at once. The All Deals cell still sets the stage directly.
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
