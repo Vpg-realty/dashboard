@@ -4,6 +4,8 @@
 // click away, Esc cancels. Each save is one field, logged like any other
 // change (History), with the same "someone else just changed it" check.
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import CancelDialog from './CancelDialog.jsx';
 import { saveDeal } from './store.js';
 import { Input } from './fields.jsx';
 import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST } from './fieldLib.js';
@@ -22,12 +24,15 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const box = useRef(null);
+  // Cancelling from the sheet asks the cancel questions first (Luke, Oct 25), like the deal panel.
+  const [ask, setAsk] = useState(false);
 
   const start = () => { setValue(raw?.[f.key] ?? null); setErr(null); setEditing(true); };
   const cancel = () => { setEditing(false); setErr(null); };
   async function save(v = value) {
     const before = raw?.[f.key] ?? null;
     if ((v ?? null) === before || (v === '' && before == null)) { cancel(); return; }
+    if (f.key === 'status' && String(v).toUpperCase() === 'CANCELLED' && deal.status !== 'CANCELLED') { setEditing(false); setErr(null); setAsk(true); return; }
     setBusy(true);
     try {
       // Some edits carry another field (retrade → the price; edits.js).
@@ -45,12 +50,21 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
     return () => document.removeEventListener('mousedown', onDown);
   });
 
+  const dialog = ask && createPortal(
+    <CancelDialog page deal={deal} busy={busy} err={err} onBack={() => { setAsk(false); setErr(null); }}
+      onConfirm={async (fields) => {
+        setBusy(true);
+        try { await saveDeal(deal.id, { fields }, deal.updatedAt); setAsk(false); setErr(null); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+      }} />, document.body);
   if (!editing) {
     return (
+      <>
+      {dialog}
       <button type="button" onClick={start} title="Click to edit"
         className={`${fit === 'wrap' ? 'w-full whitespace-normal break-words' : fit ? 'min-w-full whitespace-nowrap' : 'w-full truncate'} min-h-6 text-left rounded px-1.5 -mx-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-navy-200 cursor-text ${f.type === 'money' || f.type === 'number' ? 'text-right' : ''}`}>
         {children}
       </button>
+      </>
     );
   }
   return (

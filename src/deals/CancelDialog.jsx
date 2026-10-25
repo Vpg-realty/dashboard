@@ -44,7 +44,8 @@ function defaults(d, reason) {
   };
 }
 
-export default function CancelDialog({ deal: d, busy, err, onBack, onConfirm }) {
+// `page`: drawn over the whole page (an All Deals cell), not just the deal panel.
+export default function CancelDialog({ deal: d, busy, err, onBack, onConfirm, page }) {
   const [a, setA] = useState(() => {
     const r = CANCEL_REASONS.includes(up(d.cancelReason)) ? up(d.cancelReason) : null;
     return r ? { ...defaults(d, r), ghl: up(d.cancelAs) || 'LOST' } : { reason: null, ghl: 'LOST', our: vpgPlaced(d) ? 'COMING' : 'NONE', keep: false, kept: num(d.buyerEmd) || '' };
@@ -57,7 +58,7 @@ export default function CancelDialog({ deal: d, busy, err, onBack, onConfirm }) 
   const net = kept - lost;
   const ready = a.reason && a.ghl && a.our && !(a.reason === 'BUYER_DEFAULT' && a.keep && !(Number(a.kept) > 0));
   return (
-    <div className="absolute inset-0 z-30 grid place-items-center bg-navy-900/45 p-6" role="dialog" aria-modal="true" aria-labelledby="cancel-title">
+    <div className={`${page ? 'fixed z-[70] whitespace-normal text-left font-sans' : 'absolute z-30'} inset-0 grid place-items-center bg-navy-900/45 p-6`} role="dialog" aria-modal="true" aria-labelledby="cancel-title">
       <div className="w-full max-w-[560px] rounded-xl bg-white shadow-2xl border border-tan-200 overflow-hidden">
         <div className="bg-navy-700 text-white px-5 py-3.5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">Cancel deal</div>

@@ -24,7 +24,7 @@ import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
 import { useDeals, ghlDeals, addrKeys, GHL_STAGE } from './store.js';
 import EditableCell from './EditableCell.jsx';
-import { PICK_FROM_PAST, pastValues, LABEL } from './fieldLib.js';
+import { PICK_FROM_PAST, pastValues, LABEL, CANCEL_REASONS } from './fieldLib.js';
 import { PageHead, Loading, Search, ResortBar } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
 import { money, shortDate, stateCode, statusLabel, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
@@ -130,6 +130,8 @@ export default function AllDealsView() {
   const statuses = useMemo(() => (status ? status.split(',').flatMap((x) => (x === 'PENDING' ? ['UNDER_CONTRACT', 'DISPO_ACTIVE'] : [x])).filter((x) => STATUS_KEYS.includes(x)) : []), [status]);
   const acq = query.get('acq') || '';
   const state = query.get('state') || '';
+  // Cancellation reason (Luke, Oct 25): ?reason=BUYER_DEFAULT …, or NONE = cancelled with no reason given.
+  const reason = query.get('reason') || '';
   const needOnly = query.get('need') === '1';
   const colsParam = query.get('cols') || '';
   const overview = colsParam === 'overview';
@@ -151,6 +153,7 @@ export default function AllDealsView() {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const list = withNeed.filter((d) => inPeriod(d[by], period)
       && (!statuses.length || statuses.includes(d.status)) && (!acq || d.acq === acq) && (!state || d.state === state)
+      && (!reason || (d.status === 'CANCELLED' && (reason === 'NONE' ? isBlank(d.cancelReason) : d.cancelReason === reason)))
       && (!needOnly || d._need.length > 0)
       && (!words.length || words.every((w) => `${d.address} ${d.acq} ${d.dispoMember} ${d.buyer} ${d.title} ${d.state} ${d.escrow} ${d.notes}`.toLowerCase().includes(w))));
     const key = sort.replace(/^-/, ''); const dir = sort.startsWith('-') ? -1 : 1;
@@ -160,8 +163,8 @@ export default function AllDealsView() {
       if (x === y) return 0; if (x == null) return 1; if (y == null) return -1;
       return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * dir;
     });
-  }, [withNeed, q, statuses, acq, state, needOnly, period, by, sort]);
-  const frozenKey = JSON.stringify([q, status, acq, state, needOnly, period.key, by, sort]);
+  }, [withNeed, q, statuses, acq, state, reason, needOnly, period, by, sort]);
+  const frozenKey = JSON.stringify([q, status, acq, state, reason, needOnly, period.key, by, sort]);
   const { rows, stale, resort } = useFrozenOrder(sorted, frozenKey, { byId });
 
   const rawById = useMemo(() => new Map(s.raw.map((d) => [d.id, d])), [s.raw]);
@@ -269,6 +272,8 @@ export default function AllDealsView() {
           options={opts('acq').map((x) => ({ value: x, label: x }))} />
         <SearchSelect className="w-36" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
           options={opts('state').map((x) => ({ value: x, label: pretty('state', x) }))} />
+        <SearchSelect className="w-52" value={reason || null} placeholder="Any cancel reason" pinned={[{ value: null, label: 'Any cancel reason' }]} clearable={false} onChange={(x) => setQuery({ reason: x || null })}
+          options={[...CANCEL_REASONS.map((x) => ({ value: x, label: pretty('cancelReason', x) })), { value: 'NONE', label: 'Cancelled · no reason given' }]} />
         {!s.readOnly && (
           <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#B42318] text-white ring-[#B42318]' : 'bg-white text-[#B42318] ring-[#F5C2BD] hover:bg-[#FDF1F0]'}`}>
             Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>
