@@ -132,11 +132,17 @@ function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
   const ready = d.repId && (newMarket ? d.mName.trim().length >= 2 && code.length >= 2 && !codeTaken : !!d.marketId)
     && loc.length >= 8 && !taken && (!needKey || d.pit.trim().length >= 8) && dirty;
   const choice = choices.find((c) => c.value === d.repId);
+  // Only a new sub-account, a new location ID, a new API key or a new market
+  // needs GitHub; moving a row to another rep / market is saved on the site.
+  const needsGit = !sub || moved || !!d.pit.trim() || newMarket;
+  // The answer shows under the row you saved (and at the top of the table).
+  const [note, setNote] = useState(null);
+  const say = (m) => { setNote(m); setStatus(m); };
 
   const submit = async () => {
     if (!ready || busy) return;
-    if (!connected) { setStatus({ ok: false, text: 'Connect GitHub first (the card above).' }); return; }
-    setBusy(true); setStatus(null);
+    if (!connected && needsGit) { say({ ok: false, text: 'A new sub-account, location ID or API key needs the GitHub connection (the card at the top). Moving it to another rep or market doesn’t.' }); return; }
+    setBusy(true); say(null);
     try {
       const repId = d.repId;
       const known = REPS.find((r) => r.id === repId);
@@ -151,10 +157,10 @@ function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
       if (p && !p.rep_id) await saveUser({ email: p.email, name: p.name, role: p.role, rep_id: repId, newRep: true });
       const who = choice?.label.split(' · ')[0] || repId;
       const where = newMarket ? d.mName.trim() : MARKETS.find((m) => m.id === marketId)?.name || marketId;
-      setStatus({ ok: true, text: `${sub ? 'Saved' : 'Added'} ${who} · ${where}. The board follows after the refresh that just started (a few minutes).` });
+      say({ ok: true, text: `${sub ? 'Saved' : 'Added'} ${who} · ${where}. ${r?.refresh === false ? 'Shows on the board after the next refresh (within ~15 min).' : 'The board follows after the refresh that just started (a few minutes).'}` });
       onDone(r?.config);
       if (!sub) setD(start);
-    } catch (e) { setStatus({ ok: false, text: `Not saved: ${e.message}` }); } finally { setBusy(false); }
+    } catch (e) { say({ ok: false, text: `Not saved: ${e.message}` }); } finally { setBusy(false); }
   };
   const remove = async () => {
     setBusy(true); setStatus(null);
@@ -214,6 +220,14 @@ function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
           </td>
         </tr>
       )}
+      {(note || (dirty && needsGit && !connected)) && (
+        <tr className={!sub ? 'bg-tan-50/60' : 'bg-amber-50/40'}>
+          <td colSpan={6} className="pb-2.5 pr-2.5 text-[12.5px]">
+            {note ? <span className={`block font-medium ${note.ok ? 'text-emerald-700' : 'text-red-700'}`}>{note.text}</span>
+              : <span className="block text-amber-800">This change needs the GitHub connection (the card at the top) — a new sub-account, location ID, API key or market.</span>}
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -243,7 +257,7 @@ export default function SubAccountsView() {
       <GithubCard info={info} setInfo={setInfo} />
       <HandOff />
       <Section title={`Sub-Accounts · ${rows.length}`} right={<span>{tally.live || 0} live · {tally.idle || 0} no data · {tally.error || 0} errors</span>}
-        sub="Change any row the same way you add one — a new person taking over, a different market, a new location ID or a new API key — then Save. The API key is never shown again; leave it blank to keep the saved one. People come from Settings › People.">
+        sub="Change any row the same way you add one — a new person taking over, a different market, a new location ID or a new API key — then Save. Moving a row to another rep or market saves right here; a new sub-account, location ID or API key needs the GitHub connection. The API key is never shown again; leave it blank to keep the saved one. People come from Settings › People.">
         {msg && <div className={`mb-3 rounded-lg px-3 py-2 text-[13.5px] ${msg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>{msg.text}</div>}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px] min-w-[1100px]">
