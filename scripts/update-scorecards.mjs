@@ -3,8 +3,11 @@
 //   { v: 1, weeks: { 'YYYY-MM-DD' (Monday): { label, friday, weekOfMonth,
 //       frozenAt, source: 'dashboard' | 'sheet', reps: { repId: numbers } ,
 //       review?: { reviewedBy, reps: { repId: { crm: [5], note } } } } } }
-// Every deploy: from Friday 12:00 Arizona, the week's numbers are frozen once
-// from the freshly built data.json (same moment the sheet used to be filled).
+// Every deploy: the week in progress is copied into `pending` (not `weeks`, so
+// every page keeps showing it live). The week runs Monday – Sunday 11:59 PM
+// Arizona (Luke, Oct 26; it froze Friday 12:00 until then): the first deploy
+// of a new week moves the last `pending` copy — the final Sunday numbers —
+// into `weeks`, frozen, its `frozenAt` = when that copy was made.
 // Weeks imported from the sheet (scorecard-seed.json) are added if missing.
 // CRM grades / notes made in the dashboard live on the scorecard-data branch
 // (src/utils/githubApi.js) and are merged in the browser.
@@ -16,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { azDate, weekInfo, freezeNumbers, pastFreeze } from './scorecard-lib.mjs';
+import { azDate, weekInfo, freezeNumbers } from './scorecard-lib.mjs';
 import { fetchState } from './state-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,8 +59,13 @@ export function updateScorecards({ prev, seed, data, reps, now = new Date() }) {
     out.weeks[monday] = { ...meta, monday, reps: numbers, review };
   }
   const info = weekInfo(azDate(now));
-  if (pastFreeze(now) && !out.weeks[info.monday] && data?.pairs?.length) {
-    out.weeks[info.monday] = {
+  // A finished week: its last copy becomes final.
+  if (out.pending && out.pending.monday < info.monday) {
+    if (!out.weeks[out.pending.monday]) out.weeks[out.pending.monday] = out.pending;
+    delete out.pending;
+  }
+  if (!out.weeks[info.monday] && data?.pairs?.length) {
+    out.pending = {
       monday: info.monday, friday: info.friday, label: info.weekOfLabel, weekOfMonth: info.weekOfMonth,
       frozenAt: now.toISOString(), source: 'dashboard',
       reps: freezeNumbers(data, reps, info.friday.slice(0, 7), info.monday),
