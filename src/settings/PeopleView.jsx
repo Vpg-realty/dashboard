@@ -165,7 +165,7 @@ export default function PeopleView() {
     return (
       <tr key={u.email} onClick={() => open(u.email)} className={`border-t border-tan-100 cursor-pointer hover:bg-tan-50 ${inactive ? 'text-zinc-500' : ''}`}>
         <td className="py-2.5 pl-4 pr-3">
-          <span className="flex items-center gap-2">{u.rep_id && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: ALL_REPS.find((r) => r.id === u.rep_id)?.color || '#94a3b8' }} />}<b className={`font-semibold ${inactive ? '' : 'text-navy-900'}`}>{u.name}</b>{u.email === me?.email && <span className="rounded bg-tan-100 px-1 text-[10.5px] text-navy-700 font-semibold">you</span>}</span>
+          <span className="flex items-center gap-2">{u.rep_id && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: ALL_REPS.find((r) => r.id === u.rep_id)?.color || '#94a3b8' }} />}<b className={`font-semibold ${inactive ? '' : 'text-navy-900'}`}>{u.name}{u.last_name ? ` ${u.last_name}` : ''}</b>{u.email === me?.email && <span className="rounded bg-tan-100 px-1 text-[10.5px] text-navy-700 font-semibold">you</span>}</span>
           <span className="block text-[12px] text-zinc-500 truncate">{u.email}</span>
         </td>
         <td className="py-2.5 pr-3 whitespace-nowrap">{ROLE_NAME[u.role] || u.role}{inactive && <span className={`${chip} ml-1.5 bg-zinc-100 text-zinc-600`}>Inactive{u.ended ? ` · ${u.ended.slice(5).replace('-', '/')}` : ''}</span>}</td>

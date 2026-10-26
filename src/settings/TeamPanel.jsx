@@ -2,7 +2,8 @@
 // that all info is edited in … minimal clicks and almost no effort when adding
 // a new member"; the approved mock-up "One Place for the Team"). Opened from
 // Settings › Team (a row, or "+ Add a Team Member"):
-//   Basics      first name, email (new only), role, status (Acquisitions:
+//   Basics      first and last name (the site shows the first name only),
+//               email (new only), role, status (Acquisitions:
 //               Active / Training / Inactive), started / ended
 //   Pod Lead    Acquisitions: who they report to (deal_lists.reportsTo, by
 //               name); in training that's also their trainer
@@ -59,8 +60,10 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
   const today = laToday();
   const isNew = !u;
   const start = useMemo(() => (u ? {
-    name: u.name, email: u.email, role: uiRole(u), status: uiStatus(u), started: u.started || '', ended: u.ended || '',
-  } : { name: '', email: '', role: 'team', status: 'training', started: today, ended: '' }), [u, today]);
+    // An older entry with the whole name in `name` opens split (Luke, Oct 26).
+    name: u.last_name ? u.name : String(u.name || '').trim().split(' ')[0], last: u.last_name || String(u.name || '').trim().split(' ').slice(1).join(' '),
+    email: u.email, role: uiRole(u), status: uiStatus(u), started: u.started || '', ended: u.ended || '',
+  } : { name: '', last: '', email: '', role: 'team', status: 'training', started: today, ended: '' }), [u, today]);
   const [d, setD] = useState(start);
   const set = (k) => (v) => setD((x) => ({ ...x, [k]: v }));
   const key = u ? keyName(u) : String(d.name || '').trim();
@@ -105,7 +108,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
       const training = d.status === 'training';
       const trainer = training ? leads.find((l) => l.name === lead)?.id || null : null;
       const body = {
-        email: d.email.trim(), name: d.name.trim(), role: training ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active',
+        email: d.email.trim(), name: d.name.trim(), last_name: d.last.trim(), role: training ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active',
         rep_id: u?.rep_id || null, started: d.started || null, ended: d.ended || null,
         ...(training ? { trainer, start: u?.start || d.started || today } : {}),
       };
@@ -120,7 +123,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
           if (repOf(id) && !users.some((x) => x.rep_id === id && x.email === person.email)) id = suggestRepId(person.name);
           if (repOf(id) && !users.some((x) => x.rep_id === id && x.email === person.email)) id = `${id}_${Date.now().toString(36).slice(-3)}`;
         }
-        let newRep = repOf(id) ? null : { id, name: person.name, color: pickColor(id, ALL_REPS.map((r) => r.color)) };
+        let newRep = repOf(id) ? null : { id, name: `${person.name} ${person.last_name || ''}`.trim(), color: pickColor(id, ALL_REPS.map((r) => r.color)) };
         let moved = 0;
         for (const loc of take) {
           const s = SUBACCOUNTS.find((x) => x.locationId === loc);
@@ -169,7 +172,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
         <div className="bg-navy-700 text-white px-5 py-4 shrink-0 flex items-start gap-3">
           <div className="min-w-0 mr-auto">
             <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">{isNew ? 'New team member' : 'Team member'}</div>
-            <div className="text-[20px] font-semibold leading-tight">{isNew ? (d.name.trim() || 'Add a Team Member') : u.name}</div>
+            <div className="text-[20px] font-semibold leading-tight">{`${d.name} ${d.last}`.trim() || 'Add a Team Member'}</div>
             {!isNew && <div className="text-[12.5px] text-white/70">{u.email}</div>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="text-white/60 hover:text-white text-2xl leading-none px-1">×</button>
@@ -178,8 +181,9 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
           {self && <div className="mx-5 mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[13px] text-amber-900">That’s you — another owner changes your own access.</div>}
           <Part title="Basics">
             <div className="grid grid-cols-2 gap-2.5">
-              <label className="flex flex-col gap-1 text-[12.5px] text-zinc-600">First name<input value={d.name} onChange={(e) => set('name')(e.target.value)} disabled={self} placeholder="e.g. Jake" className={inputCls} /></label>
-              <label className="flex flex-col gap-1 text-[12.5px] text-zinc-600">Company email<input value={d.email} onChange={(e) => set('email')(e.target.value)} disabled={!isNew} placeholder="name@valleypropertygroup.com" className={`${inputCls} disabled:bg-zinc-50`} /></label>
+              <label className="flex flex-col gap-1 text-[12.5px] text-zinc-600">First name<input value={d.name} onChange={(e) => set('name')(e.target.value.replace(/\s+/g, ''))} disabled={self} placeholder="e.g. Jake" className={inputCls} /></label>
+              <label className="flex flex-col gap-1 text-[12.5px] text-zinc-600">Last name<input value={d.last} onChange={(e) => set('last')(e.target.value)} disabled={self} placeholder="e.g. Rader" className={inputCls} /></label>
+              <label className="col-span-2 flex flex-col gap-1 text-[12.5px] text-zinc-600">Company email<input value={d.email} onChange={(e) => set('email')(e.target.value)} disabled={!isNew} placeholder="name@valleypropertygroup.com" className={`${inputCls} disabled:bg-zinc-50`} /></label>
             </div>
             <div className="text-[12.5px] text-zinc-600">Role</div>
             <Pills value={d.role} disabled={self} onChange={(v) => setD((x) => ({ ...x, role: v, status: v === 'owner' ? 'active' : x.status === 'training' && v !== 'team' ? 'active' : x.status }))} options={ROLE_OPTS.map(([v, l]) => [v, l])} />
