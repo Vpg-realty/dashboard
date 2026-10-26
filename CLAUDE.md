@@ -1485,6 +1485,67 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   wire expected and commissions follow), a "Closing costs" line in The
   Money's breakdown. Reps don't see it (money group).
 
+## TC List rework — the TC Desk (Luke, Oct 26)
+
+From the approved mock-up (round 2, also sent as a PDF). Overrides the older
+TC List notes under "Deal tracker" where they differ.
+- **Layout** (`src/deals/TcListView.jsx`): the navy band (`PageHead`; Overdue
+  / Today / Next 3 days / Open issues counters, dark search on address /
+  escrow # / rep) and the site's `SideRail`: Work — **My Day** (late + today,
+  the default), Next 3 Days, Monday Updates; Watch — Closing This Week, Open
+  Issues; Deals — All Deals, Closed Out (`?view=`). A row = one step on one
+  deal: the address (opens the deal panel), the rep · sub-account box
+  (`dealTag`) and stage, then a tan **To do** box with the step in 18px bold,
+  how to do it for this deal (title company, escrow #, dispo rep, IP end time
+  …) and a due box ("2 days late" maroon / "Today" red); Not needed on this
+  deal · Checklist · ⚑ Flag an Issue · ✓ Mark Done. No Log a Call / Snooze
+  (Luke: never used). **All Deals** = one line per deal: street only with the
+  rep's colour dot, **Where It Stands** (`standing`: an open issue, a warning,
+  "N steps late", "Closing Thursday", "In the IP · ends …" + the next step) and
+  a dot per milestone (`MILESTONES`: EMD, Title, IP, Assigned, Buyer EMD,
+  Clear to Close, Funded, Wire & HUD — ✓ / ! late / • today / dashed coming
+  up / — not needed). A row's Checklist opens the deal's checklist panel
+  (`?card=`): timeline (Contract → EMD in → IP ends → Assigned → COE →
+  Closed), warnings, open issues (Mark resolved), the five phases (those with
+  something due within 7 days open), tasks for the deal. The checklist and
+  what was removed sit in an ⓘ fold at the page foot.
+- **The steps** (`CHECKLIST` in src/deals/tcList.js, the one place): 27 in
+  five phases — Open the File, Inspection Period, Assigned, Closing Week
+  (incl. the new **48-hour email check-in**, a written email to copy —
+  `email48`), Closing & Funding (closing day = "funded and closing confirmed";
+  "Tracker moved to Closed" ticks itself). Each has `due`, `how(d)`, optional
+  `auto` (ticked from the deal), `skip` (doesn't apply, e.g. the IP steps once
+  assigned, EMD receipt when VPG didn't place EMD) and `since` (steps added
+  Oct 26 count from `DESK_FROM` 2026-10-27; older ones from `TC_START`; a step
+  due before its `since` is "from before this step was on the list", not
+  late). Removed by Luke (greyed in the fold, `REMOVED`): intro email, seller
+  paperwork, access, occupancy / utilities, HOA resale, buyer's vesting, the
+  day-after recording check, deal file complete, thank-you, close out. Old
+  step ids are kept so earlier ticks stay. Assigned steps count from the last
+  logged status change to Assigned (GET /api/tc `assigned`), else today.
+  **Not needed** = the tick `<id>~na`. A closed deal ticks everything before
+  its last three steps (HUD, wire, VPG's EMD back) and leaves the list
+  (Closed Out) once they're done — no close-out step; an old `closeout` tick
+  still counts.
+- **Early warnings** (`warnings`, rows with no tick): IP ends within 24 h (red)
+  / 48 h with no buyer, past COE while open, COE within 7 days with no buyer,
+  EMD due tomorrow and not sent. (No escrow-# or no-contact warnings — Luke.)
+- **Flag an Issue** (Title problem / Seller not responding / Buyer not
+  responding or funding at risk / COE needs to move / Something else + a
+  line): D1 `tc_issues` (edge/deals.sql; created Oct 26) and one Alerts task
+  per person — the owners and the deal's acq rep and dispo rep only (Luke:
+  "only if it is tied to them"; name → rep via subaccounts.json), ext_id
+  `tcissue:<id>:<holder>`. Red on the deal until **Mark resolved**, which
+  closes those alerts.
+- **Monday Updates** (Luke: "yes keep it"): on Mondays My Day gets one row;
+  the view shows one message per open deal (`statusUpdate`: COE, IP end, done
+  so far, this week's steps and open issues) with Copy and Mark Sent (tick
+  `mon:<Monday>`). Nothing is sent by the site.
+- `functions/api/tc`: GET → checks, tasks, issues, assigned; POST check
+  (`okItem`), add, task, remove, flag, resolve. Usage: one read of tc_checks /
+  tasks / issues and a deal_log scan for Assigned per TC page or Home load —
+  a few thousand rows each, a few dozen loads a day.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
