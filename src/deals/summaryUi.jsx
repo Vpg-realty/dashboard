@@ -1,6 +1,6 @@
 // Small pieces shared by the Deal Summary and its files (SummaryView.jsx,
 // SummaryFile.jsx).
-import { compact } from './format.js';
+import { money } from './format.js';
 import { Tile } from '../shell/Tile.jsx';
 import { pctTxt, closeRateTone, CLOSE_RATE_CLS } from './summaryStats.js';
 
@@ -10,14 +10,14 @@ export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
   if (Math.abs(diff) < 1e-9) return <span className="inline-flex rounded px-1.5 py-px text-[12px] font-semibold bg-zinc-100 text-zinc-500">same</span>;
   const up = diff > 0;
   const good = lowerIsBetter ? !up : up;
-  const text = pct ? `${Math.round(Math.abs(diff) * 100)} pts` : isMoney ? compact(Math.abs(diff)) : Math.abs(diff);
+  const text = pct ? `${Math.round(Math.abs(diff) * 100)} pts` : isMoney ? money(Math.abs(diff)) : Math.abs(diff);
   return <span className={`inline-flex rounded px-1.5 py-px text-[12px] font-semibold whitespace-nowrap ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
 }
 
 // A number tile with the change vs the compare period under it — the site's
 // Tile (Oct 22).
 export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub, accent = 'navy', tone }) {
-  const fmtThen = then == null ? null : pct ? pctTxt(then) : isMoney ? compact(then) : then;
+  const fmtThen = then == null ? null : pct ? pctTxt(then) : isMoney ? money(then) : then;
   return <Tile label={label} value={value} dot={accent} tone={tone} sub={then != null ? <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></span> : sub} />;
 }
 
@@ -37,7 +37,7 @@ export function RateCell({ r }) {
 function BandDelta({ now, then, pct, isMoney, lowerIsBetter }) {
   if (then == null) return null;
   const diff = now - then;
-  const fmt = pct ? pctTxt(then) : isMoney ? compact(then) : then;
+  const fmt = pct ? pctTxt(then) : isMoney ? money(then) : then;
   if (Math.abs(diff) < 1e-9) return <span className="text-zinc-500">same as {fmt}</span>;
   return <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span className="text-zinc-500">vs {fmt}</span></span>;
 }

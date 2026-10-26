@@ -261,7 +261,6 @@ const statusIn = (d, list) => (list || []).some((s) => statusMatches(d, s));
 // A closed deal with a dispo team on file keeps the sheet's formula for it
 // (VPG, or the 50/50 split for anyone else — the "PENDING" placeholder
 // included, as the sheet did), so closed numbers never move.
-const legacyDispo = (d) => is(d.status, 'COMPLETE') && !isBlank(d.dispoTeam);
 
 // The sheet's formulas, column by column (AE … AT, Q, V, W). `rules` and
 // `lists` come from D1. Returns the deal with every computed field filled.
@@ -304,13 +303,11 @@ export function compute(deal, rules, lists) {
   set('netLoss', String(d.finalAssign).toUpperCase() === 'UNKNOWN' ? null : num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
   set('grossAssign', kept ? keptGross : cancelled ? 0 : num(d.vpgAssign) - num(d.price));
   set('tcFee', statusIn(asDone, r.tcFeeStatuses) ? num(r.tcFee) : 0);
-  // VPG always sells the deal now (Luke, Oct 14): net = gross − additional
-  // fees, no 50/50 split. Closed deals with a dispo team on file keep the
-  // sheet's formula for that team (legacyDispo).
-  set('netAssign', kept ? keptGross - costs : cancelled ? 0
-    : !legacyDispo(d) ? num(d.vpgAssign) - num(d.price) - costs
-      : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - costs
-        : (num(d.vpgAssign) - num(d.price)) * 0.5 - costs * 0.5);
+  // VPG always sells the deal (Luke, Oct 14; Oct 26: "no more of the pending
+  // or dispo team … we will always sell it"): net = gross − additional fees −
+  // closing costs on every deal. The sheet's 50/50 split for an outside dispo
+  // team is gone, closed deals included (a stored dispoTeam is ignored).
+  set('netAssign', kept ? keptGross - costs : cancelled ? 0 : num(d.vpgAssign) - num(d.price) - costs);
   set('emdReturn', is(d.emdPaidBy, 'VPG + BUYER') || is(d.emdPaidBy, 'VPG') ? num(d.emd) : is(d.emdPaidBy, 'BUYER') ? 'PAID BY BUYER' : 0);
   set('wireExpected', d.emdReturn === 'PAID BY BUYER' ? num(d.netAssign)
       : kept ? num(d.emdKept) : cancelled ? num(d.emd) : num(d.netAssign) + num(d.emdReturn));

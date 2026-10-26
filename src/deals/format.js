@@ -1,6 +1,6 @@
 // Formatting helpers for the Deals pages.
 import { isOpen } from './math.js';
-export const money = (n, { cents = false } = {}) => {
+export const money = (n, { cents = true } = {}) => {
   if (typeof n !== 'number' || !Number.isFinite(n)) return n == null || n === '' ? '—' : String(n).toUpperCase() === 'UNKNOWN' ? 'Unknown' : String(n);
   if (n === 0) return '–';
   const s = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: cents ? 2 : 0, minimumFractionDigits: cents ? 2 : 0 }).format(Math.abs(n));

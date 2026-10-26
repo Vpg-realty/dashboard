@@ -1505,6 +1505,19 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   base + commission paid, then a Commission · Who · Amount · Paid table —
   Finance's paid tag or the paid-on date), Profit.
 
+## Money to the cent (Luke, Oct 26)
+
+"on the numbers, i need it to the cent, not just rounded to the dollar":
+`money()` (src/deals/format.js) shows cents by default — the deal panel, All
+Deals, Finance (Overview's tiles and rep / state rows, the person file,
+Payouts, Statements, Wires, Earnest Money), the stage pop-ups. A long value
+steps the `Tile` number down a size (`sizeOf` in src/shell/Tile.jsx) instead
+of spilling out. The month bars' small labels stay short ($25k). The lead
+value sent to GHL (`leadValuePush`) is to the cent too. The TV board and the
+calculators keep whole dollars. Names: every person's whole name was split
+into `name` (first) / `last_name` in D1 the same day (logged
+`settings.users.splitName`).
+
 ## Double close; one formula for every deal type (Luke, Oct 26)
 
 - **Deal type "Double close"** (`DOUBLE CLOSE`): always in the Deal type
@@ -2021,10 +2034,10 @@ the server strips them (`forTc`) and refuses edits to them.
   Aug, pasted as values in the sheet) keep their typed numbers in
   `fixed` (shown amber "typed"; "use formula" switches one back). Gross =
   VPG assignment − contract (finder's fee: the assignment); net = gross −
-  additional fees (VPG sells every deal — Luke, Oct 14; the sheet's 50/50
-  split for another dispo team is kept only for **closed** deals that have a
-  dispo team on file, `legacyDispo`, so closed numbers don't move — checked:
-  every closed / cancelled deal of the import computes exactly as before);
+  additional fees (VPG sells every deal — Luke, Oct 14; since Oct 26 the
+  sheet's 50/50 split for another dispo team is gone for every deal, closed
+  ones too — a stored `dispoTeam` is ignored; only 1885 Broad Ave moved, its
+  "PENDING" placeholder had halved its net to $250);
   then acq, dispo,
   manager, override and TC commissions and profit as in the sheet. Acq, dispo,
   manager and override commissions are 0 on an open deal until it's

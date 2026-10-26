@@ -47,13 +47,13 @@ const ipEndOf = (d) => (DATE.test(d?.accepted || '') && Number.isFinite(Number(d
   ? new Date(Date.parse(`${d.accepted}T12:00:00Z`) + Number(d.ddDays) * 86_400_000).toISOString().slice(0, 10) : null);
 // The GHL lead value follows the sheet's net assignment (Luke, Oct 22: one
 // way — a change in GHL never comes back). Only once the deal has a VPG
-// assignment price (before that the net is "no buyer yet"), in whole dollars.
+// assignment price (before that the net is "no buyer yet"), to the cent (Oct 26).
 // `rules` / `lists` = settings deal_rules / deal_lists (compute needs them).
 export function leadValuePush(before, after, rules, lists) {
   const net = (d) => {
     if (!(Number(d?.vpgAssign) > 0)) return null;
     const n = compute(d, rules, lists).netAssign;
-    return typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : null;
+    return typeof n === 'number' && Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
   };
   const a = net(before); const b = net(after);
   return b != null && a !== b ? [{ field: 'netAssign', value: String(b) }] : [];
