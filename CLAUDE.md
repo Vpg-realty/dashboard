@@ -1323,6 +1323,10 @@ points at comes first. Replaces "or use GHL's date here" / "Set to X".
   length from the new start. Update site ↓ refuses a GHL IP end before the
   contract date, and every Update GHL / Update site error shows under its
   own mismatch row.
+- **No echo back to GHL** (Luke, Oct 26 — 1570 Hampton Rd: Update site ↓
+  saved GHL's COE Oct 30 and the panel then said "COE → Oct 30 goes to GHL"):
+  PATCH /api/deals/:id leaves out a COE / IP end push when the linked
+  opportunity already shows that date on the last sync (`deal_ghl.last`).
 - **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
   clear these are status tiles"): under the header a "Deal Status" band with
   the worst tile's word (Needs attention / Coming up / All good · closing in
@@ -1483,6 +1487,12 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   for the same rep + state, a market code already used.
 - **Manage Reps is gone** (rename / add / delete reps): People is the one
   place for people. The list below keeps health, reassign and remove.
+- **How to hand sub-accounts to someone** (Luke, Oct 26: Jake takes over
+  Daniel's NC and MO, Daniel's TX goes to Cayden): a fold on top of
+  Settings › Sub-Accounts (`HandOff` in SubAccountsView.jsx) — add the person
+  in People (untick training if they're already trained), pick them in each
+  row's Rep and Save (the first save puts them on the board), then their pod
+  lead / TV board in People and the old rep Inactive if they're leaving.
 
 ## Oct 22 round, phase 5b — Today at a Glance, CRM Scores (Luke)
 
