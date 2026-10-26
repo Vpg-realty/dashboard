@@ -1505,6 +1505,24 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   base + commission paid, then a Commission · Who · Amount · Paid table —
   Finance's paid tag or the paid-on date), Profit.
 
+## Team panel: States list and personal rates (Luke, later Oct 26)
+
+Overrides the Team panel's States / Commission notes above.
+- **States**: one row per sub-account — the state, then the rep's full name
+  (inactive people's first, amber), "→ <name>" once ticked, a count of what's
+  picked under the list; a `SearchBox` on top filters by state, code or rep.
+- **Commission = two numbers, no "Standard rates" choice** ("these no longer
+  apply on the team"): Acquisitions % (of the commission base, or of net) and
+  Dispo % (of the commission base), with the date they take effect; both
+  required for Acquisitions / Manager. They open with what the person is paid
+  today (`ratesOf` in src/deals/rules.js: own rate, else the company's) and a
+  Save writes only what changed. New rule keys `acqOf:<name>` / `dispoOf:<name>`
+  (per-rule timelines like `acqOfNet:<name>`; checked by edge/settings.js);
+  compute() uses a person's own rate before `acqRate` / `dispoRate` (the
+  dispo rate by the deal's dispo member). Moving acq between base and net
+  clears the other key from the same date. Commissions' table and Team's list
+  show the personal rates. Every live deal computed the same after the change.
+
 ## Money to the cent (Luke, Oct 26)
 
 "on the numbers, i need it to the cent, not just rounded to the dollar":

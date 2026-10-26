@@ -11,8 +11,9 @@
 //               rep is saved on the site (edge/subChanges.js); their first one
 //               creates their rep and links it, so there's no "rep on the
 //               board" to pick any more
-//   Commission  standard rates, or their own rate on net from a date
-//               (settings deal_rules `acqOfNet:<name>`)
+//   Commission  their acq. % and dispo % from a date — no "standard" choice
+//               (Luke, Oct 26); deal_rules `acqOf:<name>` / `acqOfNet:<name>`
+//               (acq on net) and `dispoOf:<name>`
 //   TV Board    show / leave off (settings board_hidden)
 // Save runs the existing calls in order (people, sub-accounts, pod lead,
 // commission, TV) and lists what was saved.
@@ -24,6 +25,8 @@ import { updateSubAccount } from '../utils/subaccountsApi.js';
 import { laToday } from '../utils/historyRange.js';
 import { linkProps } from '../shell/router.js';
 import { inputCls } from './ui.jsx';
+import SearchBox from '../shell/SearchBox.jsx';
+import { ratesOf } from '../deals/rules.js';
 import { ROLE_OPTS, keyName } from './team.js';
 
 const repOf = (id) => ALL_REPS.find((r) => r.id === id) || null;
@@ -72,9 +75,14 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
   const lead0 = u?.role === 'trainee' ? (u.trainer ? leadNameOf(u.trainer) : '') : (lists?.reportsTo?.[key] || '');
   const [lead, setLead] = useState(lead0);
   const [take, setTake] = useState(() => new Set());
-  const own0 = rules?.acqOfNet?.[key];
-  const [own, setOwn] = useState(own0 != null);
-  const [rate, setRate] = useState(own0 != null ? String(Math.round(own0 * 1000) / 10) : '');
+  // What they're paid today: their own rates, else the company's (prefilled so
+  // an untouched Save changes nothing); a new person starts blank.
+  const r0 = ratesOf(rules, key);
+  const pctTxt = (x) => (x == null ? '' : String(Math.round(x * 10000) / 100));
+  const [acq, setAcq] = useState(isNew ? '' : pctTxt(r0.acq));
+  const [onNet, setOnNet] = useState(r0.net);
+  const [dispo, setDispo] = useState(isNew ? '' : pctTxt(r0.dispo));
+  const [q, setQ] = useState('');
   const [from, setFrom] = useState(today);
   const tv0 = !(u?.rep_id && tvOff.includes(u.rep_id));
   const [tv, setTv] = useState(tv0);
@@ -88,13 +96,15 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
   // the ones to hand off).
   const goneReps = new Set(users.filter((x) => x.status === 'inactive' && x.rep_id).map((x) => x.rep_id));
   const others = SUBACCOUNTS.filter((s) => !u?.rep_id || s.repId !== u.rep_id)
-    .map((s) => ({ ...s, who: first(repOf(s.repId)?.name || s.repId), gone: goneReps.has(s.repId) }))
+    .map((s) => ({ ...s, who: repOf(s.repId)?.name || s.repId, gone: goneReps.has(s.repId) }))
     .sort((a, b) => (b.gone - a.gone) || a.who.localeCompare(b.who) || marketName(a.marketId).localeCompare(marketName(b.marketId)));
   const flip = (loc) => setTake((x) => { const n = new Set(x); if (n.has(loc)) n.delete(loc); else n.add(loc); return n; });
   const statuses = d.role === 'team' ? [['active', 'Active'], ['training', 'Training'], ['inactive', 'Inactive']] : d.role === 'owner' ? [['active', 'Active']] : [['active', 'Active'], ['inactive', 'Inactive']];
   const leadOpts = [...leads.filter((l) => l.name !== key).map((l) => [l.name, first(l.name), l.title]), ['', 'No pod']];
   const needLead = d.status === 'training' && !lead;
-  const rateOk = !own || (Number(rate) > 0 && Number(rate) <= 100 && /^\d{4}-\d{2}-\d{2}$/.test(from));
+  const pctOk = (x) => x !== '' && Number(x) >= 0 && Number(x) <= 100;
+  const rateOk = !sales || d.status === 'inactive' || (pctOk(acq) && pctOk(dispo) && /^\d{4}-\d{2}-\d{2}$/.test(from));
+  const shown = others.filter((s) => !q.trim() || `${marketName(s.marketId)} ${s.marketId} ${s.who}`.toLowerCase().includes(q.trim().toLowerCase()));
   const ok = d.name.trim() && /@/.test(d.email) && !needLead && rateOk && !self;
 
   const save = async () => {
@@ -144,13 +154,21 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
         if (lead) next.reportsTo[k] = lead; else delete next.reportsTo[k];
         try { await writeSetting('deal-lists', next); note(true, lead ? `Reports to ${first(lead)}` : 'No pod lead'); } catch (e) { note(false, `Pod lead not saved: ${e.message}`); }
       }
-      // Commission.
-      if (sales) {
-        const nowOwn = own ? Number(rate) / 100 : null;
-        const before = rules?.acqOfNet?.[k] ?? null;
-        if (nowOwn !== before) {
-          try { await changeRule({ key: `acqOfNet:${k}`, from: own ? from : today, value: nowOwn }); note(true, own ? `Own rate: ${rate}% of net from ${from}` : 'Standard commission rates'); } catch (e) { note(false, `Commission not saved: ${e.message}`); }
+      // Commission: write only what changed, from the date picked. Moving acq
+      // between "of the commission base" and "of net" clears the other one.
+      if (sales && d.status !== 'inactive') {
+        const was = ratesOf(rules, k);
+        const a = Number(acq) / 100; const dd = Number(dispo) / 100;
+        const same = (x, y) => x != null && y != null && Math.abs(x - y) < 1e-9;
+        const ch = [];
+        if (onNet !== was.net || !same(a, was.acq) || was.acqOwn == null) {
+          ch.push({ key: `${onNet ? 'acqOfNet' : 'acqOf'}:${k}`, value: a });
+          if (onNet !== was.net && was.acqOwn != null) ch.push({ key: `${onNet ? 'acqOf' : 'acqOfNet'}:${k}`, value: null });
         }
+        if (!same(dd, was.dispo) || was.dispoOwn == null) ch.push({ key: `dispoOf:${k}`, value: dd });
+        let okAll = true;
+        for (const c of ch) { try { await changeRule({ ...c, from }); } catch (e) { okAll = false; note(false, `Commission not saved: ${e.message}`); break; } }
+        if (ch.length && okAll) note(true, `Commission: ${acq}% acq ${onNet ? 'of net' : 'of the commission base'} · ${dispo}% dispo, from ${from}`);
       }
       // TV board.
       if (repId && d.status !== 'inactive' && tv === tvOff.includes(repId)) {
@@ -207,27 +225,41 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
               {mine.length > 0 && <div className="flex flex-wrap gap-1.5">{mine.map((s) => <span key={s.locationId} className="rounded-full bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 px-3 py-1 text-[13px] font-semibold">✓ {marketName(s.marketId)}</span>)}</div>}
               {d.status !== 'inactive' && <>
                 <span className="text-[12.5px] text-zinc-500">{mine.length ? 'Tick more to hand them over too.' : 'Tick the states they take over — their first one puts them on the board.'} {mine.length > 0 && 'To move one of theirs away, open the person taking it.'}</span>
-                <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
-                  {others.map((s) => (
-                    <label key={s.locationId} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] ring-1 cursor-pointer ${take.has(s.locationId) ? 'bg-navy-50 ring-navy-300' : s.gone ? 'bg-amber-50/60 ring-amber-200' : 'ring-tan-200 hover:bg-tan-50'}`}>
-                      <input type="checkbox" checked={take.has(s.locationId)} onChange={() => flip(s.locationId)} className="accent-[#1b385f]" />
-                      <span className="min-w-0 truncate"><b className="text-navy-900">{marketName(s.marketId)}</b> <span className={s.gone ? 'text-amber-800' : 'text-zinc-500'}>· {s.who}{s.gone ? ' (inactive)' : ''}</span></span>
+                <SearchBox value={q} onChange={setQ} placeholder="Search a state or a rep…" className="w-full" />
+                <div className="flex flex-col gap-1 max-h-72 overflow-y-auto pr-1 rounded-lg">
+                  {shown.map((s) => (
+                    <label key={s.locationId} className={`shrink-0 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] ring-1 ring-inset cursor-pointer ${take.has(s.locationId) ? 'bg-navy-50 ring-navy-300' : s.gone ? 'bg-amber-50/60 ring-amber-200' : 'ring-tan-200 hover:bg-tan-50'}`}>
+                      <input type="checkbox" checked={take.has(s.locationId)} onChange={() => flip(s.locationId)} className="accent-[#1b385f] shrink-0" />
+                      <b className="text-navy-900 w-36 shrink-0">{marketName(s.marketId)}</b>
+                      <span className={`min-w-0 flex-1 truncate ${s.gone ? 'text-amber-800' : 'text-zinc-600'}`}>{s.who}{s.gone ? ' (inactive)' : ''}</span>
+                      {take.has(s.locationId) && <span className="text-[11.5px] font-semibold text-navy-700 shrink-0">→ {first(d.name) || 'them'}</span>}
                     </label>
                   ))}
+                  {!shown.length && <span className="px-1 py-2 text-[13px] text-zinc-500">No sub-account matches “{q}”.</span>}
                 </div>
+                {take.size > 0 && <span className="text-[12.5px] font-semibold text-navy-800">{take.size} picked to hand over: {[...take].map((l) => marketName(SUBACCOUNTS.find((x) => x.locationId === l)?.marketId)).join(', ')}</span>}
                 <a {...linkProps('/settings/subaccounts')} className="text-[12.5px] text-navy-700 underline self-start">A brand-new sub-account (new location ID and API key)? Add it in Connections →</a>
               </>}
             </Part>
           )}
           {sales && (
             <Part title="Commission" note="when they’re the acq. manager">
-              <Pills value={own} onChange={setOwn} options={[[false, 'Standard rates', rules?.acqRate != null ? `${Math.round(rules.acqRate * 1000) / 10}% acq · ${Math.round(rules.dispoRate * 1000) / 10}% dispo` : ''], [true, 'Own rate on net']]} />
-              {own && (
-                <div className="flex flex-wrap items-center gap-2 text-[13px]">
-                  <input value={rate} onChange={(e) => setRate(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 20" className={`${inputCls} !w-20`} aria-label="Percent of net" />% of net, from
+              {d.status === 'inactive' ? <span className="text-[13px] text-zinc-500">{pctTxt(r0.acq)}% acq · {pctTxt(r0.dispo)}% dispo — kept for their past deals.</span> : <>
+                <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-2 text-[13px]">
+                  <span className="font-semibold text-navy-900">Acquisitions</span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <input value={acq} onChange={(e) => setAcq(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 30" className={`${inputCls} !w-20 ${acq === '' ? 'ring-1 ring-[#B42318]/40' : ''}`} aria-label="Acquisition %" />%
+                    <Pills value={onNet} onChange={setOnNet} options={[[false, 'of the commission base'], [true, 'of net']]} />
+                  </span>
+                  <span className="font-semibold text-navy-900">Dispo</span>
+                  <span className="flex items-center gap-2">
+                    <input value={dispo} onChange={(e) => setDispo(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 20" className={`${inputCls} !w-20 ${dispo === '' ? 'ring-1 ring-[#B42318]/40' : ''}`} aria-label="Dispo %" />% <span className="text-zinc-500">of the commission base</span>
+                  </span>
+                  <span className="font-semibold text-navy-900">Takes effect</span>
                   <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} !w-40`} aria-label="Takes effect on" />
                 </div>
-              )}
+                <span className="text-[12px] text-zinc-500">Commission base = net assignment − TC fee. Closed deals keep the rates they had.</span>
+              </>}
             </Part>
           )}
           {sales && d.status !== 'inactive' && (

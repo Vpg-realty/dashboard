@@ -11,13 +11,17 @@
 //   'acqRate', 'tcFee', …            — a top-level field of the rule set
 //   'manager.rate', 'override.from'  — one field of manager / override
 //   'acqOfNet:<name>'                — one person's "paid on net" rate
+//   'acqOf:<name>' / 'dispoOf:<name>' — one person's own acq. / dispo rate
+//                                      of the commission base (Oct 26)
 // Older shapes still read: a flat rule set, and { versions: [{ from, rules }] }
 // (one date for the whole form) — toTimelines converts both.
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const TRACKER_START = '2000-01-01';
 const SPLIT = ['manager', 'override'];
-const NET = 'acqOfNet:';
+// Per-person maps, stored one timeline per person (`<map>:<name>`).
+const PERSON = ['acqOfNet', 'acqOf', 'dispoOf'];
+const personKey = (k) => PERSON.find((m) => k.startsWith(`${m}:`));
 
 export const isTimelines = (v) => !!v && typeof v === 'object' && !!v.timelines && typeof v.timelines === 'object' && !Array.isArray(v.timelines);
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -29,8 +33,8 @@ export function flatten(set) {
     if (v === undefined) continue;
     if (SPLIT.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
       for (const [f, x] of Object.entries(v)) if (x !== undefined) out[`${k}.${f}`] = x;
-    } else if (k === 'acqOfNet' && v && typeof v === 'object' && !Array.isArray(v)) {
-      for (const [who, x] of Object.entries(v)) out[NET + who] = x;
+    } else if (PERSON.includes(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+      for (const [who, x] of Object.entries(v)) out[`${k}:${who}`] = x;
     } else out[k] = v;
   }
   return out;
@@ -41,7 +45,8 @@ export function compose(flat) {
   const r = {};
   for (const [k, v] of Object.entries(flat)) {
     if (v === null || v === undefined) continue;
-    if (k.startsWith(NET)) (r.acqOfNet ||= {})[k.slice(NET.length)] = v;
+    const pm = personKey(k);
+    if (pm) (r[pm] ||= {})[k.slice(pm.length + 1)] = v;
     else {
       const dot = k.indexOf('.');
       if (dot > 0 && SPLIT.includes(k.slice(0, dot))) (r[k.slice(0, dot)] ||= {})[k.slice(dot + 1)] = v;
@@ -155,4 +160,16 @@ export function timelinesError(t) {
     }
   }
   return null;
+}
+
+// What a person is paid today (Settings › Team, Commissions — Luke, Oct 26:
+// "simply add in the commission rates for both acq and dispo"): their own
+// rate when they have one, else the company rate. `net` = acq on net assignment.
+export function ratesOf(r, name) {
+  const find = (m) => { const e = Object.entries(r?.[m] || {}).find(([n]) => String(n).toUpperCase() === String(name || '').toUpperCase()); return e ? e[1] : null; };
+  const net = find('acqOfNet'); const acqOwn = find('acqOf'); const dispoOwn = find('dispoOf');
+  return {
+    acq: net ?? acqOwn ?? r?.acqRate ?? null, net: net != null, acqOwn: net ?? acqOwn,
+    dispo: dispoOwn ?? r?.dispoRate ?? null, dispoOwn,
+  };
 }

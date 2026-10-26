@@ -61,7 +61,10 @@ const SECTIONS = [
   ] },
 ];
 const DEF = Object.fromEntries(SECTIONS.flatMap((s) => s.rules.filter((d) => d.key).map((d) => [d.key, { ...d, group: s.title }])));
-const defOf = (key) => (key.startsWith(NET) ? { key, label: key.slice(NET.length), hint: 'paid on net assignment instead of the commission base', type: 'pct', net: true, group: 'Paid on net assignment' } : DEF[key] || { key, label: key, type: 'json', group: 'Other' });
+const defOf = (key) => (key.startsWith(NET) ? { key, label: key.slice(NET.length), hint: 'paid on net assignment instead of the commission base', type: 'pct', net: true, group: 'Paid on net assignment' }
+  : key.startsWith('acqOf:') ? { key, label: `${key.slice(6)} · acq.`, hint: 'their own acquisition rate, of the commission base', type: 'pct', group: 'Personal rates' }
+    : key.startsWith('dispoOf:') ? { key, label: `${key.slice(8)} · dispo`, hint: 'their own dispo rate, of the commission base', type: 'pct', group: 'Personal rates' }
+      : DEF[key] || { key, label: key, type: 'json', group: 'Other' });
 
 const SIDES = [['acq', 'Acquisitions only — nothing from the dispo side'], ['both', 'Acquisitions and dispositions']];
 function show(type, v) {
@@ -273,11 +276,14 @@ function ByPerson({ t, today, lists, onEdit }) {
         <tbody>
           {people.map((p) => {
             const owner = none.includes(p.toLowerCase());
-            const net = r.acqOfNet?.[p];
+            const net = r.acqOfNet?.[p]; const acqOwn = r.acqOf?.[p]; const dspOwn = r.dispoOf?.[p];
             const acq = !acqTeam.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" />
-              : net != null ? <Cell main={pct(net)} sub={`of net · own rate ${since(`${NET}${p}`)}`} k={`${NET}${p}`} />
-                : <Cell main={pct(r.acqRate)} sub={`of commission base · ${since('acqRate')}`} k="acqRate" />;
-            const dsp = !dispo.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" /> : <Cell main={pct(r.dispoRate)} sub={`of commission base · ${since('dispoRate')}`} k="dispoRate" />;
+              : net != null ? <Cell main={pct(net)} sub={`of net · ${since(`${NET}${p}`)}`} k={`${NET}${p}`} />
+                : acqOwn != null ? <Cell main={pct(acqOwn)} sub={`of commission base · ${since(`acqOf:${p}`)}`} k={`acqOf:${p}`} />
+                  : <Cell main={pct(r.acqRate)} sub={`of commission base · ${since('acqRate')}`} k="acqRate" />;
+            const dsp = !dispo.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" />
+              : dspOwn != null ? <Cell main={pct(dspOwn)} sub={`of commission base · ${since(`dispoOf:${p}`)}`} k={`dispoOf:${p}`} />
+                : <Cell main={pct(r.dispoRate)} sub={`of commission base · ${since('dispoRate')}`} k="dispoRate" />;
             const lead = [];
             if (p === m.name) lead.push(<Cell key="m" main={`${pct(m.rate)} manager`} sub={`on ${m.side === 'both' ? 'deals' : 'acquisitions'} by ${mgrReps.length ? mgrReps.map((x) => x.rep.split(' ')[0]).join(', ') : 'nobody right now'}`} k="manager.rate" />);
             if (p === o.name) lead.push(<Cell key="o" main={`${pct(o.rate)} pod lead`} sub="of net, closed deals by their reps" k="override.rate" />);
