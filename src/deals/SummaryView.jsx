@@ -14,7 +14,7 @@ import PeriodBar from './PeriodBar.jsx';
 import { PanelHead } from '../shell/Panel.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { setQuery, useLocation, linkProps } from '../shell/router.js';
-import { CANCEL_REASONS } from './fieldLib.js';
+import { reasonsInUse } from './fieldLib.js';
 import { pretty } from './values.js';
 import { isBlank } from './math.js';
 import { Person } from './people.jsx';
@@ -201,13 +201,12 @@ function GroupTable({ kind, rows, prev, owner }) {
 // Cancellations by reason (Luke, Oct 25): the period's cancelled deals by
 // their cancellation reason (CancelDialog.jsx) — a reason picks the list
 // below (`?reason=`), with what happened to the EMD on each.
-const REASON_ROWS = [...CANCEL_REASONS, 'NONE'];
 const reasonOf = (d) => (isBlank(d.cancelReason) ? 'NONE' : d.cancelReason);
 const reasonLabel = (r) => (r === 'NONE' ? 'No reason given' : pretty('cancelReason', r));
 const ourLost = (d) => (['LOST', 'NO'].includes(String(d.emdReturned || '').toUpperCase()) ? Number(d.emd) || 0 : 0);
-function Cancels({ list, reason, onOpenDeal }) {
+function Cancels({ list, reason, onOpenDeal, lists }) {
   const cancelled = list.filter((d) => d.status === 'CANCELLED');
-  const rows = REASON_ROWS.map((r) => {
+  const rows = [...reasonsInUse(lists, cancelled), 'NONE'].map((r) => {
     const ds = cancelled.filter((d) => reasonOf(d) === r);
     return { r, n: ds.length, lost: ds.reduce((t, d) => t + ourLost(d), 0), kept: ds.reduce((t, d) => t + (Number(d.emdKept) || 0), 0) };
   }).filter((x) => x.n || x.r !== 'NONE');
@@ -336,7 +335,7 @@ export default function SummaryView() {
           {view === 'overview' && <Overview data={data} then={then} owner={owner} compareLabel={compare?.label} deals={s.deals} onOpenDeal={open} periodKey={period.key} />}
           {(view === 'acq' || view === 'dispo' || view === 'state') && <GroupTable kind={view} rows={data.groups[view]} prev={then ? data.prevGroups[view] : null} now={data.now} owner={owner} />}
           {view === 'months' && <Months data={data} owner={owner} />}
-          {view === 'cancels' && <Cancels list={data.list} reason={query.get('reason')} onOpenDeal={open} />}
+          {view === 'cancels' && <Cancels lists={s.lists} list={data.list} reason={query.get('reason')} onOpenDeal={open} />}
         </div>
       </div>
       {file && <SummaryFile file={file} deals={s.deals} owner={owner} onOpenDeal={open} />}

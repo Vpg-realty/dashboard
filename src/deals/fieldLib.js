@@ -7,15 +7,21 @@ import { pretty } from './values.js';
 export const LIST_OF = {
   listing: 'listing', state: 'states', dealType: 'dealTypes', status: 'status', cfar: 'yesNo',
   emdPaidBy: 'emdPaidBy', emdReturned: 'yesNo', commPaid: 'yesNo', acq: 'acqTeam', dispoMember: 'dispoMembers',
+  cancelReason: 'cancelReasons',
 };
 // Deal status is a fixed list (Luke, Oct 14: Pending, Assigned, Closed,
 // Cancelled — matching the GHL stages), in that order, not A → Z.
 // EMD returned? adds Lost (Luke, Oct 22) — with its reason in emdLostWhy.
 export const EMD_LOST_WHY = ['PAST_IP', 'NON_REFUNDABLE', 'BUYER_DEFAULT'];
 export const CANCEL_AS = ['LOST', 'ABANDONED'];
-// Why a deal was cancelled (Luke, Oct 25).
+// Why a deal was cancelled (Luke, Oct 25): the starting list. Owners edit it
+// in Settings › Cancellation Reasons and anyone cancelling can add one from
+// the pop-up — stored in deal_lists.cancelReasons (a new one as typed).
 export const CANCEL_REASONS = ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
-export const FIXED_LISTS = { cancelReason: CANCEL_REASONS, cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
+export const reasonList = (lists) => (Array.isArray(lists?.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : CANCEL_REASONS);
+// The list plus any reason a deal already carries (one since removed from the list).
+export const reasonsInUse = (lists, deals) => { const out = [...reasonList(lists)]; const seen = new Set(out.map((x) => x.toLowerCase())); for (const d of deals || []) { const r = d.cancelReason; if (r && !seen.has(String(r).toLowerCase())) { seen.add(String(r).toLowerCase()); out.push(r); } } return out; };
+export const FIXED_LISTS = { cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
 export const KEEP_ORDER = new Set(['cancelReason', 'cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
 // Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
 // "Custom" to type it in.

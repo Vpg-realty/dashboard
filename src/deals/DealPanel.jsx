@@ -23,6 +23,7 @@ import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { PILL_TONE, pretty } from './values.js';
 import CancelDialog from './CancelDialog.jsx';
+import { reasonList } from './fieldLib.js';
 import { stageOf } from './math.js';
 import MismatchList from './Mismatch.jsx';
 import { mismatchRow } from './mismatchRow.js';
@@ -816,7 +817,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
         )}
-        {cancelAsk && <CancelDialog deal={merged} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmCancel} />}
+        {cancelAsk && <CancelDialog deal={merged} reasons={reasonList(s.lists)} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmCancel} />}
         {leaving && (
           <div className="absolute inset-0 z-20 grid place-items-center bg-navy-900/40 p-6" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-title">
             <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl border border-tan-200 p-5">

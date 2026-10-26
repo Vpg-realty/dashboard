@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import CancelDialog from './CancelDialog.jsx';
 import { saveDeal } from './store.js';
 import { Input } from './fields.jsx';
-import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST } from './fieldLib.js';
+import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST, reasonList } from './fieldLib.js';
 import { editFields } from './edits.js';
 
 // Dropdowns save as soon as you pick. Dates don't (typing a year fires a
@@ -51,7 +51,7 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
   });
 
   const dialog = ask && createPortal(
-    <CancelDialog page deal={deal} busy={busy} err={err} onBack={() => { setAsk(false); setErr(null); }}
+    <CancelDialog page deal={deal} reasons={reasonList(lists)} busy={busy} err={err} onBack={() => { setAsk(false); setErr(null); }}
       onConfirm={async (fields) => {
         setBusy(true);
         try { await saveDeal(deal.id, { fields }, deal.updatedAt); setAsk(false); setErr(null); } catch (e) { setErr(e.message); } finally { setBusy(false); }

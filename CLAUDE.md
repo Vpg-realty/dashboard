@@ -1405,6 +1405,14 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   saves it all at once. **Everywhere the stage is set**: the deal panel (any
   page that opens it) and an All Deals Stage cell (`EditableCell` opens the
   same pop-up over the page, `page` prop).
+- **Reasons are editable** (Luke, Oct 25): Settings › Deals › **Cancellation
+  Reasons** (`CancelReasonsView.jsx`, owners) — add, remove, reorder, reset to
+  the starting four; stored in D1 `deal_lists.cancelReasons` (GET /api/deals
+  sends it in `lists`, the four keys by default — `reasonList`). The pop-up
+  has **+ Add a reason**: a typed reason is saved on the deal as typed and
+  PATCH /api/deals/:id appends it to the list (anyone who can cancel). A
+  removed reason stays on its deals and in the filters (`reasonsInUse`). On
+  an added reason the pop-up also asks about the buyer's EMD.
 - **Reason filter** (Luke, Oct 25): All Deals has "Any cancel reason"
   (`?reason=BUYER_DEFAULT …` or `NONE` = cancelled with no reason given);
   Finance Overview's rail has **Cancellations** (`?view=cancels`): the

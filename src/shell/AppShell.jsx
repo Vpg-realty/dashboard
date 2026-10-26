@@ -17,6 +17,7 @@ import ActiveView from '../deals/ActiveView.jsx';
 import AllDealsView from '../deals/AllDealsView.jsx';
 import SummaryView from '../deals/SummaryView.jsx';
 import SettingsFrame from '../settings/Frame.jsx';
+import CancelReasonsView from '../settings/CancelReasonsView.jsx';
 import TargetsView from '../settings/TargetsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
 import TcListView from '../deals/TcListView.jsx';
@@ -68,7 +69,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
-  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView,
+  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView,
   'tk-pof': ProofOfFunds, 'tk-offer': CashOffer, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
