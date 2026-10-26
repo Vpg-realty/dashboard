@@ -968,6 +968,32 @@ Overrides the Settings notes above where they differ.
   now leaves "Setup: no sub-account · no pod lead — finish setup →" on their
   People row (`setupGaps` in src/settings/setup.js — only while they have no
   sub-account, so a rep with no pod on purpose isn't nagged), which reopens it.
+- **Settings › Team — the one place for people (Luke, later Oct 26)**: "a
+  master tab that all info is edited in, then other tabs are there for
+  reference … minimal clicks … almost no effort when adding a new member"
+  (the approved mock-up "One Place for the Team"). Overrides the People /
+  Pod lead / TV board / Sub-Accounts notes above where they differ. The
+  People tab is now **Team** (`/settings/people`, PeopleView.jsx): one row
+  per person — role, pod lead ("Pick one" only for someone with no states
+  yet), states (their GHL sub-accounts as chips; inactive people's flagged
+  "hand off"), commission (Standard / N% of net / None), TV — and a click or
+  **+ Add a Team Member** opens **TeamPanel.jsx**, where everything is edited
+  with one Save: first name, email (new only), role, status (Acquisitions:
+  Active / Training / Inactive — Training = the training program, its pod
+  lead is the trainer), dates, Pod Lead (today's pod leads plus any active
+  manager), **States** (tick the sub-accounts they take over, inactive
+  people's first; moves are saved on the site like Connections' rows — the
+  first one creates their rep and links it, so there's no "rep on the board"
+  to pick any more), Commission (standard, or own rate on net from a date →
+  `acqOfNet:<name>`), TV board. Save runs the existing calls in order and
+  lists what was saved. `?person=<email>` / `?person=new` open the panel,
+  `?who=<name>` finds someone by their deal name (Commissions' name links).
+  **Sub-Accounts → Connections** (same URL): the technical side only —
+  existing rows show their holder read-only ("change on Team →"); a
+  brand-new sub-account, location ID or key is still added there.
+  `effectiveLists` (edge/deals.js) lists every active Acquisitions / Manager
+  from the day they're added (rep name once they have one, else their People
+  name), so they're in Commissions and the deal dropdowns at once.
 - **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the

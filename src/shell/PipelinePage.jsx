@@ -191,7 +191,7 @@ export default function PipelinePage({ mode = 'deals' }) {
       )}
       <div className={`flex-1 ${view === 'cal' ? '' : 'min-h-0'}`}>
         {calBlocked ? (
-          <div className="h-full min-h-[200px] grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Your calendar shows once your account is linked to your rep in Settings › People.</div>
+          <div className="h-full min-h-[200px] grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Your calendar shows once you have a state on Settings › Team.</div>
         ) : isOpps && !oppScope ? (
           <div className="h-full grid place-items-center rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px]">Pick a person to see their opportunities.</div>
         ) : isOpps && opps.status === 'error' ? (
