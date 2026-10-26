@@ -6,7 +6,7 @@
 import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
-import { FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
+import { FIELD, FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
@@ -20,7 +20,7 @@ import { PANEL_HEAD, PANEL_NUM } from '../shell/panelStyle.js';
 import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { useDealPay } from '../finance/store.js';
-import { partOfField, payText } from '../finance/lines.js';
+import { partOfField, payText, PART_FIELD } from '../finance/lines.js';
 import { PILL_TONE, pretty } from './values.js';
 import CancelDialog from './CancelDialog.jsx';
 import StageDialog from './StageDialog.jsx';
@@ -165,6 +165,16 @@ const SECTIONS = [
   { id: 'dispo', label: 'Selling It', short: 'Selling It', groups: ['dispo'] },
   { id: 'money', label: 'The Money', short: 'Money', groups: ['money', 'pay'] },
   { id: 'notes', label: 'Notes & Links', short: 'Notes', groups: ['notes'] },
+];
+// The Money's fields in categories (Luke, Oct 26: "hard to read and
+// navigate … category titles above"), under the breakdown box.
+const MONEY_CATS = [
+  { id: 'costs', anchor: 'money', label: 'Costs', hint: 'taken out of the gross', bar: 'border-[#B42318]', group: 'money', keys: ['addlFees', 'closingCosts', 'tcFee'] },
+  { id: 'made', label: 'What We Make', hint: 'worked out from the prices', bar: 'border-navy-700', group: 'money', keys: ['grossAssign', 'netAssign', 'emdReturn', 'wireExpected'] },
+  { id: 'wire', label: 'Wire & EMD Return', hint: 'fill in at closing', bar: 'border-sky-600', group: 'money', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy'] },
+  { id: 'comm', anchor: 'pay', label: 'Commissions', hint: 'each one and when Finance paid it', bar: 'border-violet-600', group: 'pay', keys: ['commBase', 'commPaid'],
+    table: [['acqComm', 'acqPaidOn', 'Acq. manager'], ['dispoComm', 'dispoPaidOn', 'Dispo'], ['mgrComm', 'mgrPaidOn', 'Manager'], ['override', 'overridePaidOn', 'Mgmt override'], ['tcComm', 'tcPaidOn', 'TC']] },
+  { id: 'profit', label: 'Profit', hint: 'what VPG keeps', bar: 'border-[#15803d]', group: 'pay', keys: ['grossProfit', 'netProfit'] },
 ];
 const SUB_LABEL = { contract: 'Contract', title: 'Title', emd: 'Earnest Money', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
 const HERE = { UNDER_CONTRACT: 'emd', DISPO_ACTIVE: 'dispo', ASSIGNED: 'dispo', COMPLETE: 'money', CANCELLED: 'emd' };
@@ -534,9 +544,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     setForced((x) => (x.includes(sid) ? x : [...x, sid]));
     setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
   };
-  const groupGrid = (gid) => (
+  // `only`: just these fields, in this order (The Money's categories).
+  const groupGrid = (gid, only) => (
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                    {FIELDS.filter((f) => (only ? only.includes(f.key) : f.group === gid) && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (only ? only.indexOf(a.key) - only.indexOf(b.key) : a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.
@@ -687,7 +698,34 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           </span>
         </h3>
         {sec.id === 'money' && moneyBox}
-        {sec.groups.map((gid) => (
+        {sec.id === 'money' ? MONEY_CATS.filter((c) => c.keys.some((k) => FIELD[k] && visible(FIELD[k]))).map((c) => (
+          <div key={c.id} id={c.anchor ? `deal-g-${c.anchor}` : undefined} className="mx-2 mt-3 last:mb-2 rounded-lg border border-tan-200 overflow-hidden">
+            <div className={`flex items-baseline gap-2 border-l-4 ${c.bar} bg-tan-50 px-3 py-1.5`}>
+              <span className="text-[12.5px] font-bold uppercase tracking-[0.1em] text-navy-800">{c.label}</span>
+              <span className="text-[12px] text-zinc-500">{c.hint}</span>
+            </div>
+            {groupGrid(c.group, c.keys)}
+            {c.table && (
+              <table className="w-full text-[13px] tabular-nums border-t border-tan-100">
+                <thead><tr className="text-left text-[11.5px] font-semibold text-zinc-500"><th className="px-4 py-1.5 font-semibold">Commission</th><th className="px-2 py-1.5 font-semibold">Who</th><th className="px-2 py-1.5 text-right font-semibold">Amount</th><th className="px-4 py-1.5 font-semibold">Paid</th></tr></thead>
+                <tbody>
+                  {c.table.map(([amt, on, label]) => {
+                    const v = Number(merged[amt]) || 0;
+                    const who = pay.find((p) => PART_FIELD[p.part] === amt)?.who;
+                    return (
+                      <tr key={amt} className={`border-t border-tan-100 ${v ? '' : 'text-zinc-400'}`}>
+                        <td className="px-4 py-1.5 font-medium">{label}</td>
+                        <td className="px-2 py-1.5">{who ? first(who) : '—'}</td>
+                        <td className="px-2 py-1.5 text-right font-semibold">{v ? money(v) : '—'}</td>
+                        <td className="px-4 py-1.5">{fin && fin.parts[partOfField(amt)] ? <PayTag line={fin.parts[partOfField(amt)]} /> : isBlank(merged[on]) ? '—' : show(FIELD[on], merged[on])}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )) : sec.groups.map((gid) => (
           <div key={gid} id={`deal-g-${gid}`} className={sec.groups.length > 1 ? 'border-t border-tan-100 first-of-type:border-t-0' : ''}>
             {sec.groups.length > 1 && <div className="px-4 pt-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-tan-700">{SUB_LABEL[gid]}</div>}
             {groupGrid(gid)}
