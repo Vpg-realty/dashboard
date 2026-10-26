@@ -1462,7 +1462,8 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
 - **Layout** (Luke, same day: "it looks disorganized"): an "N of M filled
   in" bar under the header, then each group as a numbered card with a navy
   title band and its own "N missing" / ✓ chip; a missing field has a red
-  left edge; Gross / Net / Wire expected as three figures at the foot.
+  left edge; Gross / Net / Wire expected as three figures at the foot. The cards never shrink (`shrink-0`) — Oct 26
+  they were squashed by the scrolling column and cut off their last row.
 - **The Money in the deal panel** (Luke, same day: "hard to read and
   navigate … category titles"): under the breakdown box the fields sit in
   titled categories (`MONEY_CATS` in DealPanel.jsx, a coloured left bar
