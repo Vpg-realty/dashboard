@@ -530,7 +530,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   };
   const groupGrid = (gid) => (
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+                    {FIELDS.filter((f) => f.group === gid && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.
@@ -632,6 +632,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     }
     add('Gross assignment', merged.grossAssign, 'sum');
     if (Number(merged.addlFees)) add('Additional fees', -Number(merged.addlFees), 'minus');
+    if (Number(merged.closingCosts)) add('Closing costs', -Number(merged.closingCosts), 'minus');
     add('Net assignment', merged.netAssign, 'sum');
     if (owner) {
       for (const p of pay) add(`${p.part[0].toUpperCase()}${p.part.slice(1)} · ${first(p.who)}`, -p.amount, 'minus');

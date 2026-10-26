@@ -258,6 +258,8 @@ export function effectiveLists(lists, users, roster) {
   const people = (list) => [...new Set([...(list || []), ...active])].filter((n) => !gone.has(String(n).toLowerCase()));
   const states = [...new Set(roster.subaccounts.map((x) => marketName.get(x.marketId)).filter(Boolean).map((n) => n.toUpperCase()))];
   const reasons = Array.isArray(lists.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
-  return { ...lists, cancelReasons: reasons, acqTeam: people(lists.acqTeam), dispoMembers: people(lists.dispoMembers), states: [...new Set([...(lists.states || []), ...states])] };
+  // Double close (Luke, Oct 26) is always a deal type, whatever the stored list says.
+  const dealTypes = [...new Set([...(lists.dealTypes || ['WHOLESALE', 'CREATIVE', 'JV']), 'DOUBLE CLOSE'])];
+  return { ...lists, dealTypes, cancelReasons: reasons, acqTeam: people(lists.acqTeam), dispoMembers: people(lists.dispoMembers), states: [...new Set([...(lists.states || []), ...states])] };
 }
 

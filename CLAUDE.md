@@ -1419,6 +1419,20 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
   a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
 
+## Double close; one formula for every deal type (Luke, Oct 26)
+
+- **Deal type "Double close"** (`DOUBLE CLOSE`): always in the Deal type
+  list (`effectiveLists` in edge/deals.js adds it to deal_lists.dealTypes).
+- **Every deal type uses the wholesale math** ("no matter what type of deal
+  it is the equations … should match the wholesale equations"): compute()
+  no longer has Finder's fee's own gross / net / wire (no deal used it —
+  checked, all 172 deals compute the same).
+- **Closing costs** (`closingCosts`, money, Financials / The Money): shown
+  once Deal type is Double close (or a value is in); taken out of net like
+  additional fees (net = gross − additional fees − closing costs, so the
+  wire expected and commissions follow), a "Closing costs" line in The
+  Money's breakdown. Reps don't see it (money group).
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
