@@ -44,8 +44,13 @@ export async function onRequestPost(context) {
   const before = await db.prepare('SELECT email, name, role, rep_id, status, start_date, end_date FROM users WHERE email = ?').bind(p.email).first();
   const status = body.status === undefined ? before?.status || 'active' : String(body.status);
   if (!['active', 'inactive'].includes(status)) return json({ error: 'pick a status' }, 400);
-  const started = body.started === undefined ? before?.start_date || null : body.started || null;
-  const ended = body.ended === undefined ? before?.end_date || null : body.ended || null;
+  // A save never blanks a stored date (Luke, Oct 26: "daniel's dates were
+  // removed when it went down … dont allow this to happen") — a date can be
+  // changed, not erased. Going inactive with no end date ends them today.
+  const started = body.started || before?.start_date || null;
+  let ended = body.ended || before?.end_date || null;
+  const status0 = body.status === undefined ? before?.status || 'active' : String(body.status);
+  if (status0 === 'inactive' && (before?.status || 'active') !== 'inactive' && !ended) ended = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date());
   if ((started && !DATE.test(started)) || (ended && !DATE.test(ended))) return json({ error: 'pick a date' }, 400);
   if (started && ended && ended < started) return json({ error: 'the end date is before the start date' }, 400);
   if (status === 'inactive' && p.role === 'owner') return json({ error: 'an owner can’t be set inactive — change their role first' }, 400);

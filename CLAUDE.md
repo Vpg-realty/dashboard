@@ -936,6 +936,21 @@ Overrides the Settings notes above where they differ.
   be set inactive. **Pod lead** column = deal_lists.reportsTo by rep name
   (the one place; saves at once; the pod override and, since Oct 20, every
   pod on the site follow it — Phase 6).
+- **Inactive, aligned** (Luke, Oct 26: Daniel set inactive — "his dates
+  were removed … dont allow this", "TV on … should become off
+  automatically, and the assigned sub accounts … a flag"): a save never
+  blanks a stored Started / Ended date (functions/api/settings/users.js —
+  a date can be changed, not erased; the inputs keep the old value when
+  cleared), and going inactive with no end date ends them today (Arizona;
+  the Status pick fills it in the row too). Inactive = off the TV board
+  automatically: scripts/load-private-files.mjs adds every inactive person's
+  rep to `.cache/board-hidden.json`; People shows their TV switch as Off.
+  Their sub-accounts are flagged **To hand off**: on top of Settings ›
+  Sub-Accounts (an amber count, the rows first with a note under each) and on
+  their People row ("N sub-accounts still in their name — hand off →").
+  Daniel's end date was set to Oct 26 in D1. People fits the page with no
+  sideways scroll (fixed column widths; Started / Ended stacked in one
+  Dates column).
 - **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the

@@ -89,7 +89,18 @@ async function main() {
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
     const row = d.result?.[0]?.results?.[0];
-    const ids = row?.value ? (JSON.parse(row.value).repIds || []) : [];
+    let ids = row?.value ? (JSON.parse(row.value).repIds || []) : [];
+    // Inactive people are off the TV board too (Luke, Oct 26: "this should
+    // become off automatically").
+    try {
+      const r2 = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ sql: "SELECT rep_id FROM users WHERE status = 'inactive' AND rep_id IS NOT NULL" }),
+      });
+      const d2 = await r2.json();
+      if (r2.ok && d2.success) ids = [...new Set([...ids, ...(d2.result?.[0]?.results || []).map((x) => x.rep_id).filter(Boolean)])];
+    } catch { /* the setting alone */ }
     fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
     fs.writeFileSync(path.join(ROOT, '.cache', 'board-hidden.json'), JSON.stringify(ids));
     console.log(`[private-files] reps off the TV board: ${ids.length}`);

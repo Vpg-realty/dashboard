@@ -10,7 +10,7 @@
 // Ended dates, and the Pod lead column — the one place for "reports to".
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
-import { ALL_REPS } from '../data/config.js';
+import { ALL_REPS, SUBACCOUNTS } from '../data/config.js';
 import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
 import { linkProps } from '../shell/router.js';
@@ -178,19 +178,24 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, s
   return (
     <tr className={`border-t border-zinc-100 align-middle ${start.status === 'inactive' ? 'opacity-70' : ''}`}>
       <td className={cell}><input value={d.name} disabled={self} onChange={(e) => setD({ ...d, name: e.target.value })} className={`${inputCls} disabled:bg-zinc-50`} />
-        <span className="block mt-0.5 text-zinc-500 text-[12px] truncate max-w-[220px]" title={u.email}>{u.email}{self && <span className="ml-1.5 rounded bg-tan-100 px-1 py-0.5 text-[10.5px] text-navy-700 font-semibold">you</span>}</span></td>
+        <span className="block mt-0.5 text-zinc-500 text-[12px] truncate" title={u.email}>{u.email}{self && <span className="ml-1.5 rounded bg-tan-100 px-1 py-0.5 text-[10.5px] text-navy-700 font-semibold">you</span>}</span></td>
       <td className={cell}>
         <SearchSelect value={d.role} disabled={self} onChange={(v) => v && setD({ ...d, role: v, status: v === 'owner' ? 'active' : d.status === 'training' && v !== 'team' ? 'active' : d.status })} clearable={false} sort={false} options={ROLES.filter((r) => r !== 'trainee').map((r) => ({ value: r, label: ROLE_LABEL[r] || r }))} />
       </td>
       <td className={cell}>
-        <SearchSelect value={d.status} disabled={self} onChange={(v) => v && setD({ ...d, status: v })} clearable={false} sort={false} buttonClass={`w-full h-8 flex items-center gap-1.5 rounded-md px-2 text-left text-[13px] font-semibold ring-1 ring-inset disabled:opacity-60 ${STATUS_TONE[d.status]}`} options={statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] }))} />
+        <SearchSelect value={d.status} disabled={self} onChange={(v) => v && setD({ ...d, status: v, ended: v === 'inactive' && !d.ended ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date()) : d.ended })} clearable={false} sort={false} buttonClass={`w-full h-8 flex items-center gap-1.5 rounded-md px-2 text-left text-[13px] font-semibold ring-1 ring-inset disabled:opacity-60 ${STATUS_TONE[d.status]}`} options={statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] }))} />
       </td>
-      <td className={cell}><input type="date" value={d.started || ''} disabled={self} onChange={(e) => setD({ ...d, started: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Started" /></td>
-      <td className={cell}><input type="date" value={d.ended || ''} disabled={self} onChange={(e) => setD({ ...d, ended: e.target.value || null })} className={`${inputCls} disabled:bg-zinc-50`} aria-label="Ended" /></td>
+      <td className={cell}>
+        <label className="flex items-center gap-1.5"><span className="w-7 shrink-0 text-[11px] text-zinc-500">Start</span><input type="date" value={d.started || ''} disabled={self} onChange={(e) => setD({ ...d, started: e.target.value || d.started || null })} className={`${inputCls} min-w-0 h-8 px-1 text-[12px] disabled:bg-zinc-50`} aria-label="Started" /></label>
+        <label className="mt-1 flex items-center gap-1.5"><span className="w-7 shrink-0 text-[11px] text-zinc-500">End</span><input type="date" value={d.ended || ''} disabled={self} onChange={(e) => setD({ ...d, ended: e.target.value || d.ended || null })} className={`${inputCls} min-w-0 h-8 px-1 text-[12px] disabled:bg-zinc-50`} aria-label="Ended" /></label>
+      </td>
       <td className={cell}>
         <RepOrLead d={{ ...d, role: d.status === 'training' ? 'trainee' : d.role }} setD={(x) => setD({ ...x, role: d.role })} disabled={self} />
         {u.role === 'trainee' && <a {...linkProps(`/team/training?trainee=${encodeURIComponent(u.email)}`)} className="block mt-1 text-[12px] text-navy-700 underline">Training file{u.start ? ` · started ${u.start}` : ''} →</a>}
         {u.role !== 'trainee' && u.graduated_at && <span className="block mt-1 text-[12px] text-emerald-700">Graduated from training</span>}
+        {start.status === 'inactive' && u.rep_id && SUBACCOUNTS.some((x) => x.repId === u.rep_id) && (
+          <a {...linkProps('/settings/subaccounts')} className="block mt-1 text-[12px] font-semibold text-amber-800 underline">{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length} sub-account{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length === 1 ? '' : 's'} still in their name — hand off →</a>
+        )}
       </td>
       <td className={cell}>
         {lead === null ? <span className="text-zinc-400">—</span> : (
@@ -200,7 +205,10 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, s
       <td className={cell}>
         {/* On the TV board (Luke, Oct 22): off = left out of the TV / Team
             Overview only; every other page keeps them. */}
-        {!u.rep_id ? <span className="text-zinc-400">—</span> : (
+        {!u.rep_id ? <span className="text-zinc-400">—</span> : start.status === 'inactive' ? (
+          // Inactive = off the TV board automatically (Luke, Oct 26).
+          <span title="Inactive people are left off the TV board and Team Overview" className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12.5px] font-semibold ring-1 ring-inset bg-zinc-100 text-zinc-500 ring-zinc-300"><span className="w-2 h-2 rounded-full bg-zinc-400" />Off</span>
+        ) : (
           <button type="button" onClick={() => setTv(u.rep_id, !tvHidden)} role="switch" aria-checked={!tvHidden}
             title={tvHidden ? 'Not on the TV board or Team Overview — click to show them' : 'On the TV board and Team Overview — click to leave them off'}
             className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12.5px] font-semibold ring-1 ring-inset ${tvHidden ? 'bg-zinc-100 text-zinc-500 ring-zinc-300' : 'bg-emerald-50 text-emerald-800 ring-emerald-300'}`}>
@@ -208,10 +216,10 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, s
           </button>
         )}
       </td>
-      <td className="py-2 text-right whitespace-nowrap">
-        {err && <span className="text-red-700 text-xs mr-2">{err}</span>}
-        {note && <span className="text-emerald-700 text-xs mr-2">{note}</span>}
-        {dirty && <button onClick={save} disabled={busy} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[13px] font-semibold mr-2">{busy ? 'Saving…' : 'Save'}</button>}
+      <td className="py-2 text-right">
+        {err && <span className="block text-red-700 text-xs mb-1">{err}</span>}
+        {note && <span className="block text-emerald-700 text-xs mb-1">{note}</span>}
+        {dirty && <button onClick={save} disabled={busy} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[13px] font-semibold">{busy ? 'Saving…' : 'Save'}</button>}
         {!self && <button onClick={remove} className="h-8 px-2 text-[13px] text-red-600 hover:underline" title="Delete them completely — Inactive keeps their history">Remove</button>}
       </td>
     </tr>
@@ -270,12 +278,13 @@ export default function PeopleView() {
   };
   const addRoles = ROLES.filter((r) => r !== 'trainee');
   return (
-    <div className="max-w-[1200px] flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {[['Everyone', list.filter((u) => u.status !== 'inactive')], ['Inactive', list.filter((u) => u.status === 'inactive')]].map(([title, rows]) => (rows.length > 0 || title === 'Everyone') && (
         <Section key={title} title={`${title} · ${rows.length}`} sub={title === 'Inactive' ? 'Can’t sign in; history kept. Set one back to Active to restore access.' : 'Role decides what they see; Status is Training, Active or Inactive. Pod lead is who they report to — it saves at once and decides the pod override.'}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13.5px] min-w-[1160px]">
-              <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Started', 'Ended', 'Rep on the board · trainer', 'Pod lead', 'TV board', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
+          <div>
+            <table className="w-full table-fixed text-left text-[13.5px]">
+              <colgroup><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[11%]" /><col className="w-[20%]" /><col className="w-[15%]" /><col className="w-[11%]" /><col className="w-[7%]" /><col className="w-[9%]" /></colgroup>
+              <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Dates', 'Rep on the board · trainer', 'Pod lead', 'TV board', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
               <tbody>
                 {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} tvHidden={!!u.rep_id && tvOff.includes(u.rep_id)} setTv={setTv} />)}
               </tbody>
