@@ -1487,6 +1487,20 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   for the same rep + state, a market code already used.
 - **Manage Reps is gone** (rename / add / delete reps): People is the one
   place for people. The list below keeps health, reassign and remove.
+- **Moves save on the site, no GitHub needed** (Luke, Oct 26: "when i
+  change the name for daniel missouri it does not let me save" — no GitHub
+  key was on file, so every Save stopped at "Connect GitHub first"): moving a
+  sub-account to another rep or market (no new location ID, key or market)
+  is saved in D1 settings `subaccount_changes` (`edge/subChanges.js`:
+  `saveChange` / `applyChanges` / `forgetChange`) — functions/api/subaccounts
+  answers with the applied list, starts a refresh when a GitHub key exists,
+  and scripts/load-private-files.mjs rewrites subaccounts.json on disk with
+  the changes before the snapshot, the app build and the functions bundle
+  (best effort). A GitHub write to a location drops its D1 change. Adding a
+  sub-account, a new location ID / API key or a new market still needs the
+  GitHub connection; the row says so under itself, and every save's answer
+  shows under the row too. People names are first names only (Jake was
+  "Jake Rader" — renamed in D1 Oct 26); a new rep's board name comes from it.
 - **How to hand sub-accounts to someone** (Luke, Oct 26: Jake takes over
   Daniel's NC and MO, Daniel's TX goes to Cayden): a fold on top of
   Settings › Sub-Accounts (`HandOff` in SubAccountsView.jsx) — add the person

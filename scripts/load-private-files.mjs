@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyChanges, KEY as SUB_CHANGES } from '../edge/subChanges.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
@@ -94,6 +95,30 @@ async function main() {
     console.log(`[private-files] reps off the TV board: ${ids.length}`);
   } catch (err) {
     console.log(`[private-files] TV board list not read (${err.message}) — everyone shows`);
+  }
+
+  // Sub-account moves saved on the site (Settings › Sub-Accounts, Oct 26 —
+  // edge/subChanges.js): applied to subaccounts.json on disk before anything
+  // reads it (snapshot, app build, functions bundle). Best effort: a failed
+  // read keeps the file as committed.
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT value FROM settings WHERE key = ?', params: [SUB_CHANGES] }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const row = d.result?.[0]?.results?.[0];
+    if (row?.value) {
+      const file = path.join(ROOT, 'subaccounts.json');
+      const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const next = applyChanges(cfg, JSON.parse(row.value));
+      fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+      console.log(`[private-files] sub-account changes from Settings: ${Object.keys(JSON.parse(row.value).subs || {}).length}`);
+    }
+  } catch (err) {
+    console.log(`[private-files] sub-account changes not read (${err.message}) — subaccounts.json as committed`);
   }
 
   // KPI targets from Settings › KPI Targets (Oct 22), baked into the app by

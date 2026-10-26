@@ -15,6 +15,8 @@
 import { currentUser, json } from '../../edge/auth.js';
 import { log } from '../../edge/settings.js';
 import { client, addSubAccount, updateSubAccount, reassignSubAccount, removeSubAccount } from '../../edge/github.js';
+import { saveChange, forgetChange, readChanges, applyChanges } from '../../edge/subChanges.js';
+import roster from '../../subaccounts.json' with { type: 'json' };
 
 const ID = /^[A-Za-z0-9_-]{4,60}$/;
 const SLUG = /^[a-z0-9_]{2,40}$/;
@@ -63,7 +65,24 @@ export async function onRequestPost(context) {
     }
 
     const k = await keyRow(db);
-    if (!k?.token) return json({ error: 'No GitHub key yet — an owner adds it once in Settings › Sub-Accounts.', needKey: true }, 409);
+    // Moving a sub-account to another rep or market touches no secret: it's
+    // saved in D1 and applied by every deploy (edge/subChanges.js), with or
+    // without a GitHub key (Luke, Oct 26 — those saves failed with no key).
+    const r0 = b.newRep;
+    const siteOnly = (b.action === 'update' && (!b.newLocationId || b.newLocationId === b.locationId) && !b.pit && !b.newMarket) || b.action === 'reassign';
+    if (siteOnly) {
+      const sa = applyChanges(roster, await readChanges(db)).subaccounts.find((x) => x.locationId === b.locationId);
+      const marketId = b.marketId || sa?.marketId;
+      if (!ID.test(b.locationId || '') || !SLUG.test(b.repId || '') || !CODE.test(marketId || '')) return json({ error: 'rep, market and location ID needed' }, 400);
+      if (r0 && (!SLUG.test(r0.id || '') || !String(r0.name || '').trim() || !COLOR.test(r0.color || ''))) return json({ error: 'the new rep needs a name' }, 400);
+      const config = await saveChange(db, roster, { locationId: b.locationId, repId: b.repId, marketId, newRep: r0 ? { id: r0.id, name: String(r0.name).trim().slice(0, 60), color: r0.color } : null }, user.name);
+      await log(db, user, 'subaccounts.update', { locationId: b.locationId, repId: b.repId, marketId, newRep: r0?.id || null, saved: 'site' });
+      // Start a refresh when we can; otherwise the next one (≤ 15 min) picks it up.
+      let refresh = false;
+      if (k?.token) { try { await client(k.token).deploy(); refresh = true; } catch { /* the next run picks it up */ } }
+      return json({ config, refresh });
+    }
+    if (!k?.token) return json({ error: 'This needs the GitHub connection (a new sub-account, location ID or API key) — connect it in the card at the top of this page.', needKey: true }, 409);
     const gh = client(k.token);
 
     if (b.action === 'deploy') {
@@ -86,7 +105,7 @@ export async function onRequestPost(context) {
         pit,
       });
       await log(db, user, 'subaccounts.add', { ...s, newMarket: m?.id || null, newRep: r?.id || null });
-      return json({ config });
+      return json({ config: applyChanges(config, await readChanges(db)) });
     }
     if (b.action === 'update') {
       if (!ID.test(b.locationId || '') || !SLUG.test(b.repId || '') || !CODE.test(b.marketId || '')) return json({ error: 'rep, market and location ID needed' }, 400);
@@ -104,20 +123,22 @@ export async function onRequestPost(context) {
         newRep: r ? { id: r.id, name: String(r.name).trim().slice(0, 60), color: r.color } : null,
         pit,
       });
+      await forgetChange(db, b.locationId);
       await log(db, user, 'subaccounts.update', { locationId: b.locationId, newLocationId: b.newLocationId || null, repId: b.repId, marketId: b.marketId, newKey: !!pit, newMarket: m?.id || null, newRep: r?.id || null });
-      return json({ config });
+      return json({ config: applyChanges(config, await readChanges(db)) });
     }
     if (b.action === 'reassign') {
       if (!ID.test(b.locationId || '') || !SLUG.test(b.repId || '')) return json({ error: 'location and rep needed' }, 400);
       const config = await reassignSubAccount(gh, b.locationId, b.repId);
       await log(db, user, 'subaccounts.reassign', { locationId: b.locationId, repId: b.repId });
-      return json({ config });
+      return json({ config: applyChanges(config, await readChanges(db)) });
     }
     if (b.action === 'remove') {
       if (!ID.test(b.locationId || '')) return json({ error: 'location needed' }, 400);
       const config = await removeSubAccount(gh, b.locationId);
+      await forgetChange(db, b.locationId);
       await log(db, user, 'subaccounts.remove', { locationId: b.locationId });
-      return json({ config });
+      return json({ config: applyChanges(config, await readChanges(db)) });
     }
     return json({ error: 'unknown action' }, 400);
   } catch (err) {
