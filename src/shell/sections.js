@@ -177,7 +177,7 @@ export const SECTIONS = [
     // deciding (src/settings/Frame.jsx) instead of tabs along the top.
     id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin', rail: true,
     tabs: [
-      { id: 'people', label: 'People', view: 'settings-people', scroll: true, group: 'Team', sub: 'Logins and roles', title: 'Who can use the dashboard', blurb: 'Everyone who can sign in, their role and their rep on the board. Changes apply the next time they load a page.' },
+      { id: 'people', label: 'Team', view: 'settings-people', scroll: true, group: 'Team', sub: 'Everyone, and everything about them', title: 'The team', blurb: 'Everyone who can sign in — role, pod lead, states, commission and TV board, all set in one place. Click a person to change anything; + Add a Team Member for someone new.' },
       { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
       { id: 'targets', label: 'KPI Targets', view: 'settings-targets', scroll: true, group: 'Team', sub: 'Opps, offers, contracts, revenue', title: 'KPI targets', blurb: 'The per-rep targets the board, the TV and the scorecards are graded on. Each change has a start date, so earlier weeks keep their scores.' },
       // Oct 19 (Luke's site map): Pods and TC Pay folded into Commissions (who
@@ -186,7 +186,7 @@ export const SECTIONS = [
       // Sub-Accounts moved in from the sidebar.
       { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'Rates by person, the rules', title: 'Who gets paid what', blurb: 'Every rate with its start date — acquisitions, dispo, manager, pod lead and the TC. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
       { id: 'cancel-reasons', label: 'Cancellation Reasons', view: 'settings-cancel', scroll: true, group: 'Deals', sub: 'What the cancel pop-up offers', title: 'Cancellation reasons', blurb: 'The reasons a deal can be cancelled for. They show in the cancel pop-up, the All Deals filter and Finance Overview › Cancellations.' },
-      { id: 'subaccounts', label: 'Sub-Accounts', view: 'settings-subaccounts', scroll: true, group: 'Connections', sub: 'GHL accounts per rep and state', title: 'GHL sub-accounts', blurb: 'Each rep’s GoHighLevel sub-account per state, and its key. Adding one puts the rep and state on every page.' },
+      { id: 'subaccounts', label: 'Connections', view: 'settings-subaccounts', scroll: true, group: 'Connections', sub: 'GHL keys, health, GitHub', title: 'GHL connections', blurb: 'The technical side of each GoHighLevel sub-account: location ID, API key and health, and adding a brand-new one. Who holds each state is set on Team.' },
       { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Connections', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
     ],
   },

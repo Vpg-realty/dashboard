@@ -23,24 +23,14 @@ const REP_ROLES = ['team', 'manager', 'trainee', 'owner'];
 
 // Giving sub-accounts to someone new (Luke, Oct 26: Jake takes over Daniel's
 // NC and MO, Daniel's TX goes to Cayden — "I don't see an easy way").
+// Who holds which sub-account is set on Settings › Team (Luke, Oct 26: "a
+// master tab that all info is edited in, then other tabs are there for
+// reference") — this page is the technical side: location IDs, API keys,
+// health, a brand-new sub-account.
 function HandOff() {
-  const [open, setOpen] = useState(false);
-  const a = 'font-semibold text-navy-700 underline underline-offset-2';
   return (
-    <div className="rounded-xl border border-tan-300 bg-white">
-      <button type="button" onClick={() => setOpen((x) => !x)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
-        <span className="font-semibold text-navy-800">How to hand sub-accounts to someone (a new person or another rep)</span>
-        <span className="ml-auto text-[12.5px] font-semibold text-navy-700">{open ? 'Hide ▴' : 'Show ▾'}</span>
-      </button>
-      {open && (
-        <ol className="px-4 pb-4 flex flex-col gap-2.5 text-[13.5px] text-zinc-700 list-decimal list-inside">
-          <li><b>New person? Add them first</b> in <a {...linkProps('/settings/people')} className={a}>Settings › People</a> → <i>+ Add a person</i>: full name (this is the name the board shows), company email, role Acquisitions. If they're already trained, <b>untick "Enroll in the training program"</b> — a trainee's sub-accounts stay off the board until they graduate. Leave "Rep on the board" as <i>Not on the board yet</i>.</li>
-          <li><b>Here, on each sub-account they take over</b>, pick them in the <b>Rep</b> column (a new person shows "· not on the board yet") and press <b>Save</b>. Keep the Location ID and leave the API key blank — the account itself doesn't change. The first save puts them on the board under their name and links them in People.</li>
-          <li>Moving one to a rep who's already on the board (e.g. a TX account to Cayden) is the same: pick them in Rep, Save.</li>
-          <li>Each save starts a refresh — the board, scorecards and pipelines show the new owner in about 15 minutes. Numbers from before the switch stay with the old rep.</li>
-          <li>Then, back in People: set their <b>Pod lead</b> and <b>TV board</b> switch. If the person handing off is leaving, set them <b>Inactive</b> there (their zips are released and their open alerts go to their pod lead).</li>
-        </ol>
-      )}
+    <div className="rounded-xl border border-tan-300 bg-white px-4 py-3 text-[13.5px] text-zinc-700">
+      <b className="text-navy-800">Handing a state to someone?</b> Do it on <a {...linkProps('/settings/people')} className="font-semibold text-navy-700 underline underline-offset-2">Settings › Team</a> — open the person taking it over and tick the state. This page is for the technical side: a brand-new sub-account (location ID and API key), replacing a key, and each one's health.
     </div>
   );
 }
@@ -174,7 +164,9 @@ function SubRow({ sub, people, health, gone, connected, onDone, setStatus, cfg }
       <tr className={`border-t border-tan-100 ${!sub ? 'bg-tan-50/60' : dirty || gone ? 'bg-amber-50/40' : ''}`}>
         <td className={cell}>
           {!sub && <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-tan-700 mb-1">Add a sub-account</span>}
-          <SearchSelect value={d.repId} onChange={(v) => set('repId')(v || '')} placeholder="Pick a person" clearable={false} options={choices.map(({ value, label }) => ({ value, label }))} />
+          {sub ? (
+            <span className="flex flex-col"><b className="text-navy-900 text-[13.5px]">{choices.find((c) => c.value === d.repId)?.label.split(' · ')[0] || d.repId}</b><a {...linkProps('/settings/people')} className="text-[12px] text-navy-700 underline">change on Team →</a></span>
+          ) : <SearchSelect value={d.repId} onChange={(v) => set('repId')(v || '')} placeholder="Pick a person" clearable={false} options={choices.map(({ value, label }) => ({ value, label }))} />}
         </td>
         <td className={cell}>
           {!sub && <span className="block text-[11px] mb-1">&nbsp;</span>}
@@ -222,7 +214,7 @@ function SubRow({ sub, people, health, gone, connected, onDone, setStatus, cfg }
       )}
       {gone && !dirty && !note && (
         <tr className="bg-amber-50/70">
-          <td colSpan={6} className="pb-2.5 pr-2.5 text-[12.5px] text-amber-900"><b>To hand off</b> — {gone} is inactive. Pick who takes this sub-account in Rep, then Save.</td>
+          <td colSpan={6} className="pb-2.5 pr-2.5 text-[12.5px] text-amber-900"><b>To hand off</b> — {gone} is inactive. Open the person taking it over on <a {...linkProps('/settings/people')} className="underline font-semibold">Team</a> and tick this state.</td>
         </tr>
       )}
       {(note || (dirty && needsGit && !connected)) && (
@@ -273,7 +265,7 @@ export default function SubAccountsView() {
       <HandOff />
       <Section title={`Sub-Accounts · ${rows.length}`} right={<span>{tally.live || 0} live · {tally.idle || 0} no data · {tally.error || 0} errors</span>}
         sub="Change any row the same way you add one — a new person taking over, a different market, a new location ID or a new API key — then Save. Moving a row to another rep or market saves right here; a new sub-account, location ID or API key needs the GitHub connection. The API key is never shown again; leave it blank to keep the saved one. People come from Settings › People.">
-        {toHand.length > 0 && <div className="mb-3 rounded-lg px-3 py-2 text-[13.5px] bg-amber-50 text-amber-900 border border-amber-200"><b>{toHand.length} sub-account{toHand.length === 1 ? '' : 's'} to hand off</b> — still in the name of someone who's inactive ({[...new Set(toHand.map((r) => gone.get(r.sa.repId)))].join(', ')}). They're at the top: pick who takes each one and Save. Until then their numbers stay under that person and off the TV board.</div>}
+        {toHand.length > 0 && <div className="mb-3 rounded-lg px-3 py-2 text-[13.5px] bg-amber-50 text-amber-900 border border-amber-200"><b>{toHand.length} sub-account{toHand.length === 1 ? '' : 's'} to hand off</b> — still in the name of someone who's inactive ({[...new Set(toHand.map((r) => gone.get(r.sa.repId)))].join(', ')}). They're at the top. Hand each one over on Team (open the person taking it, tick the state). Until then their numbers stay under that person and off the TV board.</div>}
         {msg && <div className={`mb-3 rounded-lg px-3 py-2 text-[13.5px] ${msg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>{msg.text}</div>}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px] min-w-[1100px]">

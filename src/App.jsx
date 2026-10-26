@@ -15,7 +15,7 @@ function NoAccess({ me }) {
       <div className="max-w-md">
         <svg viewBox="0 0 600 781" className="h-16 mx-auto" aria-hidden="true"><path d="M0 207 L118 0 L450 577 L332 781 Z" fill="#1b385f" /><path d="M312 199 H490 A105 105 0 0 1 581 356 L490 508 Z" fill="#ad9b7a" /></svg>
         <h1 className="mt-6 text-xl font-semibold text-navy-700">{me.inactive ? 'Your dashboard access has ended' : 'You\'re signed in, but not set up yet'}</h1>
-        <p className="mt-2 text-zinc-600">{me.inactive ? `${me.email} is marked inactive. If that's a mistake, ask Luke or Jack to set you back to Active in Settings › People.` : `${me.email} isn't on the dashboard's people list. Ask Luke or Jack to add you in Settings › People.`}</p>
+        <p className="mt-2 text-zinc-600">{me.inactive ? `${me.email} is marked inactive. If that's a mistake, ask Luke or Jack to set you back to Active in Settings › Team.` : `${me.email} isn't on the dashboard's people list. Ask Luke or Jack to add you in Settings › Team.`}</p>
         <button onClick={logout} className="mt-5 h-9 px-4 rounded-lg border border-navy-700 text-navy-700 font-semibold hover:bg-navy-50">Log out</button>
       </div>
     </div>

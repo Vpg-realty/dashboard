@@ -11,7 +11,7 @@
 // Before saving, shows which deals the change moves.
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from '../shell/router.js';
+import { useLocation, linkProps } from '../shell/router.js';
 import { readSetting, changeRule } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute, RULE_STATUSES } from '../deals/math.js';
@@ -46,7 +46,7 @@ const SECTIONS = [
     // never off the dispo side — editable here.
     { key: 'manager.side', label: 'Paid on', hint: 'which side of the deal a listed rep must be on', type: 'side' },
   ] },
-  { title: 'Pod override', sub: 'Paid to the pod lead on closed deals by the reps who report to them (Settings › People › Pod lead).', rules: [
+  { title: 'Pod override', sub: 'Paid to the pod lead on closed deals by the reps who report to them (their pod lead, set on Settings › Team).', rules: [
     { key: 'override.name', label: 'Pod lead', type: 'person' },
     { key: 'override.rate', label: 'Rate', hint: 'of net assignment', type: 'pct' },
     { key: 'override.from', label: 'Only on deals with COE from', type: 'date' },
@@ -283,7 +283,7 @@ function ByPerson({ t, today, lists, onEdit }) {
             if (p === o.name) lead.push(<Cell key="o" main={`${pct(o.rate)} pod lead`} sub="of net, closed deals by their reps" k="override.rate" />);
             return (
               <tr key={p} className="border-t border-tan-100 align-top">
-                <td className="pl-5 px-3 py-2.5 text-[13.5px] font-semibold text-navy-800 whitespace-nowrap">{p}</td>
+                <td className="pl-5 px-3 py-2.5 text-[13.5px] font-semibold text-navy-800 whitespace-nowrap"><a {...linkProps(`/settings/people?who=${encodeURIComponent(p)}`)} title="Open them on Team" className="hover:underline underline-offset-2">{p}</a></td>
                 <td className="px-3 py-2.5">{acq}</td>
                 <td className="px-3 py-2.5">{dsp}</td>
                 <td className="px-3 py-2.5">{lead.length ? <div className="flex flex-col gap-1.5">{lead}</div> : dash}</td>
@@ -293,7 +293,7 @@ function ByPerson({ t, today, lists, onEdit }) {
           })}
         </tbody>
       </table>
-      <p className="px-5 pt-3 text-[12px] text-zinc-500">Click a number to change it — you pick the date it takes effect, and closed deals keep the rules they had. Who reports to whom is the Pod lead column in Settings › People. <a href="#rule-history" className="text-navy-700 underline">History ›</a></p>
+      <p className="px-5 pt-3 text-[12px] text-zinc-500">Click a number to change it — you pick the date it takes effect, and closed deals keep the rules they had. A person’s own rate, pod lead and states are set on Settings › Team (click their name). <a href="#rule-history" className="text-navy-700 underline">History ›</a></p>
     </div>
   );
 }

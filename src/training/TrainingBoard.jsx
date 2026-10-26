@@ -161,7 +161,7 @@ export default function TrainingBoard() {
             <div key={l} className={`rounded-xl px-4 py-2 ${hot && n ? 'bg-tan-500 text-navy-900' : 'bg-white/10'}`}><div className={`text-[11px] font-semibold uppercase tracking-wide ${hot && n ? 'text-navy-900/70' : 'text-white/60'}`}>{l}</div><div className="text-[22px] font-semibold tabular-nums leading-tight">{n}</div></div>
           ))}
         </div>
-        {me?.role === 'owner' && <a {...linkProps('/settings/people')} className="h-10 inline-flex items-center px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">+ Add a person</a>}
+        {me?.role === 'owner' && <a {...linkProps('/settings/people?person=new')} className="h-10 inline-flex items-center px-4 rounded-lg bg-white text-navy-700 font-semibold hover:bg-tan-50">+ Add a Team Member</a>}
       </div>
       {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
 
@@ -187,7 +187,7 @@ export default function TrainingBoard() {
               <th className="px-4 py-2 font-semibold">Now</th>
             </tr></thead>
             <tbody>
-              {!trainees.length && <tr><td colSpan={4 + topicsAll.length} className="px-4 py-5 text-zinc-500">No trainees yet — add a new hire in Settings › People and tick “Enroll in the training program”.</td></tr>}
+              {!trainees.length && <tr><td colSpan={4 + topicsAll.length} className="px-4 py-5 text-zinc-500">No trainees yet — add a new hire in Settings › Team (+ Add a Team Member, Status: Training).</td></tr>}
               {trainees.map((t) => {
                 const tops = Object.fromEntries(topicScores(program, t.attempts).map((x) => [x.topic, x.score]));
                 const cur = program.steps.find((s) => s.id === t.status?.current);

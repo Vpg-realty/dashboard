@@ -1,21 +1,23 @@
-// Settings › People (owners): who can use the dashboard and what they see.
-// Role decides the sections (Owner, Manager, TC, Acquisitions, Trainee,
-// Office TV); "Rep on the board" ties a login to their rep (their Home, My
-// scorecard, "Only mine" deals; a manager's pod) — a new rep has none until
-// their GHL sub-account is added (Sub-Accounts). The one place people are
-// added (Luke, Oct 19): a new Acquisitions hire can be enrolled in the
-// training program here — they start as a Trainee with their pod lead and
-// become Acquisitions when they graduate. Saved straight to D1. Since Oct 19
-// (site map): Role + Status (Training / Active / Inactive) with Started and
-// Ended dates, and the Pod lead column — the one place for "reports to".
+// Settings › Team (owners) — the one place for people (Luke, Oct 26: "a
+// master tab that all info is edited in, then other tabs are there for
+// reference"; the approved mock-up "One Place for the Team"). One row per
+// person — role, pod lead, states (their GHL sub-accounts), commission, TV
+// board — and a click (or "+ Add a Team Member") opens their panel
+// (TeamPanel.jsx) where all of it is edited with one Save. There's no "rep
+// on the board" to link any more: a person's first state creates their rep.
+// Below: Suggestion Box access and what each role sees.
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
-import { ALL_REPS, SUBACCOUNTS } from '../data/config.js';
-import { settingsUsers, saveUser, removeUser, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
+import { ALL_REPS, ALL_MARKETS, SUBACCOUNTS } from '../data/config.js';
+import { settingsUsers, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
-import { linkProps } from '../shell/router.js';
+import { useLocation, setQuery } from '../shell/router.js';
 import { usePods } from '../shell/pods.js';
 import { Section, inputCls } from './ui.jsx';
+import TeamPanel from './TeamPanel.jsx';
+import { keyName, worksDeals } from './team.js';
+import { toTimelines, rulesAt } from '../deals/rules.js';
+import { laToday } from '../utils/historyRange.js';
 
 const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
 const ROLE_HELP = {
@@ -114,219 +116,94 @@ function SuggestAccess({ users }) {
 }
 
 const repName = (id) => ALL_REPS.find((r) => r.id === id)?.name || id;
-// Trainers = the pod leads (Settings › People's Pod lead column → pods).
-const useLeads = () => usePods().map((p) => ({ id: p.lead, label: `${repName(p.lead)} · ${p.title}` }));
-const NO_REP = 'Not on the board yet';
-
-// Rep on the board, or — for a trainee — their pod lead.
-function RepOrLead({ d, setD, disabled }) {
-  const LEADS = useLeads();
-  if (d.role === 'trainee') {
-    // Their own GHL sub-account once they have one (Week 2): kept off the TV
-    // board, the scorecard and the team targets until they graduate (Oct 20).
-    return (
-      <div className="flex flex-col gap-1">
-        <SearchSelect value={d.trainer || ''} disabled={disabled} onChange={(v) => setD({ ...d, trainer: v || null })} clearable={false} pinned={[{ value: '', label: 'Pick their pod lead…' }]} options={LEADS.map((l) => ({ value: l.id, label: `Trainer: ${l.label}` }))} />
-        <SearchSelect value={d.rep_id || ''} disabled={disabled} onChange={(v) => setD({ ...d, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: 'No sub-account yet' }]} options={ALL_REPS.map((r) => ({ value: r.id, label: `Own sub-account: ${r.name}` }))} />
-      </div>
-    );
-  }
-  return (
-    <SearchSelect value={d.rep_id || ''} disabled={disabled} onChange={(v) => setD({ ...d, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: d.role === 'team' || d.role === 'manager' ? NO_REP : '— none —' }]} options={ALL_REPS.map((r) => ({ value: r.id, label: r.name }))} />
-  );
-}
-
-// Role + Status (Luke's site map, Oct 19): a trainee is Acquisitions with
-// status Training (stored as role 'trainee'); Inactive people keep their
-// history but can't sign in, leave the pickers, lose their zips and their
-// open alerts go to their pod lead.
-const uiRole = (u) => (u.role === 'trainee' ? 'team' : u.role);
-const uiStatus = (u) => (u.role === 'trainee' ? 'training' : u.status === 'inactive' ? 'inactive' : 'active');
-const STATUS_LABEL = { training: 'Training', active: 'Active', inactive: 'Inactive' };
-const STATUS_TONE = { training: 'bg-violet-50 text-violet-800 ring-violet-200', active: 'bg-emerald-50 text-emerald-800 ring-emerald-200', inactive: 'bg-zinc-100 text-zinc-600 ring-zinc-200' };
-const toBody = (d) => ({ ...d, role: d.status === 'training' ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active' });
-
-function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, setTv }) {
-  const start = { ...u, role: uiRole(u), status: uiStatus(u) };
-  const [d, setD] = useState(start);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const [note, setNote] = useState(null);
-  const self = u.email === me?.email;
-  const keys = ['name', 'role', 'status', 'rep_id', 'trainer', 'started', 'ended'];
-  const dirty = keys.some((k) => (d[k] || null) !== (start[k] || null));
-  const statuses = d.role === 'team' ? ['training', 'active', 'inactive'] : d.role === 'owner' ? ['active'] : ['active', 'inactive'];
-  const save = async () => {
-    if (start.status === 'training' && d.status !== 'training' && d.status !== 'inactive' && !window.confirm(`Move ${u.name} out of training? This counts as graduating them.`)) return;
-    if (d.status === 'inactive' && start.status !== 'inactive' && !window.confirm(`Set ${u.name} inactive? They won't be able to sign in, their zips are released and their open alerts go to their pod lead. Their history stays.`)) return;
-    setBusy(true); setErr(null); setNote(null);
-    try {
-      const r = await saveUser(toBody(d));
-      onSaved(r.user);
-      if (r.handedTo) setNote(`Open alerts handed to ${repName(r.handedTo)}.`);
-    } catch (e) { setErr(e.message); } finally { setBusy(false); }
-  };
-  const remove = async () => {
-    if (!window.confirm(`Remove ${u.name} (${u.email}) completely? Setting them Inactive keeps their history instead.`)) return;
-    try { await removeUser(u.email); onRemoved(u.email); } catch (e) { setErr(e.message); }
-  };
-  // Pod lead = who they report to (deal_lists.reportsTo, by rep name) — the
-  // one place it's set (Luke, Oct 19); it's what the pod override pays on.
-  const rn = u.rep_id && ALL_REPS.find((r) => r.id === u.rep_id)?.name;
-  const lead = rn ? lists?.reportsTo?.[rn] || '' : null;
-  const cell = 'py-2 pr-2.5';
-  return (
-    <tr className={`border-t border-zinc-100 align-middle ${start.status === 'inactive' ? 'opacity-70' : ''}`}>
-      <td className={cell}><input value={d.name} disabled={self} onChange={(e) => setD({ ...d, name: e.target.value })} className={`${inputCls} disabled:bg-zinc-50`} />
-        <span className="block mt-0.5 text-zinc-500 text-[12px] truncate" title={u.email}>{u.email}{self && <span className="ml-1.5 rounded bg-tan-100 px-1 py-0.5 text-[10.5px] text-navy-700 font-semibold">you</span>}</span></td>
-      <td className={cell}>
-        <SearchSelect value={d.role} disabled={self} onChange={(v) => v && setD({ ...d, role: v, status: v === 'owner' ? 'active' : d.status === 'training' && v !== 'team' ? 'active' : d.status })} clearable={false} sort={false} options={ROLES.filter((r) => r !== 'trainee').map((r) => ({ value: r, label: ROLE_LABEL[r] || r }))} />
-      </td>
-      <td className={cell}>
-        <SearchSelect value={d.status} disabled={self} onChange={(v) => v && setD({ ...d, status: v, ended: v === 'inactive' && !d.ended ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date()) : d.ended })} clearable={false} sort={false} buttonClass={`w-full h-8 flex items-center gap-1.5 rounded-md px-2 text-left text-[13px] font-semibold ring-1 ring-inset disabled:opacity-60 ${STATUS_TONE[d.status]}`} options={statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] }))} />
-      </td>
-      <td className={cell}>
-        <label className="flex items-center gap-1.5"><span className="w-7 shrink-0 text-[11px] text-zinc-500">Start</span><input type="date" value={d.started || ''} disabled={self} onChange={(e) => setD({ ...d, started: e.target.value || d.started || null })} className={`${inputCls} min-w-0 h-8 px-1 text-[12px] disabled:bg-zinc-50`} aria-label="Started" /></label>
-        <label className="mt-1 flex items-center gap-1.5"><span className="w-7 shrink-0 text-[11px] text-zinc-500">End</span><input type="date" value={d.ended || ''} disabled={self} onChange={(e) => setD({ ...d, ended: e.target.value || d.ended || null })} className={`${inputCls} min-w-0 h-8 px-1 text-[12px] disabled:bg-zinc-50`} aria-label="Ended" /></label>
-      </td>
-      <td className={cell}>
-        <RepOrLead d={{ ...d, role: d.status === 'training' ? 'trainee' : d.role }} setD={(x) => setD({ ...x, role: d.role })} disabled={self} />
-        {u.role === 'trainee' && <a {...linkProps(`/team/training?trainee=${encodeURIComponent(u.email)}`)} className="block mt-1 text-[12px] text-navy-700 underline">Training file{u.start ? ` · started ${u.start}` : ''} →</a>}
-        {u.role !== 'trainee' && u.graduated_at && <span className="block mt-1 text-[12px] text-emerald-700">Graduated from training</span>}
-        {start.status === 'inactive' && u.rep_id && SUBACCOUNTS.some((x) => x.repId === u.rep_id) && (
-          <a {...linkProps('/settings/subaccounts')} className="block mt-1 text-[12px] font-semibold text-amber-800 underline">{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length} sub-account{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length === 1 ? '' : 's'} still in their name — hand off →</a>
-        )}
-      </td>
-      <td className={cell}>
-        {lead === null ? <span className="text-zinc-400">—</span> : (
-          <SearchSelect value={lead || ''} onChange={(v) => setLead(rn, v || '')} clearable={false} pinned={[{ value: '', label: 'No pod lead' }]} options={leadNames.filter((n) => n !== rn).map((n) => ({ value: n, label: n }))} />
-        )}
-      </td>
-      <td className={cell}>
-        {/* On the TV board (Luke, Oct 22): off = left out of the TV / Team
-            Overview only; every other page keeps them. */}
-        {!u.rep_id ? <span className="text-zinc-400">—</span> : start.status === 'inactive' ? (
-          // Inactive = off the TV board automatically (Luke, Oct 26).
-          <span title="Inactive people are left off the TV board and Team Overview" className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12.5px] font-semibold ring-1 ring-inset bg-zinc-100 text-zinc-500 ring-zinc-300"><span className="w-2 h-2 rounded-full bg-zinc-400" />Off</span>
-        ) : (
-          <button type="button" onClick={() => setTv(u.rep_id, !tvHidden)} role="switch" aria-checked={!tvHidden}
-            title={tvHidden ? 'Not on the TV board or Team Overview — click to show them' : 'On the TV board and Team Overview — click to leave them off'}
-            className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12.5px] font-semibold ring-1 ring-inset ${tvHidden ? 'bg-zinc-100 text-zinc-500 ring-zinc-300' : 'bg-emerald-50 text-emerald-800 ring-emerald-300'}`}>
-            <span className={`w-2 h-2 rounded-full ${tvHidden ? 'bg-zinc-400' : 'bg-emerald-600'}`} />{tvHidden ? 'Off' : 'On'}
-          </button>
-        )}
-      </td>
-      <td className="py-2 text-right">
-        {err && <span className="block text-red-700 text-xs mb-1">{err}</span>}
-        {note && <span className="block text-emerald-700 text-xs mb-1">{note}</span>}
-        {dirty && <button onClick={save} disabled={busy} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[13px] font-semibold">{busy ? 'Saving…' : 'Save'}</button>}
-        {!self && <button onClick={remove} className="h-8 px-2 text-[13px] text-red-600 hover:underline" title="Delete them completely — Inactive keeps their history">Remove</button>}
-      </td>
-    </tr>
-  );
-}
+const first = (n) => String(n || '').trim().split(' ')[0];
+const code = (id) => ALL_MARKETS.find((m) => m.id === id)?.id || id;
+const ROLE_NAME = { owner: 'Owner', manager: 'Manager', tc: 'Transaction coordinator', team: 'Acquisitions', trainee: 'Acquisitions · Training', tv: 'Office TV' };
+const chip = 'inline-flex items-center rounded-full px-2 py-[1px] text-[12px] font-semibold whitespace-nowrap';
 
 export default function PeopleView() {
   const me = useMe();
-  const LEADS = useLeads();
+  const pods = usePods();
+  const { query } = useLocation();
   const [users, setUsers] = useState(null);
   const [error, setError] = useState(null);
-  const blank = { email: '', name: '', role: 'team', rep_id: null, enroll: true, trainer: '', start: '' };
-  const [add, setAdd] = useState(blank);
-  const [added, setAdded] = useState(null);
-  const [addErr, setAddErr] = useState(null);
   const [lists, setLists] = useState(null);
-  const [leadMsg, setLeadMsg] = useState(null);
-  useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, []);
-  useEffect(() => { readSetting('deal-lists').then((r) => setLists(r.value || {})).catch(() => setLists({})); }, []);
-  // Reps left off the TV board (settings board_hidden) — saved at once, on
-  // the board with the next refresh.
   const [tvOff, setTvOff] = useState([]);
-  useEffect(() => { readSetting('board-hidden').then((r) => setTvOff(r.value?.repIds || [])).catch(() => setTvOff([])); }, []);
-  const setTv = async (repId, hide) => {
-    const next = hide ? [...new Set([...tvOff, repId])] : tvOff.filter((x) => x !== repId);
-    setLeadMsg(null);
-    try { await writeSetting('board-hidden', { repIds: next }); setTvOff(next); setLeadMsg({ ok: true, text: `${repName(repId).split(' ')[0]} ${hide ? 'will be left off' : 'will show on'} the TV board and Team Overview after the next refresh (about 15 minutes).` }); } catch (e) { setLeadMsg({ ok: false, text: e.message }); }
-  };
-  // Saved at once: who a rep reports to (the pod override follows it).
-  const setLead = async (rep, lead) => {
-    const next = { ...lists, reportsTo: { ...(lists.reportsTo || {}) } };
-    if (lead) next.reportsTo[rep] = lead; else delete next.reportsTo[rep];
-    setLeadMsg(null);
-    try { await writeSetting('deal-lists', next); setLists(next); setLeadMsg({ ok: true, text: `${rep.split(' ')[0]} now reports to ${lead || 'nobody'}.` }); } catch (e) { setLeadMsg({ ok: false, text: e.message }); }
-  };
-  // Who can lead a pod: every active manager with a rep on the board, plus
-  // anyone already leading one (Luke, Oct 20: pods follow this column).
-  const leadNames = [...new Set([
-    ...(users || []).filter((u) => u.role === 'manager' && u.rep_id && u.status !== 'inactive').map((u) => repName(u.rep_id)),
-    ...Object.values(lists?.reportsTo || {}),
-  ])].sort();
+  const [rules, setRules] = useState(null);
+  const [n, setN] = useState(0);
+  const today = laToday();
+  useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, [n]);
+  useEffect(() => { readSetting('deal-lists').then((r) => setLists(r.value || {})).catch(() => setLists({})); }, [n]);
+  useEffect(() => { readSetting('board-hidden').then((r) => setTvOff(r.value?.repIds || [])).catch(() => setTvOff([])); }, [n]);
+  useEffect(() => { readSetting('deal-rules').then((x) => setRules(rulesAt(toTimelines(x.value), today))).catch(() => setRules({})); }, [n, today]);
+  // ?person=<email> opens their panel, ?person=new the blank one; ?who=<name>
+  // (from Commissions) finds them by the name deals know them by.
+  const pick = query.get('person');
+  const who = query.get('who');
   if (error) return <div className="py-16 text-center text-zinc-500">{error}</div>;
-  if (!users) return <div className="py-16 text-center text-zinc-400">Loading…</div>;
-  const order = (u) => ROLES.indexOf(u.role);
-  const list = [...users].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
-  const enrolling = add.role === 'team' && add.enroll;
-  const create = async () => {
-    setAddErr(null); setAdded(null);
-    try {
-      const body = enrolling ? { email: add.email, name: add.name, role: 'trainee', rep_id: null, trainer: add.trainer, start: add.start || null } : { email: add.email, name: add.name, role: add.role, rep_id: add.rep_id };
-      const { user } = await saveUser(body);
-      setUsers((us) => [...us.filter((u) => u.email !== user.email), user]);
-      setAdded(user);
-      setAdd(blank);
-    } catch (e) { setAddErr(e.message); }
-  };
-  const addRoles = ROLES.filter((r) => r !== 'trainee');
+  if (!users || !lists) return <div className="py-16 text-center text-zinc-400">Loading…</div>;
+  const open = (email) => setQuery({ person: email, who: null });
+  const close = () => setQuery({ person: null, who: null });
+  const person = pick === 'new' ? null : users.find((u) => u.email === pick) || (who ? users.find((u) => keyName(u).toLowerCase() === who.toLowerCase() || u.name.toLowerCase() === who.toLowerCase()) : null);
+  const panelOpen = pick === 'new' || !!person;
+  // Who can lead a pod: today's pod leads and every active manager.
+  const leads = [...new Map([
+    ...pods.map((p) => [p.lead, { id: p.lead, name: repName(p.lead), title: p.title }]),
+    ...users.filter((u) => u.role === 'manager' && u.rep_id && u.status !== 'inactive' && !pods.some((p) => p.lead === u.rep_id)).map((u) => [u.rep_id, { id: u.rep_id, name: repName(u.rep_id), title: 'no pod yet' }]),
+  ]).values()];
+  const order = ['owner', 'manager', 'team', 'trainee', 'tc', 'tv'];
+  const sorted = [...users].sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role) || a.name.localeCompare(b.name));
+  const podOf = (u) => pods.find((p) => p.lead === u.rep_id);
+  const none = (rules?.noCommission || []).map((x) => x.toLowerCase());
+  const rows = (list) => list.map((u) => {
+    const k = keyName(u);
+    const states = u.rep_id ? SUBACCOUNTS.filter((s) => s.repId === u.rep_id) : [];
+    const lead = u.role === 'trainee' ? (u.trainer ? `${first(repName(u.trainer))} (trainer)` : null) : u.role === 'team' ? lists.reportsTo?.[k] && first(lists.reportsTo[k]) : null;
+    const inactive = u.status === 'inactive';
+    const own = rules?.acqOfNet?.[k];
+    const comm = !worksDeals(u.role) ? (u.role === 'tc' ? 'TC pay' : u.role === 'owner' ? 'None (owner)' : '—') : none.includes(k.toLowerCase()) ? 'None' : own != null ? `${Math.round(own * 1000) / 10}% of net` : 'Standard';
+    return (
+      <tr key={u.email} onClick={() => open(u.email)} className={`border-t border-tan-100 cursor-pointer hover:bg-tan-50 ${inactive ? 'text-zinc-500' : ''}`}>
+        <td className="py-2.5 pl-4 pr-3">
+          <span className="flex items-center gap-2">{u.rep_id && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: ALL_REPS.find((r) => r.id === u.rep_id)?.color || '#94a3b8' }} />}<b className={`font-semibold ${inactive ? '' : 'text-navy-900'}`}>{u.name}</b>{u.email === me?.email && <span className="rounded bg-tan-100 px-1 text-[10.5px] text-navy-700 font-semibold">you</span>}</span>
+          <span className="block text-[12px] text-zinc-500 truncate">{u.email}</span>
+        </td>
+        <td className="py-2.5 pr-3 whitespace-nowrap">{ROLE_NAME[u.role] || u.role}{inactive && <span className={`${chip} ml-1.5 bg-zinc-100 text-zinc-600`}>Inactive{u.ended ? ` · ${u.ended.slice(5).replace('-', '/')}` : ''}</span>}</td>
+        <td className="py-2.5 pr-3 whitespace-nowrap">{podOf(u) && u.role === 'manager' ? <span>leads {podOf(u).title}</span> : lead ? lead : (u.role === 'team' || u.role === 'trainee') && !inactive && !states.length ? <span className={`${chip} bg-amber-50 text-amber-800 ring-1 ring-amber-200`}>Pick one</span> : u.role === 'team' && !inactive ? <span className="text-zinc-400">No pod</span> : <span className="text-zinc-300">—</span>}</td>
+        <td className="py-2.5 pr-3">
+          {states.length ? <span className="flex flex-wrap gap-1">{states.map((s) => <span key={s.locationId} className={`${chip} ${inactive ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-tan-100 text-tan-800'}`}>{code(s.marketId)}{inactive ? ' · hand off' : ''}</span>)}</span>
+            : worksDeals(u.role) && !inactive ? <span className={`${chip} bg-amber-50 text-amber-800 ring-1 ring-amber-200`}>No states yet</span> : <span className="text-zinc-300">—</span>}
+        </td>
+        <td className="py-2.5 pr-3 whitespace-nowrap">{comm}</td>
+        <td className="py-2.5 pr-4">{!states.length ? <span className="text-zinc-300">—</span> : inactive || tvOff.includes(u.rep_id) ? <span className={`${chip} bg-zinc-100 text-zinc-500`}>Off</span> : <span className={`${chip} bg-emerald-50 text-emerald-800`}>On</span>}</td>
+      </tr>
+    );
+  });
+  const table = (title, list, sub) => (
+    <Section title={`${title} · ${list.length}`} sub={sub}>
+      <div className="overflow-x-auto -mx-5">
+        <table className="w-full text-left text-[13.5px]">
+          <thead className="text-[12px] text-zinc-500 bg-tan-50/70"><tr>{['Person', 'Role', 'Pod Lead', 'States', 'Commission', 'TV'].map((h, i) => <th key={h} className={`py-2 ${i ? 'pr-3' : 'pl-4 pr-3'} font-medium`}>{h}</th>)}</tr></thead>
+          <tbody>{rows(list)}</tbody>
+        </table>
+      </div>
+    </Section>
+  );
   return (
     <div className="flex flex-col gap-5">
-      {[['Everyone', list.filter((u) => u.status !== 'inactive')], ['Inactive', list.filter((u) => u.status === 'inactive')]].map(([title, rows]) => (rows.length > 0 || title === 'Everyone') && (
-        <Section key={title} title={`${title} · ${rows.length}`} sub={title === 'Inactive' ? 'Can’t sign in; history kept. Set one back to Active to restore access.' : 'Role decides what they see; Status is Training, Active or Inactive. Pod lead is who they report to — it saves at once and decides the pod override.'}>
-          <div>
-            <table className="w-full table-fixed text-left text-[13.5px]">
-              <colgroup><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[11%]" /><col className="w-[20%]" /><col className="w-[15%]" /><col className="w-[11%]" /><col className="w-[7%]" /><col className="w-[9%]" /></colgroup>
-              <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Dates', 'Rep on the board · trainer', 'Pod lead', 'TV board', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
-              <tbody>
-                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} tvHidden={!!u.rep_id && tvOff.includes(u.rep_id)} setTv={setTv} />)}
-              </tbody>
-            </table>
-          </div>
-          {title === 'Everyone' && leadMsg && <div className={`mt-2 text-[13px] ${leadMsg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{leadMsg.text}</div>}
-        </Section>
-      ))}
+      <div className="flex justify-end -mb-2">
+        <button type="button" onClick={() => open('new')} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold">+ Add a Team Member</button>
+      </div>
+      {table('The Team', sorted.filter((u) => u.status !== 'inactive'), null)}
+      {sorted.some((u) => u.status === 'inactive') && table('Inactive', sorted.filter((u) => u.status === 'inactive'), 'Can’t sign in; their history stays. Any state still in their name is flagged to hand off — open the person taking it over and tick it.')}
       <SuggestAccess users={users} />
-      <Section title="Add a person" sub="Anyone with a @valleypropertygroup.com email can sign in with an emailed code once they're on this list.">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1fr] gap-3 items-end">
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Full name</span><input value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} className={inputCls} placeholder="First and last name" /></label>
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Company email</span><input value={add.email} onChange={(e) => setAdd({ ...add, email: e.target.value })} className={inputCls} placeholder="name@valleypropertygroup.com" /></label>
-          <label><span className="block text-[12.5px] text-zinc-600 mb-1">Role</span>
-            <SearchSelect value={add.role} onChange={(v) => v && setAdd({ ...add, role: v })} clearable={false} sort={false} options={addRoles.map((r) => ({ value: r, label: ROLE_LABEL[r] || r }))} /></label>
-        </div>
-        {add.role === 'team' && (
-          <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-tan-200 bg-tan-50/60 px-3 py-2.5 cursor-pointer">
-            <input type="checkbox" checked={add.enroll} onChange={(e) => setAdd({ ...add, enroll: e.target.checked })} className="mt-1 accent-navy-700" />
-            <span><b className="text-navy-800">Enroll in the training program</b><span className="block text-[13px] text-zinc-600">They start as a Trainee (My Training first, then Home, Pipeline and Get Zips) and become Acquisitions automatically when they graduate. Untick for someone who skips training.</span></span>
-          </label>
-        )}
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-          {enrolling ? <>
-            <label><span className="block text-[12.5px] text-zinc-600 mb-1">Pod lead — trains them, and they shadow them in Week 1</span>
-              <SearchSelect value={add.trainer || ''} onChange={(v) => setAdd({ ...add, trainer: v || '' })} clearable={false} pinned={[{ value: '', label: 'Pick a pod lead…' }]} options={LEADS.map((l) => ({ value: l.id, label: l.label }))} /></label>
-            <label><span className="block text-[12.5px] text-zinc-600 mb-1">Start date</span><input type="date" value={add.start} onChange={(e) => setAdd({ ...add, start: e.target.value })} className={inputCls} /></label>
-          </> : (
-            <label className="md:col-span-2"><span className="block text-[12.5px] text-zinc-600 mb-1">Rep on the board</span>
-              <SearchSelect value={add.rep_id || ''} onChange={(v) => setAdd({ ...add, rep_id: v || null })} clearable={false} pinned={[{ value: '', label: NO_REP }]} options={ALL_REPS.map((r) => ({ value: r.id, label: r.name }))} />
-              <span className="block mt-1 text-[12px] text-zinc-500">A new rep isn't on the board until their GHL sub-account is added (Sub-Accounts, bottom of the sidebar) — then link them here.</span></label>
-          )}
-          <button onClick={create} disabled={!add.name.trim() || !add.email.trim() || (enrolling && !add.trainer)} className="h-9 px-5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{enrolling ? 'Add and enroll' : 'Add'}</button>
-        </div>
-        {addErr && <div className="mt-2 text-red-700 text-[13px]">{addErr}</div>}
-        {added && <div className="mt-2 text-emerald-700 text-[13px]">{added.name} added{added.role === 'trainee' ? ` as a trainee with ${repName(added.trainer)}. Send the 1099 and W-9 from DocuSign, then mark them sent in their training file.` : '.'}</div>}
-      </Section>
       <Section title="What each role sees">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13.5px]">
           {ROLES.map((r) => <div key={r}><dt className="font-semibold text-navy-700">{ROLE_LABEL[r]}</dt><dd className="text-zinc-600">{ROLE_HELP[r]}</dd></div>)}
         </dl>
       </Section>
+      {panelOpen && <TeamPanel key={person?.email || 'new'} u={person} users={users} leads={leads} lists={lists} tvOff={tvOff} rules={rules} me={me}
+        onSaved={() => setN((x) => x + 1)} onRemoved={() => { close(); setN((x) => x + 1); }} onClose={close} />}
     </div>
   );
 }
