@@ -70,7 +70,12 @@ export async function onRequestPatch(context) {
   // …and the lead value (net assignment) when it moved (Oct 22).
   const [rules, lists] = await Promise.all([getSetting(db, 'deal_rules'), getSetting(db, 'deal_lists')]);
   const pushes = [...ghlPushes(rowToDeal(row), out.deal), ...leadValuePush(rowToDeal(row), out.deal, rules, lists)];
-  const links = pushes.length ? (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results : [];
+  const links = pushes.length ? (await db.prepare('SELECT ghl_id, location, last FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results : [];
+  // Never send GHL a date it already has (Luke, Oct 26: "Update site ↓" saved
+  // GHL's COE here and then said it was sending it back to GHL): the COE / IP
+  // end GHL showed on the last sync (deal_ghl.last) is left out.
+  const lastOf = (l) => { try { return JSON.parse(l.last || '{}') || {}; } catch { return {}; } };
+  const toSend = (l) => pushes.filter((p) => !(['coe', 'ipEnd'].includes(p.field) && lastOf(l)[p.field] === p.value));
   // A cancellation reason typed in the cancel pop-up joins the list (Luke, Oct 25: "add a reason when that popup comes up").
   const newReason = out.changes.find(([k, , to]) => k === 'cancelReason' && to);
   const reasons = Array.isArray(lists?.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
@@ -81,7 +86,7 @@ export async function onRequestPatch(context) {
   await db.batch([
     ...(addReason ? [addReason] : []),
     db.prepare('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(dataOf(out.deal), now, user.name, id),
-    ...links.flatMap((l) => pushes.map((p) => db.prepare("INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')")
+    ...links.flatMap((l) => toSend(l).map((p) => db.prepare("INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')")
       .bind(id, l.ghl_id, l.location, p.field, p.value, user.name, now))),
     ...out.changes.map(([field, from, to]) => db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .bind(id, now, user.email, user.name, field, JSON.stringify(from), JSON.stringify(to))),

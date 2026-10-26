@@ -1323,6 +1323,10 @@ points at comes first. Replaces "or use GHL's date here" / "Set to X".
   length from the new start. Update site ↓ refuses a GHL IP end before the
   contract date, and every Update GHL / Update site error shows under its
   own mismatch row.
+- **No echo back to GHL** (Luke, Oct 26 — 1570 Hampton Rd: Update site ↓
+  saved GHL's COE Oct 30 and the panel then said "COE → Oct 30 goes to GHL"):
+  PATCH /api/deals/:id leaves out a COE / IP end push when the linked
+  opportunity already shows that date on the last sync (`deal_ghl.last`).
 - **Status tiles** (same day, Luke picked option A2 of the mock-ups: "make it
   clear these are status tiles"): under the header a "Deal Status" band with
   the worst tile's word (Needs attention / Coming up / All good · closing in
@@ -1419,6 +1423,38 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
   a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
 
+## Assigned / Closed pop-ups (Luke, Oct 26)
+
+"a similar popup as we created for cancelled … when the deal is marked as
+closed and ask for all necessary information in one spot so we can enter it
+and move on / note what is missing. same thing for assigned … the full
+selling it tile." Setting the Stage to **Assigned** (from Under Contract /
+Dispo Active) or **Closed** — in the deal panel or an All Deals Stage cell —
+opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
+`src/deals/stage.js`) instead of saving the stage alone:
+- **Mark Assigned**: Selling It (dispo member, buyer, asking, VPG and final
+  assignment price), Buyer's Earnest Money (EMD paid by, buyer's EMD),
+  Closing (COE, title agency).
+- **Mark Closed**: The Sale (COE — today when blank, dispo member, buyer,
+  prices), Costs (additional fees; closing costs on a double close), Money
+  In (wire received with the expected amount, wire date, EMD returned when
+  VPG placed EMD, its reason when Lost), Commissions (commission paid).
+- Fields go through `canFill` (the TC never sees buyer / commission paid).
+  Blank ones show **Missing**; saving with some missing is fine ("N still
+  missing — fine to save, they stay on Needs Info"). Gross / net (and wire
+  expected) show live once a VPG price is in. The stage and the filled
+  fields save in one PATCH (bookkeeping is open once the stage is Closed).
+- **Layout** (Luke, same day: "it looks disorganized"): an "N of M filled
+  in" bar under the header, then each group as a numbered card with a navy
+  title band and its own "N missing" / ✓ chip; a missing field has a red
+  left edge; Gross / Net / Wire expected as three figures at the foot.
+- **The Money in the deal panel** (Luke, same day: "hard to read and
+  navigate … category titles"): under the breakdown box the fields sit in
+  titled categories (`MONEY_CATS` in DealPanel.jsx, a coloured left bar
+  each): Costs, What We Make, Wire & EMD Return, Commissions (commission
+  base + commission paid, then a Commission · Who · Amount · Paid table —
+  Finance's paid tag or the paid-on date), Profit.
+
 ## Double close; one formula for every deal type (Luke, Oct 26)
 
 - **Deal type "Double close"** (`DOUBLE CLOSE`): always in the Deal type
@@ -1451,6 +1487,12 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   for the same rep + state, a market code already used.
 - **Manage Reps is gone** (rename / add / delete reps): People is the one
   place for people. The list below keeps health, reassign and remove.
+- **How to hand sub-accounts to someone** (Luke, Oct 26: Jake takes over
+  Daniel's NC and MO, Daniel's TX goes to Cayden): a fold on top of
+  Settings › Sub-Accounts (`HandOff` in SubAccountsView.jsx) — add the person
+  in People (untick training if they're already trained), pick them in each
+  row's Rep and Save (the first save puts them on the board), then their pod
+  lead / TV board in People and the old rep Inactive if they're leaving.
 
 ## Oct 22 round, phase 5b — Today at a Glance, CRM Scores (Luke)
 

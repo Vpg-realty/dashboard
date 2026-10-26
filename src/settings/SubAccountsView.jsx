@@ -16,9 +16,34 @@ import { settingsUsers, saveUser } from '../utils/dashApi.js';
 import { githubStatus, saveGithubKey, forgetGithubKey, addSubAccount, updateSubAccount, deleteSubAccount } from '../utils/subaccountsApi.js';
 import { Section } from './ui.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
+import { linkProps } from '../shell/router.js';
 
 const NEW_MARKET = '__new';
 const REP_ROLES = ['team', 'manager', 'trainee', 'owner'];
+
+// Giving sub-accounts to someone new (Luke, Oct 26: Jake takes over Daniel's
+// NC and MO, Daniel's TX goes to Cayden — "I don't see an easy way").
+function HandOff() {
+  const [open, setOpen] = useState(false);
+  const a = 'font-semibold text-navy-700 underline underline-offset-2';
+  return (
+    <div className="rounded-xl border border-tan-300 bg-white">
+      <button type="button" onClick={() => setOpen((x) => !x)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
+        <span className="font-semibold text-navy-800">How to hand sub-accounts to someone (a new person or another rep)</span>
+        <span className="ml-auto text-[12.5px] font-semibold text-navy-700">{open ? 'Hide ▴' : 'Show ▾'}</span>
+      </button>
+      {open && (
+        <ol className="px-4 pb-4 flex flex-col gap-2.5 text-[13.5px] text-zinc-700 list-decimal list-inside">
+          <li><b>New person? Add them first</b> in <a {...linkProps('/settings/people')} className={a}>Settings › People</a> → <i>+ Add a person</i>: full name (this is the name the board shows), company email, role Acquisitions. If they're already trained, <b>untick "Enroll in the training program"</b> — a trainee's sub-accounts stay off the board until they graduate. Leave "Rep on the board" as <i>Not on the board yet</i>.</li>
+          <li><b>Here, on each sub-account they take over</b>, pick them in the <b>Rep</b> column (a new person shows "· not on the board yet") and press <b>Save</b>. Keep the Location ID and leave the API key blank — the account itself doesn't change. The first save puts them on the board under their name and links them in People.</li>
+          <li>Moving one to a rep who's already on the board (e.g. a TX account to Cayden) is the same: pick them in Rep, Save.</li>
+          <li>Each save starts a refresh — the board, scorecards and pipelines show the new owner in about 15 minutes. Numbers from before the switch stay with the old rep.</li>
+          <li>Then, back in People: set their <b>Pod lead</b> and <b>TV board</b> switch. If the person handing off is leaving, set them <b>Inactive</b> there (their zips are released and their open alerts go to their pod lead).</li>
+        </ol>
+      )}
+    </div>
+  );
+}
 const box = 'w-full h-9 rounded-lg border border-zinc-200 bg-white px-2.5 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200';
 const HEALTH = { emerald: 'bg-emerald-50 text-emerald-800 ring-emerald-200', amber: 'bg-amber-50 text-amber-800 ring-amber-200', rose: 'bg-rose-50 text-rose-800 ring-rose-200', zinc: 'bg-zinc-100 text-zinc-600 ring-zinc-200' };
 const ago = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
@@ -216,6 +241,7 @@ export default function SubAccountsView() {
   return (
     <div className="flex flex-col gap-5 max-w-[1400px]">
       <GithubCard info={info} setInfo={setInfo} />
+      <HandOff />
       <Section title={`Sub-Accounts · ${rows.length}`} right={<span>{tally.live || 0} live · {tally.idle || 0} no data · {tally.error || 0} errors</span>}
         sub="Change any row the same way you add one — a new person taking over, a different market, a new location ID or a new API key — then Save. The API key is never shown again; leave it blank to keep the saved one. People come from Settings › People.">
         {msg && <div className={`mb-3 rounded-lg px-3 py-2 text-[13.5px] ${msg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>{msg.text}</div>}

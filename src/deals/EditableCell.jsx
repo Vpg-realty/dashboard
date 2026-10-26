@@ -6,6 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CancelDialog from './CancelDialog.jsx';
+import StageDialog from './StageDialog.jsx';
+import { asksStage } from './stage.js';
 import { saveDeal } from './store.js';
 import { Input } from './fields.jsx';
 import { LIST_OF, FIXED_LISTS, PICK_FROM_PAST, reasonList } from './fieldLib.js';
@@ -24,15 +26,17 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const box = useRef(null);
-  // Cancelling from the sheet asks the cancel questions first (Luke, Oct 25), like the deal panel.
-  const [ask, setAsk] = useState(false);
+  // Cancelling from the sheet asks the cancel questions first (Luke, Oct 25),
+  // and Assigned / Closed their details (Oct 26), like the deal panel.
+  const [ask, setAsk] = useState(null);
 
   const start = () => { setValue(raw?.[f.key] ?? null); setErr(null); setEditing(true); };
   const cancel = () => { setEditing(false); setErr(null); };
   async function save(v = value) {
     const before = raw?.[f.key] ?? null;
     if ((v ?? null) === before || (v === '' && before == null)) { cancel(); return; }
-    if (f.key === 'status' && String(v).toUpperCase() === 'CANCELLED' && deal.status !== 'CANCELLED') { setEditing(false); setErr(null); setAsk(true); return; }
+    if (f.key === 'status' && String(v).toUpperCase() === 'CANCELLED' && deal.status !== 'CANCELLED') { setEditing(false); setErr(null); setAsk('CANCELLED'); return; }
+    if (f.key === 'status' && asksStage(raw || deal, v)) { setEditing(false); setErr(null); setAsk(String(v).toUpperCase()); return; }
     setBusy(true);
     try {
       // Some edits carry another field (retrade → the price; edits.js).
@@ -50,12 +54,14 @@ export default function EditableCell({ deal, raw, f, lists, past, children, fit 
     return () => document.removeEventListener('mousedown', onDown);
   });
 
-  const dialog = ask && createPortal(
-    <CancelDialog page deal={deal} reasons={reasonList(lists)} busy={busy} err={err} onBack={() => { setAsk(false); setErr(null); }}
-      onConfirm={async (fields) => {
-        setBusy(true);
-        try { await saveDeal(deal.id, { fields }, deal.updatedAt); setAsk(false); setErr(null); } catch (e) { setErr(e.message); } finally { setBusy(false); }
-      }} />, document.body);
+  const done = async (fields) => {
+    setBusy(true);
+    try { await saveDeal(deal.id, { fields }, deal.updatedAt); setAsk(null); setErr(null); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const back = () => { setAsk(null); setErr(null); };
+  const dialog = ask && createPortal(ask === 'CANCELLED'
+    ? <CancelDialog page deal={deal} reasons={reasonList(lists)} busy={busy} err={err} onBack={back} onConfirm={done} />
+    : <StageDialog page stage={ask} deal={{ ...deal, ...(raw || {}) }} busy={busy} err={err} onBack={back} onConfirm={done} />, document.body);
   if (!editing) {
     return (
       <>
