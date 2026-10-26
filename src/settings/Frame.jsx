@@ -23,7 +23,10 @@ export default function SettingsFrame({ section, tab, children }) {
         <BandMark />
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">{section.label} · {tab.label}</div>
         <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{titleCase(tab.title || tab.label)}</h1>
-        {tab.blurb && <p className="mt-1 text-[13.5px] text-white/75 max-w-[760px]">{tab.blurb}</p>}
+        {/* Always two lines tall (Luke, Oct 26: Training Program / Discord & Chat
+            moved the page up — their blurb was one line), so the band, the
+            rail and the page never shift when another tab is clicked. */}
+        <p className="mt-1 text-[13.5px] leading-5 h-10 line-clamp-2 text-white/75 max-w-[760px]" title={tab.blurb || undefined}>{tab.blurb || ''}</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <nav aria-label={`${section.label} pages`} className="lg:sticky lg:top-0 self-start flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">

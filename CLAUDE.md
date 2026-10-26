@@ -1505,6 +1505,13 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   base + commission paid, then a Commission · Who · Amount · Paid table —
   Finance's paid tag or the paid-on date), Profit.
 
+## Rail pages don't shift (Luke, Oct 26)
+
+The navy band of every rail page (Settings, Territory, Toolkit —
+src/settings/Frame.jsx) keeps its blurb line two lines tall (`h-10
+line-clamp-2`, the full text on hover), so clicking Training Program or
+Discord & Chat (one-line blurbs) no longer moves the rail and page up.
+
 ## Team panel: States list and personal rates (Luke, later Oct 26)
 
 Overrides the Team panel's States / Commission notes above.
