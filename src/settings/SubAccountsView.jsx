@@ -103,7 +103,7 @@ function GithubCard({ info, setInfo }) {
 }
 
 // --- one row: add (sub = null) or edit -----------------------------------
-function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
+function SubRow({ sub, people, health, gone, connected, onDone, setStatus, cfg }) {
   const REPS = cfg.reps;
   const MARKETS = cfg.markets;
   const SUBACCOUNTS = cfg.subaccounts;
@@ -171,7 +171,7 @@ function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
   const cell = 'py-2.5 pr-2.5 align-top';
   return (
     <>
-      <tr className={`border-t border-tan-100 ${!sub ? 'bg-tan-50/60' : dirty ? 'bg-amber-50/40' : ''}`}>
+      <tr className={`border-t border-tan-100 ${!sub ? 'bg-tan-50/60' : dirty || gone ? 'bg-amber-50/40' : ''}`}>
         <td className={cell}>
           {!sub && <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-tan-700 mb-1">Add a sub-account</span>}
           <SearchSelect value={d.repId} onChange={(v) => set('repId')(v || '')} placeholder="Pick a person" clearable={false} options={choices.map(({ value, label }) => ({ value, label }))} />
@@ -220,6 +220,11 @@ function SubRow({ sub, people, health, connected, onDone, setStatus, cfg }) {
           </td>
         </tr>
       )}
+      {gone && !dirty && !note && (
+        <tr className="bg-amber-50/70">
+          <td colSpan={6} className="pb-2.5 pr-2.5 text-[12.5px] text-amber-900"><b>To hand off</b> — {gone} is inactive. Pick who takes this sub-account in Rep, then Save.</td>
+        </tr>
+      )}
       {(note || (dirty && needsGit && !connected)) && (
         <tr className={!sub ? 'bg-tan-50/60' : 'bg-amber-50/40'}>
           <td colSpan={6} className="pb-2.5 pr-2.5 text-[12.5px]">
@@ -247,10 +252,20 @@ export default function SubAccountsView() {
     setSaved((n) => n + 1);
   };
   useEffect(() => { githubStatus().then(setInfo).catch(() => setInfo({ connected: false })); }, []);
-  useEffect(() => { settingsUsers().then((d) => setPeople((d.users || []).filter((u) => REP_ROLES.includes(u.role) && (u.status || 'active') !== 'inactive' && (u.role !== 'owner' || u.rep_id)))).catch(() => setPeople([])); }, [saved]);
+  // Sub-accounts still in an inactive person's name are flagged to hand off
+  // (Luke, Oct 26: "the assigned sub accounts should become pending or have a flag").
+  const [gone, setGone] = useState(new Map());
+  useEffect(() => {
+    settingsUsers().then((d) => {
+      const all = d.users || [];
+      setPeople(all.filter((u) => REP_ROLES.includes(u.role) && (u.status || 'active') !== 'inactive' && (u.role !== 'owner' || u.rep_id)));
+      setGone(new Map(all.filter((u) => u.status === 'inactive' && u.rep_id).map((u) => [u.rep_id, u.name])));
+    }).catch(() => setPeople([]));
+  }, [saved]);
   const errs = new Map((status?.errors || []).map((e) => [e.locationId, e]));
   const rows = cfg.subaccounts.map((sa) => ({ sa, health: classifyPair(PAIRS.find((p) => p.repId === sa.repId && p.marketId === sa.marketId), errs.get(sa.locationId)), rep: cfg.reps.find((r) => r.id === sa.repId)?.name || sa.repId }))
-    .sort((a, b) => a.rep.localeCompare(b.rep) || a.sa.marketId.localeCompare(b.sa.marketId));
+    .sort((a, b) => (gone.has(b.sa.repId) - gone.has(a.sa.repId)) || a.rep.localeCompare(b.rep) || a.sa.marketId.localeCompare(b.sa.marketId));
+  const toHand = rows.filter((r) => gone.has(r.sa.repId));
   const tally = rows.reduce((t, r) => { t[r.health.tier] = (t[r.health.tier] || 0) + 1; return t; }, {});
   return (
     <div className="flex flex-col gap-5 max-w-[1400px]">
@@ -258,6 +273,7 @@ export default function SubAccountsView() {
       <HandOff />
       <Section title={`Sub-Accounts · ${rows.length}`} right={<span>{tally.live || 0} live · {tally.idle || 0} no data · {tally.error || 0} errors</span>}
         sub="Change any row the same way you add one — a new person taking over, a different market, a new location ID or a new API key — then Save. Moving a row to another rep or market saves right here; a new sub-account, location ID or API key needs the GitHub connection. The API key is never shown again; leave it blank to keep the saved one. People come from Settings › People.">
+        {toHand.length > 0 && <div className="mb-3 rounded-lg px-3 py-2 text-[13.5px] bg-amber-50 text-amber-900 border border-amber-200"><b>{toHand.length} sub-account{toHand.length === 1 ? '' : 's'} to hand off</b> — still in the name of someone who's inactive ({[...new Set(toHand.map((r) => gone.get(r.sa.repId)))].join(', ')}). They're at the top: pick who takes each one and Save. Until then their numbers stay under that person and off the TV board.</div>}
         {msg && <div className={`mb-3 rounded-lg px-3 py-2 text-[13.5px] ${msg.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>{msg.text}</div>}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13.5px] min-w-[1100px]">
@@ -267,7 +283,7 @@ export default function SubAccountsView() {
             <tbody>
               <SubRow key={`new:${saved}`} sub={null} people={people} connected={!!info?.connected} onDone={done} setStatus={setMsg} cfg={cfg} />
               {rows.map(({ sa, health }) => (
-                <SubRow key={`${sa.locationId}:${saved}`} sub={sa} people={people} health={health} connected={!!info?.connected} onDone={done} setStatus={setMsg} cfg={cfg} />
+                <SubRow key={`${sa.locationId}:${saved}`} sub={sa} people={people} health={health} gone={gone.get(sa.repId)} connected={!!info?.connected} onDone={done} setStatus={setMsg} cfg={cfg} />
               ))}
             </tbody>
           </table>
