@@ -67,6 +67,9 @@ export const FIELDS = [
   ['netLoss', 'Net loss %', 'dispo', 'percent', 'calc'],
   ['grossAssign', 'Gross assignment', 'money', 'money', 'calc'],
   ['addlFees', 'Additional fees', 'money', 'money'],
+  // Luke, Oct 26: a double close's closing costs — shown once Deal type is
+  // Double close (or a value is in); taken out of net like additional fees.
+  ['closingCosts', 'Closing costs', 'money', 'money'],
   ['tcFee', 'TC fee', 'money', 'money', 'calc'],
   ['netAssign', 'Net assignment', 'money', 'money', 'calc'],
   ['emdReturn', 'EMD – return', 'money', 'money', 'calc'],
@@ -281,7 +284,11 @@ export function compute(deal, rules, lists) {
   // Commission / TC rules read a kept-money cancel as a closing.
   const asDone = kept ? { ...d, status: 'COMPLETE' } : d;
   const keptGross = kept ? num(d.emdKept) - (is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST') ? num(d.emd) : 0) : 0;
-  const finders = is(d.dealType, "FINDER'S FEE");
+  // Every deal type uses the wholesale math (Luke, Oct 26: "no matter what
+  // type of deal it is the equations … should match the wholesale
+  // equations" — Finder's fee had its own, used by no deal). Costs taken out
+  // of net: additional fees plus a double close's closing costs.
+  const costs = num(d.addlFees) + num(d.closingCosts);
 
   d.emdStatus = emdStatusOf(d);
   set('emdDue', addDays(d.accepted, 2));
@@ -295,19 +302,17 @@ export function compute(deal, rules, lists) {
   else set('ddEnd', ddFormula);
   // An Unknown final assignment price (Oct 22) leaves net loss % blank.
   set('netLoss', String(d.finalAssign).toUpperCase() === 'UNKNOWN' ? null : num(d.finalAssign) === 0 ? 0 : (num(d.finalAssign) - num(d.price) === 0 ? 0 : (num(d.finalAssign) - num(d.vpgAssign)) / (num(d.finalAssign) - num(d.price))));
-  set('grossAssign', kept ? keptGross : cancelled ? 0 : finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price));
+  set('grossAssign', kept ? keptGross : cancelled ? 0 : num(d.vpgAssign) - num(d.price));
   set('tcFee', statusIn(asDone, r.tcFeeStatuses) ? num(r.tcFee) : 0);
   // VPG always sells the deal now (Luke, Oct 14): net = gross − additional
   // fees, no 50/50 split. Closed deals with a dispo team on file keep the
   // sheet's formula for that team (legacyDispo).
-  set('netAssign', kept ? keptGross - num(d.addlFees) : cancelled ? 0
-    : !legacyDispo(d) ? (finders ? num(d.vpgAssign) : num(d.vpgAssign) - num(d.price)) - num(d.addlFees)
-      : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - num(d.addlFees)
-        : finders ? num(d.vpgAssign) - num(d.addlFees) * 0.5
-          : (num(d.vpgAssign) - num(d.price)) * 0.5 - num(d.addlFees) * 0.5);
+  set('netAssign', kept ? keptGross - costs : cancelled ? 0
+    : !legacyDispo(d) ? num(d.vpgAssign) - num(d.price) - costs
+      : is(d.dispoTeam, 'VPG') ? num(d.vpgAssign) - num(d.price) - costs
+        : (num(d.vpgAssign) - num(d.price)) * 0.5 - costs * 0.5);
   set('emdReturn', is(d.emdPaidBy, 'VPG + BUYER') || is(d.emdPaidBy, 'VPG') ? num(d.emd) : is(d.emdPaidBy, 'BUYER') ? 'PAID BY BUYER' : 0);
-  set('wireExpected', finders && legacyDispo(d) ? num(d.vpgAssign) - num(d.addlFees) * 0.5 + num(d.emdReturn)
-    : d.emdReturn === 'PAID BY BUYER' ? num(d.netAssign)
+  set('wireExpected', d.emdReturn === 'PAID BY BUYER' ? num(d.netAssign)
       : kept ? num(d.emdKept) : cancelled ? num(d.emd) : num(d.netAssign) + num(d.emdReturn));
   set('commBase', cancelled ? 0 : num(d.netAssign) - num(d.tcFee));
 

@@ -24,7 +24,7 @@ import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
 import { useDeals, ghlDeals, addrKeys, GHL_STAGE } from './store.js';
 import EditableCell from './EditableCell.jsx';
-import { PICK_FROM_PAST, pastValues, LABEL, CANCEL_REASONS } from './fieldLib.js';
+import { PICK_FROM_PAST, pastValues, LABEL, reasonsInUse } from './fieldLib.js';
 import { PageHead, Loading, Search, ResortBar } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
 import { money, shortDate, stateCode, statusLabel, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
@@ -273,7 +273,7 @@ export default function AllDealsView() {
         <SearchSelect className="w-36" value={state || null} placeholder="All states" pinned={[{ value: null, label: 'All states' }]} clearable={false} onChange={(x) => setQuery({ state: x || null })}
           options={opts('state').map((x) => ({ value: x, label: pretty('state', x) }))} />
         <SearchSelect className="w-52" value={reason || null} placeholder="Any cancel reason" pinned={[{ value: null, label: 'Any cancel reason' }]} clearable={false} onChange={(x) => setQuery({ reason: x || null })}
-          options={[...CANCEL_REASONS.map((x) => ({ value: x, label: pretty('cancelReason', x) })), { value: 'NONE', label: 'Cancelled · no reason given' }]} />
+          options={[...reasonsInUse(s.lists, s.deals).map((x) => ({ value: x, label: pretty('cancelReason', x) })), { value: 'NONE', label: 'Cancelled · no reason given' }]} />
         {!s.readOnly && (
           <button onClick={() => setQuery({ need: needOnly ? null : '1' })} className={`h-8 inline-flex items-center gap-1.5 rounded-lg px-2.5 font-medium ring-1 ${needOnly ? 'bg-[#B42318] text-white ring-[#B42318]' : 'bg-white text-[#B42318] ring-[#F5C2BD] hover:bg-[#FDF1F0]'}`}>
             Needs info <span className={`rounded px-1.5 text-[11.5px] tabular-nums ${needOnly ? 'bg-white/20' : 'bg-[#FDECEA]'}`}>{needCount}</span>

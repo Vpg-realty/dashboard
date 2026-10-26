@@ -18,7 +18,7 @@ export function cancelFields(d, a) {
     if (['LOST', 'NA', 'NO'].includes(up(d.emdReturned))) out.emdReturned = null;
     if (d.emdLostWhy != null) out.emdLostWhy = null;
   }
-  const kept = a.reason === 'BUYER_DEFAULT' && a.keep ? num(a.kept) : 0;
+  const kept = !['SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'].includes(a.reason) && a.keep ? num(a.kept) : 0;
   if (kept > 0) out.emdKept = kept;
   else if (d.emdKept != null) out.emdKept = null;
   return out;

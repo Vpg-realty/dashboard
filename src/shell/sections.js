@@ -185,6 +185,7 @@ export const SECTIONS = [
       // lists come from People, Sub-Accounts, the code and past deals), and
       // Sub-Accounts moved in from the sidebar.
       { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'Rates by person, the rules', title: 'Who gets paid what', blurb: 'Every rate with its start date — acquisitions, dispo, manager, pod lead and the TC. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
+      { id: 'cancel-reasons', label: 'Cancellation Reasons', view: 'settings-cancel', scroll: true, group: 'Deals', sub: 'What the cancel pop-up offers', title: 'Cancellation reasons', blurb: 'The reasons a deal can be cancelled for. They show in the cancel pop-up, the All Deals filter and Finance Overview › Cancellations.' },
       { id: 'subaccounts', label: 'Sub-Accounts', view: 'settings-subaccounts', scroll: true, group: 'Connections', sub: 'GHL accounts per rep and state', title: 'GHL sub-accounts', blurb: 'Each rep’s GoHighLevel sub-account per state, and its key. Adding one puts the rep and state on every page.' },
       { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Connections', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
     ],

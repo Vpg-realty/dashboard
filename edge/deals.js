@@ -91,7 +91,10 @@ export function clean(key, v) {
   // EMD returned? (Yes / No / Lost / N/A) and why it was lost — Luke, Oct 22.
   if (key === 'cancelReason') {
     const s = String(v).trim().toUpperCase();
-    return ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'].includes(s) ? { value: s } : { error: `${f.label}: pick buyer default, seller default, retrade not accepted or unable to sell` };
+    const t = String(v).trim();
+    // The four starting reasons keep their keys; one added later is kept as typed.
+    if (['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'].includes(s)) return { value: s };
+    return t.length && t.length <= 60 ? { value: t } : { error: `${f.label}: up to 60 characters` };
   }
   if (key === 'cancelAs') {
     const s = String(v).trim().toUpperCase();
@@ -254,6 +257,9 @@ export function effectiveLists(lists, users, roster) {
   const gone = new Set(users.filter((u) => u.status === 'inactive' && repName.has(u.rep_id)).map((u) => repName.get(u.rep_id).toLowerCase()));
   const people = (list) => [...new Set([...(list || []), ...active])].filter((n) => !gone.has(String(n).toLowerCase()));
   const states = [...new Set(roster.subaccounts.map((x) => marketName.get(x.marketId)).filter(Boolean).map((n) => n.toUpperCase()))];
-  return { ...lists, acqTeam: people(lists.acqTeam), dispoMembers: people(lists.dispoMembers), states: [...new Set([...(lists.states || []), ...states])] };
+  const reasons = Array.isArray(lists.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
+  // Double close (Luke, Oct 26) is always a deal type, whatever the stored list says.
+  const dealTypes = [...new Set([...(lists.dealTypes || ['WHOLESALE', 'CREATIVE', 'JV']), 'DOUBLE CLOSE'])];
+  return { ...lists, dealTypes, cancelReasons: reasons, acqTeam: people(lists.acqTeam), dispoMembers: people(lists.dispoMembers), states: [...new Set([...(lists.states || []), ...states])] };
 }
 

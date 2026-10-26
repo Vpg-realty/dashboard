@@ -71,7 +71,15 @@ export async function onRequestPatch(context) {
   const [rules, lists] = await Promise.all([getSetting(db, 'deal_rules'), getSetting(db, 'deal_lists')]);
   const pushes = [...ghlPushes(rowToDeal(row), out.deal), ...leadValuePush(rowToDeal(row), out.deal, rules, lists)];
   const links = pushes.length ? (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results : [];
+  // A cancellation reason typed in the cancel pop-up joins the list (Luke, Oct 25: "add a reason when that popup comes up").
+  const newReason = out.changes.find(([k, , to]) => k === 'cancelReason' && to);
+  const reasons = Array.isArray(lists?.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJECTED', 'UNABLE_TO_SELL'];
+  const addReason = newReason && !reasons.some((r) => r.toLowerCase() === String(newReason[2]).toLowerCase()) && reasons.length < 100
+    ? db.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('deal_lists', ?, ?, ?)
+      ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`).bind(JSON.stringify({ ...(lists || {}), cancelReasons: [...reasons, newReason[2]] }), now, user.name)
+    : null;
   await db.batch([
+    ...(addReason ? [addReason] : []),
     db.prepare('UPDATE deals SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(dataOf(out.deal), now, user.name, id),
     ...links.flatMap((l) => pushes.map((p) => db.prepare("INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')")
       .bind(id, l.ghl_id, l.location, p.field, p.value, user.name, now))),

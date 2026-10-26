@@ -1405,11 +1405,33 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   saves it all at once. **Everywhere the stage is set**: the deal panel (any
   page that opens it) and an All Deals Stage cell (`EditableCell` opens the
   same pop-up over the page, `page` prop).
+- **Reasons are editable** (Luke, Oct 25): Settings › Deals › **Cancellation
+  Reasons** (`CancelReasonsView.jsx`, owners) — add, remove, reorder, reset to
+  the starting four; stored in D1 `deal_lists.cancelReasons` (GET /api/deals
+  sends it in `lists`, the four keys by default — `reasonList`). The pop-up
+  has **+ Add a reason**: a typed reason is saved on the deal as typed and
+  PATCH /api/deals/:id appends it to the list (anyone who can cancel). A
+  removed reason stays on its deals and in the filters (`reasonsInUse`). On
+  an added reason the pop-up also asks about the buyer's EMD.
 - **Reason filter** (Luke, Oct 25): All Deals has "Any cancel reason"
   (`?reason=BUYER_DEFAULT …` or `NONE` = cancelled with no reason given);
   Finance Overview's rail has **Cancellations** (`?view=cancels`): the
   period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
   a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
+
+## Double close; one formula for every deal type (Luke, Oct 26)
+
+- **Deal type "Double close"** (`DOUBLE CLOSE`): always in the Deal type
+  list (`effectiveLists` in edge/deals.js adds it to deal_lists.dealTypes).
+- **Every deal type uses the wholesale math** ("no matter what type of deal
+  it is the equations … should match the wholesale equations"): compute()
+  no longer has Finder's fee's own gross / net / wire (no deal used it —
+  checked, all 172 deals compute the same).
+- **Closing costs** (`closingCosts`, money, Financials / The Money): shown
+  once Deal type is Double close (or a value is in); taken out of net like
+  additional fees (net = gross − additional fees − closing costs, so the
+  wire expected and commissions follow), a "Closing costs" line in The
+  Money's breakdown. Reps don't see it (money group).
 
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
