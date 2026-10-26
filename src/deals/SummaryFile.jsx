@@ -13,7 +13,7 @@ import { usePeriod, inPeriod, DATE_BY } from './period.js';
 import PeriodBar from './PeriodBar.jsx';
 import { Person } from './people.jsx';
 import { StatusChip } from './ui.jsx';
-import { money, compact, shortDate, btnCls, downloadCsv } from './format.js';
+import { money, shortDate, btnCls, downloadCsv } from './format.js';
 import { stats, groupStats, KINDS, titleCase, pctTxt, n } from './summaryStats.js';
 import { Stat, Delta } from './summaryUi.jsx';
 
@@ -94,8 +94,8 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
             <Stat label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
             <Stat label="Closed" value={now.closed} now={now.closed} then={t('closed')} accent="green" tone="text-emerald-700" sub={`${pctTxt(now.closeRate)} close rate`} />
             <Stat label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter accent="red" tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
-            <Stat label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`closed deals · ${compact(now.gross)} gross`} />
-            {owner && <Stat label={own[0]} value={compact(kind === 'state' ? now.profit : now[own[1]])} now={kind === 'state' ? now.profit : now[own[1]]} then={then ? (kind === 'state' ? then.profit : then[own[1]]) : null} isMoney accent="tan" sub="closed deals" />}
+            <Stat label="Net assignment" value={money(now.net)} now={now.net} then={t('net')} isMoney accent="sky" sub={`closed deals · ${money(now.gross)} gross`} />
+            {owner && <Stat label={own[0]} value={money(kind === 'state' ? now.profit : now[own[1]])} now={kind === 'state' ? now.profit : now[own[1]]} then={then ? (kind === 'state' ? then.profit : then[own[1]]) : null} isMoney accent="tan" sub="closed deals" />}
           </div>
           {compare && !then && <div className="text-[13px] text-zinc-500">Nothing on file for {label} in {compare.label} to compare with.</div>}
           {now.projCount > 0 && (
@@ -158,7 +158,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
           </section>
           {then && (
             <div className="text-[12.5px] text-zinc-500 flex flex-wrap items-center gap-2">
-              In {compare.label}: {then.contracts} contracts · {then.closed} closed · {compact(then.net)} net <Delta now={now.net} then={then.net} isMoney /> this period
+              In {compare.label}: {then.contracts} contracts · {then.closed} closed · {money(then.net)} net <Delta now={now.net} then={then.net} isMoney /> this period
             </div>
           )}
         </div>

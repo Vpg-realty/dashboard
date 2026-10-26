@@ -37,6 +37,12 @@ const SHADE = {
   tan: 'border-tan-400 bg-tan-200/80',
 };
 
+// Money to the cent (Oct 26) runs long — "$13,312,450.55" — so a long value
+// steps down a size instead of spilling out of the tile.
+const sizeOf = (v, big) => {
+  const n = typeof v === 'string' || typeof v === 'number' ? String(v).length : 0;
+  return big ? (n > 13 ? 'text-[28px]' : n > 10 ? 'text-[32px]' : 'text-[40px]') : n > 13 ? 'text-[19px]' : n > 10 ? 'text-[22px]' : 'text-[28px]';
+};
 export function Tile({ label, value, sub, dot, tone, onClick, active, activeText, filter, tint, shade, big, badge, children, title, className = '' }) {
   const off = filter && !value && !active;
   const Tag = onClick ? 'button' : 'div';
@@ -55,7 +61,7 @@ export function Tile({ label, value, sub, dot, tone, onClick, active, activeText
         <span className="truncate">{label}</span>
         {badge && <span className="ml-auto pl-2 shrink-0">{badge}</span>}
       </div>
-      <div className={`mt-1 ${big ? 'text-[40px]' : 'text-[28px]'} leading-none font-semibold tracking-tight tabular-nums ${off || empty ? 'text-zinc-400' : tone || 'text-navy-800'}`}>{value ?? '—'}</div>
+      <div className={`mt-1 ${sizeOf(value, big)} leading-none whitespace-nowrap font-semibold tracking-tight tabular-nums ${off || empty ? 'text-zinc-400' : tone || 'text-navy-800'}`}>{value ?? '—'}</div>
       {children}
       <div className={`mt-1.5 text-[12px] whitespace-nowrap truncate min-h-4 ${shade ? '[&_.text-zinc-500]:text-navy-800/75' : ''}`}>
         {active && activeText ? <span className="font-semibold text-navy-700">✓ {activeText}</span>

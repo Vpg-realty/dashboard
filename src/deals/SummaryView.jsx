@@ -70,11 +70,11 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal, periodKe
         <BandStat accent="tan" label="Close rate" shade="navy" big value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
       </Band>
       <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
-        <BandStat shade="tan" label="Sold volume" value={compact(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
-        <BandStat shade="tan" label="Gross assignment" value={compact(now.gross)} now={now.gross} then={t('gross')} isMoney />
-        <BandStat shade="tan" label="Net assignment" value={compact(now.net)} now={now.net} then={t('net')} isMoney sub={now.keptN ? `incl. ${compact(now.keptNet)} EMD kept · ${now.keptN} cancel${now.keptN === 1 ? '' : 's'}` : 'after additional fees'} />
-        {owner && <BandStat shade="tan" feature label="Net profit" value={compact(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
-        {owner && <BandStat shade="tan" label="Avg net / closed" value={compact(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
+        <BandStat shade="tan" label="Sold volume" value={money(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
+        <BandStat shade="tan" label="Gross assignment" value={money(now.gross)} now={now.gross} then={t('gross')} isMoney />
+        <BandStat shade="tan" label="Net assignment" value={money(now.net)} now={now.net} then={t('net')} isMoney sub={now.keptN ? `incl. ${money(now.keptNet)} EMD kept · ${now.keptN} cancel${now.keptN === 1 ? '' : 's'}` : 'after additional fees'} />
+        {owner && <BandStat shade="tan" feature label="Net profit" value={money(now.profit)} now={now.profit} then={t('profit')} isMoney sub="after commissions" />}
+        {owner && <BandStat shade="tan" label="Avg net / closed" value={money(now.avgNet)} now={now.avgNet} then={t('avgNet')} isMoney sub="net assignment per closing" />}
         {owner && <BandStat shade="tan" label="Margin" value={pctTxt(now.margin)} now={now.margin} then={t('margin')} pct sub="net profit ÷ gross" />}
       </Band>
       {compareLabel && !then && <div className="text-zinc-500 text-[13.5px]">No deals on file for {compareLabel}, so there's nothing to compare with.</div>}
@@ -181,7 +181,7 @@ function GroupTable({ kind, rows, prev, owner }) {
                 <td className="px-3 py-3 min-w-[300px]">
                   <span className="flex items-center gap-3">
                     <span className="flex-1 h-2.5 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full rounded-full bg-navy-600" style={{ width: `${(100 * r.net) / maxNet}%` }} /></span>
-                    <span className="w-20 text-right tabular-nums font-semibold text-navy-900">{compact(r.net)}</span>
+                    <span className="w-28 text-right tabular-nums font-semibold text-navy-900">{money(r.net)}</span>
                     {prev && <span className="w-[72px]"><Delta now={r.net} then={prev.get(r.key)?.net ?? 0} isMoney /></span>}
                   </span>
                 </td>
