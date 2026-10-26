@@ -34,7 +34,7 @@ const LINES = [
 function dayLine() {
   const wd = azWeekday();
   if (wd === 'Monday') return 'New week, clean slate. Let’s go.';
-  if (wd === 'Friday') return 'Happy Friday — scorecards freeze at noon.';
+  if (wd === 'Friday') return 'Happy Friday — scorecards freeze Sunday night.';
   const n = Math.floor(Date.now() / 86_400_000);
   return LINES[n % LINES.length];
 }

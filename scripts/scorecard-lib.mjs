@@ -293,10 +293,5 @@ export function freezeNumbers(data, reps, month, monday) {
   return out;
 }
 
-// Is it past the weekly freeze (Friday 12:00 Arizona) for the week holding
-// `now`? Saturday and Sunday belong to the week just finished (weekInfo).
-export function pastFreeze(now = new Date()) {
-  const az = new Date(now.getTime() - 7 * 3600_000);
-  const dow = az.getUTCDay();
-  return dow === 6 || dow === 0 || (dow === 5 && az.getUTCHours() >= 12);
-}
+// The week freezes at its end, Sunday 11:59 PM Arizona (Luke, Oct 26) — see
+// scripts/update-scorecards.mjs (`pending` → `weeks`).

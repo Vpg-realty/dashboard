@@ -54,7 +54,7 @@ function Overview() {
   };
   return (
     <>
-      <div className="text-sm text-zinc-700">One score out of 100 per rep per week (it replaced the Google Sheet scorecard). It resets every Monday and freezes Friday at 12:00 Arizona.</div>
+      <div className="text-sm text-zinc-700">One score out of 100 per rep per week (it replaced the Google Sheet scorecard). It resets every Monday and freezes Sunday at 11:59 PM Arizona.</div>
       <div className="flex gap-[3px] h-8 mt-3 rounded overflow-hidden">
         {LIVE_PARTS.map((p) => <div key={p.key} className="flex items-center justify-center text-white text-xs font-bold whitespace-nowrap overflow-hidden" style={{ flex: p.weight, background: p.color }} title={`${p.label} · ${p.weight}`}>{p.weight < 8 ? p.weight : `${p.short || p.label} · ${p.weight}`}</div>)}
       </div>
@@ -76,7 +76,7 @@ function Overview() {
         <li>No contract this week → the score is capped at 89, however good the rest is.</li>
         <li>CRM: six items graded 0, 1 or 2 — the five checklist items plus <b>Speed</b> (CRM out of 12); each item is worth {partOf('crm').weight / 6} points (2 = {partOf('crm').weight / 6}, 1 = {partOf('crm').weight / 12}, 0 = 0). While an item has no grade, or speed hasn't been checked yet, the parts that are graded are scaled up to 100 and the score shows <b>est.</b></li>
         <li>Speed became a CRM item the week of Oct 12 (Luke, Oct 16). Earlier weeks keep the sheet's weights ({['contracts', 'crm', 'projected', 'offers', 'opps'].map((k) => SHEET_WEIGHTS[k]).join(' / ')}, five CRM items, no speed), so their scores don't change.</li>
-        <li>Scores start low on Monday and build through the week; Thursday and Friday are when they mean the most.</li>
+        <li>Scores start low on Monday and build through the week; by the weekend they mean the most.</li>
       </ul>
       <H>What the colours mean</H>
       <div className="grid grid-cols-3 gap-2 mt-2">
@@ -215,8 +215,8 @@ function Week() {
   return (
     <>
       <Item title="The week">
-        <Row k="Live">Monday to Friday noon the scorecard updates as numbers come in (every ~15 min, CRM every hour, messaging every 3 hours).</Row>
-        <Row k="Frozen">Friday 12:00 Arizona the week's numbers and automatic CRM grades are frozen; later changes in GHL don't move it.</Row>
+        <Row k="Live">Monday to Sunday 11:59 PM the scorecard updates as numbers come in (every ~15 min, CRM every hour, messaging every 3 hours).</Row>
+        <Row k="Frozen">Sunday 11:59 PM Arizona the week's numbers and automatic CRM grades are frozen; later changes in GHL don't move it.</Row>
         <Row k="Review">A manager or owner (signed in with their own email) checks the grades, overrides any that are wrong, adds notes and saves. Saving records them as the reviewer, and every change is logged with who and when. Reps can see the scorecard but not the notes.</Row>
       </Item>
       <Item title="Pods">

@@ -9,7 +9,7 @@
 //
 // Every rep row expands (click the row or the chevron) to the five CRM chips
 // with the managers' grade dropdowns, what the automatic checks found, the
-// month to date and the note. The week in progress is live; from Friday 12:00
+// month to date and the note. The week in progress is live; after Sunday 11:59 PM
 // Arizona its numbers are frozen (scripts/update-scorecards.mjs). Earlier
 // weeks, including the ones imported from the sheet, come from
 // scorecards.json. CRM grades and notes are entered here by managers and
@@ -694,7 +694,7 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
     );
   }
 
-  const subtitle = isLive ? '· live, freezes Fri 12:00' : frozen?.source === 'sheet' ? '· imported from the sheet' : `· frozen ${frozen?.frozenAt ? new Date(frozen.frozenAt).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' }) : ''}`;
+  const subtitle = isLive ? '· live, freezes Sun 11:59 PM' : frozen?.source === 'sheet' ? '· imported from the sheet' : `· frozen ${frozen?.frozenAt ? new Date(frozen.frozenAt).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' }) : ''}`;
   const weekLabel = frozen?.label || (week === cur.monday ? cur.weekOfLabel : week);
 
   // Team strip: every rep, whatever the filter.

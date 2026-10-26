@@ -3213,10 +3213,15 @@ Under `src/views/`:
     vs the dashed team average; double-click → their Rep page. Changes only
     ever compare finished (frozen) weeks, like Conversations compares
     completed days.
-    - **Freeze**: Friday 12:00 Arizona `scripts/update-scorecards.mjs`
-      (chained onto `npm run append-history`) copies the week's numbers
-      (`freezeNumbers`) into `public/scorecards.json` once
-      (`source: 'dashboard'`, `frozenAt`); later runs leave it alone. Weeks
+    - **Freeze**: since Oct 26 (Luke: "run through sunday … end on sunday
+      at 1159pm") the week is Monday – Sunday 11:59 PM Arizona (it froze
+      Friday 12:00 before; weeks up to Oct 19 kept their Friday numbers).
+      `scripts/update-scorecards.mjs` (chained onto `npm run
+      append-history`) copies the week in progress (`freezeNumbers`) into
+      scorecards.json `pending` on every deploy — not into `weeks`, so every
+      page keeps it live — and the first deploy of a new week moves that last
+      copy (the final Sunday-night numbers, `frozenAt` = when it was made)
+      into `weeks` (`source: 'dashboard'`); later runs leave it alone. Weeks
       Sept 21 – Oct 5 came from the sheet (`scorecard-seed.json`, numbers +
       grades + notes + reviewed by). Keeps 60 weeks; loaded from Pages with
       the abort-don't-wipe loader like history.json.

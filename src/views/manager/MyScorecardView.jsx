@@ -229,7 +229,7 @@ function Trend({ sc, rep }) {
           ]}
         />
       </div>
-      <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Friday noon); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed purple line is the team's average score, for reference.</div>
+      <div className="mt-2 text-[12.5px] text-zinc-500">Each point is a week's final score (Sunday 11:59 PM); the last one is this week so far. Bands: Strong 90+, Watch 75–89, Behind under 75. The dashed purple line is the team's average score, for reference.</div>
       </div>
     </section>
   );
@@ -257,7 +257,7 @@ export default function MyScorecardView() {
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <h1 className="text-2xl md:text-[30px] font-semibold tracking-tight text-navy-800">My Scorecard</h1>
-          <div className="text-zinc-500 mt-0.5">{weekOfLabel ? `Week of ${weekOfLabel}` : 'This week'} · {frozen ? 'final (frozen Friday noon)' : 'live until Friday noon'}</div>
+          <div className="text-zinc-500 mt-0.5">{weekOfLabel ? `Week of ${weekOfLabel}` : 'This week'} · {frozen ? 'final (frozen Sunday 11:59 PM)' : 'live until Sunday 11:59 PM'}</div>
         </div>
         <span className="ml-auto"><ScoreHelp /></span>
       </div>

@@ -124,7 +124,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-zinc-500 pt-1.5 border-t border-zinc-200 shrink-0">Finished weeks are compared (frozen Friday noon); this week is still building, so it isn't in the change. Click a rep to see their trend · double-click to open their page.</div>
+          <div className="text-[11px] text-zinc-500 pt-1.5 border-t border-zinc-200 shrink-0">Finished weeks are compared (frozen Sunday 11:59 PM); this week is still building, so it isn't in the change. Click a rep to see their trend · double-click to open their page.</div>
         </div>
       </Panel>
 
