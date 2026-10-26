@@ -971,6 +971,14 @@ Overrides the Settings notes above where they differ.
   `acqOfNet:<name>`), TV board. Save runs the existing calls in order and
   lists what was saved. `?person=<email>` / `?person=new` open the panel,
   `?who=<name>` finds someone by their deal name (Commissions' name links).
+  **First and last name** (Luke, Oct 26: "instead of changing his name, lets
+  have a first and last name option … use only the first name in the
+  code"): D1 `users.last_name` (ALTER TABLE on live D1, Oct 26); `name` stays
+  the first name every page shows (one word, spaces dropped in the panel);
+  the Team list shows both. An older entry with the whole name in `name`
+  opens split in the panel and is stored split on its next Save (Oct 26:
+  12 people still had their whole name in `name`). A rep created from the
+  panel takes the full name (like the other reps in subaccounts.json).
   **Sub-Accounts → Connections** (same URL): the technical side only —
   existing rows show their holder read-only ("change on Team →"); a
   brand-new sub-account, location ID or key is still added there.

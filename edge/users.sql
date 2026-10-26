@@ -11,5 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
   rep_id TEXT,
   status TEXT NOT NULL DEFAULT 'active',
   start_date TEXT,
-  end_date TEXT
+  end_date TEXT,
+  -- Oct 26 (Luke: "a first and last name option … use only the first name
+  -- in the code"): `name` is the first name everywhere on the site; the
+  -- last name is kept here for Settings › Team (ALTER TABLE on live D1).
+  last_name TEXT
 );
