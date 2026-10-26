@@ -23,6 +23,8 @@ import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
 import { PILL_TONE, pretty } from './values.js';
 import CancelDialog from './CancelDialog.jsx';
+import StageDialog from './StageDialog.jsx';
+import { asksStage } from './stage.js';
 import { reasonList } from './fieldLib.js';
 import { stageOf } from './math.js';
 import MismatchList from './Mismatch.jsx';
@@ -336,6 +338,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [fixing, setFixing] = useState(null);
   // The cancel pop-up (Luke, Oct 25): open while the stage is being set to Cancelled.
   const [cancelAsk, setCancelAsk] = useState(false);
+  // Marking Assigned / Closed asks for that stage's details first (StageDialog).
+  const [stageAsk, setStageAsk] = useState(null);
   // Sections opened by hand on this deal (null = the defaults: the stage's section and any with something missing).
   const [userOpen, setUserOpen] = useState(() => (id ? readOpen(id) : null));
 
@@ -397,6 +401,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const setField = (k, v) => {
     // Cancelling asks the cancel questions first (CancelDialog).
     if (k === 'status' && String(v).toUpperCase() === 'CANCELLED' && !isNew && stageOf(merged) !== 'CANCELLED') { setCancelAsk(true); return; }
+    if (k === 'status' && !isNew && asksStage(merged, v)) { setStageAsk(String(v).toUpperCase()); return; }
     const now = { ...raw, ...draft.fields };
     const patch = editFields(now, k, v);
     if (k === 'retrade' && 'price' in patch) { setFlash(true); setTimeout(() => setFlash(false), 900); }
@@ -467,13 +472,14 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
       extra: <span className="inline-flex flex-wrap gap-x-3 text-[12.5px]">{first.filter(Boolean).map((x, i) => <span key={i}>{x}</span>)}{fixErr?.key === m.key && <span className="basis-full text-red-700 no-underline">{fixErr.msg}</span>}</span>,
     };
   };
-  async function confirmCancel(fields) {
+  async function confirmStage(fields) {
     setBusy(true); setErr(null);
     try {
       const d = await saveDeal(id, { fields: { ...draft.fields, ...fields }, fixed: draft.fixed }, base);
       setBase(d.updatedAt);
       setDraft({ fields: {}, fixed: {} });
       setCancelAsk(false);
+      setStageAsk(null);
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   }
   async function save() {
@@ -818,7 +824,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
         )}
-        {cancelAsk && <CancelDialog deal={merged} reasons={reasonList(s.lists)} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmCancel} />}
+        {stageAsk && <StageDialog stage={stageAsk} deal={merged} busy={busy} err={err} onBack={() => { setStageAsk(null); setErr(null); }} onConfirm={confirmStage} />}
+        {cancelAsk && <CancelDialog deal={merged} reasons={reasonList(s.lists)} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmStage} />}
         {leaving && (
           <div className="absolute inset-0 z-20 grid place-items-center bg-navy-900/40 p-6" role="alertdialog" aria-modal="true" aria-labelledby="unsaved-title">
             <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl border border-tan-200 p-5">

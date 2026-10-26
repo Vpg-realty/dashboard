@@ -1419,6 +1419,28 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
   a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
 
+## Assigned / Closed pop-ups (Luke, Oct 26)
+
+"a similar popup as we created for cancelled … when the deal is marked as
+closed and ask for all necessary information in one spot so we can enter it
+and move on / note what is missing. same thing for assigned … the full
+selling it tile." Setting the Stage to **Assigned** (from Under Contract /
+Dispo Active) or **Closed** — in the deal panel or an All Deals Stage cell —
+opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
+`src/deals/stage.js`) instead of saving the stage alone:
+- **Mark Assigned**: Selling It (dispo member, buyer, asking, VPG and final
+  assignment price), Buyer's Earnest Money (EMD paid by, buyer's EMD),
+  Closing (COE, title agency).
+- **Mark Closed**: The Sale (COE — today when blank, dispo member, buyer,
+  prices), Costs (additional fees; closing costs on a double close), Money
+  In (wire received with the expected amount, wire date, EMD returned when
+  VPG placed EMD, its reason when Lost), Commissions (commission paid).
+- Fields go through `canFill` (the TC never sees buyer / commission paid).
+  Blank ones show **Missing**; saving with some missing is fine ("N still
+  missing — fine to save, they stay on Needs Info"). Gross / net (and wire
+  expected) show live once a VPG price is in. The stage and the filled
+  fields save in one PATCH (bookkeeping is open once the stage is Closed).
+
 ## Double close; one formula for every deal type (Luke, Oct 26)
 
 - **Deal type "Double close"** (`DOUBLE CLOSE`): always in the Deal type
