@@ -253,7 +253,12 @@ export const ALL_KEYS = FIELDS.map((f) => f.key);
 export function effectiveLists(lists, users, roster) {
   const repName = new Map(roster.reps.map((r) => [r.id, r.name]));
   const marketName = new Map(roster.markets.map((m) => [m.id, m.name]));
-  const active = users.filter((u) => u.status !== 'inactive' && repName.has(u.rep_id)).map((u) => repName.get(u.rep_id));
+  // Everyone active who works deals, from the day they're added in People
+  // (Luke, Oct 26: "jake is not in here … they should populate in the
+  // commissions tab automatically") — by their rep's name once they have one,
+  // else by the name in People (a new rep's board name comes from it).
+  const works = (u) => repName.has(u.rep_id) || ['team', 'manager'].includes(u.role);
+  const active = users.filter((u) => u.status !== 'inactive' && works(u)).map((u) => repName.get(u.rep_id) || String(u.name || '').trim()).filter(Boolean);
   const gone = new Set(users.filter((u) => u.status === 'inactive' && repName.has(u.rep_id)).map((u) => repName.get(u.rep_id).toLowerCase()));
   const people = (list) => [...new Set([...(list || []), ...active])].filter((n) => !gone.has(String(n).toLowerCase()));
   const states = [...new Set(roster.subaccounts.map((x) => marketName.get(x.marketId)).filter(Boolean).map((n) => n.toUpperCase()))];

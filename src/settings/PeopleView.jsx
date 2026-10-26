@@ -16,6 +16,8 @@ import { ROLE_LABEL } from '../shell/sections.js';
 import { linkProps } from '../shell/router.js';
 import { usePods } from '../shell/pods.js';
 import { Section, inputCls } from './ui.jsx';
+import SetupPerson from './SetupPerson.jsx';
+import { setupGaps, needsSetup } from './setup.js';
 
 const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
 const ROLE_HELP = {
@@ -146,7 +148,7 @@ const STATUS_LABEL = { training: 'Training', active: 'Active', inactive: 'Inacti
 const STATUS_TONE = { training: 'bg-violet-50 text-violet-800 ring-violet-200', active: 'bg-emerald-50 text-emerald-800 ring-emerald-200', inactive: 'bg-zinc-100 text-zinc-600 ring-zinc-200' };
 const toBody = (d) => ({ ...d, role: d.status === 'training' ? 'trainee' : d.role, status: d.status === 'inactive' ? 'inactive' : 'active' });
 
-function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, setTv }) {
+function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, setTv, onSetup }) {
   const start = { ...u, role: uiRole(u), status: uiStatus(u) };
   const [d, setD] = useState(start);
   const [busy, setBusy] = useState(false);
@@ -172,7 +174,10 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, s
   };
   // Pod lead = who they report to (deal_lists.reportsTo, by rep name) — the
   // one place it's set (Luke, Oct 19); it's what the pod override pays on.
-  const rn = u.rep_id && ALL_REPS.find((r) => r.id === u.rep_id)?.name;
+  // Someone who works deals has a pod lead from the day they're added — by
+  // their name in People until they have a rep (Luke, Oct 26).
+  const rn = (u.rep_id && ALL_REPS.find((r) => r.id === u.rep_id)?.name) || (needsSetup(u) ? String(u.name || '').trim() : null);
+  const gaps = setupGaps(u, lists);
   const lead = rn ? lists?.reportsTo?.[rn] || '' : null;
   const cell = 'py-2 pr-2.5';
   return (
@@ -193,6 +198,7 @@ function Row({ u, me, onSaved, onRemoved, lists, setLead, leadNames, tvHidden, s
         <RepOrLead d={{ ...d, role: d.status === 'training' ? 'trainee' : d.role }} setD={(x) => setD({ ...x, role: d.role })} disabled={self} />
         {u.role === 'trainee' && <a {...linkProps(`/team/training?trainee=${encodeURIComponent(u.email)}`)} className="block mt-1 text-[12px] text-navy-700 underline">Training file{u.start ? ` · started ${u.start}` : ''} →</a>}
         {u.role !== 'trainee' && u.graduated_at && <span className="block mt-1 text-[12px] text-emerald-700">Graduated from training</span>}
+        {gaps.length > 0 && <button type="button" onClick={() => onSetup(u)} className="block mt-1 text-left text-[12px] font-semibold text-amber-800 underline">Setup: {gaps.join(' · ')} — finish setup →</button>}
         {start.status === 'inactive' && u.rep_id && SUBACCOUNTS.some((x) => x.repId === u.rep_id) && (
           <a {...linkProps('/settings/subaccounts')} className="block mt-1 text-[12px] font-semibold text-amber-800 underline">{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length} sub-account{SUBACCOUNTS.filter((x) => x.repId === u.rep_id).length === 1 ? '' : 's'} still in their name — hand off →</a>
         )}
@@ -237,6 +243,8 @@ export default function PeopleView() {
   const [addErr, setAddErr] = useState(null);
   const [lists, setLists] = useState(null);
   const [leadMsg, setLeadMsg] = useState(null);
+  // "Finish setting up" pop-up (Luke, Oct 26) — opens after adding someone who works deals.
+  const [setupFor, setSetupFor] = useState(null);
   useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, []);
   useEffect(() => { readSetting('deal-lists').then((r) => setLists(r.value || {})).catch(() => setLists({})); }, []);
   // Reps left off the TV board (settings board_hidden) — saved at once, on
@@ -274,6 +282,7 @@ export default function PeopleView() {
       setUsers((us) => [...us.filter((u) => u.email !== user.email), user]);
       setAdded(user);
       setAdd(blank);
+      if (needsSetup(user)) setSetupFor(user);
     } catch (e) { setAddErr(e.message); }
   };
   const addRoles = ROLES.filter((r) => r !== 'trainee');
@@ -286,13 +295,15 @@ export default function PeopleView() {
               <colgroup><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[11%]" /><col className="w-[20%]" /><col className="w-[15%]" /><col className="w-[11%]" /><col className="w-[7%]" /><col className="w-[9%]" /></colgroup>
               <thead className="text-[12px] text-zinc-500"><tr>{['Name', 'Role', 'Status', 'Dates', 'Rep on the board · trainer', 'Pod lead', 'TV board', ''].map((h) => <th key={h} className="pb-2 pr-2.5 font-medium">{h}</th>)}</tr></thead>
               <tbody>
-                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} tvHidden={!!u.rep_id && tvOff.includes(u.rep_id)} setTv={setTv} />)}
+                {rows.map((u) => <Row key={`${u.email}:${u.role}:${u.status}`} u={u} me={me} lists={lists} setLead={setLead} leadNames={leadNames} onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onRemoved={(e) => setUsers((us) => us.filter((x) => x.email !== e))} tvHidden={!!u.rep_id && tvOff.includes(u.rep_id)} setTv={setTv} onSetup={setSetupFor} />)}
               </tbody>
             </table>
           </div>
           {title === 'Everyone' && leadMsg && <div className={`mt-2 text-[13px] ${leadMsg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{leadMsg.text}</div>}
         </Section>
       ))}
+      {setupFor && lists && <SetupPerson u={setupFor} lists={lists} leadNames={leadNames} setLead={setLead} tvOff={tvOff} setTv={setTv}
+        onSaved={(d) => setUsers((us) => us.map((x) => (x.email === d.email ? d : x)))} onClose={() => setSetupFor(null)} />}
       <SuggestAccess users={users} />
       <Section title="Add a person" sub="Anyone with a @valleypropertygroup.com email can sign in with an emailed code once they're on this list.">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1fr] gap-3 items-end">

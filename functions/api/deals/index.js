@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
     // or cancelled while GHL still shows it active.
     ended: all.filter((d) => !canSeeDeal(user, d)).flatMap((d) => addrKeys(d.address).map((key) => ({ key, status: d.status }))),
     deals: all.filter((d) => canSeeDeal(user, d)).map((d) => ({ ...shape(d, user), ghlSub: links.get(d.id) || null, cancelAt: cancels.get(d.id) || null })),
-    lists: effectiveLists(await getSetting(db, 'deal_lists', {}), (await db.prepare('SELECT rep_id, status FROM users WHERE rep_id IS NOT NULL').all()).results, roster),
+    lists: effectiveLists(await getSetting(db, 'deal_lists', {}), (await db.prepare("SELECT rep_id, status, name, role FROM users WHERE rep_id IS NOT NULL OR role IN ('team', 'manager')").all()).results, roster),
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',
     readOnly: !canEditDeals(user),

@@ -951,6 +951,23 @@ Overrides the Settings notes above where they differ.
   Daniel's end date was set to Oct 26 in D1. People fits the page with no
   sideways scroll (fixed column widths; Started / Ended stacked in one
   Dates column).
+- **New people show up everywhere at once** (Luke, Oct 26: "jake is not in
+  here … when we add someone, they should populate in the commissions tab
+  automatically or … a popup should come up with all the info we need"):
+  `effectiveLists` (edge/deals.js) now adds every active Acquisitions /
+  Manager from People — by their rep's name once they have one, else by
+  their People name — so they're in Settings › Commissions (standard rates)
+  and the acq. manager / dispo member dropdowns from the day they're added;
+  the Pod lead column works for them too (keyed by that name, which a new
+  rep's board name comes from). Adding an Acquisitions (not enrolled in
+  training) or Manager opens **Finish Setting Up <name>**
+  (`src/settings/SetupPerson.jsx`): Pod lead, Sub-Accounts to hand them (a
+  tick list of every sub-account; moves saved on the site like Sub-Accounts'
+  rows, the first one linking their rep in People), Commission (standard, or
+  their own rate on net from a date → `acqOfNet:<name>`), TV board. Skip for
+  now leaves "Setup: no sub-account · no pod lead — finish setup →" on their
+  People row (`setupGaps` in src/settings/setup.js — only while they have no
+  sub-account, so a rep with no pod on purpose isn't nagged), which reopens it.
 - **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the
