@@ -60,7 +60,7 @@ export default function StageDialog({ stage, deal: d, busy, err, onBack, onConfi
           {groups.map((g, gi) => {
             const gMiss = g.keys.filter((k) => missing.includes(k)).length;
             return (
-              <section key={g.label} className="rounded-xl border border-tan-300 bg-white overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.08)]">
+              <section key={g.label} className="shrink-0 rounded-xl border border-tan-300 bg-white overflow-hidden shadow-[0_1px_3px_rgba(27,56,95,0.08)]">
                 <h3 className={`flex items-center gap-2.5 px-3.5 py-2 ${PANEL_HEAD}`}>
                   <span className={PANEL_NUM}>{gi + 1}</span>
                   <span className="text-[13.5px] font-semibold">{g.label}</span>
@@ -86,7 +86,7 @@ export default function StageDialog({ stage, deal: d, busy, err, onBack, onConfi
             );
           })}
           {typeof now.vpgAssign === 'number' && now.vpgAssign > 0 && (
-            <div className="rounded-xl border border-tan-300 bg-white px-4 py-2.5 grid grid-cols-3 gap-3 text-center tabular-nums">
+            <div className="shrink-0 rounded-xl border border-tan-300 bg-white px-4 py-2.5 grid grid-cols-3 gap-3 text-center tabular-nums">
               {[['Gross', calc.grossAssign], ['Net', calc.netAssign], ...(stage === 'COMPLETE' ? [['Wire expected', calc.wireExpected]] : [])].map(([l, v]) => (
                 <div key={l}><div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tan-700">{l}</div><div className="text-[16px] font-semibold text-navy-800">{money(v)}</div></div>
               ))}

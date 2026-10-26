@@ -56,6 +56,21 @@ CREATE TABLE IF NOT EXISTS tc_tasks (
   done_at TEXT
 );
 CREATE INDEX IF NOT EXISTS tc_tasks_deal ON tc_tasks (deal_id);
+-- Flag an Issue on the TC List (Luke, Oct 26): a title problem, a quiet
+-- seller / buyer, a COE that needs to move … Each one makes an Alerts task for
+-- the owners and the deal's acq rep and dispo rep (ext_id
+-- tcissue:<id>:<holder>), closed when the issue is resolved.
+CREATE TABLE IF NOT EXISTS tc_issues (
+  id TEXT PRIMARY KEY,
+  deal_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  text TEXT,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  resolved_by TEXT,
+  resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS tc_issues_deal ON tc_issues (deal_id);
 
 -- Changes made on the site to the four fields GHL shares with the tracker
 -- (Luke, Oct 18: property address, title / escrow, COE, IP end) wait here
