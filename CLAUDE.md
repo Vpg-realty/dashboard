@@ -1080,9 +1080,9 @@ Overrides older notes where they differ.
 - **Last talked** (Pipeline › Opportunities): the latest real conversation
   — a connected call either way, or a text answering the other side's text
   from the 3 days before (`lastConversation` in server/crm.js, opp field
-  `lastTalk`, CRM_VERSION 5). Missed calls and one-way texts don't count; a
-  contact whose messages couldn't be read (one retry) shows no chip instead
-  of a wrong date.
+  `lastTalk`, CRM_VERSION 6). Missed calls and one-way texts don't count;
+  when the sub-account's messages can't be read, no chip instead of a wrong
+  date.
 - **Sold volume** = the VPG assignment price of closed deals (Finance
   Overview, territory state card, the closed-deals map's tracker rows) —
   not the final assignment price, nor the fee. `soldPrice` (math.js): older
@@ -3251,9 +3251,15 @@ Under `src/views/`:
       Contract, Dispo, Assigned and Closed need none, Luke Oct 18; CRM_VERSION
       4): this week (from Monday or when
       the deal opened) no gap over 3 business days (Mon–Fri, AZ) without a
-      rep text (outbound with a userId) or a connected call, from
-      `/conversations/messages/export?contactId` (21 days back, emails not
-      included). Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
+      rep text (outbound with a userId) or a connected call, from the
+      location-wide `/conversations/messages/export` (SMS + Call, 21 days
+      back, grouped by contact — `listMessagesSince`; emails not included).
+      **Oct 26** (Luke: "it is saying … people have not been reached out to,
+      but most of the contacts have been contacted regularly"): the export
+      filtered by `?contactId` returned only a few old workflow texts (Axel's
+      Trisha Lioy: 5 texts, newest Sep 8, while the conversation had a dozen
+      texts Oct 19–21), so Pipeline "no messaging in Nd" and Follow-ups
+      flagged deals that were being worked. CRM_VERSION 6. Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
       why, click the CRM total for the list. Managers and owners set a

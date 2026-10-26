@@ -36,7 +36,7 @@ import { isManualOutbound } from './messaging.js';
 const DAY = 86400000;
 // Bump when the checks change so the cached result (reused for 55 min) is
 // recomputed on the next deploy.
-export const CRM_VERSION = 5;
+export const CRM_VERSION = 6;
 export const STALE_DAYS = 5;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
 // Messages are read back this far: covers the staleness check and

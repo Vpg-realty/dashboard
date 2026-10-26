@@ -13,7 +13,7 @@ import {
   listConversationsCreated,
   countContactsByAnyTag,
   listCallsSince,
-  listContactMessagesSince,
+  listMessagesSince,
   listTextsSince,
 } from './ghl.js';
 import { analyzeMessaging, MESSAGING_VERSION } from './messaging.js';
@@ -72,26 +72,18 @@ async function opportunitiesWithNotes(locationId, token) {
   }
 }
 
-// Texts / calls for each open deal's contact, a few at a time. A contact
-// that can't be read just counts as no messages; if none can be read (e.g.
-// the token lacks the messages scope) → { error } and the follow-up check
-// is left out for this sub-account.
+// Texts / calls for each open deal's contact, from one location-wide pull
+// (the per-contact export missed most texts — see listMessagesSince). Every
+// contact asked for gets a list (empty = nothing in the window); if the pull
+// fails (e.g. the token lacks the messages scope) → { error } and the
+// follow-up / untouched checks are left out for this sub-account.
 async function messagesFor(locationId, token, contactIds, startMs) {
+  const ids = new Set(contactIds.filter(Boolean));
+  let all;
+  try { all = await listMessagesSince(locationId, token, startMs); } catch (err) { return { error: String(err?.message || err).slice(0, 200) }; }
   const out = {};
-  const ids = [...new Set(contactIds.filter(Boolean))];
-  let failed = 0;
-  let lastErr = null;
-  for (let i = 0; i < ids.length; i += 5) {
-    const batch = ids.slice(i, i + 5);
-    // One retry; a contact still unread is left out (undefined), so its
-    // card shows no "last talked" rather than a wrong one (Oct 22).
-    const one = (c) => listContactMessagesSince(locationId, token, c, startMs)
-      .catch(() => new Promise((r) => setTimeout(r, 1500)).then(() => listContactMessagesSince(locationId, token, c, startMs)))
-      .catch((err) => { failed++; lastErr = err; return null; });
-    const res = await Promise.all(batch.map(one));
-    batch.forEach((c, j) => { if (res[j]) out[c] = res[j]; });
-  }
-  if (ids.length && failed === ids.length) return { error: String(lastErr?.message || lastErr).slice(0, 200) };
+  for (const c of ids) out[c] = [];
+  for (const m of all) if (m?.contactId && ids.has(m.contactId)) out[m.contactId].push(m);
   return out;
 }
 

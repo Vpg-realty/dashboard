@@ -150,6 +150,7 @@ export async function listCallsSince(locationId, token, startMs, { maxPages = 10
     out.push(...(data?.messages || []));
     cursor = data?.nextCursor;
     if (!cursor) break;
+    if (i === maxPages - 1) out.capped = true;
   }
   return out;
 }
@@ -158,13 +159,21 @@ export async function listCallsSince(locationId, token, startMs, { maxPages = 10
 // (server/messaging.js). Same export and retries as the calls.
 export const listTextsSince = (locationId, token, startMs) => listCallsSince(locationId, token, startMs, { channel: 'SMS', maxPages: 15 });
 
-// Texts and calls with one contact since `startMs` (newest first, up to
-// 100), for the follow-up / staleness checks (server/crm.js).
-export async function listContactMessagesSince(locationId, token, contactId, startMs) {
-  const data = await ghlFetch('/conversations/messages/export', token, {
-    params: { locationId, contactId, startDate: new Date(startMs).toISOString(), endDate: new Date().toISOString(), limit: 100 },
-  });
-  return data?.messages || [];
+// Every text and call in the location since `startMs`, newest first, for
+// the CRM checks (server/crm.js), grouped by the caller per contact. Oct 26:
+// the export filtered by `contactId` came back with only a few old workflow
+// texts (Axel's Trisha Lioy: 5 texts, the newest Sep 8, while the
+// conversation had a dozen texts Oct 19–21), so every deal looked untouched.
+// The location-wide export has them all. `capped` = the page cap was hit
+// (the oldest messages of the window are missing).
+export async function listMessagesSince(locationId, token, startMs) {
+  const [texts, calls] = await Promise.all([
+    listCallsSince(locationId, token, startMs, { channel: 'SMS', maxPages: 40 }),
+    listCallsSince(locationId, token, startMs, { channel: 'Call', maxPages: 10 }),
+  ]);
+  const out = [...texts, ...calls];
+  out.capped = !!(texts.capped || calls.capped);
+  return out;
 }
 
 // --- contacts (agent counts) --------------------------------------------
