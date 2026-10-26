@@ -78,6 +78,7 @@ function checkRuleSet(r) {
   if (!names(r.noCommission) || !names(r.dispoAfterAcq)) return 'bad names';
   if (typeof r.tcName !== 'string') return 'TC name missing';
   if (!r.acqOfNet || typeof r.acqOfNet !== 'object' || !Object.entries(r.acqOfNet).every(([k, v]) => k.length <= 60 && num(v, 0, 1))) return 'bad "paid on net" rates';
+  for (const m of ['acqOf', 'dispoOf']) if (r[m] !== undefined && (!r[m] || typeof r[m] !== 'object' || !Object.entries(r[m]).every(([k, v]) => k.length <= 60 && num(v, 0, 1)))) return 'bad personal rates';
   const m = r.manager || {};
   if (typeof m.name !== 'string' || !num(m.rate, 0, 1) || !Array.isArray(m.reps) || !m.reps.every((x) => typeof x.rep === 'string' && (!x.coeBefore || DATE.test(x.coeBefore)) && (!x.coeFrom || DATE.test(x.coeFrom)))) return 'bad manager commission';
   // Which side of a deal pays the manager (math.js): acquisitions only (the

@@ -320,11 +320,16 @@ export function compute(deal, rules, lists) {
   // An open deal with no buyer owes no acq / dispo / manager / override yet;
   // the TC's follows its own rule. Cancelled deals are unchanged.
   const waiting = !kept && !cancelled && !is(d.status, 'COMPLETE') && !isAssigned(d);
-  const ofNet = Object.entries(r.acqOfNet || {}).find(([n]) => is(n, d.acq));
-  set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : ofNet ? num(d.netAssign) * ofNet[1] : num(d.commBase) * num(r.acqRate));
+  // A person's own rate wins over the company rate (Oct 26: acqOf / dispoOf
+  // of the commission base; acqOfNet on net assignment).
+  const own = (m, who) => Object.entries(r[m] || {}).find(([n]) => is(n, who))?.[1];
+  const ofNet = own('acqOfNet', d.acq);
+  const acqRate = own('acqOf', d.acq) ?? r.acqRate;
+  const dispoRate = own('dispoOf', d.dispoMember) ?? r.dispoRate;
+  set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : ofNet != null ? num(d.netAssign) * ofNet : num(d.commBase) * num(acqRate));
   set('dispoComm', waiting || noComm(d.dispoMember) ? 0
-    : (r.dispoAfterAcq || []).some((n) => is(n, d.acq)) ? (num(d.netAssign) - num(d.acqComm) - num(d.tcFee)) * num(r.dispoRate)
-      : !d.dispoMember ? 0 : num(d.commBase) * num(r.dispoRate));
+    : (r.dispoAfterAcq || []).some((n) => is(n, d.acq)) ? (num(d.netAssign) - num(d.acqComm) - num(d.tcFee)) * num(dispoRate)
+      : !d.dispoMember ? 0 : num(d.commBase) * num(dispoRate));
 
   const m = r.manager || {};
   // The manager is paid on the deals of the reps listed — on the acquisition

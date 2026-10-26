@@ -7,6 +7,7 @@
 // on the board" to link any more: a person's first state creates their rep.
 // Below: Suggestion Box access and what each role sees.
 import SearchSelect from '../deals/SearchSelect.jsx';
+import { ratesOf } from '../deals/rules.js';
 import { useEffect, useState } from 'react';
 import { ALL_REPS, ALL_MARKETS, SUBACCOUNTS } from '../data/config.js';
 import { settingsUsers, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
@@ -160,8 +161,8 @@ export default function PeopleView() {
     const states = u.rep_id ? SUBACCOUNTS.filter((s) => s.repId === u.rep_id) : [];
     const lead = u.role === 'trainee' ? (u.trainer ? `${first(repName(u.trainer))} (trainer)` : null) : u.role === 'team' ? lists.reportsTo?.[k] && first(lists.reportsTo[k]) : null;
     const inactive = u.status === 'inactive';
-    const own = rules?.acqOfNet?.[k];
-    const comm = !worksDeals(u.role) ? (u.role === 'tc' ? 'TC pay' : u.role === 'owner' ? 'None (owner)' : '—') : none.includes(k.toLowerCase()) ? 'None' : own != null ? `${Math.round(own * 1000) / 10}% of net` : 'Standard';
+    const rt = ratesOf(rules, k); const pc = (x) => `${Math.round(x * 10000) / 100}%`;
+    const comm = !worksDeals(u.role) ? (u.role === 'tc' ? 'TC pay' : u.role === 'owner' ? 'None (owner)' : '—') : none.includes(k.toLowerCase()) ? 'None' : rt.acq == null ? '—' : `${pc(rt.acq)}${rt.net ? ' of net' : ''} · ${pc(rt.dispo)} dispo`;
     return (
       <tr key={u.email} onClick={() => open(u.email)} className={`border-t border-tan-100 cursor-pointer hover:bg-tan-50 ${inactive ? 'text-zinc-500' : ''}`}>
         <td className="py-2.5 pl-4 pr-3">
