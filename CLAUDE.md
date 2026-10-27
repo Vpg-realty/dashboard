@@ -1728,8 +1728,14 @@ no readings.
   **Fill In** puts the ticked ones into the deal as unsaved edits (Details tab,
   "✦ Claude" on each field, a banner) — nothing is saved until Save, so the
   normal checks, history and GHL pushes apply.
-- New files are read right after upload, one request each, then the review is
-  rebuilt; "Review Again · N New" does the same by hand.
+- **Claude reads only the files picked** (Luke, Oct 27: "a read button next
+  to each document that we can select so that not everything is reviewed"):
+  an upload is stored, not read. Each unread PDF / photo has **✦ Read ·
+  ~cost** (and a tick box; "✦ Read Selected (N)" in the Files header reads
+  the ticked ones), one request each, then the review is rebuilt from every
+  file read so far. "Review Again" / "Update Review · N New" rebuilds from the
+  read files only; Ask About These Files sends only read files (an unread one
+  is named as left out). The cost shown is a rough guide (~25¢ a MB of PDF).
 - **Buyer stays owners only**: Claude marks facts / key info naming the end
   buyer `secret`; `fileFor` / `reviewFor` strip those and proposals for secret
   fields (buyer) for the TC. The files themselves she can open (she sends the
