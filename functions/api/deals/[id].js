@@ -34,7 +34,7 @@ export async function onRequestGet(context) {
   if (res) return res;
   const log = await context.env.DB.prepare('SELECT at, name, field, old, new FROM deal_log WHERE deal_id = ? ORDER BY id DESC LIMIT 200').bind(id).all();
   const entries = log.results
-    .filter((e) => isOwner(user) || (isRepView(user) ? REP_LOG(e.field) : !SECRET_LOG(e.field)))
+    .filter((e) => isOwner(user) || (isRepView(user) ? REP_LOG(e.field) && e.field !== '*file' : !SECRET_LOG(e.field)))
     .map((e) => ({ at: e.at, by: e.name, field: e.field, from: e.old == null ? null : JSON.parse(e.old), to: e.new == null ? null : JSON.parse(e.new) }));
   const links = await ghlLinks(context.env.DB, id).catch(() => new Map());
   // Changes on their way to GHL (or refused), newest first — shown in the panel.

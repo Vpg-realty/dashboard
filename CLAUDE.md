@@ -1656,6 +1656,63 @@ Overrides the TC Desk notes above where they differ.
   problem (no "Why it matters / Do" box) and This Week cards drop the
   what-to-do line ("we know what to do from here").
 
+## Deal files & Claude Review (Luke, Oct 27)
+
+"the storage center or file center for each deal … a 'claude review' section
+where it can give all the key information we need and propose information to
+fill in when ready." The deal panel has a third tab, **Files & Claude Review**
+(`src/deals/DealFiles.jsx`). Owners and the TC upload, change, remove and
+run Claude; **reps and managers only view** (Luke, Oct 27: "dont allow reps to
+upload, allow them to view") — a plain "Files" tab on open deals listing what
+they may open (`repMay`: not Assignment, Settlement Statement or Wire — those
+name the buyer, `REP_HIDDEN_KINDS` in edge/dealFiles.js), no Claude review and
+no readings.
+- **Files**: drop or choose any file up to 20 MB (`MAX_FILE`); each has a kind
+  (`FILE_KINDS` in src/deals/files.js — Purchase Contract, Addendum,
+  Assignment, EMD Receipt, Title / Escrow, Inspection & Photos, Settlement
+  Statement, Wire / Payment, Cancellation, Other), guessed from the name and
+  changeable; open (inline), download, remove (logged in the deal's History as
+  `*file`, hidden from reps). **Storage** (Luke, Oct 27: "switch to R2 now"):
+  R2 bucket `vpg-deal-files`, bound to the Pages project as `FILES` (key
+  `deals/<dealId>/<fileId>`) — until that binding exists, files go to D1
+  (`deal_file_chunks`, base64 pieces of 1.4 MB, `CHUNK` a multiple of 3 so the
+  pieces join into the file's base64). Each `deal_files` row says where its
+  file is (`store` 'r2' | 'd1', column added Oct 27), so both keep working.
+  `deal_reviews` holds the review (edge/dealFiles.sql, created Oct 27).
+  deploy-cloudflare.mjs `syncClaudeKey` re-sends `r2_buckets` with the D1
+  binding so a key sync never drops it. R2 on Workers Paid: 10 GB, 1M writes
+  and 10M reads a month included.
+- **Claude reads each file once** (`readFile`, edge/dealFiles.js: a PDF as a
+  document block, a photo ≤ 5 MB as an image; other types are stored, not
+  read): kind, title, signed / partly / unsigned, property address, a short
+  summary, up to 12 facts and the tracker fields it states (`PROPOSE_KEYS` —
+  never the stage, people, calculated or Finance fields), kept on the file. A
+  file Claude reads keeps a person's kind (`kind_set`), else takes Claude's.
+- **The review** (`reviewDeal`, text only from those readings + the tracker's
+  values + the stage): headline, Key Information (with a "source" link to the
+  file), Check These (red / amber — contradictions, unsigned, wrong address,
+  passed dates), Missing Documents for the stage, and **Proposed Updates**
+  (field, now, from the files, why, file). Proposals are cleaned through
+  `clean` (edge/deals.js) and dropped when the tracker already has the value.
+  **Fill In** puts the ticked ones into the deal as unsaved edits (Details tab,
+  "✦ Claude" on each field, a banner) — nothing is saved until Save, so the
+  normal checks, history and GHL pushes apply.
+- New files are read right after upload, one request each, then the review is
+  rebuilt; "Review Again · N New" does the same by hand.
+- **Buyer stays owners only**: Claude marks facts / key info naming the end
+  buyer `secret`; `fileFor` / `reviewFor` strip those and proposals for secret
+  fields (buyer) for the TC. The files themselves she can open (she sends the
+  assignment to title anyway).
+- API `functions/api/deal-files/[id].js` (GET list / `?file=` stream; POST
+  raw bytes `?name=&kind=`; PATCH `{file, kind}` | `{read}` | `{review}`;
+  DELETE `?file=`), never written while viewing as.
+- **Cost**: Claude's spend counts toward the monthly cap (settings `chat_cap`,
+  $50), logged in chat_messages thread `dealfiles:<dealId>`. A 10–15 page
+  contract is ~30–40k tokens to read, ~$0.15–0.20 once; a review ~$0.03. ~5
+  files a deal, ~25 new deals a month ≈ $20–30 a month — raise the cap if it
+  pauses. **D1**: a panel's Files tab reads one row per file; a download one
+  row per 1.4 MB — a few thousand rows a day at most.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
@@ -2252,7 +2309,9 @@ the server strips them (`forTc`) and refuses edits to them.
   deal to Assigned never changes its numbers (`statusMatches`).
 - **All deals table**: the sheet's column order (FIELDS; GHL stage and
   Deal status right after the address — a status that differs from what
-  GHL's stage maps to (set by hand) shows a small violet "GHL: <stage>"
+  GHL's stage maps to (set by hand) shows a small "● GHL" chip (dot in
+  GHL's stage colour, the stage on hover — Luke, Oct 27: the Stage column was
+  "way too large"; a kept-EMD cancel reads "$4.0k kept")
   hint (`statusDiffersFromGhl`); original contracted price after retrade), the full sheet by
   default (`cols=overview` for the short set, or column groups), header
   bands + coloured headers sticky, address column sticky, dense Arial-like

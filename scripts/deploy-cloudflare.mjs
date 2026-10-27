@@ -77,7 +77,7 @@ async function syncClaudeKey(creds) {
   const env = { ANTHROPIC_API_KEY: { type: 'secret_text', value: creds.anthropic }, ANTHROPIC_KEY_ID: { type: 'plain_text', value: fp } };
   // Re-send the D1 binding with it, so the update can never drop it.
   const cfg = cur?.result?.deployment_configs || {};
-  const keep = (e) => ({ env_vars: env, ...(cfg[e]?.d1_databases ? { d1_databases: cfg[e].d1_databases } : {}) });
+  const keep = (e) => ({ env_vars: env, ...(cfg[e]?.d1_databases ? { d1_databases: cfg[e].d1_databases } : {}), ...(cfg[e]?.r2_buckets ? { r2_buckets: cfg[e].r2_buckets } : {}) });
   const r = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ deployment_configs: { production: keep('production'), preview: keep('preview') } }) }).then((x) => x.json());
   console.log(r?.success ? '[cloudflare] Claude key set on the Pages project (chat)' : `[cloudflare] could not set the Claude key: ${JSON.stringify(r?.errors || []).slice(0, 200)}`);
 }

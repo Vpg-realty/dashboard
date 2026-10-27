@@ -28,6 +28,7 @@ import { asksStage } from './stage.js';
 import { reasonList } from './fieldLib.js';
 import { stageOf } from './math.js';
 import MismatchList from './Mismatch.jsx';
+import DealFiles from './DealFiles.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
@@ -302,7 +303,7 @@ function History({ id }) {
           <div className="min-w-0">
             <div>
               <span className="font-medium">{e.by}</span>{' '}
-              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : e.field === '*pushed' ? <>sent the site's {e.to} to GoHighLevel</> : (
+              {e.field === '*created' ? <>added the deal</> : e.field === '*deleted' ? <>deleted the deal</> : e.field === '*linked' ? <>linked the GoHighLevel opportunity</> : e.field === '*pushed' ? <>sent the site's {e.to} to GoHighLevel</> : e.field === '*file' ? (e.to ? <>added the file <span className="font-medium">{e.to}</span></> : <>removed the file <span className="font-medium">{e.from}</span></>) : (
                 <>changed <span className="font-medium">{LABEL[e.field.replace(/^fixed\./, '')] || e.field}</span>{e.field.startsWith('fixed.') && ' (typed number)'}: <span className="text-zinc-500 line-through decoration-zinc-300">{val(e.field, e.from)}</span> → {val(e.field, e.to)}</>
               )}
             </div>
@@ -352,6 +353,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [stageAsk, setStageAsk] = useState(null);
   // Sections opened by hand on this deal (null = the defaults: the stage's section and any with something missing).
   const [userOpen, setUserOpen] = useState(() => (id ? readOpen(id) : null));
+  // Values Claude's review filled in (Files tab → "Fill In"), shown "✦ Claude" until saved.
+  const [fromClaude, setFromClaude] = useState([]);
 
   const merged = useMemo(() => {
     if (!raw) return null;
@@ -427,6 +430,14 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
     setDraft((d) => ({ ...d, fields: { ...d.fields, ...patch }, fixed: ddFix && !ro ? { ...d.fixed, ddEnd: 'formula' } : d.fixed }));
   };
   const setFixed = (k, v) => setDraft((d) => ({ ...d, fixed: { ...d.fixed, [k]: v } }));
+  // Claude's proposals (DealFiles) → unsaved edits on Details, the first one in view.
+  const fillFromClaude = (pairs) => {
+    pairs.forEach(([k, v]) => setField(k, v));
+    setFromClaude(pairs.map(([k]) => k));
+    setTab('details');
+    if (pairs[0]) goField(pairs[0][0]);
+  };
+  const claudeKeys = fromClaude.filter((k) => k in draft.fields);
   function close() {
     if (hasEdits) { setLeaving(() => onClose); return; }
     onClose();
@@ -590,6 +601,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
                             {f.key === 'ddEndTime' ? 'End time & time zone' : f.key === 'ddDays' ? 'Length (days)' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
+                            {claudeKeys.includes(f.key) && <span className="rounded bg-navy-700 px-1 text-[10.5px] font-semibold text-white" title="Filled in from Claude's review of the files">✦ Claude</span>}
                             {reprice ? <span className="text-[10.5px] font-semibold text-amber-800">● Re-enter the new price after the retrade</span>
                               : need.has(f.key) ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>
                                 : check ? <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FEF0C7] text-[#B54708]">check this</span> : null}
@@ -761,7 +773,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           </div>
           {!isNew && (
             <nav className="flex gap-5 mt-4 relative">
-              {[['details', 'Details'], ['history', 'History']].map(([k, l]) => (
+              {[['details', 'Details'], ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
             </nav>
@@ -802,8 +814,13 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         )}
 
         <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : (
+          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
             <div className="flex flex-col gap-4">
+              {claudeKeys.length > 0 && (
+                <div className="rounded-xl border-2 border-navy-700 bg-navy-50 px-4 py-2.5 text-[13.5px] text-navy-900">
+                  <span className="font-semibold">✦ {claudeKeys.length} value{claudeKeys.length === 1 ? '' : 's'} from Claude’s review filled in</span> — marked “✦ Claude” below. Check them, then Save (or Discard).
+                </div>
+              )}
               {/* Only when GHL and the site disagree (Luke, Oct 23: "why does the GHL info pop up? looks like it matches"). */}
               {(miss.length > 0 || (g && g.coe && !ro && !ISO.test(merged.coe || ''))) && (
                 <Notice tone="violet">
