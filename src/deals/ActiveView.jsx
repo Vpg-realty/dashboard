@@ -205,7 +205,7 @@ export default function ActiveView() {
   };
   const gross = (d) => (hasAssignPrice(d) ? ['Gross', money(d.grossAssign), 'text-[#15803D]'] : ['Gross', assigned(d) ? 'price needed' : 'no buyer yet', 'text-zinc-400']);
 
-  // Act Now: the full card — problem box with why and what to do, facts on the right.
+  // Act Now: the full card — the problem as a flag, facts on the right.
   const bigCard = (d) => {
     const u = d.u;
     const asg = assigned(d);
@@ -228,10 +228,8 @@ export default function ActiveView() {
             {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn} title={ACTION_TIP[u.action]}>{u.action}</button>}
           </div>
         </div>
-        <div className={`mt-2 rounded-lg border-l-4 px-3 py-2 ${PROBLEM[u.tone]}`}>
-          <div className="text-[14.5px] font-semibold">{u.head}</div>
-          <div className="text-[13px] text-zinc-700">{u.why && <><b>Why it matters:</b> {u.why} </>}<b>Do:</b> {u.todo}</div>
-        </div>
+        {/* Just the flag — the team knows what to do (Luke, Oct 27). */}
+        <div className={`mt-2 inline-flex items-center gap-1.5 rounded-md border-l-4 px-2.5 py-1 text-[14px] font-semibold ${PROBLEM[u.tone]}`}>⚑ {u.head}</div>
       </div>
     );
   };
@@ -246,7 +244,6 @@ export default function ActiveView() {
         <div className="min-w-0">
           {address(d, 'text-[16px]')}
           {tagRow(d, <span className={`text-[13.5px] font-semibold ${LINE[u.tone]}`}>{u.head}</span>)}
-          {u.todo && u.sec === 'week' && <div className="mt-1 text-[13px] text-zinc-600">{u.todo}</div>}
         </div>
         <div className="text-[13px] flex items-center justify-between gap-2 text-zinc-600">
           <span className="tabular-nums">{right}</span>
