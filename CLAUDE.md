@@ -1618,6 +1618,37 @@ TC List notes under "Deal tracker" where they differ.
   tasks / issues and a deal_log scan for Assigned per TC page or Home load —
   a few thousand rows each, a few dozen loads a day.
 
+## TC List, second pass (Luke, Oct 27)
+
+Overrides the TC Desk notes above where they differ.
+- **Rail**: Deals — **All Deals** (on top); Work — **My Day** (the default);
+  Watch — Closing This Week, Open Issues. Next 3 Days, Monday Updates and
+  Closed Out are gone (old `?view=` links land on My Day; `statusUpdate`,
+  the Monday row and "Copy Status Update" were removed; a closed deal leaves
+  the list once its steps are done, as before).
+- **My Day = one card per property** ("if … multiple things for one property
+  address, it should be a list of items below the address"): the address,
+  rep · sub-account box, stage, COE, Checklist and ⚑ Flag on top, then every
+  step / task / warning that's late, due today or due in the next 3 days as
+  a line under it (`ItemRow`: due chip, the step, how to do it, ✓ Done, Not
+  needed, Copy the Email). Two groups: **Needs Action Today** (anything late
+  or due today; late first) and **Coming Up · Next 3 Days**.
+- **Checklist changes** (`CHECKLIST`, tcList.js; new steps count from
+  `NEW_FROM` 2026-10-28): Wire instructions *received from title* (was
+  verified by phone); Inspection Period adds **24 hours out: buyer
+  verified** (`ip24`) and the IP decision is now "Title has VPG's IP decision
+  in writing" — VPG sends it, the TC confirms; Assigned: **Assignment emailed
+  to title, buyer on cc** and **Closing timeline confirmed in writing by
+  everyone** (`timeline`) replace the buyer timeline email; Closing Week adds
+  **Notary booked for VPG's signing** on a double close only (`notary`,
+  `only: isDouble` — `only` leaves a step off a deal entirely); Closing &
+  Funding starts with **Email title: on track, clear to close issued?**
+  (`ctc`), then **Closing complete — final HUD received** (replaces "funded
+  and closing confirmed"), then the wire, VPG's EMD and Tracker moved to
+  Closed. Every step's wording was tightened. The replaced steps are listed
+  in REMOVED (the page foot). Milestones: IP, Assigned, Closing Week, Closed
+  (ctc / HUD / tracker), Money In (wire / EMD).
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
