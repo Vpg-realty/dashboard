@@ -133,13 +133,13 @@ export async function onRequestPatch(context) {
     if (asked >= ASK_DAILY) return json({ error: `That's ${ASK_DAILY} questions today — try again tomorrow.` }, 429);
     const files = await listFiles(db, id);
     const docs = []; const skipped = []; let total = 0;
-    for (const f of files.filter(readable).sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))) {
+    for (const f of files.filter((f) => readable(f) && f.read).sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))) {
       const est = Math.ceil(f.size / 3) * 4;
       if (total + est > ASK_MAX_B64) { skipped.push(f); continue; }
       docs.push({ f, b64: await fileB64(context.env, f) }); total += est;
     }
-    skipped.push(...files.filter((f) => !readable(f)));
-    if (!docs.length) return json({ error: 'Add a PDF or photo first — Claude answers from the documents' }, 400);
+    skipped.push(...files.filter((f) => !readable(f) || !f.read));
+    if (!docs.length) return json({ error: 'Have Claude read a file first — it answers from the files it has read' }, 400);
     let out;
     try { out = await askFiles(context.env, { deal, docs, skipped, history: await asksOf(db, id, user), question, owner: user.role === 'owner' }); } catch (e) {
       return json({ error: `Claude didn't answer (${e.status || ''} ${e.message || 'error'}). Try again.`.replace(/\(\s+/, '(') }, 502);

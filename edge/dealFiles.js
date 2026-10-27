@@ -362,7 +362,7 @@ export async function askFiles(env, { deal, docs, skipped, history, question, ow
   const earlier = history.slice(-8).map((x) => `Q: ${x.q}\nA: ${x.a}`).join('\n\n');
   const text = [
     `THE FILES ABOVE\n${names || '(none readable)'}`,
-    skipped.length ? `NOT INCLUDED (too large or not a PDF / photo): ${skipped.map((f) => `"${f.name}"`).join(', ')}` : '',
+    skipped.length ? `NOT INCLUDED (not read by Claude yet, too large or not a PDF / photo): ${skipped.map((f) => `"${f.name}"`).join(', ')}` : '',
     `THE TRACKER NOW (stage: ${STAGE_WORD[stageOf(deal)] || stageOf(deal)})\n${tracker}`,
     earlier ? `EARLIER QUESTIONS ON THIS DEAL\n${earlier}` : '',
     `QUESTION\n${clip(question, 1000)}`,

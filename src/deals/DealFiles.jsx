@@ -53,12 +53,21 @@ export default function DealFiles({ id, deal, owner, onFill }) {
 
   const files = data?.files || [];
   const review = data?.review || null;
-  const unread = files.filter((f) => !f.read && readable(f));
-  const fresh = review ? files.filter((f) => !(review.files || []).includes(f.id)).length : 0;
+  // Claude reads only the files someone picks (Luke, Oct 27: "a read button
+  // next to each document that we can select so that not everything is
+  // reviewed") — uploads are stored, not read; the review and Ask use the
+  // files that were read.
+  const readFiles = files.filter((f) => f.read);
+  const fresh = review ? readFiles.filter((f) => !(review.files || []).includes(f.id)).length : 0;
+  const [sel, setSel] = useState([]);
+  const picked = files.filter((f) => sel.includes(f.id) && !f.read && readable(f));
+  // About what a read costs (Opus at low effort: ~$0.25 a MB of PDF, at least ~5¢).
+  const costOf = (list) => list.reduce((t, f) => t + Math.max(0.05, (f.size / 1048576) * 0.25), 0);
+  const cents = (x) => (x < 1 ? `${Math.max(1, Math.round(x * 100))}¢` : `$${x.toFixed(2)}`);
 
-  // Read every unread file (one request each, so a slow one doesn't hold the
-  // rest), then rebuild the review.
-  async function runReview(list = unread) {
+  // Read the files given (one request each, so a slow one doesn't hold the
+  // rest), then rebuild the review from everything read.
+  async function runReview(list = []) {
     setErr(null);
     try {
       for (let i = 0; i < list.length; i++) {
@@ -68,6 +77,7 @@ export default function DealFiles({ id, deal, owner, onFill }) {
           setData((d) => ({ ...d, files: d.files.map((f) => (f.id === r.file.id ? r.file : f)) }));
         } catch (e) { setErr(e.message); }
       }
+      setSel((x) => x.filter((fid) => !list.some((f) => f.id === fid)));
       setWork('Claude is reviewing the whole file…');
       const r = await call(`deal-files/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ review: true }) });
       setData((d) => ({ ...d, review: r.review }));
@@ -79,18 +89,15 @@ export default function DealFiles({ id, deal, owner, onFill }) {
     const chosen = [...list];
     if (!chosen.length) return;
     setErr(null);
-    const added = [];
-    for (const file of chosen) {
+      for (const file of chosen) {
       if (file.size > MAX_FILE) { setErr(`${file.name} is ${fileSize(file.size)} — files can be up to ${fileSize(MAX_FILE)}`); continue; }
       setWork(`Uploading “${file.name}”…`);
       try {
         const r = await call(`deal-files/${id}?name=${encodeURIComponent(file.name)}&kind=${guessKind(file.name)}`, { method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file });
-        added.push(r.file);
         setData((d) => ({ ...d, files: [...(d?.files || []), r.file] }));
       } catch (e) { setErr(`${file.name}: ${e.message}`); }
     }
     setWork(null);
-    if (added.length && data?.claude) await runReview([...unread, ...added.filter(readable)]);
   }
 
   async function setKind(f, kind) {
@@ -147,10 +154,10 @@ export default function DealFiles({ id, deal, owner, onFill }) {
             <div className="text-[16px] font-semibold leading-tight">Claude Review</div>
             <div className="text-[12px] text-white/70">{review ? `Reviewed ${when(review.at)} · ${review.by}` : 'Key information from the files, what to check, and values to fill in'}</div>
           </div>
-          {files.length > 0 && data.claude && (
+          {readFiles.length > 0 && data.claude && (
             <button type="button" onClick={() => runReview()} disabled={!!work}
               className={`${btn} bg-tan-500 text-navy-900 hover:bg-tan-400`}>
-              {review ? (fresh || unread.length ? `Review Again · ${fresh || unread.length} New` : 'Review Again') : 'Review the Files'}
+              {review ? (fresh ? `Update Review · ${fresh} New` : 'Review Again') : 'Review the Files'}
             </button>
           )}
         </div>
@@ -159,7 +166,7 @@ export default function DealFiles({ id, deal, owner, onFill }) {
           {!data.claude && <div className="text-[13.5px] text-zinc-500">Claude isn't connected yet — it switches on with the next deploy.</div>}
           {!review && !work && data.claude && (
             <div className="text-[13.5px] text-zinc-600">
-              {files.length ? 'Claude hasn’t reviewed these files yet — press Review the Files.' : 'Add the contract, addenda, EMD receipt, title documents or the settlement statement below — Claude reads each one, pulls out what matters and proposes the deal’s missing details.'}
+              {readFiles.length ? 'Claude hasn’t reviewed these files yet — press Review the Files.' : files.length ? 'Pick the files for Claude to read below (the contract, addenda, assignment, EMD receipt, settlement statement) — tick them and press Read Selected, or Read on one. Disclosures and info sheets don’t need reading.' : 'Add the contract, addenda, EMD receipt, title documents or the settlement statement below, then pick the ones Claude should read — it pulls out what matters and proposes the deal’s missing details.'}
             </div>
           )}
           {review && (
@@ -236,12 +243,12 @@ export default function DealFiles({ id, deal, owner, onFill }) {
       {/* Ask About These Files (Luke, Oct 27: "a section where i can ask a
           specific question about the documents") — Claude answers from the
           documents themselves; each person's questions are their own. */}
-      {files.some(readable) && data.claude && (
+      {readFiles.length > 0 && data.claude && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden" aria-label="Ask about these files">
           <div className="flex items-center gap-2 bg-navy-700 text-white px-4 py-2.5">
             <span aria-hidden className="grid place-items-center w-6 h-6 rounded-full bg-tan-500 text-navy-900 text-[12px]">✦</span>
             <span className="text-[15px] font-semibold mr-auto">Ask About These Files</span>
-            <span className="text-[12px] text-white/70">Claude reads the documents to answer · only you see your questions</span>
+            <span className="text-[12px] text-white/70">Answers from the {readFiles.length} file{readFiles.length === 1 ? '' : 's'} Claude has read · only you see your questions</span>
           </div>
           <div className="px-4 py-3 flex flex-col gap-3">
             {(data.asks || []).map((x, i) => (
@@ -281,6 +288,10 @@ export default function DealFiles({ id, deal, owner, onFill }) {
       <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
         <div className="flex items-center gap-3 bg-navy-700 text-white px-4 py-2.5">
           <span className="text-[15px] font-semibold mr-auto">Files{files.length ? ` · ${files.length}` : ''}</span>
+          {picked.length > 0 && data.claude && (
+            <button type="button" onClick={() => runReview(picked)} disabled={!!work} title="Claude reads the ticked files, then updates the review"
+              className={`${btn} h-8 bg-white text-navy-800 hover:bg-tan-50`}>✦ Read Selected ({picked.length}) · about {cents(costOf(picked))}</button>
+          )}
           <button type="button" onClick={() => input.current?.click()} disabled={!!work} className={`${btn} h-8 bg-tan-500 text-navy-900 hover:bg-tan-400`}>+ Add Files</button>
           <input ref={input} type="file" multiple className="hidden" onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
         </div>
@@ -288,7 +299,7 @@ export default function DealFiles({ id, deal, owner, onFill }) {
           onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); if (!work) add(e.dataTransfer.files); }}
           className={`m-3 rounded-lg border-2 border-dashed px-4 py-3 text-center text-[13px] ${over ? 'border-navy-500 bg-navy-50 text-navy-800' : 'border-tan-300 text-zinc-500'}`}>
-          Drop files here — contracts, addenda, EMD receipts, title documents, settlement statements, photos. Up to {fileSize(MAX_FILE)} each; Claude reads PDFs and photos.
+          Drop files here — contracts, addenda, EMD receipts, title documents, settlement statements, photos. Up to {fileSize(MAX_FILE)} each; Claude reads the PDFs and photos you pick.
         </div>
         {err && <div className="mx-3 mb-3 rounded-md bg-[#FEF3F2] px-3 py-2 text-[13px] text-[#B42318]">{err}</div>}
         {files.length > 0 && (
@@ -300,6 +311,10 @@ export default function DealFiles({ id, deal, owner, onFill }) {
               return (
                 <li key={f.id} className="px-4 py-2.5">
                   <div className="flex items-center gap-3">
+                    {data.claude && readable(f) && !r ? (
+                      <input type="checkbox" checked={sel.includes(f.id)} disabled={!!work} aria-label={`Pick ${f.name} for Claude to read`}
+                        onChange={() => setSel((x) => (x.includes(f.id) ? x.filter((y) => y !== f.id) : [...x, f.id]))} className="w-4 h-4 shrink-0 accent-navy-700" />
+                    ) : <span className="w-4 shrink-0" />}
                     <Icon kind={f.kind} />
                     <div className="min-w-0 flex-1">
                       <a href={fileUrl(id, f.id, true)} target="_blank" rel="noreferrer" className="block truncate text-[14px] font-semibold text-navy-900 hover:underline" title={f.name}>{f.name}</a>
@@ -308,8 +323,13 @@ export default function DealFiles({ id, deal, owner, onFill }) {
                     <div className="w-52 shrink-0"><SearchSelect value={f.kind} options={KIND_OPTIONS} sort={false} clearable={false} onChange={(k) => k && k !== f.kind && setKind(f, k)} /></div>
                     {r ? (
                       <button type="button" onClick={() => setOpen(shown ? null : f.id)} className="shrink-0 rounded-full bg-navy-50 px-2.5 py-1 text-[12px] font-semibold text-navy-700 ring-1 ring-inset ring-navy-200 hover:bg-navy-100">✦ Read {shown ? '▴' : '▾'}</button>
+                    ) : readable(f) && data.claude ? (
+                      <button type="button" onClick={() => runReview([f])} disabled={!!work} title={f.read_error ? `${f.read_error} — try again` : `Claude reads this file (about ${cents(costOf([f]))}) and updates the review`}
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ring-inset disabled:opacity-40 ${f.read_error ? 'bg-rose-50 text-rose-800 ring-rose-200 hover:bg-rose-100' : 'bg-tan-500 text-navy-900 ring-tan-600 hover:bg-tan-400'}`}>
+                        {f.read_error ? '↻ Read Again' : `✦ Read · ${cents(costOf([f]))}`}
+                      </button>
                     ) : readable(f) ? (
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium ring-1 ring-inset ${f.read_error ? 'bg-rose-50 text-rose-800 ring-rose-200' : 'bg-zinc-50 text-zinc-500 ring-zinc-200'}`} title={f.read_error || ''}>{f.read_error ? 'Couldn’t read' : 'Not read yet'}</span>
+                      <span className="shrink-0 rounded-full bg-zinc-50 px-2.5 py-1 text-[12px] text-zinc-500 ring-1 ring-inset ring-zinc-200">Not read</span>
                     ) : (
                       <span className="shrink-0 rounded-full bg-zinc-50 px-2.5 py-1 text-[12px] text-zinc-400 ring-1 ring-inset ring-zinc-200" title="Claude reads PDFs and photos up to 5 MB">Not readable</span>
                     )}
