@@ -1656,6 +1656,55 @@ Overrides the TC Desk notes above where they differ.
   problem (no "Why it matters / Do" box) and This Week cards drop the
   what-to-do line ("we know what to do from here").
 
+## Deal files & Claude Review (Luke, Oct 27)
+
+"the storage center or file center for each deal … a 'claude review' section
+where it can give all the key information we need and propose information to
+fill in when ready." The deal panel has a third tab, **Files & Claude Review**
+(`src/deals/DealFiles.jsx`), for owners and the TC (reps / managers don't get
+it — assignment contracts name the buyer).
+- **Files**: drop or choose any file up to 20 MB (`MAX_FILE`); each has a kind
+  (`FILE_KINDS` in src/deals/files.js — Purchase Contract, Addendum,
+  Assignment, EMD Receipt, Title / Escrow, Inspection & Photos, Settlement
+  Statement, Wire / Payment, Cancellation, Other), guessed from the name and
+  changeable; open (inline), download, remove (logged in the deal's History as
+  `*file`, hidden from reps). **Stored in D1** (R2 isn't switched on for the
+  account and the API token can't reach it): `deal_files` + `deal_file_chunks`
+  (base64 pieces of 1.4 MB, `CHUNK` a multiple of 3 so the pieces join into the
+  file's base64) + `deal_reviews` (edge/dealFiles.sql, created Oct 27). Moving
+  to R2 later only changes edge/dealFiles.js. D1's database limit is 10 GB —
+  ~10 MB a deal is ~1,000 deals; raise R2 with Luke before it matters.
+- **Claude reads each file once** (`readFile`, edge/dealFiles.js: a PDF as a
+  document block, a photo ≤ 5 MB as an image; other types are stored, not
+  read): kind, title, signed / partly / unsigned, property address, a short
+  summary, up to 12 facts and the tracker fields it states (`PROPOSE_KEYS` —
+  never the stage, people, calculated or Finance fields), kept on the file. A
+  file Claude reads keeps a person's kind (`kind_set`), else takes Claude's.
+- **The review** (`reviewDeal`, text only from those readings + the tracker's
+  values + the stage): headline, Key Information (with a "source" link to the
+  file), Check These (red / amber — contradictions, unsigned, wrong address,
+  passed dates), Missing Documents for the stage, and **Proposed Updates**
+  (field, now, from the files, why, file). Proposals are cleaned through
+  `clean` (edge/deals.js) and dropped when the tracker already has the value.
+  **Fill In** puts the ticked ones into the deal as unsaved edits (Details tab,
+  "✦ Claude" on each field, a banner) — nothing is saved until Save, so the
+  normal checks, history and GHL pushes apply.
+- New files are read right after upload, one request each, then the review is
+  rebuilt; "Review Again · N New" does the same by hand.
+- **Buyer stays owners only**: Claude marks facts / key info naming the end
+  buyer `secret`; `fileFor` / `reviewFor` strip those and proposals for secret
+  fields (buyer) for the TC. The files themselves she can open (she sends the
+  assignment to title anyway).
+- API `functions/api/deal-files/[id].js` (GET list / `?file=` stream; POST
+  raw bytes `?name=&kind=`; PATCH `{file, kind}` | `{read}` | `{review}`;
+  DELETE `?file=`), never written while viewing as.
+- **Cost**: Claude's spend counts toward the monthly cap (settings `chat_cap`,
+  $50), logged in chat_messages thread `dealfiles:<dealId>`. A 10–15 page
+  contract is ~30–40k tokens to read, ~$0.15–0.20 once; a review ~$0.03. ~5
+  files a deal, ~25 new deals a month ≈ $20–30 a month — raise the cap if it
+  pauses. **D1**: a panel's Files tab reads one row per file; a download one
+  row per 1.4 MB — a few thousand rows a day at most.
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
