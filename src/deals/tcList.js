@@ -8,10 +8,9 @@
 // it, worded for this deal (`how`). A step is ticked by Aiza / an owner, ticks
 // itself from the deal sheet (`auto`), or is marked Not needed (stored as the
 // tick `<id>~na`). Every step with a due date lands in one time bucket — late,
-// today, the next 3 days, later — which is what the page's My Day and Next 3
-// Days show. Early warnings (IP ending with no buyer, past COE …) come from
-// the deal itself (`warnings`). Ticks, tasks, issues and "Monday update sent"
-// are in D1 (tc_checks, tc_tasks, tc_issues — functions/api/tc).
+// today, the next 3 days, later — My Day shows the first three, grouped by
+// deal (Oct 27). Early warnings (IP ending with no buyer, past COE …) come
+// from the deal itself (`warnings`). Ticks, tasks and issues are in D1 (tc_checks, tc_tasks, tc_issues — functions/api/tc).
 //
 // Steps Luke removed on Oct 26 are kept in REMOVED (shown greyed out under the
 // page's checklist so he can see what was dropped): intro email, seller
@@ -29,6 +28,10 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const TC_START = '2026-10-15';
 // The steps added on Oct 26 count from the day they went live.
 export const DESK_FROM = '2026-10-27';
+// Steps added on Oct 27 (Luke's second pass) count from that day.
+export const NEW_FROM = '2026-10-28';
+// A double close: VPG signs as the seller, so a notary is booked (Oct 27).
+const isDouble = (d) => up(d.dealType) === 'DOUBLE CLOSE';
 // Closed deals from this COE on stay on the list until their last steps are done.
 export const POST_CLOSE_FROM = '2026-10-01';
 export const isClosedDeal = (d) => up(d?.status) === 'COMPLETE';
@@ -51,71 +54,77 @@ const coeText = (d) => (day(d.coe) ? new Date(`${d.coe}T12:00:00Z`).toLocaleDate
 // (ctx = { today, assignedOn }), how(d) (the grey line: who and how),
 // auto(d) → ticked from the deal, why(d) (the line under an auto tick),
 // skip(d) → a reason it doesn't apply to this deal (shown "Not needed"),
-// since (steps due before it aren't late), mail (a written email to copy).
+// since (steps due before it aren't late), mail (a written email to copy),
+// only(d) → false leaves the step off this deal entirely (the double-close notary).
 export const CHECKLIST = [
   {
     id: 'open', label: 'Open the File', span: 'contract day → 2 days after', when: () => true, wait: '',
     items: [
-      { id: 'docs', label: 'Fully signed contract and documents received', due: (d) => day(d.accepted),
-        how: (d) => `Every page signed and initialed, addenda and counters included. Ask ${first(d.acq) || 'the acq rep'} for anything missing.` },
-      { id: 'review', label: 'Contract reviewed', since: DESK_FROM, due: (d) => day(d.accepted),
-        how: () => 'Check price, EMD amount and deadline, IP length and end time, COE, title company and that assignment is allowed. Fix anything that doesn’t match the deal sheet.' },
+      { id: 'docs', label: 'Signed contract received', due: (d) => day(d.accepted),
+        how: (d) => `Every page signed and initialed, addenda included. Missing something? Ask ${first(d.acq) || 'the acq rep'}.` },
+      { id: 'review', label: 'Contract matches the deal sheet', since: DESK_FROM, due: (d) => day(d.accepted),
+        how: () => 'Price, EMD amount and due date, IP length and end time, COE, title company, assignment allowed. Fix the sheet if anything differs.' },
       { id: 'title', label: 'Escrow opened with title', due: (d) => day(d.accepted), auto: (d) => !isBlank(d.escrow), why: () => 'done — escrow # on the deal',
-        how: (d) => `Send the contract to ${firstLine(d.title) || 'the title company'} and get the escrow # back (it ticks this off once it’s on the deal).` },
-      { id: 'wire', label: 'Wire instructions verified by phone', due: (d) => day(d.emdDue) || day(d.accepted),
-        how: (d) => `Call ${firstLine(d.title) || 'the escrow officer'} on a number you looked up yourself, never one from the email, before any money goes out.` },
+        how: (d) => `Send the contract to ${firstLine(d.title) || 'the title company'}. Ticking asks for the escrow # and saves it on the deal.` },
+      { id: 'wire', label: 'Wire instructions received from title', due: (d) => day(d.emdDue) || day(d.accepted),
+        how: (d) => `Get the EMD wire instructions from ${titleCo(d)} and pass them to the owners.` },
       { id: 'em', label: 'EMD sent', due: (d) => day(d.emdDue) || day(d.accepted), auto: emdIn, why: () => 'done — EMD paid by is on the deal',
-        how: (d) => `${typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)} ` : ''}due ${day(d.emdDue) ? shortDate(d.emdDue) : 'per the contract'}. Ticking asks who placed it and saves it on the deal.` },
+        how: (d) => `${typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)}, ` : ''}due ${day(d.emdDue) ? shortDate(d.emdDue) : 'per the contract'}. Ticking asks who placed it and saves it on the deal.` },
       { id: 'emreceipt', label: 'EMD receipt from title', since: DESK_FROM, due: (d) => plus(d.emdSent, 1) || plus(d.emdDue, 1),
         skip: (d) => (emdIn(d) && !vpgPlacedEm(d) ? 'VPG didn’t place EMD' : null),
-        how: (d) => `Ask ${titleCo(d)} for the receipt${day(d.emdSent) ? `. EMD went out ${shortDate(d.emdSent)}` : ''}.` },
+        how: (d) => `Ask ${titleCo(d)} for the receipt${day(d.emdSent) ? ` (EMD went out ${shortDate(d.emdSent)})` : ''}.` },
       { id: 'commitorder', label: 'Title commitment ordered', since: DESK_FROM, due: (d) => plus(d.accepted, 1),
-        how: (d) => `Ask ${titleCo(d)} to order the commitment / prelim when escrow opens.` },
+        how: (d) => `Ask ${titleCo(d)} to order the commitment / prelim.` },
     ],
   },
   {
     id: 'ip', label: 'Inspection Period', span: 'until the IP ends', when: () => true, wait: '',
     items: [
-      { id: 'commitreview', label: 'Title commitment received and reviewed', since: DESK_FROM, due: (d) => plus(d.accepted, 5),
-        how: (d) => `Get it from ${titleCo(d)}. Look for liens, judgments, unpaid taxes, probate, and that the seller on title is the seller on the contract. Anything wrong → Flag an Issue.` },
-      { id: 'ip48', label: '48 hours before the IP ends: buyer status from dispo', since: DESK_FROM, due: (d) => plus(d.ddEnd, -2),
+      { id: 'commitreview', label: 'Title commitment reviewed', since: DESK_FROM, due: (d) => plus(d.accepted, 5),
+        how: (d) => `From ${titleCo(d)}: liens, judgments, unpaid taxes, probate, and the seller on title = the seller on the contract. Anything off → Flag an Issue.` },
+      { id: 'ip48', label: '48 hours out: buyer status from dispo', since: DESK_FROM, due: (d) => plus(d.ddEnd, -2),
         skip: (d) => (isAssignedDeal(d) ? 'Assigned — the buyer is in' : null),
-        how: (d) => `Ask ${dispo(d)} and ${first(d.acq) || 'the acq rep'}: assign, extend or cancel? The IP ends ${ipEndText(d)}.` },
-      { id: 'ipdecision', label: 'IP decision sent to title in writing', since: DESK_FROM, due: (d) => day(d.ddEnd),
+        how: (d) => `Ask ${dispo(d)}: is a buyer lined up? The IP ends ${ipEndText(d)}.` },
+      { id: 'ip24', label: '24 hours out: buyer verified', since: NEW_FROM, due: (d) => plus(d.ddEnd, -1),
         skip: (d) => (isAssignedDeal(d) ? 'Assigned — the buyer is in' : null),
-        how: (d) => `Send ${titleCo(d)} the extension addendum or cancellation notice before ${ipEndText(d)}, so the EMD stays safe.` },
+        how: (d) => `Confirm with ${dispo(d)} the buyer is real and signing. No buyer → tell the owners today so VPG can extend or cancel before ${ipEndText(d)}.` },
+      { id: 'ipdecision', label: 'Title has VPG’s IP decision in writing', since: DESK_FROM, due: (d) => day(d.ddEnd),
+        skip: (d) => (isAssignedDeal(d) ? 'Assigned — the buyer is in' : null),
+        how: (d) => `VPG sends the extension or cancellation to title — not you. Confirm ${titleCo(d)} received it before ${ipEndText(d)}.` },
     ],
   },
   {
     id: 'assigned', label: 'Assigned', span: 'the day it’s assigned → 2 days after', when: isAssignedDeal, wait: 'starts when the deal is assigned',
     items: [
-      { id: 'assign', label: 'Assignment sent to title', due: (d, c) => c.assignedOn,
-        how: (d) => `Signed by the buyer and VPG, with the fee breakdown, to ${titleCo(d)}. The buyer’s vesting is on it.` },
+      { id: 'assign', label: 'Assignment emailed to title, buyer on cc', due: (d, c) => c.assignedOn,
+        how: (d) => `The signed assignment (fee breakdown, buyer’s vesting) to ${titleCo(d)} with the buyer cc’d.` },
+      { id: 'timeline', label: 'Closing timeline confirmed in writing by everyone', since: NEW_FROM, due: (d, c) => plus(c.assignedOn, 1),
+        how: (d) => `Reply-all on the assignment email with the COE (${coeText(d)}) and signing plans. Get a written OK from title, the buyer and the listing agent.` },
       { id: 'buyerwire', label: 'Wire instructions sent to buyer', due: (d, c) => c.assignedOn,
-        how: () => 'Title’s wire instructions, with the “call title to verify before you wire” warning.' },
+        how: () => 'Title’s wire instructions, with “call title to verify before you wire.”' },
       { id: 'buyerem', label: 'Buyer EM receipt received', due: (d, c) => plus(c.assignedOn, 2), auto: (d) => /BUYER/.test(up(d.emdPaidBy)), why: () => 'done — EMD paid by includes the buyer',
-        how: (d) => `Ask ${titleCo(d)} for the buyer’s EM receipt${typeof d.buyerEmd === 'number' && d.buyerEmd > 0 ? ` (${money(d.buyerEmd)})` : ''}. Ticking saves EMD paid by on the deal.` },
+        how: (d) => `Ask ${titleCo(d)} for the buyer’s EM receipt${typeof d.buyerEmd === 'number' && d.buyerEmd > 0 ? ` (${money(d.buyerEmd)})` : ''}. Ticking saves it on the deal.` },
       { id: 'funding', label: 'Buyer’s funding confirmed', since: DESK_FROM, due: (d, c) => plus(c.assignedOn, 2),
-        how: (d) => `Ask ${dispo(d)}: cash → proof of funds; lender → loan officer and appraisal date; double close → the second contract and its funding.` },
-      { id: 'buyertimeline', label: 'Buyer added to the closing timeline email', since: DESK_FROM, due: (d, c) => plus(c.assignedOn, 1),
-        how: (d) => `Send the buyer the COE (${coeText(d)}), signing plans and the escrow contact.` },
+        how: (d) => `Ask ${dispo(d)}: cash → proof of funds; lender → loan officer and appraisal date.` },
     ],
   },
   {
     id: 'week', label: 'Closing Week', span: '7 days before COE → COE', when: (d) => !!day(d.coe), wait: 'starts once a COE date is set',
     items: [
       { id: 't7', label: '7-day title check', since: DESK_FROM, due: (d) => plus(d.coe, -7),
-        how: (d) => `Ask ${titleCo(d)} what’s still open, whether payoffs are ordered, and the expected clear-to-close date.` },
-      { id: 'signings', label: 'Both signings scheduled', since: DESK_FROM, due: (d) => plus(d.coe, -5),
-        how: (d) => `Seller and buyer: date, time, and office or mobile notary, confirmed with ${titleCo(d)}.` },
-      { id: 'settlement', label: 'Settlement statement draft reviewed', since: DESK_FROM, due: (d) => plus(d.coe, -3),
-        how: () => 'Check the assignment fee, EMD credits, prorations and payoffs, and that VPG’s payout wire instructions are with title.' },
-      { id: 't72', label: '72-hour title check-in: clear to close?', due: (d) => plus(d.coe, -3),
-        how: (d) => `Call ${titleCo(d)}. Anything still open gets flagged now, not on closing day.` },
-      { id: 'email48', label: '48-hour email check-in', since: DESK_FROM, due: (d) => plus(d.coe, -2), mail: true,
-        how: () => 'Email title, the listing agent and the buyer: is anything behind — docs, funds, signings? The email is written for you below. A reply that something is behind → Flag an Issue today.' },
+        how: (d) => `Ask ${titleCo(d)}: what’s still open, payoffs ordered, expected clear-to-close date?` },
+      { id: 'signings', label: 'Seller and buyer signings scheduled', since: DESK_FROM, due: (d) => plus(d.coe, -5),
+        how: (d) => `Date, time and place for each, confirmed with ${titleCo(d)}.` },
+      { id: 'notary', label: 'Notary booked for VPG’s signing (double close)', since: NEW_FROM, due: (d) => plus(d.coe, -5), only: isDouble,
+        how: (d) => `On a double close VPG signs as the seller. Book the notary with ${titleCo(d)} and send the owners the time.` },
+      { id: 'settlement', label: 'Draft settlement statement checked', since: DESK_FROM, due: (d) => plus(d.coe, -3),
+        how: () => 'Assignment fee, EMD credits, prorations, payoffs — and VPG’s payout wire instructions are with title.' },
+      { id: 't72', label: '72-hour title check-in', due: (d) => plus(d.coe, -3),
+        how: (d) => `Call ${titleCo(d)}. Anything still open → Flag an Issue now, not on closing day.` },
+      { id: 'email48', label: '48-hour email to everyone', since: DESK_FROM, due: (d) => plus(d.coe, -2), mail: true,
+        how: () => 'Title, listing agent and buyer: is anything behind? The email is written for you — Copy the Email. Anything behind → Flag an Issue.' },
       { id: 't24', label: '24-hour title check-in', due: (d) => plus(d.coe, -1),
-        how: (d) => `Call ${titleCo(d)}: is everything signed, and are the buyer’s funds wired or the lender’s funding confirmed?` },
+        how: (d) => `Call ${titleCo(d)}: everything signed? Buyer’s funds wired or the lender cleared to fund?` },
       { id: 'team', label: 'Team told the closing plan', since: DESK_FROM, due: (d) => plus(d.coe, -1),
         how: (d) => `Tell ${first(d.acq) || 'the acq rep'}${d.dispoMember ? `, ${dispo(d)}` : ''} and the owners the closing time and anything at risk.` },
     ],
@@ -123,12 +132,12 @@ export const CHECKLIST = [
   {
     id: 'close', label: 'Closing & Funding', span: 'COE → 3 days after', when: (d) => !!day(d.coe), wait: 'starts once a COE date is set',
     items: [
-      { id: 'fund', label: 'Closing day: funded and closing confirmed', due: (d) => day(d.coe),
-        how: (d) => `Confirm with ${titleCo(d)} that it funded and is closing. If not: why, and the new time.` },
-      { id: 'hud', label: 'Final settlement statement (HUD) received', due: (d) => plus(d.coe, 1), closed: true,
-        how: (d) => `Get the final statement from ${titleCo(d)} and save it to the deal.` },
+      { id: 'ctc', label: 'Email title: on track, clear to close issued?', since: NEW_FROM, due: (d) => day(d.coe),
+        how: (d) => `Closing-day email to ${titleCo(d)}: are we on track, and has the clear to close been issued? Not yet → Flag an Issue.` },
+      { id: 'hud', label: 'Closing complete — final HUD received', due: (d) => day(d.coe), closed: true,
+        how: (d) => `Get the final settlement statement from ${titleCo(d)} and save it to the deal.` },
       { id: 'wirein', label: 'Assignment fee wire received', due: (d) => plus(d.coe, 1), closed: true, auto: (d) => ISO.test(d.wireDate || ''), why: () => 'done — wire date on the deal',
-        how: () => 'Ticks itself once the wire date is on the deal (Finance › Wires In). The amount should match the settlement statement.' },
+        how: () => 'Ticks itself once the wire date is on the deal (Finance › Wires In). Should match the final HUD.' },
       { id: 'emret', label: 'VPG’s EMD returned or credited', due: (d) => plus(d.coe, 3), closed: true,
         auto: (d) => !vpgPlacedEm(d) || ['YES', 'LOST'].includes(up(d.emdReturned)),
         why: (d) => (!vpgPlacedEm(d) ? 'not needed — VPG didn’t place EMD' : up(d.emdReturned) === 'LOST' ? 'EM lost — marked on the deal' : 'done — EMD returned on the deal'),
@@ -150,11 +159,16 @@ export const REMOVED = [
   ['Deal file complete', 'Removed'],
   ['Thank-you to the listing agent and title', 'Removed'],
   ['Close out the deal', 'The deal closes out by itself once every step is done'],
+  ['Wire instructions verified by phone', 'Now “Wire instructions received from title” (Oct 27)'],
+  ['Buyer added to the closing timeline email', 'Now: buyer on cc of the assignment email + timeline confirmed in writing (Oct 27)'],
+  ['Closing day: funded and closing confirmed', 'Now: clear-to-close email to title + Closing complete — final HUD (Oct 27)'],
+  ['Monday status updates', 'Removed (Oct 27)'],
 ];
 export const CLOSE_OUT = 'closeout';
 export const STEP_IDS = new Set(CHECKLIST.flatMap((g) => g.items.map((i) => i.id)));
 // What /api/tc accepts as a tick: a step, a step marked not needed
-// (`<id>~na`), the old close-out tick, or a Monday update sent (`mon:<date>`).
+// (`<id>~na`), the old close-out tick, or an old Monday update tick
+// (`mon:<date>` — the Monday updates were removed Oct 27).
 export const okItem = (x) => STEP_IDS.has(x) || x === CLOSE_OUT || (/^[a-z0-9]+~na$/.test(x || '') && STEP_IDS.has(x.slice(0, -3))) || /^mon:\d{4}-\d{2}-\d{2}$/.test(x || '');
 export const NA = (id) => `${id}~na`;
 
@@ -162,12 +176,12 @@ export const NA = (id) => `${id}~na`;
 export const MILESTONES = [
   ['emd', 'EMD', ['em', 'emreceipt']],
   ['title', 'Title', ['title', 'commitorder', 'commitreview']],
-  ['ip', 'IP', ['ip48', 'ipdecision']],
-  ['assigned', 'Assigned', ['assign', 'buyerwire']],
+  ['ip', 'IP', ['ip48', 'ip24', 'ipdecision']],
+  ['assigned', 'Assigned', ['assign', 'timeline', 'buyerwire']],
   ['buyer', 'Buyer EMD', ['buyerem', 'funding']],
-  ['ctc', 'Clear to Close', ['t7', 'signings', 'settlement', 't72', 'email48', 't24', 'team']],
-  ['funded', 'Funded', ['fund', 'trackerclosed']],
-  ['wire', 'Wire & HUD', ['hud', 'wirein', 'emret']],
+  ['ctc', 'Closing Week', ['t7', 'signings', 'notary', 'settlement', 't72', 'email48', 't24', 'team']],
+  ['funded', 'Closed', ['ctc', 'hud', 'trackerclosed']],
+  ['wire', 'Money In', ['wirein', 'emret']],
 ];
 
 // Flag an Issue kinds (Luke, Oct 26; they go to the owners and the deal's
@@ -181,18 +195,13 @@ export const ISSUE_KINDS = [
 ];
 export const issueLabel = (k) => ISSUE_KINDS.find(([id]) => id === k)?.[1] || 'Issue';
 
-// Arizona's Monday of the week holding `today`.
-export const mondayOf = (today) => { const d = new Date(`${today}T12:00:00Z`); return addDays(today, -((d.getUTCDay() + 6) % 7)); };
-export const isMonday = (today) => new Date(`${today}T12:00:00Z`).getUTCDay() === 1;
-
 // deals: computed; tc: { checks, tasks, issues, assigned: {dealId: iso} }.
 // → cards [{ deal, groups, steps, tasks, issues, due, soon, later, warns,
-//   missing, left, total, out, closed, monSent }] — `due` = late + today
+//   missing, left, total, out, closed }] — `due` = late + today
 // rows (Home's Today at a Glance counts them).
 export function buildTcCards(deals, { checks = [], tasks = [], issues = [], assigned = {} } = {}, today, now = Date.now()) {
   const tick = new Map(checks.map((c) => [`${c.deal_id}:${c.item}`, c]));
   const soonTo = addDays(today, 3);
-  const monday = mondayOf(today);
   const cards = [];
   for (const d of deals) {
     const closed = isClosedDeal(d);
@@ -202,7 +211,7 @@ export function buildTcCards(deals, { checks = [], tasks = [], issues = [], assi
     let left = 0; let total = 0;
     const groups = CHECKLIST.map((g) => {
       const active = g.when(d);
-      const items = g.items.map((it) => {
+      const items = g.items.filter((it) => !it.only || it.only(d)).map((it) => {
         // A closed deal ticks every step before its last three by itself.
         const byClose = active && closed && !it.closed;
         const na = tick.get(`${d.id}:${NA(it.id)}`) || null;
@@ -247,7 +256,7 @@ export function buildTcCards(deals, { checks = [], tasks = [], issues = [], assi
       deal: d, groups, steps: groups.flatMap((g) => g.items), tasks: mine, issues: open, warns: out ? [] : warns,
       late: pick('late'), today: pick('today'), soon: pick('soon'), later: pick('later'),
       due: out ? [] : [...pick('late'), ...pick('today')],
-      missing, left, total, out, closed, monSent: tick.get(`${d.id}:mon:${monday}`) || null,
+      missing, left, total, out, closed,
     });
   }
   // Late / due work first, then the soonest COE.
@@ -316,24 +325,6 @@ export function milestone(c, ids, today) {
   if (late) return { state: 'late', on: dates[0] };
   if (dates[0] === today) return { state: 'today', on: today };
   return { state: 'wait', on: dates[0] || null };
-}
-
-// The Monday status update (Luke, Oct 26: "yes keep it"): one message per open
-// deal, written from the sheet and the checklist, for Aiza to copy into her
-// email to title, the listing agent and the buyer. Nothing is sent by the site.
-export function statusUpdate(c, today, from = 'Aiza') {
-  const d = c.deal;
-  const lines = [`Subject: ${d.address} · weekly update${d.escrow ? ` (escrow #${d.escrow})` : ''}`, '', 'Hi all, here’s where we stand this week.', ''];
-  if (day(d.coe)) lines.push(`Closing (COE): ${coeText(d)}`);
-  if (day(d.ddEnd) && d.ddEnd >= today && !isAssignedDeal(d)) lines.push(`Inspection period: ends ${ipEndText(d)}`);
-  const done = c.steps.filter((s) => s.active && (s.done || (s.auto && !/^not needed/.test(s.why || ''))) && !s.na).slice(-4);
-  if (done.length) { lines.push('', 'Done so far:'); for (const s of done) lines.push(`• ${s.label}${s.done ? ` (${shortDate(s.done.done_at.slice(0, 10))})` : ''}`); }
-  const weekEnd = addDays(today, 7);
-  const next = c.steps.filter((s) => s.open && s.dueOn && s.dueOn <= weekEnd).slice(0, 5);
-  const iss = c.issues.map((x) => `${issueLabel(x.kind)}${x.text ? `: ${x.text}` : ''}`);
-  if (next.length || iss.length) { lines.push('', 'This week:'); for (const s of next) lines.push(`• ${s.label}`); for (const t of iss) lines.push(`• ${t}`); }
-  lines.push('', 'Is anything outstanding on your side, or anything we should know? Just reply here.', '', 'Thanks,', `${from} · Valley Property Group`);
-  return lines.join('\n');
 }
 
 // The 48-hour email check-in (Luke, Oct 26: "super super important for us to

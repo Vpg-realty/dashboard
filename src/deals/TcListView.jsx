@@ -1,26 +1,26 @@
-// Deals › TC List — the "TC Desk" (Luke, Oct 26, from the approved mock-up
-// round 2: "a best in class property tracking layout for a professional
-// transaction coordinator that allows them to easily track, update, alert, and
-// check off needed items"; then "keep the style that we have throughout the
-// site. keep left tabs … the action item is hard to see — increase this and
-// make sure it is clear what must be done").
+// Deals › TC List — the "TC Desk" (Luke, Oct 26, from the approved mock-up;
+// reworked Oct 27: "my day and 3 days overlap … if on my day there are
+// multiple things for one property address, it should be a list of items below
+// the address at the top … eliminate the busyness").
 //
-// The navy band (Overdue / Today / Next 3 days / Open issues counters, search)
-// and the site's left rail: My Day (late + today, the default), Next 3 Days,
-// Closing This Week, Open Issues, All Deals, Closed Out, Monday Updates. A row
-// = one step on one deal: the address, the rep · sub-account box and stage,
-// then a tan "To do" box with the step in large type, how to do it, and the
-// due box; Checklist / Flag an Issue / Mark Done. All Deals is one line per
-// deal with "Where It Stands" and a dot per milestone. A row's Checklist (or
+// The navy band (Overdue / Today / Coming up / Open issues counters, search)
+// and the site's left rail: All Deals (on top), My Day (the default),
+// Closing This Week, Open Issues. My Day = one card per property: the address,
+// the rep · sub-account box, stage and COE on top, then every step that's
+// late, due today or due in the next 3 days as a list under it (due chip,
+// the step, how to do it, ✓ Done). Deals with something late or due today
+// come first, then those with only coming-up steps. All Deals is one line per
+// deal with "Where It Stands" and a dot per milestone. A card's Checklist (or
 // a table row) opens the deal's checklist in a side panel (`?card=`): its
 // timeline, open issues, the five phases with every step (tick / Not needed),
 // tasks for the deal. The steps themselves live in tcList.js (CHECKLIST).
 // D1 via /api/tc (ticks, tasks, issues — Flag an Issue alerts the owners and
-// the deal's acq rep and dispo rep). Deals open in the deal panel.
+// the deal's acq rep and dispo rep). Deals open in the deal panel. No Next 3
+// Days, Monday Updates or Closed Out views any more (Oct 27).
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
-import { buildTcCards, CHECKLIST, REMOVED, MILESTONES, ISSUE_KINDS, issueLabel, statusUpdate, email48, standing, whenWord, milestone, mondayOf, isMonday, vpgPlacedEm, firstLine, NA } from './tcList.js';
+import { buildTcCards, CHECKLIST, REMOVED, MILESTONES, ISSUE_KINDS, issueLabel, email48, standing, whenWord, milestone, vpgPlacedEm, firstLine, NA } from './tcList.js';
 import { Loading, StatusChip, CoeChip, PageHead, Search } from './ui.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
 import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
@@ -31,14 +31,13 @@ import { shortDate, primaryCls, btnCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { useMe } from '../utils/dashApi.js';
 
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const up = (x) => String(x ?? '').trim().toUpperCase();
 const longDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 // "the owners, Sam and Cayden" — who a flagged issue alerts.
 const whoGets = (d) => { const p = [...new Set([d.acq, d.dispoMember].filter(Boolean))]; return p.length ? `the owners, ${p.join(' and ')}` : 'the owners'; };
-const VIEWS = new Set(['day', 'soon', 'closing', 'issues', 'all', 'out', 'monday']);
+const VIEWS = new Set(['day', 'closing', 'issues', 'all']);
 
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch {
@@ -140,63 +139,58 @@ function FlagDialog({ d, post, onClose }) {
   );
 }
 
-const DUE_BOX = { late: 'bg-[#4c0519] text-white', today: 'bg-[#B42318] text-white', soon: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200', later: 'bg-tan-100 text-tan-800' };
-const EDGE = { late: 'border-l-[#B42318]', today: 'border-l-amber-500', soon: 'border-l-sky-600', later: 'border-l-tan-300' };
+const CHIP = { late: 'bg-[#4c0519] text-white', today: 'bg-[#B42318] text-white', soon: 'bg-sky-50 text-sky-800 ring-1 ring-sky-200' };
 
-// One thing to do on one deal (a step, a task or a warning).
-function TaskRow({ r, today, post, onCard, onDeal, onFlag }) {
+// One thing to do on a deal (a step, a task or a warning), as a line under
+// the property's address.
+function ItemRow({ r, today, post, onDeal }) {
   const d = r.deal;
   const { ask, setAsk, saving, tick, save } = useTick(d, post);
   const [busy, setBusy] = useState(false);
-  const tag = dealTag(d);
   const title = r.warn ? r.warn.text : r.step ? r.step.label : r.task.text;
-  const how = r.warn ? r.warn.how : r.step ? r.step.how : `Task added by ${r.task.created_by}${r.task.due ? '' : ' (no due date)'}`;
+  const how = r.warn ? r.warn.how : r.step ? r.step.how : `Task added by ${r.task.created_by}`;
   const box = r.warn ? (r.warn.red ? 'late' : 'today') : r.bucket;
-  const boxTop = r.warn ? 'Now' : r.bucket === 'late' ? `${r.lateBy} day${r.lateBy === 1 ? '' : 's'}` : r.dueOn === today ? 'Today' : whenWord(r, today);
-  const boxSub = r.warn ? r.warn.chip : r.bucket === 'late' ? 'late' : r.dueOn === today ? longDay(today) : r.bucket === 'soon' ? 'coming up' : '';
+  const chip = r.warn ? 'Now' : r.bucket === 'late' ? `${r.lateBy} day${r.lateBy === 1 ? '' : 's'} late` : r.dueOn === today ? 'Today' : whenWord(r, today).replace(/^./, (x) => x.toUpperCase());
   const done = async () => {
     setBusy(true);
     try { if (r.task) await post({ action: 'task', id: r.task.id, done: true }); else await tick(r.step, true); } finally { setBusy(false); }
   };
   return (
-    <div className={`rounded-xl border border-tan-200 border-l-[5px] ${EDGE[box]} bg-white px-4 py-3 flex flex-col gap-2.5 shadow-[0_1px_2px_rgba(27,56,95,0.04)]`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => onDeal(d.id)} title="Open the deal" className="mr-auto text-left text-[15px] font-semibold text-navy-900 hover:underline underline-offset-2">{d.address}</button>
-        {tag && <RepTag label={tag.label} color={tag.color} />}
-        <StatusChip status={d.status} />
-        {r.task && <span className="rounded-md bg-sky-50 text-sky-800 ring-1 ring-sky-200 px-1.5 text-[11.5px] font-semibold">Task</span>}
+    <li className={`grid grid-cols-[108px_minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 items-start px-4 py-3 border-t border-tan-100 ${box === 'soon' ? 'bg-white' : 'bg-tan-50/50'}`}>
+      <span className={`mt-0.5 rounded-md px-2 py-1 text-center text-[12.5px] font-bold leading-tight ${CHIP[box]}`}>{chip}</span>
+      <div className="min-w-0">
+        <div className={`text-[15.5px] font-semibold leading-snug ${r.warn ? 'text-[#B42318]' : 'text-navy-900'}`}>{r.task && <span className="mr-1.5 rounded bg-sky-50 text-sky-800 ring-1 ring-sky-200 px-1.5 text-[11px] font-semibold align-middle">Task</span>}{title}</div>
+        <div className="text-[13px] text-zinc-600 mt-0.5">{how}</div>
+        {ask && <div className="mt-1.5"><LinkAsk kind={ask} d={d} save={save} onDone={() => setAsk(null)} /></div>}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-center rounded-lg bg-tan-100/70 px-3.5 py-2.5">
-        <div className="min-w-0">
-          <div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-tan-800">To do</div>
-          <div className="text-[18px] font-semibold leading-snug text-navy-900 [text-wrap:balance]">{title}</div>
-          <div className="text-[13.5px] text-zinc-700 mt-0.5">{how}</div>
-        </div>
-        <div className={`rounded-lg px-3 py-2 min-w-[104px] text-center ${DUE_BOX[box]}`}>
-          <div className="text-[16px] font-bold leading-tight">{boxTop}</div>
-          {boxSub && <div className="text-[11.5px] font-semibold opacity-90">{boxSub}</div>}
-        </div>
-      </div>
-      {ask && <LinkAsk kind={ask} d={d} save={save} onDone={() => setAsk(null)} />}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {r.step && !r.step.auto && <button type="button" onClick={() => post({ action: 'check', dealId: d.id, item: NA(r.step.id), done: true })} className="mr-auto text-[12.5px] text-zinc-500 hover:text-navy-800 hover:underline">Not needed on this deal</button>}
+      <div className="flex flex-col items-end gap-1">
+        {r.warn ? <button type="button" onClick={() => onDeal(d.id)} className={`${primaryCls} whitespace-nowrap`}>Open Deal</button>
+          : <button type="button" disabled={busy || saving} onClick={done} className={`${primaryCls} whitespace-nowrap`}>{busy || saving ? 'Saving…' : '✓ Done'}</button>}
         {r.step?.mail && <CopyButton text={email48(d)} label="Copy the Email" />}
-        <button type="button" onClick={() => onCard(d.id)} className={btnCls}>Checklist</button>
-        <button type="button" onClick={() => onFlag(d)} className={`${btnCls} !text-[#B42318] !border-[#F5C2BD]`}>⚑ Flag an Issue</button>
-        {r.warn ? <button type="button" onClick={() => onDeal(d.id)} className={`${primaryCls} !h-9 !px-4 !text-[14px]`}>Open Deal</button>
-          : <button type="button" disabled={busy || saving} onClick={done} className={`${primaryCls} !h-9 !px-4 !text-[14px]`}>{busy || saving ? 'Saving…' : '✓ Mark Done'}</button>}
+        {r.step && !r.step.auto && <button type="button" onClick={() => post({ action: 'check', dealId: d.id, item: NA(r.step.id), done: true })} className="text-[12px] text-zinc-400 hover:text-navy-800 hover:underline whitespace-nowrap">Not needed</button>}
       </div>
-    </div>
+    </li>
   );
 }
 
-function Group({ label, tone, rows, ...p }) {
-  if (!rows.length) return null;
+// My Day: one card per property, its items listed under the address.
+function DayCard({ c, rows, today, post, onCard, onDeal, onFlag }) {
+  const d = c.deal;
+  const tag = dealTag(d);
+  const hot = rows.some((r) => r.bucket === 'late' || r.warn?.red);
   return (
-    <section className="flex flex-col gap-2.5">
-      <h3 className={`flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] ${tone}`}>{label}<span className="rounded-full border-[1.5px] border-current px-2 text-[11px] tabular-nums">{rows.length}</span></h3>
-      {rows.map((r) => <TaskRow key={`${r.deal.id}:${r.step?.id || r.task?.id || r.warn?.id}`} r={r} {...p} />)}
-    </section>
+    <article className={`rounded-xl border border-tan-200 border-l-[5px] ${hot ? 'border-l-[#B42318]' : rows.some((r) => r.bucket === 'today') ? 'border-l-amber-500' : 'border-l-sky-600'} bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]`}>
+      <header className="flex flex-wrap items-center gap-2 px-4 py-3">
+        <button type="button" onClick={() => onDeal(d.id)} title="Open the deal" className="mr-auto text-left text-[17px] font-semibold text-navy-900 hover:underline underline-offset-2">{d.address}</button>
+        {tag && <RepTag label={tag.label} color={tag.color} />}
+        <StatusChip status={d.status} />
+        {d.coe && <span className="text-[12.5px] text-zinc-500">COE {shortDate(d.coe)}</span>}
+        <button type="button" onClick={() => onCard(d.id)} className={btnCls}>Checklist</button>
+        <button type="button" onClick={() => onFlag(d)} className={`${btnCls} !text-[#B42318] !border-[#F5C2BD]`}>⚑ Flag</button>
+      </header>
+      {c.issues.length > 0 && <div className="px-4 pb-2 text-[13px] font-semibold text-[#B42318]">⚑ Open issue: {c.issues.map((x) => issueLabel(x.kind)).join(' · ')}</div>}
+      <ul>{rows.map((r) => <ItemRow key={`${r.step?.id || r.task?.id || r.warn?.id}`} r={r} today={today} post={post} onDeal={onDeal} />)}</ul>
+    </article>
   );
 }
 
@@ -204,42 +198,8 @@ function Empty({ children }) {
   return <div className="rounded-xl border border-tan-200 bg-white px-5 py-12 text-center text-[15px] font-medium text-[#15803D]">{children}</div>;
 }
 
-// The Monday row on My Day (Luke, Oct 26: "yes keep it").
-function MondayRow({ n, onOpen }) {
-  return (
-    <div className="rounded-xl border border-tan-200 border-l-[5px] border-l-amber-500 bg-white px-4 py-3 flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-2"><span className="mr-auto text-[15px] font-semibold text-navy-900">Monday status updates · {n} deal{n === 1 ? '' : 's'}</span><span className="rounded-md bg-sky-50 text-sky-800 ring-1 ring-sky-200 px-1.5 text-[11.5px] font-semibold">Every Monday</span></div>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 items-center rounded-lg bg-tan-100/70 px-3.5 py-2.5">
-        <div><div className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-tan-800">To do</div><div className="text-[18px] font-semibold text-navy-900">Send this week’s status update for each open deal</div><div className="text-[13.5px] text-zinc-700 mt-0.5">Each one is written for you. Copy it into your email to title, the listing agent and (once assigned) the buyer, then Mark Sent.</div></div>
-        <div className="rounded-lg px-3 py-2 min-w-[104px] text-center bg-[#B42318] text-white"><div className="text-[16px] font-bold">Today</div><div className="text-[11.5px] font-semibold">by noon</div></div>
-      </div>
-      <div className="flex justify-end"><button type="button" onClick={onOpen} className={`${primaryCls} !h-9 !px-4 !text-[14px]`}>Open the {n} Update{n === 1 ? '' : 's'}</button></div>
-    </div>
-  );
-}
-
-function MondayView({ cards, today, post, name }) {
-  const monday = mondayOf(today);
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="rounded-xl border border-tan-200 bg-white px-4 py-3 text-[13.5px] text-zinc-700">
-        Week of <b className="text-navy-800">{longDay(monday)}</b>. One message per open deal, written from the deal sheet and the checklist — read it over, <b>Copy</b>, paste it into your email to title, the listing agent and (once assigned) the buyer, then <b>Mark Sent</b>. Nothing is sent by the site.
-      </div>
-      {cards.map((c) => (
-        <article key={c.deal.id} className={`rounded-xl border bg-white overflow-hidden ${c.monSent ? 'border-emerald-200' : 'border-tan-200'}`}>
-          <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-navy-700 text-white">
-            <span className="font-semibold mr-auto">{c.deal.address}</span>
-            {c.monSent && <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-[12px] font-semibold">✓ Sent · {c.monSent.done_by} {when(c.monSent.done_at)}</span>}
-          </div>
-          <pre className="px-4 py-3 whitespace-pre-wrap font-sans text-[13.5px] leading-relaxed text-zinc-800">{statusUpdate(c, today, name)}</pre>
-          <div className="flex justify-end gap-2 px-4 py-2.5 border-t border-tan-100 bg-tan-50">
-            <CopyButton text={statusUpdate(c, today, name)} big />
-            <button type="button" onClick={() => post({ action: 'check', dealId: c.deal.id, item: `mon:${monday}`, done: !c.monSent })} className={btnCls}>{c.monSent ? 'Undo Sent' : 'Mark Sent'}</button>
-          </div>
-        </article>
-      ))}
-    </section>
-  );
+function DayHead({ label, tone, n }) {
+  return <h3 className={`flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] ${tone}`}>{label}<span className="rounded-full border-[1.5px] border-current px-2 text-[11px] tabular-nums">{n} {n === 1 ? 'property' : 'properties'}</span></h3>;
 }
 
 // All Deals: one line per deal, where it stands, a dot per milestone.
@@ -382,7 +342,7 @@ function StepLine({ it, d, post, today }) {
 }
 
 // The deal's checklist in the side panel.
-function DealChecklist({ c, today, post, onDeal, onFlag, onClose, name }) {
+function DealChecklist({ c, today, post, onDeal, onFlag, onClose }) {
   const d = c.deal;
   const tag = dealTag(d);
   // The phases with something open now (late, today, next 7 days) start open.
@@ -412,7 +372,6 @@ function DealChecklist({ c, today, post, onDeal, onFlag, onClose, name }) {
         <div className="rounded-xl border border-tan-200 bg-white px-4 py-3">
           <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => onDeal(d.id)} className={btnCls}>Open Full Deal</button>
-            <CopyButton text={statusUpdate(c, today, name)} label="Copy Status Update" />
             <button type="button" onClick={() => onFlag(d)} className={`${btnCls} !text-[#B42318] !border-[#F5C2BD]`}>⚑ Flag an Issue</button>
           </div>
           <Timeline d={d} c={c} today={today} />
@@ -495,7 +454,6 @@ function HowItWorks() {
 
 export default function TcListView() {
   const s = useDeals();
-  const me = useMe();
   const { open: openDeal, panel } = useDealPanel();
   const { st, err, post } = useTc();
   const [flagging, setFlagging] = useState(null);
@@ -515,64 +473,57 @@ export default function TcListView() {
   }, [cardId, dealOpen, flagging]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
-  const name = String(me?.realName || me?.name || 'Aiza').split(' ')[0];
   const needle = q.trim().toLowerCase();
   const hit = (c) => !needle || [c.deal.address, c.deal.escrow, c.deal.acq, c.deal.dispoMember, firstLine(c.deal.title)].some((x) => String(x || '').toLowerCase().includes(needle));
   const cards = all.filter((c) => !c.out && hit(c));
-  const outCards = all.filter((c) => c.out && hit(c));
   const late = cards.flatMap((c) => c.late);
   const todays = cards.flatMap((c) => c.today);
-  const soon = cards.flatMap((c) => c.soon).sort((a, b) => a.dueOn.localeCompare(b.dueOn));
-  const closing = cards.filter((c) => !c.closed && c.deal.coe && c.deal.coe >= today && c.deal.coe <= new Date(Date.parse(`${today}T12:00:00Z`) + 7 * 86400000).toISOString().slice(0, 10));
+  const soon = cards.flatMap((c) => c.soon);
+  // My Day: every property with something late, due today or due in the next
+  // 3 days; its items in due order under the address.
+  const ORDER = { late: 0, today: 1, soon: 2 };
+  const day = cards.map((c) => ({ c, rows: [...c.late, ...c.today, ...c.soon].sort((a, b) => (a.warn ? -1 : 0) - (b.warn ? -1 : 0) || ORDER[a.bucket] - ORDER[b.bucket] || String(a.dueOn).localeCompare(String(b.dueOn))) }))
+    .filter((x) => x.rows.length);
+  const now = day.filter((x) => x.rows.some((r) => r.bucket !== 'soon'));
+  const next = day.filter((x) => x.rows.every((r) => r.bucket === 'soon'));
+  const firstDue = (x) => String(x.rows[0]?.dueOn || '');
+  now.sort((a, b) => (b.rows.some((r) => r.bucket === 'late') - a.rows.some((r) => r.bucket === 'late')) || firstDue(a).localeCompare(firstDue(b)));
+  next.sort((a, b) => firstDue(a).localeCompare(firstDue(b)));
+  const weekOut = new Date(Date.parse(`${today}T12:00:00Z`) + 7 * 86400000).toISOString().slice(0, 10);
+  const closing = cards.filter((c) => !c.closed && c.deal.coe && c.deal.coe >= today && c.deal.coe <= weekOut);
   const issues = cards.reduce((n, c) => n + c.issues.length, 0);
-  const openDeals = cards.filter((c) => !c.closed);
-  const monLeft = openDeals.filter((c) => !c.monSent).length;
   const go = (v) => setQuery({ view: v === 'day' ? null : v, card: null });
   const onCard = (id) => setQuery({ card: id });
   const card = cardId ? all.find((c) => c.deal.id === cardId) : null;
   const rowProps = { today, post, onCard, onDeal: openDeal, onFlag: setFlagging };
   const groups = [
-    { items: [
-      { id: 'day', label: 'My Day', sub: 'Overdue and due today', count: late.length + todays.length, tone: late.length ? 'red' : 'navy' },
-      { id: 'soon', label: 'Next 3 Days', sub: 'Coming up', count: soon.length },
-      { id: 'monday', label: 'Monday Updates', sub: isMonday(today) ? 'To send today' : 'Status update per deal', count: isMonday(today) ? monLeft : null },
-    ], title: 'Work' },
+    { items: [{ id: 'all', label: 'All Deals', sub: 'Where each one stands', count: cards.length }], title: 'Deals' },
+    { items: [{ id: 'day', label: 'My Day', sub: 'Late, today and the next 3 days', count: day.length, tone: late.length ? 'red' : 'navy' }], title: 'Work' },
     { items: [
       { id: 'closing', label: 'Closing This Week', sub: 'COE in 7 days', count: closing.length },
       { id: 'issues', label: 'Open Issues', sub: 'Flagged problems', count: issues, tone: issues ? 'red' : 'navy' },
     ], title: 'Watch' },
-    { items: [
-      { id: 'all', label: 'All Deals', sub: 'Where each one stands', count: cards.length },
-      { id: 'out', label: 'Closed Out', sub: 'Every step done', count: outCards.length },
-    ], title: 'Deals' },
   ];
   return (
     <div className="max-w-[1720px] mx-auto">
-      <PageHead title="TC List" sub={`${longDay(today)} · every step for every deal, in order of when it’s due`} right={<Search dark value={q} onChange={setQ} placeholder="Search an address, escrow #, rep…" />}
+      <PageHead title="TC List" sub={`${longDay(today)} · what needs doing on every deal, property by property`} right={<Search dark value={q} onChange={setQ} placeholder="Search an address, escrow #, rep…" />}
         counters={<>
           <BandCounter label="Overdue" value={late.length} warn active={false} onClick={() => go('day')} />
           <BandCounter label="Today" value={todays.length} active={view === 'day'} onClick={() => go('day')} />
-          <BandCounter label="Next 3 days" value={soon.length} active={view === 'soon'} onClick={() => go('soon')} />
+          <BandCounter label="Next 3 days" value={soon.length} active={false} onClick={() => go('day')} />
           <BandCounter label="Open issues" value={issues} warn active={view === 'issues'} onClick={() => go('issues')} />
         </>} />
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className={RAIL_GRID}>
         <SideRail label="TC List sections" groups={groups} value={view} onPick={go} />
         <div className="min-w-0 flex flex-col gap-5">
-          {view === 'day' && (late.length || todays.length || (isMonday(today) && monLeft)) ? <>
-            <Group label="Overdue" tone="text-[#B42318]" rows={late} {...rowProps} />
-            <section className="flex flex-col gap-2.5">
-              {(todays.length > 0 || (isMonday(today) && monLeft > 0)) && <h3 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] text-amber-700">Today<span className="rounded-full border-[1.5px] border-current px-2 text-[11px] tabular-nums">{todays.length + (isMonday(today) && monLeft ? 1 : 0)}</span></h3>}
-              {isMonday(today) && monLeft > 0 && <MondayRow n={monLeft} onOpen={() => go('monday')} />}
-              {todays.map((r) => <TaskRow key={`${r.deal.id}:${r.step?.id || r.task?.id || r.warn?.id}`} r={r} {...rowProps} />)}
-            </section>
-          </> : view === 'day' && <Empty>✓ Nothing overdue or due today{soon.length ? ` — ${soon.length} coming up in the next 3 days` : ''}</Empty>}
-          {view === 'soon' && (soon.length ? <Group label="Next 3 Days" tone="text-sky-700" rows={soon} {...rowProps} /> : <Empty>✓ Nothing due in the next 3 days</Empty>)}
+          {view === 'day' && (day.length ? <>
+            {now.length > 0 && <section className="flex flex-col gap-3"><DayHead label="Needs Action Today" tone="text-[#B42318]" n={now.length} />{now.map((x) => <DayCard key={x.c.deal.id} c={x.c} rows={x.rows} {...rowProps} />)}</section>}
+            {next.length > 0 && <section className="flex flex-col gap-3"><DayHead label="Coming Up · Next 3 Days" tone="text-sky-700" n={next.length} />{next.map((x) => <DayCard key={x.c.deal.id} c={x.c} rows={x.rows} {...rowProps} />)}</section>}
+          </> : <Empty>✓ Nothing late, due today or due in the next 3 days</Empty>)}
           {view === 'closing' && <DealTable cards={closing} today={today} onCard={onCard} />}
           {view === 'issues' && <IssuesView cards={cards} post={post} onCard={onCard} />}
           {view === 'all' && <DealTable cards={cards} today={today} onCard={onCard} />}
-          {view === 'out' && <DealTable cards={outCards} today={today} onCard={onCard} />}
-          {view === 'monday' && (openDeals.length ? <MondayView cards={openDeals} today={today} post={post} name={name} /> : <Empty>No open deals</Empty>)}
           <HowItWorks />
         </div>
       </div>
@@ -580,7 +531,7 @@ export default function TcListView() {
         <div className="fixed inset-0 z-40 flex justify-end">
           <div className="absolute inset-0 bg-navy-900/30" onClick={() => setQuery({ card: null })} />
           <div className="relative w-full max-w-[880px] h-full bg-white shadow-2xl overflow-y-auto" role="dialog" aria-label={card.deal.address}>
-            <DealChecklist key={card.deal.id} c={card} today={today} post={post} onDeal={openDeal} onFlag={setFlagging} onClose={() => setQuery({ card: null })} name={name} />
+            <DealChecklist key={card.deal.id} c={card} today={today} post={post} onDeal={openDeal} onFlag={setFlagging} onClose={() => setQuery({ card: null })} />
           </div>
         </div>
       )}
