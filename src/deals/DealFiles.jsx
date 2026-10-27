@@ -42,6 +42,10 @@ export default function DealFiles({ id, deal, owner, onFill }) {
   const [over, setOver] = useState(false);
   const [open, setOpen] = useState(null); // file id whose reading is shown
   const [pick, setPick] = useState(null); // proposal keys ticked (null = all)
+  // Ask about the files (Luke, Oct 27): the question being typed, and while one is out.
+  const [question, setQuestion] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [askErr, setAskErr] = useState(null);
   const input = useRef(null);
 
   const load = () => call(`deal-files/${id}`).then(setData).catch((e) => setErr(e.message));
@@ -228,6 +232,50 @@ export default function DealFiles({ id, deal, owner, onFill }) {
           )}
         </div>
       </section>
+
+      {/* Ask About These Files (Luke, Oct 27: "a section where i can ask a
+          specific question about the documents") — Claude answers from the
+          documents themselves; each person's questions are their own. */}
+      {files.some(readable) && data.claude && (
+        <section className="rounded-xl border border-tan-200 bg-white overflow-hidden" aria-label="Ask about these files">
+          <div className="flex items-center gap-2 bg-navy-700 text-white px-4 py-2.5">
+            <span aria-hidden className="grid place-items-center w-6 h-6 rounded-full bg-tan-500 text-navy-900 text-[12px]">✦</span>
+            <span className="text-[15px] font-semibold mr-auto">Ask About These Files</span>
+            <span className="text-[12px] text-white/70">Claude reads the documents to answer · only you see your questions</span>
+          </div>
+          <div className="px-4 py-3 flex flex-col gap-3">
+            {(data.asks || []).map((x, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="self-end max-w-[85%] rounded-xl rounded-br-sm bg-navy-700 px-3 py-2 text-[13.5px] text-white whitespace-pre-line">{x.q}</div>
+                <div className="self-start max-w-[92%] rounded-xl rounded-bl-sm bg-tan-50 ring-1 ring-inset ring-tan-200 px-3 py-2 text-[13.5px] text-navy-900 whitespace-pre-line">
+                  {x.a}
+                  {x.files?.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-x-2 text-[11.5px] text-zinc-500">From: {x.files.map((fid) => nameOf(fid) && <a key={fid} href={fileUrl(id, fid, true)} target="_blank" rel="noreferrer" className="text-navy-600 underline">{nameOf(fid)}</a>)}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {asking && <div className="flex items-center gap-2 text-[13px] text-navy-700"><span className="w-3.5 h-3.5 rounded-full border-2 border-navy-200 border-t-navy-700 animate-spin" />Claude is reading the documents…</div>}
+            {askErr && <div className="rounded-md bg-[#FEF3F2] px-3 py-2 text-[13px] text-[#B42318]">{askErr}</div>}
+            <form className="flex items-end gap-2" onSubmit={async (e) => {
+              e.preventDefault();
+              const qn = question.trim();
+              if (!qn || asking) return;
+              setAsking(true); setAskErr(null);
+              try {
+                const r = await call(`deal-files/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ask: qn }) });
+                setData((d) => ({ ...d, asks: r.asks })); setQuestion('');
+              } catch (err) { setAskErr(err.message); } finally { setAsking(false); }
+            }}>
+              <textarea value={question} onChange={(e) => setQuestion(e.target.value)} rows={2} maxLength={1000} disabled={asking}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.currentTarget.form.requestSubmit(); } }}
+                placeholder="e.g. When does the inspection period end? Who pays the title fees? Is there a financing contingency?"
+                className="flex-1 resize-none rounded-lg border border-tan-300 bg-white px-3 py-2 text-[13.5px] text-navy-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-navy-200" />
+              <button type="submit" disabled={!question.trim() || asking} className={`${btn} bg-navy-700 text-white hover:bg-navy-800`}>Ask</button>
+            </form>
+          </div>
+        </section>
+      )}
 
       {/* The files */}
       <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">

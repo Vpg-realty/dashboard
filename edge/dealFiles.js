@@ -322,3 +322,52 @@ export async function reviewDeal(env, deal, files, lists, today) {
   };
   return { review, usage, cost };
 }
+
+// --- Ask about the files (Luke, Oct 27: "a section where i can ask a specific
+// question about the documents") -------------------------------------------------
+// Each question goes to Claude with the deal's documents themselves (PDFs and
+// photos, up to ASK_MAX_B64 of base64 — the request limit is 32 MB), the
+// tracker's values and the person's earlier questions on this deal. The
+// documents sit in a cached block, so follow-ups within 5 minutes cost a
+// fraction. One thread per person per deal (chat_messages thread
+// dealask:<dealId>:<email>), so an owner's answers naming the buyer never
+// reach the TC.
+export const ASK_MAX_B64 = 24_000_000;
+export const ASK_DAILY = 40;
+export const askThread = (dealId, user) => `dealask:${dealId}:${user.email}`;
+
+const ASK_SYSTEM = (owner) => `${ABOUT}
+
+You answer questions about one deal's documents for VPG's ${owner ? 'owners' : 'transaction coordinator'}. You have the documents themselves, the deal as the tracker has it now, and the earlier questions on this deal.
+- Answer only from the documents and the tracker values given. Say which document (its file name) and, when you can, the page or section. If the documents don't say, say so plainly — never guess or use outside knowledge of the law or the market.
+- When documents disagree (an addendum changes the contract), say which one wins and why.
+- Short and plain: lead with the answer, then the detail. Dates as "Nov 21, 2026", money as "$140,000".${owner ? '' : '\n- Never name or identify the end buyer / assignee — say "the buyer".'}
+- files: the ids of the files your answer comes from.`;
+
+const ASK_SCHEMA = {
+  type: 'object',
+  properties: { answer: { type: 'string' }, files: { type: 'array', items: { type: 'string' } } },
+  required: ['answer', 'files'],
+  additionalProperties: false,
+};
+
+// docs = [{ f, b64 }] (readable files, already loaded); history = [{ q, a }].
+export async function askFiles(env, { deal, docs, skipped, history, question, owner }) {
+  const blocks = docs.map(({ f, b64 }) => (f.mime === PDF
+    ? { type: 'document', source: { type: 'base64', media_type: PDF, data: b64 }, title: `${clip(f.name, 150)} [${f.id}]` }
+    : { type: 'image', source: { type: 'base64', media_type: f.mime, data: b64 } }));
+  if (blocks.length) blocks[blocks.length - 1].cache_control = { type: 'ephemeral' };
+  const names = docs.map(({ f }) => `- ${f.id}: "${f.name}" (${KIND_LABEL[f.kind]})`).join('\n');
+  const tracker = PROPOSE_KEYS.filter((k) => owner || !FIELD[k].secret).map((k) => `${FIELD[k].label}: ${show(deal[k])}`).join('\n');
+  const earlier = history.slice(-8).map((x) => `Q: ${x.q}\nA: ${x.a}`).join('\n\n');
+  const text = [
+    `THE FILES ABOVE\n${names || '(none readable)'}`,
+    skipped.length ? `NOT INCLUDED (too large or not a PDF / photo): ${skipped.map((f) => `"${f.name}"`).join(', ')}` : '',
+    `THE TRACKER NOW (stage: ${STAGE_WORD[stageOf(deal)] || stageOf(deal)})\n${tracker}`,
+    earlier ? `EARLIER QUESTIONS ON THIS DEAL\n${earlier}` : '',
+    `QUESTION\n${clip(question, 1000)}`,
+  ].filter(Boolean).join('\n\n');
+  const { out, usage, cost } = await ask(env, { system: ASK_SYSTEM(owner), content: [...blocks, { type: 'text', text }], schema: ASK_SCHEMA, maxTokens: 3000 });
+  const ids = new Set(docs.map(({ f }) => f.id));
+  return { answer: clip(out.answer, 4000), files: (out.files || []).filter((x) => ids.has(x)).slice(0, 6), usage, cost };
+}
