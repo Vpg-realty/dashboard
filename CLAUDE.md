@@ -1656,6 +1656,27 @@ Overrides the TC Desk notes above where they differ.
   problem (no "Why it matters / Do" box) and This Week cards drop the
   what-to-do line ("we know what to do from here").
 
+## All Deals column layout (Luke, Oct 27)
+
+"put the key dates in one section or propose a reorganization of columns …
+easy to go through and check dates" — approved the same day. Overrides the
+"sheet's column order" note under Deal tracker. `LAYOUT` in
+src/deals/AllDealsView.jsx is the one place: **Deal** (address, stage, acq.
+manager, state — the address keeps its own sticky "Deal" band) → **Key
+Dates** in the order they happen (contract acceptance, EMD due, EMD sent, IP
+end, IP end time, COE, wire date) → **Contract** (deal / listing type, price,
+retrade, original price, title agency, escrow #) → **Earnest Money** (EMD,
+paid by, buyer's EMD, option fee, CFAR) → **Selling It** (dispo member,
+buyer, asking, VPG / final assignment, net loss %) → Financials →
+Commissions & Profit → Notes & Links → **Cancellation** (reason, In GHL mark
+it, buyer's EMD kept — last, blank on most rows). Not columns any more: IP
+start, IP days, time zone (the deal panel has them). On an open deal the
+deadlines are flagged in their cell (`dateFlag`): IP end before a buyer, COE,
+EMD due while EMD isn't sent — red today or passed, amber within 3 days.
+Columns menu: Full sheet / Overview / **Key Dates** (`?cols=dates` = Deal +
+Key Dates) / group checkboxes by `LAYOUT`; old `?cols=title|dd` links map to
+Contract / Key Dates. Header accents per group in sheet.js `GROUP_ACCENT`.
+
 ## Deal files & Claude Review (Luke, Oct 27)
 
 "the storage center or file center for each deal … a 'claude review' section

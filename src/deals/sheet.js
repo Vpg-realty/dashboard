@@ -35,6 +35,7 @@ export const HEAD_RULE = '#C9D3E0';
 export const GROUP_ACCENT = {
   contract: '#1b385f', title: '#4F6D95', emd: '#0F766E', dd: '#7C5CBF', dispo: '#ad9b7a',
   money: '#15803D', pay: '#B7791F', notes: '#94A3B8',
+  deal: '#1b385f', dates: '#2563EB', cancel: '#B42318',
 };
 export function headStyle(f) {
   const accent = LOSS_KEYS.has(f.key) ? TAN : GROUP_ACCENT[f.group] || NAVY;
