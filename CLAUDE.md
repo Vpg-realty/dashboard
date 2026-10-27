@@ -2309,7 +2309,9 @@ the server strips them (`forTc`) and refuses edits to them.
   deal to Assigned never changes its numbers (`statusMatches`).
 - **All deals table**: the sheet's column order (FIELDS; GHL stage and
   Deal status right after the address — a status that differs from what
-  GHL's stage maps to (set by hand) shows a small violet "GHL: <stage>"
+  GHL's stage maps to (set by hand) shows a small "● GHL" chip (dot in
+  GHL's stage colour, the stage on hover — Luke, Oct 27: the Stage column was
+  "way too large"; a kept-EMD cancel reads "$4.0k kept")
   hint (`statusDiffersFromGhl`); original contracted price after retrade), the full sheet by
   default (`cols=overview` for the short set, or column groups), header
   bands + coloured headers sticky, address column sticky, dense Arial-like

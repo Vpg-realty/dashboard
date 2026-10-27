@@ -27,7 +27,7 @@ import EditableCell from './EditableCell.jsx';
 import { PICK_FROM_PAST, pastValues, LABEL, reasonsInUse } from './fieldLib.js';
 import { PageHead, Loading, Search, ResortBar } from './ui.jsx';
 import { nextStep, TONES } from './status.js';
-import { money, shortDate, stateCode, statusLabel, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
+import { money, compact, shortDate, stateCode, statusLabel, btnCls, primaryCls, downloadCsv, NEEDS_BUYER, noBuyer } from './format.js';
 import PeriodBar from './PeriodBar.jsx';
 import { usePeriod, DATE_BY, inPeriod } from './period.js';
 import { useLocation, setQuery } from '../shell/router.js';
@@ -330,9 +330,9 @@ export default function AllDealsView() {
                       // The status set by hand differs from GHL's stage (Luke,
                       // Oct 14: GHL's stage drives it, people can override).
                       if (f.key === 'status' && d.ghlStage && statusDiffersFromGhl(d)) {
-                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the stage here was set by hand (a cancel is marked Lost or Abandoned in GHL by the rep)`} className="text-[10.5px] font-semibold not-italic" style={{ color: stageColor(d.ghlStage) }}>GHL: {d.ghlStage}</span></span>;
+                        shown = <span className="inline-flex items-center gap-1">{shown}<span title={`GHL has it in ${d.ghlStage} — the stage here was set by hand (a cancel is marked Lost or Abandoned in GHL by the rep)`} className="inline-flex items-center gap-0.5 rounded px-1 text-[10px] font-semibold not-italic ring-1 ring-inset ring-zinc-200 text-zinc-500"><span className="w-1.5 h-1.5 rounded-full" style={{ background: stageColor(d.ghlStage) }} />GHL</span></span>;
                       }
-                      if (f.key === 'status' && keptMoney(d)) shown = <span className="inline-flex items-center gap-1">{shown}<span title="The buyer's EMD was kept — commissions are paid on it" className="text-[10.5px] font-semibold text-emerald-700">{money(d.netAssign)} kept</span></span>;
+                      if (f.key === 'status' && keptMoney(d)) shown = <span className="inline-flex items-center gap-1">{shown}<span title="The buyer's EMD was kept — commissions are paid on it" className="text-[10.5px] font-semibold text-emerald-700">{compact(d.netAssign)} kept</span></span>;
                       const pay = payMap.get(d.id);
                       const line = pay && partOfField(f.key) ? pay.parts[partOfField(f.key)] : null;
                       if (line) {
