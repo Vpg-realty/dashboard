@@ -254,21 +254,19 @@ function DealTable({ cards, today, onCard }) {
   );
 }
 
+// Open Issues: one quiet line per issue (Luke, Oct 27: "a little busy").
 function IssuesView({ cards, post, onCard }) {
   const list = cards.flatMap((c) => c.issues.map((x) => ({ c, x })));
   if (!list.length) return <Empty>✓ No open issues</Empty>;
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden divide-y divide-tan-100">
       {list.map(({ c, x }) => (
-        <div key={x.id} className="rounded-xl border border-[#F5C2BD] bg-[#FDF4F3] px-4 py-3 flex flex-wrap items-center gap-3">
-          <div className="min-w-0 mr-auto">
-            <div className="text-[15px] font-semibold text-navy-900">{c.deal.address}</div>
-            <div className="text-[16px] font-semibold text-[#B42318]">⚑ {issueLabel(x.kind)}</div>
-            {x.text && <div className="text-[13.5px] text-zinc-700">{x.text}</div>}
-            <div className="text-[12px] text-zinc-500">Flagged by {x.created_by} · {when(x.created_at)} · {whoGets(c.deal)} were alerted</div>
-          </div>
-          <button type="button" onClick={() => onCard(c.deal.id)} className={btnCls}>Checklist</button>
-          <button type="button" onClick={() => post({ action: 'resolve', id: x.id })} className={primaryCls}>Mark Resolved</button>
+        <div key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+          <button type="button" onClick={() => onCard(c.deal.id)} title="Open the deal's checklist" className="text-[14.5px] font-semibold text-navy-900 hover:underline underline-offset-2">{String(c.deal.address || '').split(',')[0]}</button>
+          <span className="rounded-md bg-[#FDECEA] text-[#B42318] px-2 py-0.5 text-[12.5px] font-semibold">⚑ {issueLabel(x.kind)}</span>
+          {x.text && <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-600" title={x.text}>{x.text}</span>}
+          <span className={`text-[12px] text-zinc-400 ${x.text ? '' : 'flex-1'}`} title={`${whoGets(c.deal)} were alerted`}>{x.created_by} · {when(x.created_at)}</span>
+          <button type="button" onClick={() => post({ action: 'resolve', id: x.id })} className={btnCls}>✓ Resolved</button>
         </div>
       ))}
     </section>

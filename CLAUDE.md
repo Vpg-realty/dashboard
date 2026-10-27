@@ -1649,6 +1649,13 @@ Overrides the TC Desk notes above where they differ.
   in REMOVED (the page foot). Milestones: IP, Assigned, Closing Week, Closed
   (ctc / HUD / tracker), Money In (wire / EMD).
 
+- **Quieter, later Oct 27** (Luke): **Open Issues** is one line per issue in
+  a single card — street, a red "⚑ <kind>" chip, the note (one line, full on
+  hover), who flagged it and when, ✓ Resolved; the street opens the deal's
+  checklist. **Deals › Active**: Act Now cards show just a flag with the
+  problem (no "Why it matters / Do" box) and This Week cards drop the
+  what-to-do line ("we know what to do from here").
+
 ## Oct 22 round, phase 6 — Settings › Sub-Accounts form (Luke)
 
 - One **Add a Sub-Account** row on top of the page (`AddForm` in
