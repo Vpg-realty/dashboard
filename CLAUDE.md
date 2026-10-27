@@ -1661,19 +1661,27 @@ Overrides the TC Desk notes above where they differ.
 "the storage center or file center for each deal … a 'claude review' section
 where it can give all the key information we need and propose information to
 fill in when ready." The deal panel has a third tab, **Files & Claude Review**
-(`src/deals/DealFiles.jsx`), for owners and the TC (reps / managers don't get
-it — assignment contracts name the buyer).
+(`src/deals/DealFiles.jsx`). Owners and the TC upload, change, remove and
+run Claude; **reps and managers only view** (Luke, Oct 27: "dont allow reps to
+upload, allow them to view") — a plain "Files" tab on open deals listing what
+they may open (`repMay`: not Assignment, Settlement Statement or Wire — those
+name the buyer, `REP_HIDDEN_KINDS` in edge/dealFiles.js), no Claude review and
+no readings.
 - **Files**: drop or choose any file up to 20 MB (`MAX_FILE`); each has a kind
   (`FILE_KINDS` in src/deals/files.js — Purchase Contract, Addendum,
   Assignment, EMD Receipt, Title / Escrow, Inspection & Photos, Settlement
   Statement, Wire / Payment, Cancellation, Other), guessed from the name and
   changeable; open (inline), download, remove (logged in the deal's History as
-  `*file`, hidden from reps). **Stored in D1** (R2 isn't switched on for the
-  account and the API token can't reach it): `deal_files` + `deal_file_chunks`
-  (base64 pieces of 1.4 MB, `CHUNK` a multiple of 3 so the pieces join into the
-  file's base64) + `deal_reviews` (edge/dealFiles.sql, created Oct 27). Moving
-  to R2 later only changes edge/dealFiles.js. D1's database limit is 10 GB —
-  ~10 MB a deal is ~1,000 deals; raise R2 with Luke before it matters.
+  `*file`, hidden from reps). **Storage** (Luke, Oct 27: "switch to R2 now"):
+  R2 bucket `vpg-deal-files`, bound to the Pages project as `FILES` (key
+  `deals/<dealId>/<fileId>`) — until that binding exists, files go to D1
+  (`deal_file_chunks`, base64 pieces of 1.4 MB, `CHUNK` a multiple of 3 so the
+  pieces join into the file's base64). Each `deal_files` row says where its
+  file is (`store` 'r2' | 'd1', column added Oct 27), so both keep working.
+  `deal_reviews` holds the review (edge/dealFiles.sql, created Oct 27).
+  deploy-cloudflare.mjs `syncClaudeKey` re-sends `r2_buckets` with the D1
+  binding so a key sync never drops it. R2 on Workers Paid: 10 GB, 1M writes
+  and 10M reads a month included.
 - **Claude reads each file once** (`readFile`, edge/dealFiles.js: a PDF as a
   document block, a photo ≤ 5 MB as an image; other types are stored, not
   read): kind, title, signed / partly / unsigned, property address, a short

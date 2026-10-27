@@ -1,7 +1,7 @@
 -- A deal's files and Claude's review of them (Luke, Oct 27; edge/dealFiles.js).
--- Files are kept in D1 in base64 pieces (deal_file_chunks, 1.4 MB of the file
--- each) — R2 isn't switched on for the account yet; moving them there only
--- changes edge/dealFiles.js.
+-- Files go to R2 (binding FILES, bucket vpg-deal-files) once it's bound to the
+-- Pages project; until then into D1 in base64 pieces (deal_file_chunks, 1.4 MB
+-- of the file each). Each file remembers where it went (`store`).
 CREATE TABLE IF NOT EXISTS deal_files (
   id TEXT PRIMARY KEY,
   deal_id TEXT NOT NULL,
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS deal_files (
   mime TEXT,
   size INTEGER NOT NULL,
   chunks INTEGER NOT NULL,
+  store TEXT NOT NULL DEFAULT 'd1',     -- 'r2' (bucket vpg-deal-files, key deals/<deal>/<id>) or 'd1' (deal_file_chunks)
   kind TEXT NOT NULL,
   kind_set INTEGER NOT NULL DEFAULT 0,  -- 1 = picked by a person (Claude leaves it alone)
   uploaded_by TEXT,

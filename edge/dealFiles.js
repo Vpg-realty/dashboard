@@ -4,8 +4,11 @@
 // in when ready"). Owners and the TC; tables in edge/dealFiles.sql, API
 // functions/api/deal-files/[id].js, page src/deals/DealFiles.jsx.
 //
-// Files live in D1 as base64 pieces of CHUNK bytes (a multiple of 3, so the
-// pieces' base64 joins into the whole file's). Claude reads each file once
+// Files live in R2 (env.FILES, bucket vpg-deal-files, key deals/<deal>/<id>)
+// when the Pages project has the binding (Luke, Oct 27: "switch to R2 now");
+// without it — and for any file saved before — in D1 as base64 pieces of
+// CHUNK bytes (a multiple of 3, so the pieces' base64 joins into the whole
+// file's). Each row says which (`store`). Claude reads each file once
 // (readFile — a PDF or a photo as a document / image block) and keeps what it
 // read on the file; the deal's review (reviewDeal) is then built from those
 // readings and the tracker's values, text only, so a second review costs
@@ -16,7 +19,13 @@ import { MODEL, costOf } from './chat.js';
 import { FIELD, isBlank, stageOf } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { KIND_KEYS, KIND_LABEL, PROPOSE_KEYS, PDF, readable } from '../src/deals/files.js';
-import { clean, isOwner } from './deals.js';
+import { clean, isOwner, isRepView } from './deals.js';
+
+// What reps and managers may open (Luke, Oct 27: "dont allow reps to upload,
+// allow them to view"): not the assignment, settlement statement or wire —
+// those name the buyer and VPG's fee (buyer is owners only, Oct 14).
+export const REP_HIDDEN_KINDS = ['assignment', 'hud', 'wire'];
+export const repMay = (f) => !REP_HIDDEN_KINDS.includes(f.kind);
 
 export const CHUNK = 1_400_001;
 export const newFileId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -29,7 +38,7 @@ function toB64(u8) {
 const fromB64 = (b) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
 const parse = (s) => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
 
-const COLS = 'id, deal_id, name, mime, size, chunks, kind, kind_set, uploaded_by, uploaded_at, read, read_at, read_error';
+const COLS = 'id, deal_id, name, mime, size, chunks, store, kind, kind_set, uploaded_by, uploaded_at, read, read_at, read_error';
 export async function listFiles(db, dealId) {
   const r = await db.prepare(`SELECT ${COLS} FROM deal_files WHERE deal_id = ? ORDER BY uploaded_at`).bind(dealId).all();
   return r.results.map((f) => ({ ...f, read: parse(f.read) }));
@@ -39,35 +48,48 @@ export async function getFile(db, dealId, id) {
   return f ? { ...f, read: parse(f.read) } : null;
 }
 
-// Pieces first, the file's row last — a failed upload never shows in the list.
-export async function saveFile(db, { dealId, name, mime, bytes, kind, kindSet, user, now }) {
+const r2Key = (f) => `deals/${f.deal_id}/${f.id}`;
+// The file first, its row last — a failed upload never shows in the list.
+export async function saveFile(env, { dealId, name, mime, bytes, kind, kindSet, user, now }) {
+  const db = env.DB;
   const id = newFileId();
-  const n = Math.max(1, Math.ceil(bytes.length / CHUNK));
+  const r2 = !!env.FILES;
+  const n = r2 ? 0 : Math.max(1, Math.ceil(bytes.length / CHUNK));
   try {
+    if (r2) await env.FILES.put(r2Key({ deal_id: dealId, id }), bytes, { httpMetadata: { contentType: mime } });
     for (let i = 0; i < n; i++) {
       await db.prepare('INSERT INTO deal_file_chunks (file_id, n, data) VALUES (?, ?, ?)').bind(id, i, toB64(bytes.subarray(i * CHUNK, (i + 1) * CHUNK))).run();
     }
     await db.batch([
-      db.prepare('INSERT INTO deal_files (id, deal_id, name, mime, size, chunks, kind, kind_set, uploaded_by, uploaded_email, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(id, dealId, name, mime, bytes.length, n, kind, kindSet ? 1 : 0, user.name, user.email, now),
+      db.prepare('INSERT INTO deal_files (id, deal_id, name, mime, size, chunks, store, kind, kind_set, uploaded_by, uploaded_email, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, dealId, name, mime, bytes.length, n, r2 ? 'r2' : 'd1', kind, kindSet ? 1 : 0, user.name, user.email, now),
       db.prepare('INSERT INTO deal_log (deal_id, at, email, name, field, old, new) VALUES (?, ?, ?, ?, ?, ?, ?)')
         .bind(dealId, now, user.email, user.name, '*file', 'null', JSON.stringify(`${name} (${KIND_LABEL[kind]})`)),
     ]);
   } catch (e) {
+    if (r2) await env.FILES.delete(r2Key({ deal_id: dealId, id })).catch(() => {});
     await db.prepare('DELETE FROM deal_file_chunks WHERE file_id = ?').bind(id).run().catch(() => {});
     throw e;
   }
   return id;
 }
 
-// The whole file as base64 (for Claude) — one piece per query.
-export async function fileB64(db, f) {
+// The whole file as base64 (for Claude) — from R2, or one D1 piece per query.
+export async function fileB64(env, f) {
+  if (f.store === 'r2') {
+    const o = await env.FILES?.get(r2Key(f));
+    if (!o) throw new Error('the file is missing from storage');
+    return toB64(new Uint8Array(await o.arrayBuffer()));
+  }
+  const db = env.DB;
   let out = '';
   for (let i = 0; i < f.chunks; i++) out += (await db.prepare('SELECT data FROM deal_file_chunks WHERE file_id = ? AND n = ?').bind(f.id, i).first())?.data || '';
   return out;
 }
-// The file for the browser, streamed one piece at a time.
-export function fileStream(db, f) {
+// The file for the browser: R2's own stream, or the D1 pieces one at a time.
+export async function fileStream(env, f) {
+  if (f.store === 'r2') return (await env.FILES?.get(r2Key(f)))?.body || null;
+  const db = env.DB;
   let i = 0;
   return new ReadableStream({
     async pull(ctl) {
@@ -79,7 +101,9 @@ export function fileStream(db, f) {
   });
 }
 
-export async function removeFile(db, f, user, now) {
+export async function removeFile(env, f, user, now) {
+  const db = env.DB;
+  if (f.store === 'r2') await env.FILES?.delete(r2Key(f));
   await db.batch([
     db.prepare('DELETE FROM deal_file_chunks WHERE file_id = ?').bind(f.id),
     db.prepare('DELETE FROM deal_files WHERE id = ?').bind(f.id),
@@ -93,7 +117,9 @@ export async function removeFile(db, f, user, now) {
 // marked secret, and proposals for secret fields, are taken out for the TC.
 const keepFor = (user) => (x) => isOwner(user) || (!x.secret && !(x.key && FIELD[x.key]?.secret));
 export function fileFor(f, user) {
-  const { deal_id, ...rest } = f; // eslint-disable-line no-unused-vars
+  const { deal_id, store, ...rest } = f; // eslint-disable-line no-unused-vars
+  // Reps / managers: the file itself, not what Claude read (it can hold money and names).
+  if (isRepView(user)) return { ...rest, read: null, read_error: null };
   const r = f.read;
   return { ...rest, read: r && { ...r, facts: (r.facts || []).filter(keepFor(user)), fields: (r.fields || []).filter(keepFor(user)) } };
 }

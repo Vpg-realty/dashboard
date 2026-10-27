@@ -773,7 +773,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           </div>
           {!isNew && (
             <nav className="flex gap-5 mt-4 relative">
-              {[['details', 'Details'], ...(ro ? [] : [['files', 'Files & Claude Review']]), ['history', 'History']].map(([k, l]) => (
+              {[['details', 'Details'], ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
             </nav>

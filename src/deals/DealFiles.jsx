@@ -1,7 +1,9 @@
 // The deal panel's Files tab (Luke, Oct 27: "the storage center or file
 // center for each deal … a 'claude review' section where it can give all the
 // key information we need and propose information to fill in when ready").
-// Owners and the TC. On top, Claude's review of the whole file: where it
+// Owners and the TC upload and run the review; reps and managers (`readOnly`
+// from the API) only see and open the files they may (no assignment,
+// settlement statement or wire — they name the buyer). On top, Claude's review of the whole file: where it
 // stands, the key information, what to check, documents still missing and the
 // values it proposes — "Fill In" puts the ticked ones into the deal as unsaved
 // edits (onFill), so nothing changes until someone presses Save. Below, the
@@ -102,6 +104,27 @@ export default function DealFiles({ id, deal, owner, onFill }) {
   }
 
   if (!data) return <div className="py-10 text-center text-zinc-400">{err || 'Loading files…'}</div>;
+  if (data.readOnly) {
+    return (
+      <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
+        <div className="bg-navy-700 text-white px-4 py-2.5 text-[15px] font-semibold">Files{files.length ? ` · ${files.length}` : ''}</div>
+        {files.length === 0 ? <div className="px-4 py-6 text-center text-[13.5px] text-zinc-500">No files on this deal yet — the TC adds them.</div> : (
+          <ul className="divide-y divide-tan-100">
+            {[...files].sort((a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || a.uploaded_at.localeCompare(b.uploaded_at)).map((f) => (
+              <li key={f.id} className="flex items-center gap-3 px-4 py-2.5">
+                <Icon kind={f.kind} />
+                <div className="min-w-0 flex-1">
+                  <a href={fileUrl(id, f.id, true)} target="_blank" rel="noreferrer" className="block truncate text-[14px] font-semibold text-navy-900 hover:underline" title={f.name}>{f.name}</a>
+                  <div className="text-[12px] text-zinc-500">{KIND_LABEL[f.kind]} · {fileSize(f.size)} · {when(f.uploaded_at)}</div>
+                </div>
+                <a href={fileUrl(id, f.id, false)} className="shrink-0 text-[12.5px] text-navy-700 underline">Download</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  }
 
   // Proposals still worth showing: the deal doesn't already have that value.
   const props = (review?.proposals || []).filter((p) => proposable(p.key, owner) && !same(p.value, deal[p.key]));
