@@ -9,12 +9,13 @@
 // PATCH  /api/deal-files/:dealId { file, kind }    → { file } (what it is)
 //        { read: <fileId> }                         → { file } (Claude reads it once)
 //        { review: true }                           → { review } (from what was read)
+//        { ask: '<question>' }                      → { asks } (Claude answers from the documents)
 // DELETE /api/deal-files/:dealId?file=<id>    → { ok }
 // Claude's cost counts toward the monthly cap (settings chat_cap), logged in
 // chat_messages (thread dealfiles:<dealId>).
 import { currentUser, json } from '../../../edge/auth.js';
 import { canEditDeals, canSeeDeals, canSeeDeal, rowToDeal, getSetting, effectiveLists } from '../../../edge/deals.js';
-import { listFiles, getFile, saveFile, fileStream, fileB64, removeFile, fileFor, reviewFor, readFile, reviewDeal, repMay } from '../../../edge/dealFiles.js';
+import { listFiles, getFile, saveFile, fileStream, fileB64, removeFile, fileFor, reviewFor, readFile, reviewDeal, repMay, askFiles, askThread, ASK_MAX_B64, ASK_DAILY } from '../../../edge/dealFiles.js';
 import { monthStart, DEFAULT_CAP } from '../../../edge/chat.js';
 import { KIND_KEYS, guessKind, MAX_FILE, fileSize, readable } from '../../../src/deals/files.js';
 import roster from '../../../subaccounts.json' with { type: 'json' };
@@ -36,6 +37,16 @@ async function load(context) {
 }
 const parse = (s) => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
 
+// This person's questions on this deal and Claude's answers, oldest first.
+async function asksOf(db, id, user) {
+  const rows = (await db.prepare('SELECT role, text, at FROM chat_messages WHERE thread = ? ORDER BY id').bind(askThread(id, user)).all()).results;
+  const out = [];
+  for (const r of rows) {
+    if (r.role === 'user') out.push({ q: r.text, at: r.at });
+    else if (out.length && !out[out.length - 1].a) { const p = parse(r.text) || {}; Object.assign(out[out.length - 1], { a: p.answer || '', files: p.files || [] }); }
+  }
+  return out.filter((x) => x.a);
+}
 async function reviewOf(db, id) {
   const r = await db.prepare('SELECT review, files, by_name, at FROM deal_reviews WHERE deal_id = ?').bind(id).first();
   return r ? { ...parse(r.review), files: parse(r.files) || [], by: r.by_name, at: r.at } : null;
@@ -61,7 +72,7 @@ export async function onRequestGet(context) {
   }
   const files = await listFiles(db, id);
   if (!canEditDeals(user)) return json({ files: files.filter(repMay).map((f) => fileFor(f, user)), review: null, claude: false, readOnly: true });
-  return json({ files: files.map((f) => fileFor(f, user)), review: reviewFor(await reviewOf(db, id), user), claude: !!context.env.ANTHROPIC_API_KEY });
+  return json({ files: files.map((f) => fileFor(f, user)), review: reviewFor(await reviewOf(db, id), user), asks: await asksOf(db, id, user), claude: !!context.env.ANTHROPIC_API_KEY });
 }
 
 export async function onRequestPost(context) {
@@ -104,7 +115,7 @@ export async function onRequestPatch(context) {
     await db.prepare('UPDATE deal_files SET kind = ?, kind_set = 1 WHERE id = ?').bind(body.kind, f.id).run();
     return json({ file: fileFor(await getFile(db, id, f.id), user) });
   }
-  if (!body?.read && !body?.review) return json({ error: 'nothing to do' }, 400);
+  if (!body?.read && !body?.review && !body?.ask) return json({ error: 'nothing to do' }, 400);
   if (!context.env.ANTHROPIC_API_KEY) return json({ error: "Claude isn't connected yet — it switches on with the next deploy." }, 503);
   if (await overCap(db)) return json({ error: 'Claude is paused for the rest of the month (the monthly budget is used up) — ask Luke or Jack.' }, 402);
   const [rawLists, users] = await Promise.all([
@@ -113,6 +124,34 @@ export async function onRequestPatch(context) {
   ]);
   const lists = effectiveLists(rawLists || {}, users, roster);
   const deal = rowToDeal(row);
+  if (body.ask) {
+    const question = String(body.ask).trim().slice(0, 1000);
+    if (!question) return json({ error: 'Type a question first' }, 400);
+    const thread = askThread(id, user);
+    const dayStart = new Date(Date.now() - 7 * 3600000).toISOString().slice(0, 10);
+    const asked = (await db.prepare("SELECT COUNT(*) n FROM chat_messages WHERE thread LIKE ? AND role = 'user' AND at >= ?").bind(`dealask:%:${user.email}`, `${dayStart}T07:00:00.000Z`).first())?.n || 0;
+    if (asked >= ASK_DAILY) return json({ error: `That's ${ASK_DAILY} questions today — try again tomorrow.` }, 429);
+    const files = await listFiles(db, id);
+    const docs = []; const skipped = []; let total = 0;
+    for (const f of files.filter(readable).sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))) {
+      const est = Math.ceil(f.size / 3) * 4;
+      if (total + est > ASK_MAX_B64) { skipped.push(f); continue; }
+      docs.push({ f, b64: await fileB64(context.env, f) }); total += est;
+    }
+    skipped.push(...files.filter((f) => !readable(f)));
+    if (!docs.length) return json({ error: 'Add a PDF or photo first — Claude answers from the documents' }, 400);
+    let out;
+    try { out = await askFiles(context.env, { deal, docs, skipped, history: await asksOf(db, id, user), question, owner: user.role === 'owner' }); } catch (e) {
+      return json({ error: `Claude didn't answer (${e.status || ''} ${e.message || 'error'}). Try again.`.replace(/\(\s+/, '(') }, 502);
+    }
+    const now = new Date().toISOString();
+    await db.batch([
+      db.prepare('INSERT INTO chat_messages (thread, role, text, email, name, at) VALUES (?, ?, ?, ?, ?, ?)').bind(thread, 'user', question, user.email, user.name, now),
+      db.prepare('INSERT INTO chat_messages (thread, role, text, name, email, at, usage, cost, tools) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(thread, 'assistant', JSON.stringify({ answer: out.answer, files: out.files }), 'Claude', user.email, now, JSON.stringify(out.usage), out.cost, '[]'),
+    ]);
+    return json({ asks: await asksOf(db, id, user) });
+  }
   if (body.read) {
     const f = FID.test(body.read) ? await getFile(db, id, body.read) : null;
     if (!f) return json({ error: 'no such file' }, 404);

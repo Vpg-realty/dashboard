@@ -1734,6 +1734,19 @@ no readings.
   buyer `secret`; `fileFor` / `reviewFor` strip those and proposals for secret
   fields (buyer) for the TC. The files themselves she can open (she sends the
   assignment to title anyway).
+- **Ask About These Files** (Luke, Oct 27: "a section where i can ask a
+  specific question about the documents"): a box between the review and the
+  files (owners / TC, once a PDF or photo is on the deal). Each question goes
+  to Claude with the documents themselves (newest first, up to
+  `ASK_MAX_B64` = 24 MB of base64; larger ones are named as left out), the
+  tracker's values (no secret fields for the TC) and the person's last 8
+  questions on the deal (`askFiles`, edge/dealFiles.js; the documents are one
+  cached block, so follow-ups within 5 minutes cost a fraction). Answers cite
+  the file (and page / section) and link to it; for the TC it never names the
+  buyer. One thread per person per deal — chat_messages thread
+  `dealask:<dealId>:<email>`, only they see it; 40 questions an Arizona day
+  per person (`ASK_DAILY`); cost counts toward `chat_cap`. About $0.15–0.40
+  for a first question on a deal with a few contracts, cents for follow-ups.
 - API `functions/api/deal-files/[id].js` (GET list / `?file=` stream; POST
   raw bytes `?name=&kind=`; PATCH `{file, kind}` | `{read}` | `{review}`;
   DELETE `?file=`), never written while viewing as.
