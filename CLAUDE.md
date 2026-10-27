@@ -1676,6 +1676,16 @@ EMD due while EMD isn't sent — red today or passed, amber within 3 days.
 Columns menu: Full sheet / Overview / **Key Dates** (`?cols=dates` = Deal +
 Key Dates) / group checkboxes by `LAYOUT`; old `?cols=title|dd` links map to
 Contract / Key Dates. Header accents per group in sheet.js `GROUP_ACCENT`.
+**Colour per section** (Luke, same day: "separation or color coding for each
+section … key dates … a different more bold color so our eye goes right
+there"): each group's band has its own colour (`BAND_COLOR` in sheet.js —
+Deal navy, Key Dates blue, Contract slate, Earnest Money teal, Selling It
+tan, Financials green, Commissions amber, Notes grey, Cancellation red), a
+`GROUP_SEP` line runs down the header, rows and totals where a group starts,
+and a band's name stays in view beside the sticky address when the sheet
+scrolls sideways (measured width, `addrTh`). Key Dates' headers are blue and
+their values bold blue on open deals (flags keep their red / amber chips;
+closed / cancelled rows keep the row colour, bold).
 
 ## Deal files & Claude Review (Luke, Oct 27)
 

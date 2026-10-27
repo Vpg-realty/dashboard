@@ -18,7 +18,7 @@ import StageChip from '../shell/StageChip.jsx';
 import { stageColor } from '../shell/stages.js';
 import { useDealPay } from '../finance/store.js';
 import { partOfField, payText } from '../finance/lines.js';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FIELDS, BOOKS_KEYS, STATUS_KEYS, booksOpen, isBlank, statusDiffersFromGhl, keptMoney, isOpen, isPending } from './math.js';
 import { showEndTime } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
@@ -38,7 +38,7 @@ import { ValuePill, EmdPill } from './pills.jsx';
 import { PILL_KEYS, pretty } from './values.js';
 import { Person } from './people.jsx';
 import Floating from '../shell/Floating.jsx';
-import { cellStyle, headStyle, BAND, BAND_LOSS, LOSS_KEYS, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
+import { cellStyle, headStyle, BAND_COLOR, GROUP_SEP, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
@@ -225,6 +225,16 @@ export default function AllDealsView() {
   // needed"): bring the first red-outlined cell into view — the sheet is
   // wide, so it's usually off to the right (past the sticky address column).
   const tableBox = useRef(null);
+  // A band's name stays in view beside the sticky address column when the
+  // sheet scrolls sideways.
+  const [addrW, setAddrW] = useState(0);
+  const addrObs = useRef(null);
+  const addrTh = useCallback((el) => {
+    addrObs.current?.disconnect();
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    addrObs.current = new ResizeObserver(() => setAddrW(el.offsetWidth));
+    addrObs.current.observe(el);
+  }, []);
   useEffect(() => {
     if (!needOnly) return undefined;
     const t = setTimeout(() => {
@@ -259,15 +269,20 @@ export default function AllDealsView() {
 
   // Band row: consecutive columns of one group share a band; the sheet's
   // "Dispo % loss" pair (final assignment, net loss) gets its own orange one.
-  // The address keeps a band of its own (it's the sticky column); the rest of
-  // the Deal group sits under an unlabelled one beside it.
+  // One band per group in its own colour (Luke, Oct 27: "separation or color
+  // coding for each section"), with a line down the table where a group
+  // starts. The address keeps a band of its own (it's the sticky column); the
+  // rest of the Deal group sits under an unlabelled one beside it.
+  const groupOf = (f) => GROUP_OF[f.key] || f.group;
+  const starts = new Set(cols.filter((f, i) => i > 0 && groupOf(f) !== groupOf(cols[i - 1])).map((f) => f.key));
+  const sep = (f) => (starts.has(f.key) ? { borderLeft: GROUP_SEP } : {});
   const bands = [];
   for (const f of cols) {
-    const g = GROUP_OF[f.key] || f.group;
-    const id = LOSS_KEYS.has(f.key) ? 'loss' : f.key === 'address' ? 'address' : g === 'deal' ? 'deal2' : g;
+    const g = groupOf(f);
+    const id = f.key === 'address' ? 'address' : g === 'deal' ? 'deal2' : g;
     const last = bands[bands.length - 1];
     if (last && last.id === id) last.span += 1;
-    else bands.push({ id, span: 1, label: id === 'loss' ? 'Dispo % loss' : id === 'address' ? 'Deal' : id === 'deal2' ? '' : GROUP_LABEL[id], style: id === 'loss' ? BAND_LOSS : BAND });
+    else bands.push({ id, span: 1, start: starts.has(f.key), label: id === 'address' ? 'Deal' : id === 'deal2' ? '' : GROUP_LABEL[id], bg: BAND_COLOR[g] || BAND_COLOR.deal });
   }
 
   return (
@@ -331,15 +346,15 @@ export default function AllDealsView() {
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ background: b.style.bg, color: b.id === 'loss' ? '#FFFFFF' : '#E6DCC8' }}>{b.label}</th>
+                  <th key={i} ref={b.id === 'address' ? addrTh : undefined} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                    style={{ background: b.bg, color: '#FFFFFF', ...(b.start ? { borderLeft: '2px solid #FFFFFF' } : {}) }}>{b.id === 'address' ? b.label : <span className="sticky inline-block" style={{ left: addrW + 12 }}>{b.label}</span>}</th>
                 ))}
               </tr>
               <tr>
                 {cols.map((f) => (
                   <th key={f.key} onClick={() => sortBy(f.key)} title={sort.replace(/^-/, '') === f.key ? (sort === f.key ? 'Sorted A → Z / low → high · click for the reverse' : custom ? 'Sorted Z → A / high → low · click to clear' : 'Default order · click to sort') : 'Click to sort'}
                     className={`group/h sticky top-[30px] px-2.5 pt-2 pb-2 align-bottom text-[12px] font-semibold leading-tight text-left cursor-pointer select-none hover:bg-navy-50 ${f.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
-                    style={{ ...headStyle({ ...f, group: GROUP_OF[f.key] || f.group }), borderBottom: `2px solid ${HEAD_RULE}` }}>
+                    style={{ ...headStyle({ ...f, group: groupOf(f) }), borderBottom: `2px solid ${HEAD_RULE}`, ...sep(f), ...(groupOf(f) === 'dates' ? { color: BAND_COLOR.dates } : {}) }}>
                     {f.key === 'address' ? 'Address' : f.label}
                     {sort.replace(/^-/, '') === f.key
                       ? <span className="ml-1 inline-block rounded bg-navy-700 text-white px-1 text-[10.5px] leading-[16px] align-[1px]">{sort.startsWith('-') ? '↓' : '↑'}</span>
@@ -381,12 +396,15 @@ export default function AllDealsView() {
                         shown = <span className="inline-flex items-center gap-1">{shown}<span title="Commissions paid in Finance" className="text-[10.5px] font-semibold text-[#8A4B05] not-italic">{pay.paid} of {pay.total} paid</span></span>;
                       }
                       const flag = dateFlag(f.key, d, today);
+                      // Key dates stand out (Luke, Oct 27: "a different more bold color so
+                      // our eye goes right there"): bold blue on open deals.
+                      if (!flag && groupOf(f) === 'dates' && !isBlank(d[f.key])) shown = <span className={`font-bold ${isOpen(d) ? 'text-[#1D4ED8]' : ''}`}>{shown}</span>;
                       if (flag) shown = <span title={flag === 'late' ? 'Passed — still open' : flag === 'today' ? 'Today' : 'Within 3 days'} className={`inline-block rounded px-1.5 font-semibold ring-1 ring-inset ${FLAG_CLS[flag]}`}>{shown}</span>;
                       const typed = d.fixed && f.key in d.fixed && d.fixed[f.key] != null;
                       return (
                         <td key={f.key} data-need={missing ? '' : undefined} title={missing ? `Needed: ${LABEL[f.key]}` : locked ? 'Bookkeeping — unlocks at COE' : f.calc ? (typed ? 'Typed by hand' : 'Calculated') : undefined}
                           className={`px-2.5 py-[5px] whitespace-nowrap ${isNum(f) ? 'text-right tabular-nums' : CENTER.has(f.type) ? 'text-center' : ''} ${f.key === 'address' ? 'sticky left-0 z-10 font-semibold' : ''} ${typed ? 'italic' : ''} ${missing ? 'shadow-[inset_0_0_0_2px_#D92D20]' : ''}`}
-                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, ...(WRAP(f) ? { maxWidth: WRAP_MAX, minWidth: wrapW[f.key] || undefined } : {}) }}>
+                          style={{ ...st, borderRight: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, ...sep(f), ...(WRAP(f) ? { maxWidth: WRAP_MAX, minWidth: wrapW[f.key] || undefined } : {}) }}>
                           {f.key === 'address' ? (
                             <span className="flex items-center gap-1.5 min-w-0">
                               <span className={`shrink-0 w-2 h-2 rounded-full ${TONES[step.tone].dot}`} title={step.text} />
@@ -411,7 +429,7 @@ export default function AllDealsView() {
             {rows.length > 0 && (
               <tfoot className="font-bold">
                 <tr>
-                  {cols.map((f, i) => { const t = total(f); return <td key={f.key} className={`sticky bottom-0 px-2 py-1.5 whitespace-nowrap ${t != null ? 'text-right tabular-nums' : ''} ${i === 0 ? 'left-0 z-30' : 'z-20'}`} style={{ background: '#EEF2F8', color: '#1b385f', borderTop: `2px solid #1b385f`, borderRight: `1px solid ${BORDER}` }}>{i === 0 ? `Total · ${rows.length}` : t != null ? money(t, { cents: true }) : ''}</td>; })}
+                  {cols.map((f, i) => { const t = total(f); return <td key={f.key} className={`sticky bottom-0 px-2 py-1.5 whitespace-nowrap ${t != null ? 'text-right tabular-nums' : ''} ${i === 0 ? 'left-0 z-30' : 'z-20'}`} style={{ background: '#EEF2F8', color: '#1b385f', borderTop: `2px solid #1b385f`, borderRight: `1px solid ${BORDER}`, ...sep(f) }}>{i === 0 ? `Total · ${rows.length}` : t != null ? money(t, { cents: true }) : ''}</td>; })}
                 </tr>
               </tfoot>
             )}

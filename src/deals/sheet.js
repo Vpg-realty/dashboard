@@ -37,6 +37,15 @@ export const GROUP_ACCENT = {
   money: '#15803D', pay: '#B7791F', notes: '#94A3B8',
   deal: '#1b385f', dates: '#2563EB', cancel: '#B42318',
 };
+// Each group's band colour on All Deals (Luke, Oct 27: "some type of
+// separation or color coding for each section") — darker cousins of the
+// accents above, all readable with white text.
+export const BAND_COLOR = {
+  deal: '#1b385f', dates: '#1D4ED8', contract: '#475569', emd: '#0F766E', dispo: '#8A7550',
+  money: '#15803D', pay: '#9A6212', notes: '#64748B', cancel: '#9B1C1C',
+};
+// The line between two groups, header and rows.
+export const GROUP_SEP = '2px solid #8FA3BF';
 export function headStyle(f) {
   const accent = LOSS_KEYS.has(f.key) ? TAN : GROUP_ACCENT[f.group] || NAVY;
   return { background: '#FFFFFF', color: '#1b385f', boxShadow: `inset 0 2px 0 ${accent}` };
