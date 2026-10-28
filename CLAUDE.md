@@ -1714,7 +1714,8 @@ narrower"). `src/deals/TcListView.jsx`:
   were very branded … a separate tile design"): `MoneyTile` (finance/ui.jsx)
   is again the Oct 19 brand tile — tan eyebrow + dot, big navy number, tan
   rule, faint V, navy when picked — and no longer draws through `Tile`. Every
-  other page keeps the shared `Tile`.
+  other page keeps the shared `Tile`. The five boxes of How the Company Is
+  Looking (CompanyOutlook.jsx) use it too.
 - **How the Company Is Looking**: its This month / Next month / This quarter /
   This year switch is the site's navy-band switch (dark track, picked one in
   tan), not the tan tray.

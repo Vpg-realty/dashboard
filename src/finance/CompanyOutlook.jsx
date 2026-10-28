@@ -3,7 +3,7 @@
 // this month / next month / this quarter / this year (by COE; outlook.js).
 // The pick is remembered per device (localStorage `vpg.fin.outlook`).
 import { useMemo, useState } from 'react';
-import { Tile } from '../shell/Tile.jsx';
+import { MoneyTile } from './ui.jsx';
 import { money } from '../deals/format.js';
 import { outlook, outlookRanges } from './outlook.js';
 
@@ -11,8 +11,10 @@ const KEY = 'vpg.fin.outlook';
 const read = () => { try { return localStorage.getItem(KEY) || 'month'; } catch { return 'month'; } };
 
 // Each number is the site's Tile (Oct 22); the dot says which part it is.
+// Finance's own branded tile (Luke, Oct 28: "make the top tiles for how the
+// company is looking the same as well").
 function Box({ label, value, sub, tone, dot }) {
-  return <Tile className="flex-1 min-w-[150px]" label={label} value={value} sub={sub} tone={tone} dot={dot} />;
+  return <div className="flex-1 min-w-[150px] grid"><MoneyTile label={label} value={value} sub={sub} tone={tone} accent={dot} /></div>;
 }
 const Op = ({ children }) => <span className="hidden md:grid place-items-center text-[22px] font-light text-zinc-400 w-5 shrink-0">{children}</span>;
 
