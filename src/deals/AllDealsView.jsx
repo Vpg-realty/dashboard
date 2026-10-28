@@ -228,6 +228,8 @@ export default function AllDealsView() {
   // A band's name stays in view beside the sticky address column when the
   // sheet scrolls sideways.
   const [addrW, setAddrW] = useState(0);
+  // The section on screen, raised in tan on the Jump To switch.
+  const [inView, setInView] = useState('address');
   const addrObs = useRef(null);
   const addrTh = useCallback((el) => {
     addrObs.current?.disconnect();
@@ -295,6 +297,21 @@ export default function AllDealsView() {
     const z = box.offsetWidth ? r.width / box.offsetWidth : 1;
     const shift = (th.getBoundingClientRect().left - r.left) / z - addrW;
     box.scrollTo({ left: id === 'address' ? 0 : Math.max(0, box.scrollLeft + shift), behavior: 'smooth' });
+    setInView(id);
+  };
+  // Which section sits right of the pinned address as the sheet scrolls.
+  const onSheetScroll = () => {
+    const box = tableBox.current;
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const z = box.offsetWidth ? r.width / box.offsetWidth : 1;
+    let at = 'address';
+    for (const th of box.querySelectorAll('th[data-band]')) {
+      const id = th.dataset.band;
+      if (id === 'address' || id === 'deal2') continue;
+      if ((th.getBoundingClientRect().left - r.left) / z - addrW <= 8) at = id;
+    }
+    if (at !== inView) setInView(at);
   };
 
   return (
@@ -318,15 +335,6 @@ export default function AllDealsView() {
             ))}
           </div>
         </Menu>
-        {/* Jump to a section (Luke, Oct 28: "quickly switch to each section
-            … scroll over to the start of that section" — kept plain, one
-            menu like Columns): slides the sheet sideways so the section's
-            first column sits right of the pinned address. */}
-        {jumps.length > 1 && <Menu label="Jump to">{(close) => (
-          <div className="w-52 py-1.5 text-[13px]">
-            {jumps.map((b) => <button key={b.id} onClick={() => { jumpTo(b.id); close(); }} className={menuRow(false)}>{b.label}</button>)}
-          </div>
-        )}</Menu>}
         <button onClick={csv} className={btnCls}>Export CSV</button>
         {!s.readOnly && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
@@ -361,8 +369,24 @@ export default function AllDealsView() {
         )}
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>
       </div>
+      {/* Jump to a section (Luke, Oct 28: "quickly switch to each section …
+          scroll over to the start of that section", then "buttons similar to
+          … year, quarter, month"): the period switch's style; a click slides
+          the sheet so the section's first column sits right of the pinned
+          address, and the section on screen stays raised in tan. */}
+      {jumps.length > 1 && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tan-700">Jump to</span>
+          <span role="group" aria-label="Jump to a section" className="inline-flex flex-wrap gap-0.5 rounded-lg bg-navy-800 p-[3px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+            {jumps.map((b) => (
+              <button key={b.id} type="button" aria-pressed={inView === b.id} onClick={() => jumpTo(b.id)}
+                className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold whitespace-nowrap ${inView === b.id ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{b.label}</button>
+            ))}
+          </span>
+        </div>
+      )}
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-        <div ref={tableBox} className="flex-1 min-h-0 overflow-auto">
+        <div ref={tableBox} onScroll={onSheetScroll} className="flex-1 min-h-0 overflow-auto">
           <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
             <thead>
               <tr>

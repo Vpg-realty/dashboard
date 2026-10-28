@@ -1804,12 +1804,15 @@ scrolls sideways (measured width, `addrTh`). Key Dates' headers are blue and
 their values bold blue on open deals (flags keep their red / amber chips;
 closed / cancelled rows keep the row colour, bold).
 **Jump to** (Luke, Oct 28: "click it and then have it scroll over to the
-start of that section" — and "I like it how it is now", so no new colours or
-filter rows): one plain menu beside Columns in the navy band, listing the
-sections that are shown (Deal, Key Dates, Contract …); a pick slides the
-sheet sideways so that section's first column sits right of the pinned
-address (`jumpTo`, band headers carry `data-band`; measured on screen and
-divided by the page zoom, since `--ui-zoom` scales screen pixels).
+start of that section", then "buttons similar to … year, quarter, month"):
+a row right above the sheet — "Jump to" and one button per section shown
+(Deal, Key Dates, Contract …) in the period switch's style (navy track, the
+section on screen raised in tan, followed as the sheet scrolls,
+`onSheetScroll`); a click slides the sheet sideways so that section's first
+column sits right of the pinned address (`jumpTo`, band headers carry
+`data-band`; measured on screen and divided by the page zoom, since
+`--ui-zoom` scales screen pixels). No new colours or filter rows (Luke: "I
+like it how it is now").
 
 ## Deal files & Claude Review (Luke, Oct 27)
 
