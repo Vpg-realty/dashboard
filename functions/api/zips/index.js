@@ -85,8 +85,8 @@ export async function onRequestPost(context) {
   let r;
   switch (b?.action) {
     case 'request': r = await Z.request(db, user, String(b.state || '')); break;
-    case 'release': if (!owner && !user.rep_id) return ownersOnly(); r = await Z.release(db, user, b); break;
-    case 'flag': if (!owner && !user.rep_id) return ownersOnly(); r = await Z.flag(db, user, b); break;
+    case 'release': if (!owner && !Z.holderOf(user)) return ownersOnly(); r = await Z.release(db, user, b); break;
+    case 'flag': if (!owner && !Z.holderOf(user)) return ownersOnly(); r = await Z.flag(db, user, b); break;
     case 'assign': if (!owner) return ownersOnly(); r = await Z.assign(db, user, b); break;
     case 'status': if (!owner) return ownersOnly(); r = await Z.setStatus(db, b, user); break;
     case 'area': if (!owner) return ownersOnly(); r = await Z.setAreaStatus(db, user, { state: String(b.state || ''), county: b.county ? String(b.county) : null, status: b.status || null, market: b.market || null, season: b.season || null }); break;

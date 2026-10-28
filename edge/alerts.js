@@ -15,8 +15,12 @@ import { getPods } from './pods.js';
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
 // Kinds that also ring the holder's pod lead and the owners.
 const SHARED = new Set(['lead', 'deal', 'dupe']);
-// Not the TC (Luke, Oct 28: "for managers, owners and reps only").
-export const ROLES = ['owner', 'manager', 'team'];
+// The TC sees tasks only — the ones added on the site (Luke, Oct 28: "it
+// would only be tasks … created on the site such as POF letter updates,
+// property needs, follow ups with title"): no leads, duplicates, GHL tasks
+// or check-ins (`tasksOnly`).
+export const ROLES = ['owner', 'manager', 'tc', 'team'];
+export const tasksOnly = (u) => u?.role === 'tc';
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 
 export const holderOf = (u) => u?.rep_id || `u:${String(u?.email || '').split('@')[0].toLowerCase()}`;
@@ -65,11 +69,11 @@ export const MANY_MAX = 300;
 export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
   const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
-  const where = scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '';
+  const where = (scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '') + (tasksOnly(user) ? " AND kind = 'task'" : '');
   const [rows, seen, people, marks] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
-    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'team') AND status != 'inactive'").all(),
+    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).
     db.prepare('SELECT alert_id, who, name, at, grade FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
   ]);
@@ -83,6 +87,7 @@ export async function load(db, user, now = new Date()) {
   return {
     me: scope.me,
     mine: scope.keys,
+    tasksOnly: tasksOnly(user),
     pod: podOf(user) ? { title: podOf(user).title, reps: podOf(user).reps } : null,
     seenAt: seen?.seen_at || null,
     chime: seen ? !!seen.chime : chimeDefault(user),
@@ -135,8 +140,8 @@ const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
   const [mine, leads, seen, marked] = await Promise.all([
-    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
-    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
+    db.prepare(`SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL${tasksOnly(user) ? " AND kind = 'task'" : ''}`).bind(scope.me).all(),
+    tasksOnly(user) ? { results: [] } : db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     // What this person has ticked off themself (index alert_marks_who).
     db.prepare(`SELECT alert_id FROM alert_marks WHERE who IN (${scope.keys.map(() => '?').join(', ')})`).bind(...scope.keys).all(),

@@ -229,7 +229,7 @@ export default function TodayCard({ me, deals, allDeals, tracked, tracker, openG
 
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-      <PanelHead title="Today at a Glance" note={note} right={role === 'tc' ? null : (
+      <PanelHead title="Today at a Glance" note={note} right={(
         <a {...linkProps('/alerts')} className="text-[13px] text-navy-900 font-semibold flex items-center gap-1">See all in Alerts <Icon name="arrow" size={13} /></a>
       )} />
       <div className="px-5 pb-5">
@@ -276,8 +276,8 @@ export default function TodayCard({ me, deals, allDeals, tracked, tracker, openG
         })}
         {total > 0 && (
           <div className="flex flex-wrap items-center gap-3 pt-3.5 text-[13px] text-zinc-500">
-            <span>{total > list.length ? `Showing ${list.length} of ${total}` : 'That’s everything for today'}{role === 'tc' ? '' : ' · the rest of your alerts are in Alerts'}</span>
-            {role !== 'tc' && <a {...linkProps('/alerts')} className="ml-auto font-semibold text-navy-700">See all in Alerts →</a>}
+            <span>{total > list.length ? `Showing ${list.length} of ${total}` : 'That’s everything for today'}{' · the rest of your alerts are in Alerts'}</span>
+            <a {...linkProps('/alerts')} className="ml-auto font-semibold text-navy-700">See all in Alerts →</a>
           </div>
         )}
       </div>

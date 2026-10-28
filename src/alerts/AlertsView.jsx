@@ -286,7 +286,10 @@ export default function AlertsView() {
   // to them); everyone else on Mine.
   const defWho = owner ? 'all' : 'me';
   const who = query.get('who') || defWho;
-  const view = PICK[query.get('view')] ? query.get('view') : 'leads';
+  // The TC gets tasks only (Luke, Oct 28) — the page opens on Tasks.
+  const tasksOnly = !!data?.tasksOnly;
+  const homeView = tasksOnly ? 'tasks' : 'leads';
+  const view = PICK[query.get('view')] && (!tasksOnly || ['tasks', 'upcoming'].includes(query.get('view'))) ? query.get('view') : homeView;
   // Active / Reviewed (last 7 days) — Luke, Oct 22; old ?view=done links
   // land on Reviewed.
   const tab = query.get('tab') === 'done' || query.get('view') === 'done' ? 'done' : 'active';
@@ -341,7 +344,7 @@ export default function AlertsView() {
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Alerts · {whoName}</div>
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{who === 'me' ? 'Your Day' : `${whoName}'s Day`}</h1>
-          <p className="mt-1 text-[13.5px] text-white/75">{new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })} · tasks from GHL and the site, leads Claude spotted, and check-ins due</p>
+          <p className="mt-1 text-[13.5px] text-white/75">{new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })} · {tasksOnly ? 'your tasks — added on the site for you, and the proof of funds reminders' : 'tasks from GHL and the site, leads Claude spotted, and check-ins due'}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {(pod || owner) && (
               <div className="inline-flex rounded-lg bg-navy-900/60 p-0.5" role="group" aria-label="Whose alerts">
@@ -362,9 +365,9 @@ export default function AlertsView() {
           </div>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          {[['New', newN, 'leads'], ['Due today', dueToday, 'tasks'], ['Overdue', late, 'tasks'], ['Leads', scoped.filter((a) => !isDone(a) && a.kind === 'lead').length, 'leads']].map(([l, n, v]) => (
+          {(tasksOnly ? [['New', newN, 'tasks'], ['Due today', dueToday, 'tasks'], ['Overdue', late, 'tasks']] : [['New', newN, 'leads'], ['Due today', dueToday, 'tasks'], ['Overdue', late, 'tasks'], ['Leads', scoped.filter((a) => !isDone(a) && a.kind === 'lead').length, 'leads']]).map(([l, n, v]) => (
             // Band counters, not page tiles (Luke, Oct 22: these stay as they were).
-            <BandCounter key={l} label={l} value={n} hot={l === 'New' && !!n} warn={l === 'Overdue'} onClick={() => setQuery({ view: v === 'leads' ? null : v, tab: null, type: null })} />
+            <BandCounter key={l} label={l} value={n} hot={l === 'New' && !!n} warn={l === 'Overdue'} onClick={() => setQuery({ view: v === homeView ? null : v, tab: null, type: null })} />
           ))}
         </div>
       </div>
@@ -372,7 +375,7 @@ export default function AlertsView() {
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <nav aria-label="Alert lists" className="lg:sticky lg:top-2 self-start flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
           <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Inbox</div>
-          {RAIL.map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={r.sub} n={count(r.id)} red={r.id === 'leads'} onClick={() => setQuery({ view: r.id === 'leads' ? null : r.id, type: null })} />)}
+          {RAIL.filter((r) => !tasksOnly || r.id === 'tasks').map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={tasksOnly ? 'Added on the site' : r.sub} n={count(r.id)} red={r.id === 'leads'} onClick={() => setQuery({ view: r.id === homeView ? null : r.id, type: null })} />)}
           <div className="hidden lg:block px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Later</div>
           {LATER.map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={r.sub} n={count(r.id)} onClick={() => setQuery({ view: r.id, type: null })} />)}
         </nav>
@@ -381,7 +384,7 @@ export default function AlertsView() {
               tab, kept a week). */}
           <div role="tablist" aria-label="Active or reviewed" className="mb-3 flex items-center gap-1 border-b border-tan-200">
             {[['active', 'Active'], ['done', `Reviewed · last 7 days${doneN ? ` (${doneN})` : ''}`]].map(([id, l]) => (
-              <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setQuery({ tab: id === 'active' ? null : id, view: view === 'leads' ? null : view })}
+              <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setQuery({ tab: id === 'active' ? null : id, view: view === homeView ? null : view })}
                 className={`-mb-px h-10 px-4 text-[14px] font-semibold border-b-[3px] ${tab === id ? 'border-navy-700 text-navy-800' : 'border-transparent text-zinc-500 hover:text-navy-700'}`}>{l}</button>
             ))}
           </div>
@@ -423,9 +426,10 @@ export default function AlertsView() {
             {/* Only on Tasks (Luke, Oct 22: the other views aren't task lists). */}
             {data && tab !== 'done' && view === 'tasks' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
+          {tasksOnly ? <p className="mt-4 text-[12px] text-zinc-500">Tasks the owners (or you) add here, and the proof of funds reminder before the letter expires — upload the new one in Toolkit › Proof of Funds. Tick one off when it’s done; it stays under Reviewed for 7 days.</p> : (
           <p className="mt-4 text-[12px] text-zinc-500">
             Where these come from: GHL tasks are the open tasks in your GHL sub-accounts — ticking one here completes it in GHL too with the next refresh (unticking reopens it), and one finished in GHL clears here. A 30-day check-in comes up every 30 days after a lead was moved to Abandoned (Lost needs none). Leads spotted are agents’ texts from the last 3 days that send an address or say a deal is coming — they go to the rep, their pod lead and the owners. Claude proposes a grade for each one; picking the type yourself (Hot / Warm / Cold / Wholesale / Not a lead) is your review — it moves to your Reviewed tab, the others see who graded it and what, and it teaches Claude. They still grade it themselves (an owner’s grade counts for both owners). Bank-owned and HUD homes come proposed as Cold. The same agent texting the same rep again is a new lead only with a new address, or 2+ hours later when it isn’t the same property. Ticking an alert off clears it for you only — the others see who reviewed it; it closes for everyone once everyone it rings has reviewed it (your own tasks and check-ins close when you tick them). Reviewed ones stay under Reviewed for 7 days.
-          </p>
+          </p>)}
         </div>
       </div>
       {dealPanel.panel}

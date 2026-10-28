@@ -1708,11 +1708,23 @@ narrower"). `src/deals/TcListView.jsx`:
   ✓ From the deal (ticked from a deal field, the field on hover), Not needed,
   **Not tracked** (due before the step was on the list — not counted late,
   tick it if done) and Later (phase not started). The how-to shows only on
-  open steps. **The TC has no Alerts** ("for managers, owners and reps
-  only"): off her sidebar, Today at a Glance's Alerts links, the account
-  menu's Alert sound, no polling (`alertsOff` in src/alerts/store.js), and
-  /api/alerts refuses role tc (`ROLES`, edge/alerts.js). TC List flags never
-  went to her (owners + the deal's reps).
+  open steps.
+- **The TC: tasks-only Alerts, Get Zips, Territory** (Luke, later Oct 28 —
+  first "tc does not need to see alerts", then "add back in alerts for her,
+  but it would only be tasks … created on the site such as POF letter
+  updates, property needs, follow ups with title"): /api/alerts gives role tc
+  only kind `task` (`tasksOnly` in edge/alerts.js — load and the red-dot
+  poll; no leads, duplicates, GHL tasks, check-ins or deal deadlines), the
+  page opens on Tasks with only Tasks / Upcoming in the rail and New / Due
+  today / Overdue counters. Owners can hand her tasks (she's in the people
+  list); she adds her own. The proof of funds reminder now goes to the TC
+  too (scripts/sync-alerts.mjs), and she can upload the new letter
+  (`canUploadPof`, edge/toolkit.js). TC List flags still go only to owners
+  and the deal's reps. **Get Zips**: the TC requests as herself like an owner
+  (`holderOf` — tc@ → `owner:tc`, any Active state, same weekly rules; she
+  shows in owners' Assign list); she can release / flag her own. **Territory**
+  (Who Works Where, Coverage, Zip Center views) is open to her read-only —
+  every change there stays owners only, and she gets no Ask Claude.
 
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 

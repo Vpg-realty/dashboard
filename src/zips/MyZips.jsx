@@ -167,11 +167,11 @@ export default function MyZips() {
             </div>
           )}
           {stateMarket !== 'Active' && <div className="text-[13px] text-amber-800">{state} is {stateMarket.toLowerCase()} right now — zips there come from Luke or Jack.</div>}
-          <div className="text-[12.5px] text-zinc-500">The best zips left in the state are picked for you, near counties you already have. Bad data in a zip (all landlines, no agents)? Flag it below so owners can fix it. Questions about your zips? “Ask Claude” (bottom right).</div>
+          <div className="text-[12.5px] text-zinc-500">The best zips left in the state are picked for you, near counties you already have. Bad data in a zip (all landlines, no agents)? Flag it below so owners can fix it.{z.data?.role === 'tc' ? '' : ' Questions about your zips? “Ask Claude” (bottom right).'}</div>
         </div>
       </Panel>
 
-      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} owner={me.owner} />}
+      {me.states.length > 0 && <ZipSearch states={me.states} repId={me.repId} owner={me.owner && z.data?.role === 'owner'} />}
 
       <Panel title="Your zips" sub={`${all.length} held`} right={<CopyButton zips={all} label="Copy all my zips" />}>
         {!all.length && <div className="px-5 py-8 text-center text-zinc-500">No zips yet — request some above.</div>}

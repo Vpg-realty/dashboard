@@ -30,7 +30,7 @@ export const SECTIONS = [
   // Luke, Oct 18: the main daily page — GHL tasks, site tasks, 30-day
   // check-ins and leads Claude spotted (src/alerts). The sidebar shows a red
   // count of what's new since the person last opened it.
-  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: ['owner', 'manager', 'team'], solo: true,
+  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: PEOPLE, solo: true,
     tabs: [{ id: 'all', label: 'Alerts', view: 'alerts', scroll: true }] },
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
@@ -77,7 +77,7 @@ export const SECTIONS = [
     // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
     // managers, trainees and owners request zips here; the rules open from
     // an ⓘ on the page.
-    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee'], solo: true,
+    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee', 'tc'], solo: true,
     tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
   },
   {
@@ -99,7 +99,7 @@ export const SECTIONS = [
     // Territory (Oct 14: areas, states and zips in one place) is owners only
     // since Oct 19 (Luke's site map), laid out like Settings: a left rail with
     // the Map and the Manage pages (src/settings/Frame.jsx).
-    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner'], rail: true,
+    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'tc'], rail: true,
     tabs: [
       { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
       // Luke, Oct 19: Needs Review and the team structure review as one list,
