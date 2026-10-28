@@ -1725,6 +1725,18 @@ narrower"). `src/deals/TcListView.jsx`:
   shows in owners' Assign list); she can release / flag her own. **Territory**
   (Who Works Where, Coverage, Zip Center views) is open to her read-only —
   every change there stays owners only, and she gets no Ask Claude.
+- **Alerts = her inbox, the TC List = her to-do list** (Luke, later Oct 28:
+  "build it"): due-today checklist steps never go to Alerts (My Day has
+  them). A task on a property lives in `tc_tasks` — on the deal's checklist
+  and in My Day — wherever it's added: the TC List's "Add a task", or Alerts'
+  add form, where picking the TC shows a property picker (`DealPick`, open
+  deals; POST /api/alerts `{action: 'add', dealId}`, owners / TC). When
+  someone other than the TC adds one, every active TC gets an Alerts task
+  "New task on <street>: …" (`edge/tcTasks.js` `addTcTask`; ext_id
+  `tctask:<taskId>:<holder>`, `opp` = the deal, an **Open checklist** link).
+  Ticking it in either place ticks both (`tickTcTask`, also from Home's
+  Today), changing its date or removing it does too (`removeTcTask`). Tasks
+  with no property (POF letter, anything else) stay Alerts-only.
 
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 

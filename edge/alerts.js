@@ -10,6 +10,7 @@
 // their pod lead and owners"), so it counts toward the red dot of all three;
 // everything else only toward its holder's. Nothing is written while viewing
 // as someone (currentUser makes the role 'none').
+import { tcTaskOf, tickTcTask, removeTcTask } from './tcTasks.js';
 import { getPods } from './pods.js';
 
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
@@ -83,7 +84,7 @@ export async function load(db, user, now = new Date()) {
   for (const p of people.results) names[holderOf(p)] = p.name;
   // Who this person can hand a task to: themself; a pod lead also their
   // reps; owners anyone.
-  const assignable = people.results.map((p) => ({ id: holderOf(p), name: p.name })).filter((p) => p.id === scope.me || (inScope(scope, p.id) && user.role !== 'team' && user.role !== 'tc'));
+  const assignable = people.results.map((p) => ({ id: holderOf(p), name: p.name, tc: p.role === 'tc' || undefined })).filter((p) => p.id === scope.me || (inScope(scope, p.id) && user.role !== 'team' && user.role !== 'tc'));
   return {
     me: scope.me,
     mine: scope.keys,
@@ -165,6 +166,9 @@ export function ghlTick(x, done, user, now) {
 
 // The statements for one tick / untick by this person.
 function tick(x, done, user, scope, now) {
+  // A property task for the TC ticks the task on the TC List too.
+  const tcTask = tcTaskOf(x.ext_id);
+  if (tcTask) return tickTcTask(tcTask, done, user.name, now);
   if (!personal(x, scope)) {
     return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now)];
   }
@@ -262,12 +266,15 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
     if (b.dueTime && (!HM.test(b.dueTime) || !b.due)) return { error: 'Pick a due date for the time' };
     if (existing.kind === 'ghl') return { error: 'Change a GHL task’s date in GHL' };
+    const tcTask = tcTaskOf(existing.ext_id);
+    if (tcTask) return { run: [['UPDATE tc_tasks SET due = ? WHERE id = ?', [b.due || null, tcTask]], ['UPDATE alerts SET due = ? WHERE ext_id LIKE ?', [b.due || null, `tctask:${tcTask}:%`]]] };
     return { run: [['UPDATE alerts SET due = ?, due_time = ? WHERE id = ?', [b.due || null, (b.due && b.dueTime) || null, b.id]]] };
   }
   if (a === 'remove') {
     if (existing.kind !== 'task') return { error: 'Only tasks added on the site can be removed — tick it instead' };
     if (existing.created_by !== user.name && existing.holder !== scope.me && user.role !== 'owner') return { error: 'Only whoever added it (or an owner) can remove it' };
-    return { run: [['DELETE FROM alerts WHERE id = ?', [b.id]]] };
+    const tcTask = tcTaskOf(existing.ext_id);
+    return { run: tcTask ? removeTcTask(tcTask) : [['DELETE FROM alerts WHERE id = ?', [b.id]]] };
   }
   return { error: 'Unknown action' };
 }
