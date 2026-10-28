@@ -221,7 +221,8 @@ function DayHead({ label, n }) {
   return <h3 className="text-[13px] font-semibold text-navy-900">{label} <span className="font-normal text-zinc-500">· {n} {n === 1 ? 'property' : 'properties'}</span></h3>;
 }
 
-// All Deals: one line per deal, where it stands, a dot per milestone.
+// Deal Overview (was All Deals — Luke, Oct 28): one line per deal, where it
+// stands, a dot per milestone, and a Flagged column with its open issues.
 const DOT = {
   ok: ['bg-emerald-50 text-emerald-700', '✓'], na: ['text-zinc-300', '—'], off: ['text-zinc-300', '·'],
   late: ['bg-[#B42318] text-white', '!'], today: ['bg-amber-600 text-white', '•'], wait: ['border-2 border-dashed border-tan-300 text-transparent', '·'],
@@ -238,6 +239,7 @@ function DealTable({ cards, today, onCard }) {
               <th className="px-3 py-2.5 font-semibold">Where It Stands</th>
               <th className="px-3 py-2.5 font-semibold">COE</th>
               {MILESTONES.map(([k, l]) => <th key={k} className="px-1.5 py-2.5 font-semibold text-center leading-tight">{l}</th>)}
+              <th className="px-3 py-2.5 font-semibold">Flagged</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-tan-100">
@@ -259,6 +261,7 @@ function DealTable({ cards, today, onCard }) {
                     const [cls, ch] = DOT[m.state];
                     return <td key={k} className="px-1.5 py-2.5 text-center"><span title={`${l}: ${m.state === 'wait' && m.on ? `next due ${shortDate(m.on)}` : m.state === 'late' ? `late since ${shortDate(m.on)}` : m.state === 'ok' ? 'done' : m.state === 'na' ? 'not needed' : m.state === 'today' ? 'due today' : 'not started'}`} className={`inline-grid place-items-center w-6 h-6 rounded-full text-[12px] font-extrabold ${cls}`}>{ch}</span></td>;
                   })}
+                  <td className="px-3 py-2.5">{c.issues.length ? <span title={c.issues.map((x) => `${issueLabel(x.kind)}${x.text ? ` — ${x.text}` : ''} (${x.created_by})`).join('\n')} className="inline-flex items-center gap-1 rounded-md bg-[#FDECEA] px-2 py-0.5 text-[12px] font-semibold text-[#B42318] whitespace-nowrap">⚑ {c.issues.length === 1 ? issueLabel(c.issues[0].kind).split(' (')[0] : `${c.issues.length} issues`}</span> : <span className="text-zinc-300">—</span>}</td>
                 </tr>
               );
             })}
@@ -524,7 +527,7 @@ export default function TcListView() {
   const rowProps = { today, post, onCard, onDeal: openDeal, onFlag: setFlagging };
   const dayCard = (x) => <DayCard key={x.c.deal.id} c={x.c} rows={x.rows} {...rowProps} folded={fold.has(x.c.deal.id)} onFold={() => toggle(x.c.deal.id)} />;
   const groups = [
-    { items: [{ id: 'all', label: 'All Deals', sub: 'Where each one stands', count: cards.length }], title: 'Deals' },
+    { items: [{ id: 'all', label: 'Deal Overview', sub: 'Where each one stands', count: cards.length }], title: 'Deals' },
     { items: [{ id: 'day', label: 'My Day', sub: 'Late, today and tomorrow', count: day.length, tone: now.length ? 'red' : 'navy' }], title: 'Work' },
   ];
   const listCount = view === 'day' ? day.length : filter === 'issues' ? issues : shown.length;
@@ -533,9 +536,9 @@ export default function TcListView() {
       <PageHead title="TC List" sub={`${longDay(today)} · what needs doing on every deal, property by property`}
         right={<CrossLink to="/deals/active?only=act" label="Active Deals" n={actNow} word="act now" title="The owners' view of deal problems — past deadlines, EMD, IP ending with no buyer" />}
         counters={<>
-          <BandCounter label="Urgent" sub="late or due today" value={urgent.length} warn filter active={view === 'all' && filter === 'urgent'} onClick={() => pickFilter('urgent')} title="All Deals with something late or due today" />
-          <BandCounter label="Closing this week" value={closing.length} filter active={view === 'all' && filter === 'closing'} onClick={() => pickFilter('closing')} title="All Deals with a COE in the next 7 days" />
-          <BandCounter label="Open issues" value={issues} warn filter active={view === 'all' && filter === 'issues'} onClick={() => pickFilter('issues')} title="All Deals with a flagged issue" />
+          <BandCounter label="Urgent" sub="late or due today" value={urgent.length} warn filter active={view === 'all' && filter === 'urgent'} onClick={() => pickFilter('urgent')} title="Deal Overview: deals with something late or due today" />
+          <BandCounter label="Closing this week" value={closing.length} filter active={view === 'all' && filter === 'closing'} onClick={() => pickFilter('closing')} title="Deal Overview: deals with a COE in the next 7 days" />
+          <BandCounter label="Open issues" value={issues} warn filter active={view === 'all' && filter === 'issues'} onClick={() => pickFilter('issues')} title="Deal Overview: deals with a flagged issue" />
         </>} />
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className={RAIL_GRID}>

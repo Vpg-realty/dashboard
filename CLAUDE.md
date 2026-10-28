@@ -1682,6 +1682,10 @@ narrower"). `src/deals/TcListView.jsx`:
   Each item is one slim line: due chip ("8d late" / Today / Tomorrow / Now),
   the step, how to do it (one line, full on hover), Not needed, ✓ Done.
 
+- **Deal Overview** (Luke, later Oct 28): the rail's All Deals is renamed
+  Deal Overview (same `?view=all`), and its table ends with a **Flagged**
+  column — a red "⚑ <kind>" chip (or "⚑ N issues") when the deal has an open
+  issue, the details on hover, "—" when none.
 - **Links between the two pages** (Luke, Oct 28): `CrossLink` (deals/ui.jsx)
   in the navy band — Active shows "TC List · N urgent →" (→ All Deals ?f=urgent;
   owners / TC, one /api/tc read per load), the TC List "Active Deals · N act
