@@ -7,6 +7,8 @@ import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELD, FIELDS, GROUPS, compute, payouts, payoutParts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
+// The TC Checklist tab (owners and the TC) — the TC List page's checklist.
+import { DealTcTab } from './TcListView.jsx';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
@@ -316,13 +318,14 @@ function History({ id }) {
   );
 }
 
-export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
+export default function DealPanel({ id, initial, onClose, onCreated, focus, tab: openOn, onTab }) {
   const s = useDeals();
   const isNew = !id;
   const found = s.raw.find((d) => d.id === id);
   const raw = useMemo(() => (isNew ? { ...(initial || {}) } : found), [isNew, initial, found]);
   const [draft, setDraft] = useState({ fields: {}, fixed: {} });
-  const [tab, setTab] = useState('details');
+  const [tab, setTabState] = useState(openOn && !initial ? openOn : 'details');
+  const setTab = (k) => { setTabState(k); onTab?.(k); };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [fixErr, setFixErr] = useState(null); // { key, msg } — shown under that mismatch row
@@ -756,7 +759,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-navy-900/30" onClick={close} />
-      <section className="relative w-full max-w-[760px] h-full bg-tan-100 shadow-2xl flex flex-col" role="dialog" aria-label={merged.address || 'New deal'}>
+      <section className="relative w-full max-w-[880px] h-full bg-tan-100 shadow-2xl flex flex-col" role="dialog" aria-label={merged.address || 'New deal'}>
         {!isNew && <span className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${TONES[step.tone].bar}`} />}
         <header className="shrink-0 bg-navy-700 text-white px-6 pt-5 pb-0 relative overflow-hidden">
           <svg viewBox="0 0 1000 1000" className="absolute -right-10 -top-16 w-60 h-60 opacity-[0.07] pointer-events-none" aria-hidden="true"><path d="M320 108 L653 686 L535 890 L203 314 Z" fill="#fff" /><path d="M514 308 H693 A104 104 0 0 1 783 464 L693 618 Z" fill="#ad9b7a" /></svg>
@@ -780,7 +783,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
           </div>
           {!isNew && (
             <nav className="flex gap-5 mt-4 relative">
-              {[['details', 'Details'], ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
+              {[['details', 'Details'], ...(ro ? [] : [['tc', 'TC Checklist']]), ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
             </nav>
@@ -821,7 +824,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
         )}
 
         <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
+          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'tc' && !ro ? <DealTcTab id={id} /> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
             <div className="flex flex-col gap-4">
               {claudeKeys.length > 0 && (
                 <div className="rounded-xl border-2 border-navy-700 bg-navy-50 px-4 py-2.5 text-[13.5px] text-navy-900">
