@@ -10,7 +10,7 @@ import { outlook, outlookRanges } from './outlook.js';
 const KEY = 'vpg.fin.outlook';
 const read = () => { try { return localStorage.getItem(KEY) || 'month'; } catch { return 'month'; } };
 
-// Each number is the site's Tile (Oct 22); the dot says which part it is.
+// Each number is Finance's branded tile (MoneyTile); the dot says which part it is.
 // Finance's own branded tile (Luke, Oct 28: "make the top tiles for how the
 // company is looking the same as well").
 function Box({ label, value, sub, tone, dot }) {

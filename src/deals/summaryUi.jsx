@@ -1,7 +1,7 @@
 // Small pieces shared by the Deal Summary and its files (SummaryView.jsx,
 // SummaryFile.jsx).
 import { money } from './format.js';
-import { Tile } from '../shell/Tile.jsx';
+import { MoneyTile } from '../finance/ui.jsx';
 import { pctTxt, closeRateTone, CLOSE_RATE_CLS } from './summaryStats.js';
 
 export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
@@ -14,11 +14,12 @@ export function Delta({ now, then, pct, isMoney, lowerIsBetter }) {
   return <span className={`inline-flex rounded px-1.5 py-px text-[12px] font-semibold whitespace-nowrap ${good ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{up ? '▲' : '▼'} {text}</span>;
 }
 
-// A number tile with the change vs the compare period under it — the site's
-// Tile (Oct 22).
+// A number tile with the change vs the compare period under it — Finance's
+// branded tile (Luke, Oct 28: "link all tiles in the finance tab entirely
+// together so they all look the same").
 export function Stat({ label, value, now, then, pct, isMoney, lowerIsBetter, sub, accent = 'navy', tone }) {
   const fmtThen = then == null ? null : pct ? pctTxt(then) : isMoney ? money(then) : then;
-  return <Tile label={label} value={value} dot={accent} tone={tone} sub={then != null ? <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></span> : sub} />;
+  return <MoneyTile label={label} value={value} accent={accent} tone={redOnly(tone)} sub={then != null ? <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span>vs {fmtThen}</span></span> : sub} />;
 }
 
 // Fixed targets (closeRateTone in summaryStats): green 50%+, amber 40–50%,
@@ -42,13 +43,13 @@ function BandDelta({ now, then, pct, isMoney, lowerIsBetter }) {
   return <span className="inline-flex items-center gap-1.5"><Delta now={now} then={then} pct={pct} isMoney={isMoney} lowerIsBetter={lowerIsBetter} /><span className="text-zinc-500">vs {fmt}</span></span>;
 }
 
-// The numbers on Finance Overview are the site's tile (Oct 22, src/shell/
-// Tile.jsx); a Band is a labelled row of them. The old dark-band tones map to
-// the tile's light ones.
-const LIGHT = { 'text-emerald-300': 'text-[#15803D]', 'text-red-300': 'text-[#B42318]', 'text-white/40': 'text-zinc-400', 'text-tan-400': 'text-navy-800' };
-export function BandStat({ label, value, sub, tone, dark, feature, accent, shade, big, ...d }) {
-  void dark; void feature;
-  return <Tile label={label} value={value} dot={accent} shade={shade} big={big} tone={LIGHT[tone] || tone} sub={d.then != null ? <BandDelta {...d} /> : sub} />;
+// The numbers on Finance Overview are Finance's tile too (finance/ui.jsx
+// MoneyTile, Oct 28); a Band is a labelled row of them. Numbers are navy —
+// the dot carries the meaning; only a red number (cancels) keeps its colour.
+const redOnly = (tone) => (/red|B42318/.test(tone || '') ? 'text-[#B42318]' : undefined);
+export function BandStat({ label, value, sub, tone, dark, feature, accent = 'navy', shade, big, ...d }) {
+  void dark; void feature; void shade; void big;
+  return <MoneyTile label={label} value={value} accent={accent} tone={redOnly(tone)} sub={d.then != null ? <BandDelta {...d} /> : sub} />;
 }
 
 // Each band's tiles share one brand fill (Luke, Oct 22, option C made

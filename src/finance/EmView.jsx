@@ -15,9 +15,8 @@ import useDealPanel from '../deals/useDealPanel.jsx';
 import { useLocation, setQuery } from '../shell/router.js';
 import { PanelHead } from '../shell/Panel.jsx';
 import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
-import Tile from '../shell/Tile.jsx';
 import { laToday } from '../utils/historyRange.js';
-import { FinanceHead } from './ui.jsx';
+import { FinanceHead, MoneyTile } from './ui.jsx';
 import { EmdCell } from './WiresView.jsx';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
@@ -63,7 +62,7 @@ export default function EmView() {
       <FinanceHead eyebrow="Earnest Money" title="EM Out" sub="Where VPG’s earnest money is right now, read from the deal sheet: out on open deals, at risk where it’s VPG’s alone, closed or cancelled deals that don’t say it came back, and EM lost (past the IP or non-refundable)." />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
         {EM_VIEWS.map(([k, label, , ]) => (
-          <Tile key={k} label={label} dot={k === 'out' ? 'navy' : k === 'risk' ? 'amber' : k === 'lost' ? 'grey' : 'red'} tint={k !== 'out' && k !== 'lost' && lists[k].length ? (k === 'risk' ? 'amber' : 'red') : undefined}
+          <MoneyTile key={k} label={label} accent={k === 'out' ? 'navy' : k === 'risk' ? 'amber' : k === 'lost' ? 'grey' : 'red'}
             value={money(sum(lists[k]))} sub={`${lists[k].length} deal${lists[k].length === 1 ? '' : 's'}`} onClick={() => setQuery({ view: k === 'out' ? null : k })} active={view[0] === k} />
         ))}
       </div>
