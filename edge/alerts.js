@@ -15,7 +15,8 @@ import { getPods } from './pods.js';
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
 // Kinds that also ring the holder's pod lead and the owners.
 const SHARED = new Set(['lead', 'deal', 'dupe']);
-export const ROLES = ['owner', 'manager', 'tc', 'team'];
+// Not the TC (Luke, Oct 28: "for managers, owners and reps only").
+export const ROLES = ['owner', 'manager', 'team'];
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 
 export const holderOf = (u) => u?.rep_id || `u:${String(u?.email || '').split('@')[0].toLowerCase()}`;
@@ -68,7 +69,7 @@ export async function load(db, user, now = new Date()) {
   const [rows, seen, people, marks] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
-    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
+    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).
     db.prepare('SELECT alert_id, who, name, at, grade FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
   ]);

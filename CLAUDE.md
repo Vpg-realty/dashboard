@@ -1696,6 +1696,24 @@ narrower"). `src/deals/TcListView.jsx`:
   follows; a stage set on Active (Assigned / Closed / Cancelled) moves the
   checklist.
 
+- **By COE, checklist panel, no Alerts for the TC** (Luke, later Oct 28):
+  `buildTcCards` sorts every deal by COE (soonest first, none last) — Deal
+  Overview and both My Day groups keep that order. The deal checklist panel
+  (`DealChecklist`): a progress bar with Open Deal | ⚑ Flag in the navy
+  header, the timeline alone in its card, then each phase as its own card
+  with a navy band (▶ fold, number, name, span, "N late", "N of M" / ✓ Done;
+  Open All / Fold All), and every step one slim line in navy text — no more
+  grey / struck-through rows; the state is a tag on the right (`StepLine`):
+  due chip while open (+ Not needed under it), ✓ Done · who · date · undo,
+  ✓ From the deal (ticked from a deal field, the field on hover), Not needed,
+  **Not tracked** (due before the step was on the list — not counted late,
+  tick it if done) and Later (phase not started). The how-to shows only on
+  open steps. **The TC has no Alerts** ("for managers, owners and reps
+  only"): off her sidebar, Today at a Glance's Alerts links, the account
+  menu's Alert sound, no polling (`alertsOff` in src/alerts/store.js), and
+  /api/alerts refuses role tc (`ROLES`, edge/alerts.js). TC List flags never
+  went to her (owners + the deal's reps).
+
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 
 - **Edit a payout** ("sam was gone for lewis and alcott so anthony stepped in

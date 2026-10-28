@@ -27,7 +27,7 @@ import AlertsPage from '../alerts/AlertsView.jsx';
 import MyTraining from '../training/MyTraining.jsx';
 import TrainingBoard from '../training/TrainingBoard.jsx';
 import ProgramBuilder from '../training/ProgramBuilder.jsx';
-import { useAlerts, tabBadge } from '../alerts/store.js';
+import { useAlerts, tabBadge, alertsOff } from '../alerts/store.js';
 import StatementsView from '../finance/StatementsView.jsx';
 import EmView from '../finance/EmView.jsx';
 import MoneyView from '../finance/MoneyView.jsx';
@@ -138,6 +138,7 @@ export default function AppShell({ me }) {
   const isManager = me.role === 'owner' || me.role === 'manager';
   // Alerts' red dot (Luke, Oct 18): new since the person last opened Alerts;
   // when there's nothing new but something is late, a quieter maroon count.
+  alertsOff(me.role === 'tc');
   const { counts: alertCounts } = useAlerts();
   const unseen = section.id === 'alerts' ? 0 : alertCounts?.unseen || 0;
   const owe = alertCounts?.owe || 0;
