@@ -143,7 +143,7 @@ function Menu({ label, children, align = 'right' }) {
         {label}<span className="text-[10px] text-zinc-400">▾</span>
       </button>
       <Floating anchor={anchor} open={open} align={align} className="rounded-xl border border-tan-200 bg-white shadow-lg">
-        <div ref={pop}>{children}</div>
+        <div ref={pop}>{typeof children === 'function' ? children(() => setOpen(false)) : children}</div>
       </Floating>
     </>
   );
@@ -284,6 +284,18 @@ export default function AllDealsView() {
     if (last && last.id === id) last.span += 1;
     else bands.push({ id, span: 1, start: starts.has(f.key), label: id === 'address' ? 'Deal' : id === 'deal2' ? '' : GROUP_LABEL[id], bg: BAND_COLOR[g] || BAND_COLOR.deal });
   }
+  const jumps = bands.filter((b) => b.label);
+  const jumpTo = (id) => {
+    const box = tableBox.current;
+    const th = box?.querySelector(`th[data-band="${id}"]`);
+    if (!box || !th) return;
+    // Measured on screen (a sticky header's offsetLeft isn't reliable); the
+    // site's zoom (--ui-zoom) scales screen pixels, so convert back.
+    const r = box.getBoundingClientRect();
+    const z = box.offsetWidth ? r.width / box.offsetWidth : 1;
+    const shift = (th.getBoundingClientRect().left - r.left) / z - addrW;
+    box.scrollTo({ left: id === 'address' ? 0 : Math.max(0, box.scrollLeft + shift), behavior: 'smooth' });
+  };
 
   return (
     <div className="h-full w-full max-w-[1720px] mx-auto flex flex-col min-h-0">
@@ -306,6 +318,15 @@ export default function AllDealsView() {
             ))}
           </div>
         </Menu>
+        {/* Jump to a section (Luke, Oct 28: "quickly switch to each section
+            … scroll over to the start of that section" — kept plain, one
+            menu like Columns): slides the sheet sideways so the section's
+            first column sits right of the pinned address. */}
+        {jumps.length > 1 && <Menu label="Jump to">{(close) => (
+          <div className="w-52 py-1.5 text-[13px]">
+            {jumps.map((b) => <button key={b.id} onClick={() => { jumpTo(b.id); close(); }} className={menuRow(false)}>{b.label}</button>)}
+          </div>
+        )}</Menu>}
         <button onClick={csv} className={btnCls}>Export CSV</button>
         {!s.readOnly && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
@@ -346,7 +367,7 @@ export default function AllDealsView() {
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} ref={b.id === 'address' ? addrTh : undefined} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                  <th key={i} data-band={b.id} ref={b.id === 'address' ? addrTh : undefined} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ background: b.bg, color: '#FFFFFF', ...(b.start ? { borderLeft: '2px solid #FFFFFF' } : {}) }}>{b.id === 'address' ? b.label : <span className="sticky inline-block" style={{ left: addrW + 12 }}>{b.label}</span>}</th>
                 ))}
               </tr>
