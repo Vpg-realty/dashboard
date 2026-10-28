@@ -1714,8 +1714,15 @@ narrower"). `src/deals/TcListView.jsx`:
   were very branded … a separate tile design"): `MoneyTile` (finance/ui.jsx)
   is again the Oct 19 brand tile — tan eyebrow + dot, big navy number, tan
   rule, faint V, navy when picked — and no longer draws through `Tile`. Every
-  other page keeps the shared `Tile`. The five boxes of How the Company Is
-  Looking (CompanyOutlook.jsx) use it too.
+  other page keeps the shared `Tile`. **Every tile in the Finance section
+  draws through it** (Luke, later Oct 28: "link all tiles in the finance tab
+  entirely together … any time we make an edit they change … across the
+  board"): How the Company Is Looking (CompanyOutlook.jsx), Payouts, Wires,
+  Earnest Money (EmView), Statements, Finance Overview's Deal Flow / Money
+  bands (`BandStat`, summaryUi.jsx) and a rep / state file (`Stat`) — change
+  `MoneyTile` once, all of them follow. Numbers are navy (only a red number
+  keeps its colour); a long value steps down a size (22–30px). Overview's
+  Money band and the file's tiles sit three to a row so the cents fit.
 - **How the Company Is Looking**: its This month / Next month / This quarter /
   This year switch is the site's navy-band switch (dark track, picked one in
   tan), not the tan tray.

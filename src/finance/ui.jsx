@@ -39,6 +39,9 @@ export function MoneyTile({ label, value, sub, tone = 'text-navy-800', accent = 
   // Numbers are navy — the dot carries the status; only a red (negative /
   // short) number keeps its colour.
   const toneCls = /red|B42318/.test(tone || '') ? tone : 'text-navy-800';
+  // A long value steps down a size instead of spilling out (Oct 28).
+  const len = String(value ?? '').length;
+  const size = len > 13 ? 'text-[22px]' : len > 10 ? 'text-[26px]' : 'text-[30px]';
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick} aria-pressed={onClick ? !!active : undefined}
       className={`group relative text-left rounded-2xl overflow-hidden px-5 pt-4 pb-4 transition-colors ${active ? 'bg-navy-700 text-white shadow-[0_6px_18px_rgba(27,56,95,0.25)]' : `bg-white border border-tan-200 shadow-[0_1px_2px_rgba(27,56,95,0.05)] ${onClick ? 'hover:border-tan-400 hover:shadow-[0_4px_12px_rgba(27,56,95,0.08)] cursor-pointer' : ''}`}`}>
@@ -50,7 +53,7 @@ export function MoneyTile({ label, value, sub, tone = 'text-navy-800', accent = 
         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ACCENT[accent] || accent, boxShadow: active ? '0 0 0 2px rgba(255,255,255,0.25)' : undefined }} />
         {label}{badge}
       </div>
-      <div className={`relative mt-2.5 text-[30px] leading-none font-bold tracking-tight tabular-nums ${active ? (empty ? 'text-white/40' : 'text-white') : empty ? 'text-zinc-300' : toneCls}`}>{value}</div>
+      <div className={`relative mt-2.5 ${size} leading-none font-bold tracking-tight tabular-nums ${active ? (empty ? 'text-white/40' : 'text-white') : empty ? 'text-zinc-300' : toneCls}`}>{value}</div>
       <div className={`relative mt-2 h-px w-10 ${active ? 'bg-tan-400/70' : 'bg-tan-300'}`} />
       <div className={`relative mt-2 text-[12.5px] whitespace-nowrap truncate ${active ? 'text-white/75' : 'text-zinc-500'}`}>{sub || ' '}</div>
     </Tag>

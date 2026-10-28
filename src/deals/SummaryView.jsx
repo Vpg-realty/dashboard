@@ -69,7 +69,7 @@ function Overview({ data, then, owner, compareLabel, deals, onOpenDeal, periodKe
         <BandStat accent="red" label="Cancelled" shade="navy" big value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter tone={now.cancelled ? 'text-red-300' : 'text-white/40'} sub="fell through" />
         <BandStat accent="tan" label="Close rate" shade="navy" big value={now.decided ? pctTxt(now.closeRate) : '—'} now={now.closeRate} then={t('closeRate')} pct tone="text-tan-400" sub={`${now.closed} of ${now.decided} closed or cancelled`} />
       </Band>
-      <Band eyebrow="Money · closed deals" cols={owner ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}>
+      <Band eyebrow="Money · closed deals" cols="lg:grid-cols-3">
         <BandStat shade="tan" label="Sold volume" value={money(now.volume)} now={now.volume} then={t('volume')} isMoney sub="VPG assignment prices" />
         <BandStat shade="tan" label="Gross assignment" value={money(now.gross)} now={now.gross} then={t('gross')} isMoney />
         <BandStat shade="tan" label="Net assignment" value={money(now.net)} now={now.net} then={t('net')} isMoney sub={now.keptN ? `incl. ${money(now.keptNet)} EMD kept · ${now.keptN} cancel${now.keptN === 1 ? '' : 's'}` : 'after additional fees'} />

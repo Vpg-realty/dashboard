@@ -90,7 +90,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
             squeezed to fit instead of scrolling). */}
         <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-6 py-5 grid gap-4">
-          <div className={`grid grid-cols-2 ${owner ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
+          <div className={`grid grid-cols-2 lg:grid-cols-3 gap-3`}>
             <Stat label="Contracts" value={now.contracts} now={now.contracts} then={t('contracts')} sub={`${now.pending} still open`} />
             <Stat label="Closed" value={now.closed} now={now.closed} then={t('closed')} accent="green" tone="text-emerald-700" sub={`${pctTxt(now.closeRate)} close rate`} />
             <Stat label="Cancelled" value={now.cancelled} now={now.cancelled} then={t('cancelled')} lowerIsBetter accent="red" tone={now.cancelled ? 'text-red-700' : 'text-zinc-400'} />
