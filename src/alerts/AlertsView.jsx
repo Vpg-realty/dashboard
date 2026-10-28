@@ -208,7 +208,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           </span>
         )}
         {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}
-        {String(a.ext_id || '').startsWith('tctask:') && a.opp && <a {...linkProps(`/deals/tc?view=all&card=${a.opp}`)} className="h-8 inline-flex items-center px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open checklist</a>}
+        {String(a.ext_id || '').startsWith('tctask:') && a.opp && <a {...linkProps(`/deals/tc?deal=${a.opp}&tab=tc`)} className="h-8 inline-flex items-center px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open checklist</a>}
         {url && <a href={url} target="_blank" rel="noopener noreferrer" className="h-8 inline-flex items-center px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open in GHL ↗</a>}
         {a.kind === 'task' && !done && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Remove this task?')) act({ action: 'remove', id: a.id }); }} title="Remove" className="h-8 w-8 rounded-lg border border-zinc-200 bg-white text-zinc-400 hover:text-red-700 hover:bg-red-50">×</button>}
       </div>

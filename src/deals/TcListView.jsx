@@ -12,13 +12,13 @@
 // in the tan corner; a click folds it, kept per device `vpg.tc.fold`), then
 // one slim line per item (due chip, the step, how to do it, ✓ Done). All
 // Deals is one line per deal with "Where It Stands" and a dot per milestone.
-// A card's Checklist (or a table row) opens the deal's checklist in a side
-// panel (`?card=`). The steps themselves live in tcList.js (CHECKLIST). D1
+// A card's Checklist, its address or a table row opens the deal panel on its
+// TC Checklist tab (`?deal=<id>&tab=tc`; old `?card=` links land there). The steps themselves live in tcList.js (CHECKLIST). D1
 // via /api/tc (ticks, tasks, issues — Flag an Issue alerts the owners and the
 // deal's acq rep and dispo rep). Deals open in the deal panel.
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
-import { call } from '../utils/dashApi.js';
+import { useTc } from './tcStore.js';
 import { buildTcCards, CHECKLIST, REMOVED, MILESTONES, ISSUE_KINDS, issueLabel, email48, standing, milestone, vpgPlacedEm, firstLine, NA } from './tcList.js';
 import { Loading, StatusChip, CoeChip, PageHead, CrossLink } from './ui.jsx';
 import { isOpen } from './math.js';
@@ -61,16 +61,6 @@ function CopyButton({ text, label = 'Copy', big }) {
   return <button type="button" onClick={async () => { if (await copyText(text)) { setDone(true); setTimeout(() => setDone(false), 1800); } }} className={`${big ? primaryCls : btnCls} whitespace-nowrap`}>{done ? '✓ Copied' : label}</button>;
 }
 
-function useTc() {
-  const [st, setSt] = useState(null);
-  const [err, setErr] = useState(null);
-  useEffect(() => { call('tc').then(setSt).catch((e) => { setErr(e.message); setSt({ checks: [], tasks: [], issues: [], assigned: {} }); }); }, []);
-  const post = async (body) => {
-    setErr(null);
-    try { setSt(await call('tc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return true; } catch (e) { setErr(e.message); return false; }
-  };
-  return { st, err, post };
-}
 
 // Ticks that are really deal fields (Luke, Oct 15: "any edit anywhere should
 // automatically populate the deal sheet"): EMD sent asks who placed it and
@@ -196,7 +186,7 @@ function DayCard({ c, rows, today, post, onCard, onDeal, onFlag, folded, onFold 
     <article className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
       <header className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 py-2 ${PANEL_HEAD} cursor-pointer select-none`} onClick={onFold} aria-expanded={!folded}>
         <span className={`text-white/70 text-[11px] transition-transform ${folded ? '-rotate-90' : ''}`}>▼</span>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onDeal(d.id); }} title="Open the deal" className="text-[14.5px] font-semibold text-white hover:underline underline-offset-2">{d.address}</button>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onCard(d.id); }} title="Open the deal's checklist" className="text-[14.5px] font-semibold text-white hover:underline underline-offset-2">{d.address}</button>
         {tag && <RepTag label={tag.label} color={tag.color} className="!text-[11.5px]" />}
         <StatusChip status={d.status} />
         {d.coe && <span className="text-[12px] text-white/70">COE {shortDate(d.coe)}</span>}
@@ -380,40 +370,31 @@ function StepLine({ it, d, post, today }) {
 }
 
 // The deal's checklist in the side panel.
-function DealChecklist({ c, today, post, onDeal, onFlag, onClose }) {
+function DealChecklist({ c, today, post, onFlag }) {
   const d = c.deal;
-  const tag = dealTag(d);
   // The phases with something open now (late, today, next 7 days) start open.
   const weekOut = new Date(Date.parse(`${today}T12:00:00Z`) + 7 * 86400000).toISOString().slice(0, 10);
   const hot = (g) => g.active && g.items.some((s) => s.open && s.dueOn && s.dueOn <= weekOut);
   const [open, setOpen] = useState(() => { const s = new Set(c.groups.filter(hot).map((g) => g.id)); if (!s.size) { const f = c.groups.find((g) => g.active && g.items.some((x) => x.open)); if (f) s.add(f.id); } return s; });
   const flip = (id) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const done = c.total - c.left;
+  // Inside the deal panel (Luke, Oct 28: "add tc checklist as a 4th tab on
+  // the property address popup") — the panel's header carries the address,
+  // stage and rep, so this opens with the title / escrow line, progress and Flag.
   return (
-    <div className="flex flex-col">
-      <div className="bg-navy-700 text-white px-5 py-4">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 mr-auto">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">Deal Checklist</div>
-            <button type="button" onClick={() => onDeal(d.id)} className="text-left text-[20px] font-semibold leading-tight hover:underline underline-offset-2">{d.address}</button>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-white/60 hover:text-white text-2xl leading-none px-1">×</button>
+    <div className="flex flex-col gap-3">
+      <div className="rounded-xl border border-tan-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-700">TC Checklist</span>
+          <span className="rounded-md bg-tan-50 ring-1 ring-tan-200 px-2 py-0.5 text-navy-900">{firstLine(d.title) || <span className="text-[#B42318]">no title agency</span>}{d.escrow ? ` · escrow #${d.escrow}` : ''}</span>
+          <button type="button" onClick={() => onFlag(d)} className="ml-auto h-7 rounded-lg bg-tan-500 px-2.5 text-[12.5px] font-semibold text-navy-900 hover:bg-tan-400">⚑ Flag an Issue</button>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px]">
-          {tag && <RepTag label={tag.label} color={tag.color} />}
-          <StatusChip status={d.status} />
-          <span className="rounded-md bg-white/10 px-2 py-0.5">{firstLine(d.title) || <span className="text-rose-200">no title agency</span>}{d.escrow ? ` · escrow #${d.escrow}` : ''}</span>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <span className="h-2 flex-1 rounded-full bg-white/15 overflow-hidden"><span className="block h-full bg-tan-500" style={{ width: `${c.total ? Math.round((done / c.total) * 100) : 0}%` }} /></span>
-          <span className="text-[12.5px] font-semibold text-tan-300 whitespace-nowrap">{done} of {c.total} done</span>
-          <span className="flex rounded-lg bg-tan-500 text-navy-900 text-[12.5px] font-semibold overflow-hidden">
-            <button type="button" onClick={() => onDeal(d.id)} className="px-2.5 py-1 hover:bg-tan-400">Open Deal</button>
-            <button type="button" onClick={() => onFlag(d)} className="px-2.5 py-1 border-l border-navy-900/20 hover:bg-tan-400">⚑ Flag</button>
-          </span>
+        <div className="mt-2.5 flex items-center gap-3">
+          <span className="h-2 flex-1 rounded-full bg-tan-100 overflow-hidden"><span className="block h-full bg-navy-700" style={{ width: `${c.total ? Math.round((done / c.total) * 100) : 0}%` }} /></span>
+          <span className="text-[12.5px] font-semibold text-navy-800 whitespace-nowrap">{done} of {c.total} done</span>
         </div>
       </div>
-      <div className="px-5 py-4 flex flex-col gap-3 bg-tan-50/60">
+      <div className="flex flex-col gap-3">
         <div className="rounded-xl border border-tan-200 bg-white px-4 pt-1 pb-3">
           <Timeline d={d} c={c} today={today} />
         </div>
@@ -472,6 +453,26 @@ function DealChecklist({ c, today, post, onDeal, onFlag, onClose }) {
   );
 }
 
+// The deal panel's TC Checklist tab (owners and the TC): the deal's checklist,
+// warnings, open issues and tasks, from the same store as the TC List page.
+export function DealTcTab({ id }) {
+  const s = useDeals();
+  const { st, err, post } = useTc();
+  const [flagging, setFlagging] = useState(null);
+  const today = laToday();
+  const d = s.deals.find((x) => x.id === id);
+  const c = useMemo(() => (st && d ? buildTcCards([d], st, today)[0] || null : null), [st, d, today]);
+  if (!st) return <div className="py-16 text-center text-zinc-400">Loading the checklist…</div>;
+  if (!c) return <div className="rounded-xl border border-tan-200 bg-white px-4 py-6 text-center text-[13.5px] text-zinc-500">This deal isn’t on the TC List — it’s cancelled, or closed before October.</div>;
+  return (
+    <>
+      {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
+      <DealChecklist c={c} today={today} post={post} onFlag={setFlagging} />
+      {flagging && <FlagDialog d={flagging} post={post} onClose={() => setFlagging(null)} />}
+    </>
+  );
+}
+
 // The checklist itself, at the foot of the page (Luke, Oct 26: removed steps
 // "grey them out so i can reference what was mentioned vs. what i've removed").
 function HowItWorks() {
@@ -515,15 +516,10 @@ export default function TcListView() {
   const view = old ? 'all' : VIEWS.has(asked) ? asked : 'day';
   const filter = old || (FILTERS[query.get('f')] ? query.get('f') : null);
   const cardId = query.get('card');
-  const dealOpen = !!query.get('deal');
   const today = laToday();
   const all = useMemo(() => (st ? buildTcCards(s.deals, st, today) : []), [s.deals, st, today]);
-  useEffect(() => {
-    if (!cardId) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape' && !dealOpen && !flagging) setQuery({ card: null }); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [cardId, dealOpen, flagging]);
+  // Older ?card= links (Alerts, bookmarks) open the deal on its TC Checklist tab.
+  useEffect(() => { if (cardId) setQuery({ card: null, deal: cardId, tab: 'tc' }); }, [cardId]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
   if (!st) return <div className="py-16 text-center text-zinc-400">Loading the TC list…</div>;
   const needle = q.trim().toLowerCase();
@@ -546,10 +542,10 @@ export default function TcListView() {
   const shown = filter === 'urgent' ? urgent : filter === 'closing' ? closing : filter === 'issues' ? cards.filter((c) => c.issues.length) : cards;
   const issues = cards.reduce((n, c) => n + c.issues.length, 0);
   const actNow = s.deals.filter((d) => isOpen(d) && urgency(d, today).sec === 'act').length;
-  const go = (v) => setQuery({ view: v === 'day' ? null : v, f: null, card: null });
-  const pickFilter = (f) => setQuery({ view: 'all', f: view === 'all' && filter === f ? null : f, card: null });
-  const onCard = (id) => setQuery({ card: id });
-  const card = cardId ? all.find((c) => c.deal.id === cardId) : null;
+  const go = (v) => setQuery({ view: v === 'day' ? null : v, f: null });
+  const pickFilter = (f) => setQuery({ view: 'all', f: view === 'all' && filter === f ? null : f });
+  // A property opens the deal panel on its TC Checklist tab (Luke, Oct 28).
+  const onCard = (id) => openDeal(id, null, 'tc');
   const toggle = (id) => setFold((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); saveFold(n); return n; });
   const foldAll = (shut) => setFold(() => { const n = shut ? new Set(day.map((x) => x.c.deal.id)) : new Set(); saveFold(n); return n; });
   const rowProps = { today, post, onCard, onDeal: openDeal, onFlag: setFlagging };
@@ -587,14 +583,6 @@ export default function TcListView() {
           <HowItWorks />
         </div>
       </div>
-      {card && (
-        <div className="fixed inset-0 z-40 flex justify-end">
-          <div className="absolute inset-0 bg-navy-900/30" onClick={() => setQuery({ card: null })} />
-          <div className="relative w-full max-w-[880px] h-full bg-white shadow-2xl overflow-y-auto" role="dialog" aria-label={card.deal.address}>
-            <DealChecklist key={card.deal.id} c={card} today={today} post={post} onDeal={openDeal} onFlag={setFlagging} onClose={() => setQuery({ card: null })} />
-          </div>
-        </div>
-      )}
       {flagging && <FlagDialog d={flagging} post={post} onClose={() => setFlagging(null)} />}
       {panel}
     </div>

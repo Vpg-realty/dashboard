@@ -1738,6 +1738,21 @@ narrower"). `src/deals/TcListView.jsx`:
   Today), changing its date or removing it does too (`removeTcTask`). Tasks
   with no property (POF letter, anything else) stay Alerts-only.
 
+- **The checklist is a deal panel tab** (Luke, later Oct 28: "add tc
+  checklist as a 4th tab on the property address popup … then we wouldnt
+  need an entirely different tab"): the deal panel (owners and the TC — not
+  reps / managers) has **Details · TC Checklist · Files & Claude Review ·
+  History**; the tab (`DealTcTab` in TcListView.jsx, `?tab=tc`) shows the
+  title / escrow line, progress, ⚑ Flag an Issue, the timeline, warnings,
+  open issues, the phases and Tasks for This Deal. On the TC List page every
+  property opens the panel on that tab (My Day's address and Checklist, a
+  Deal Overview row, an Open Issues street); a warning's "Open Deal" opens
+  Details. The separate checklist side panel is gone — old `?card=<id>`
+  links and Alerts' "Open checklist" land on `?deal=<id>&tab=tc`. The deal
+  panel is 880px wide for everyone (was 760). /api/tc's data is one shared
+  store (`src/deals/tcStore.js`), so a tick in the tab shows on the page
+  behind it at once; it reloads whenever the page or the tab opens.
+
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 
 - **Edit a payout** ("sam was gone for lewis and alcott so anthony stepped in
