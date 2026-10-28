@@ -14,9 +14,11 @@
 import StageChip from '../shell/StageChip.jsx';
 import RepTag from '../shell/RepTag.jsx';
 import { PILL_TONE } from './values.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, addrKeys, fieldsFromGhl } from './store.js';
-import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips } from './ui.jsx';
+import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips, CrossLink } from './ui.jsx';
+import { buildTcCards } from './tcList.js';
+import { call } from '../utils/dashApi.js';
 import { money, shortDate, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
@@ -134,6 +136,10 @@ export default function ActiveView() {
   const mineOnly = query.get('mine') === '1';
   const today = laToday();
   const who = useMemo(() => ({ owner: s.owner, readOnly: s.readOnly }), [s.owner, s.readOnly]);
+  // The TC List's Urgent count for the link to it (one /api/tc read per load).
+  const [tc, setTc] = useState(null);
+  useEffect(() => { if (s.readOnly) return; call('tc').then(setTc).catch(() => {}); }, [s.readOnly]);
+  const tcUrgent = useMemo(() => (tc ? buildTcCards(s.deals, tc, today).filter((c) => !c.out && (c.late.length || c.today.length)).length : null), [tc, s.deals, today]);
 
   const { byId, cards, counts, needRows, missing } = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -279,6 +285,7 @@ export default function ActiveView() {
             ))}
           </span>
         </span>
+        {ed && <CrossLink to="/deals/tc?view=all&f=urgent" label="TC List" n={tcUrgent} word="urgent" title="Aiza's closing checklist — deals with a step late or due today" />}
         <Search dark value={q} onChange={setQ} placeholder={s.owner ? undefined : 'Search address, rep, title…'} />
         {ed && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} counters={<>

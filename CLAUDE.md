@@ -1681,6 +1681,16 @@ narrower"). `src/deals/TcListView.jsx`:
   Each item is one slim line: due chip ("8d late" / Today / Tomorrow / Now),
   the step, how to do it (one line, full on hover), Not needed, ✓ Done.
 
+- **Links between the two pages** (Luke, Oct 28): `CrossLink` (deals/ui.jsx)
+  in the navy band — Active shows "TC List · N urgent →" (→ All Deals ?f=urgent;
+  owners / TC, one /api/tc read per load), the TC List "Active Deals · N act
+  now →" (→ Active ?only=act, from `urgency`, no extra read). Both pages read
+  the same deal records: Active = the owners' view of deal problems (and the
+  stage pop-ups), the TC List = the closing checklist; ticks that are deal
+  fields (EM placed, title opened, EM returned) save the deal, so Active
+  follows; a stage set on Active (Assigned / Closed / Cancelled) moves the
+  checklist.
+
 ## All Deals column layout (Luke, Oct 27)
 
 "put the key dates in one section or propose a reorganization of columns …

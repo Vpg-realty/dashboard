@@ -1,4 +1,5 @@
 // Small shared pieces for the Deals pages.
+import { linkProps } from '../shell/router.js';
 import SearchBox from '../shell/SearchBox.jsx';
 import StageChip from '../shell/StageChip.jsx';
 import { statusLabel } from './format.js';
@@ -43,6 +44,17 @@ export function PageHead({ title, sub, right, eyebrow = 'Deals', counters }) {
         </div>
       )}
     </div>
+  );
+}
+
+// The link between Deals › Active and the TC List (Luke, Oct 28: "add the
+// links between the two pages") — a small outlined pill in the navy band's
+// right side: "TC List · 5 urgent →" / "Active Deals · 2 act now →".
+export function CrossLink({ to, label, n, word, title }) {
+  return (
+    <a {...linkProps(to)} title={title} className="inline-flex items-center gap-1.5 h-8 rounded-md px-2.5 text-[12.5px] font-semibold text-white ring-1 ring-inset ring-tan-400/70 hover:bg-white/10 whitespace-nowrap">
+      {label}{n != null && <span className={n ? 'text-tan-300' : 'text-white/60'}>· {n} {word}</span>}<span className="text-tan-300">→</span>
+    </a>
   );
 }
 
