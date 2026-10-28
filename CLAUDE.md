@@ -1656,6 +1656,30 @@ Overrides the TC Desk notes above where they differ.
   problem (no "Why it matters / Do" box) and This Week cards drop the
   what-to-do line ("we know what to do from here").
 
+## TC List, third pass (Luke, Oct 28)
+
+Overrides the TC notes above where they differ ("the colors on the left side
+… not at all aligned with the brand … lettering is way too bulky … the
+property address in a classic blue header … a fold option … each line item
+narrower"). `src/deals/TcListView.jsx`:
+- **Rail**: Deals — All Deals; Work — **My Day** (the default, now only
+  late, due today and due **tomorrow** — groups "Late & Due Today" and "Due
+  Tomorrow") and Open Issues. **Closing This Week** is gone as a view: it's a
+  filter on All Deals (old `?view=closing` links land there).
+- **Band counters = All Deals' filters**: Urgent (something late or due
+  today, `?f=urgent`) and Closing This Week (COE in 7 days, `?f=closing`) —
+  click picks / clears, a navy "Urgent ×" chip shows the filter — plus Open
+  Issues (opens that view).
+- **Search** moved out of the band to the head of the list it searches (a
+  light `SearchBox`, "Search properties — address, escrow #, rep, title",
+  with the count beside it).
+- **My Day cards**: no coloured left edge; the property is the site's navy
+  header band (`PANEL_HEAD`: ▼ fold, address, rep · sub-account, stage, COE,
+  "N items · N late", Checklist / ⚑ Flag in the tan corner). A click on the
+  band folds the card (per device, `vpg.tc.fold`; Fold All / Open All).
+  Each item is one slim line: due chip ("8d late" / Today / Tomorrow / Now),
+  the step, how to do it (one line, full on hover), Not needed, ✓ Done.
+
 ## All Deals column layout (Luke, Oct 27)
 
 "put the key dates in one section or propose a reorganization of columns …
