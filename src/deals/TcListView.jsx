@@ -4,9 +4,9 @@
 // fold option … each line item narrower").
 //
 // The navy band's counters are All Deals' filters (Urgent = something late
-// or due today, Closing This Week) plus Open Issues. The site's left rail:
+// or due today, Closing This Week, Open Issues). The site's left rail:
 // All Deals (on top), My Day (the default — only what's late, due today or
-// due tomorrow), Open Issues. The search sits at the head of the list it
+// due tomorrow). The search sits at the head of the list it
 // searches. My Day = one card per property: the site's navy header band
 // (address, rep · sub-account, stage, COE, how many items, Checklist / Flag
 // in the tan corner; a click folds it, kept per device `vpg.tc.fold`), then
@@ -38,11 +38,12 @@ const up = (x) => String(x ?? '').trim().toUpperCase();
 const longDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 // "the owners, Sam and Cayden" — who a flagged issue alerts.
 const whoGets = (d) => { const p = [...new Set([d.acq, d.dispoMember].filter(Boolean))]; return p.length ? `the owners, ${p.join(' and ')}` : 'the owners'; };
-const VIEWS = new Set(['day', 'issues', 'all']);
+const VIEWS = new Set(['day', 'all']);
 // All Deals' filters (Luke, Oct 28: "filter the all deals tab to show what is
 // closing this week as well as which properties have action items that are
 // urgent") — the band counters pick them.
-const FILTERS = { urgent: 'Urgent', closing: 'Closing This Week' };
+// Open Issues is one too (Oct 28: "make it a filter on the all deals").
+const FILTERS = { urgent: 'Urgent', closing: 'Closing This Week', issues: 'Open Issues' };
 const FOLD_KEY = 'vpg.tc.fold';
 const readFold = () => { try { return new Set(JSON.parse(localStorage.getItem(FOLD_KEY) || '[]')); } catch { return new Set(); } };
 const saveFold = (set) => { try { localStorage.setItem(FOLD_KEY, JSON.stringify([...set])); } catch { /* private window */ } };
@@ -476,9 +477,10 @@ export default function TcListView() {
   const [fold, setFold] = useState(readFold);
   const { query } = useLocation();
   const asked = query.get('view');
-  // Old Closing This Week links land on All Deals filtered to it.
-  const view = asked === 'closing' ? 'all' : VIEWS.has(asked) ? asked : 'day';
-  const filter = asked === 'closing' ? 'closing' : FILTERS[query.get('f')] ? query.get('f') : null;
+  // Old Closing This Week / Open Issues links land on All Deals filtered to it.
+  const old = asked === 'closing' || asked === 'issues' ? asked : null;
+  const view = old ? 'all' : VIEWS.has(asked) ? asked : 'day';
+  const filter = old || (FILTERS[query.get('f')] ? query.get('f') : null);
   const cardId = query.get('card');
   const dealOpen = !!query.get('deal');
   const today = laToday();
@@ -509,7 +511,7 @@ export default function TcListView() {
   const isUrgent = (c) => c.late.length > 0 || c.today.length > 0;
   const urgent = cards.filter(isUrgent);
   const closing = cards.filter(isClosing);
-  const shown = filter === 'urgent' ? urgent : filter === 'closing' ? closing : cards;
+  const shown = filter === 'urgent' ? urgent : filter === 'closing' ? closing : filter === 'issues' ? cards.filter((c) => c.issues.length) : cards;
   const issues = cards.reduce((n, c) => n + c.issues.length, 0);
   const go = (v) => setQuery({ view: v === 'day' ? null : v, f: null, card: null });
   const pickFilter = (f) => setQuery({ view: 'all', f: view === 'all' && filter === f ? null : f, card: null });
@@ -521,19 +523,16 @@ export default function TcListView() {
   const dayCard = (x) => <DayCard key={x.c.deal.id} c={x.c} rows={x.rows} {...rowProps} folded={fold.has(x.c.deal.id)} onFold={() => toggle(x.c.deal.id)} />;
   const groups = [
     { items: [{ id: 'all', label: 'All Deals', sub: 'Where each one stands', count: cards.length }], title: 'Deals' },
-    { items: [
-      { id: 'day', label: 'My Day', sub: 'Late, today and tomorrow', count: day.length, tone: now.length ? 'red' : 'navy' },
-      { id: 'issues', label: 'Open Issues', sub: 'Flagged problems', count: issues, tone: issues ? 'red' : 'navy' },
-    ], title: 'Work' },
+    { items: [{ id: 'day', label: 'My Day', sub: 'Late, today and tomorrow', count: day.length, tone: now.length ? 'red' : 'navy' }], title: 'Work' },
   ];
-  const listCount = view === 'day' ? day.length : view === 'all' ? shown.length : issues;
+  const listCount = view === 'day' ? day.length : filter === 'issues' ? issues : shown.length;
   return (
     <div className="max-w-[1720px] mx-auto">
       <PageHead title="TC List" sub={`${longDay(today)} · what needs doing on every deal, property by property`}
         counters={<>
           <BandCounter label="Urgent" sub="late or due today" value={urgent.length} warn filter active={view === 'all' && filter === 'urgent'} onClick={() => pickFilter('urgent')} title="All Deals with something late or due today" />
           <BandCounter label="Closing this week" value={closing.length} filter active={view === 'all' && filter === 'closing'} onClick={() => pickFilter('closing')} title="All Deals with a COE in the next 7 days" />
-          <BandCounter label="Open issues" value={issues} warn filter active={view === 'issues'} onClick={() => go('issues')} />
+          <BandCounter label="Open issues" value={issues} warn filter active={view === 'all' && filter === 'issues'} onClick={() => pickFilter('issues')} title="All Deals with a flagged issue" />
         </>} />
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
       <div className={RAIL_GRID}>
@@ -543,15 +542,14 @@ export default function TcListView() {
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={q} onChange={setQ} placeholder="Search properties — address, escrow #, rep, title" className="w-full sm:w-[380px]" />
             {view === 'all' && filter && <button type="button" onClick={() => setQuery({ f: null })} className="inline-flex items-center gap-1.5 h-8 rounded-md bg-navy-700 px-2.5 text-[12.5px] font-semibold text-white hover:bg-navy-800">{FILTERS[filter]} <span className="text-white/70">×</span></button>}
-            <span className="text-[12.5px] text-zinc-500">{listCount} {view === 'issues' ? (listCount === 1 ? 'issue' : 'issues') : listCount === 1 ? 'property' : 'properties'}{needle ? ` matching “${q.trim()}”` : ''}</span>
+            <span className="text-[12.5px] text-zinc-500">{listCount} {filter === 'issues' ? (listCount === 1 ? 'issue' : 'issues') : listCount === 1 ? 'property' : 'properties'}{needle ? ` matching “${q.trim()}”` : ''}</span>
             {view === 'day' && day.length > 0 && <span className="ml-auto flex gap-2"><button type="button" onClick={() => foldAll(true)} className={btnCls}>Fold All</button><button type="button" onClick={() => foldAll(false)} className={btnCls}>Open All</button></span>}
           </div>
           {view === 'day' && (day.length ? <>
             {now.length > 0 && <section className="flex flex-col gap-2.5"><DayHead label="Late & Due Today" n={now.length} />{now.map(dayCard)}</section>}
             {next.length > 0 && <section className="flex flex-col gap-2.5"><DayHead label="Due Tomorrow" n={next.length} />{next.map(dayCard)}</section>}
           </> : <Empty>✓ Nothing late, due today or due tomorrow</Empty>)}
-          {view === 'issues' && <IssuesView cards={cards} post={post} onCard={onCard} />}
-          {view === 'all' && <DealTable cards={shown} today={today} onCard={onCard} />}
+          {view === 'all' && (filter === 'issues' ? <IssuesView cards={cards} post={post} onCard={onCard} /> : <DealTable cards={shown} today={today} onCard={onCard} />)}
           <HowItWorks />
         </div>
       </div>

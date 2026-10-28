@@ -1664,12 +1664,13 @@ property address in a classic blue header … a fold option … each line item
 narrower"). `src/deals/TcListView.jsx`:
 - **Rail**: Deals — All Deals; Work — **My Day** (the default, now only
   late, due today and due **tomorrow** — groups "Late & Due Today" and "Due
-  Tomorrow") and Open Issues. **Closing This Week** is gone as a view: it's a
-  filter on All Deals (old `?view=closing` links land there).
+  Tomorrow"). **Closing This Week** and **Open Issues** are gone as views:
+  they're filters on All Deals (old `?view=closing|issues` links land there;
+  Open Issues still lists one line per issue with ✓ Resolved).
 - **Band counters = All Deals' filters**: Urgent (something late or due
   today, `?f=urgent`) and Closing This Week (COE in 7 days, `?f=closing`) —
-  click picks / clears, a navy "Urgent ×" chip shows the filter — plus Open
-  Issues (opens that view).
+  click picks / clears, a navy "Urgent ×" chip shows the filter — and Open
+  Issues (`?f=issues`).
 - **Search** moved out of the band to the head of the list it searches (a
   light `SearchBox`, "Search properties — address, escrow #, rep, title",
   with the count beside it).
