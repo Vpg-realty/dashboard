@@ -6,7 +6,7 @@
 import StageChip from '../shell/StageChip.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
-import { FIELD, FIELDS, GROUPS, compute, payouts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
+import { FIELD, FIELDS, GROUPS, compute, payouts, payoutParts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
@@ -21,6 +21,7 @@ import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
 import { useDealPay } from '../finance/store.js';
 import { partOfField, payText, PART_FIELD } from '../finance/lines.js';
+import PayoutEditor from '../finance/PayoutEditor.jsx';
 import { PILL_TONE, pretty } from './values.js';
 import CancelDialog from './CancelDialog.jsx';
 import StageDialog from './StageDialog.jsx';
@@ -325,6 +326,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [fixErr, setFixErr] = useState(null); // { key, msg } — shown under that mismatch row
+  const [payEdit, setPayEdit] = useState(null); // a commission being edited (finance/PayoutEditor)
   const [base, setBase] = useState(raw?.updatedAt);
   const [flash, setFlash] = useState(false);
   // Leaving with unsaved edits (Luke, Oct 15: "warning me when I click out …
@@ -525,6 +527,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
   }
 
   const pay = owner ? payouts(merged, s.rules) : [];
+  const parts = owner ? payoutParts(merged, s.rules) : [];
   const past = { buyer: pastValues(s.raw, 'buyer'), title: pastValues(s.raw, 'title') };
   // Reps and managers (Luke, Oct 14): Contract, Title, EMD, Due diligence and
   // Dispositions only, without Net loss % (the server strips the rest too).
@@ -719,23 +722,27 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             {groupGrid(c.group, c.keys)}
             {c.table && (
               <table className="w-full text-[13px] tabular-nums border-t border-tan-100">
-                <thead><tr className="text-left text-[11.5px] font-semibold text-zinc-500"><th className="px-4 py-1.5 font-semibold">Commission</th><th className="px-2 py-1.5 font-semibold">Who</th><th className="px-2 py-1.5 text-right font-semibold">Amount</th><th className="px-4 py-1.5 font-semibold">Paid</th></tr></thead>
+                <thead><tr className="text-left text-[11.5px] font-semibold text-zinc-500"><th className="px-4 py-1.5 font-semibold">Commission</th><th className="px-2 py-1.5 font-semibold">Who</th><th className="px-2 py-1.5 text-right font-semibold">Amount</th><th className="px-4 py-1.5 font-semibold">Paid</th>{owner && !s.readOnly && <th />}</tr></thead>
                 <tbody>
                   {c.table.map(([amt, on, label]) => {
                     const v = Number(merged[amt]) || 0;
-                    const who = pay.find((p) => PART_FIELD[p.part] === amt)?.who;
+                    const pp = parts.find((p) => PART_FIELD[p.part] === amt);
+                    const who = v ? pp?.who : null;
+                    const line = fin && fin.parts[partOfField(amt)];
                     return (
                       <tr key={amt} className={`border-t border-tan-100 ${v ? '' : 'text-zinc-400'}`}>
                         <td className="px-4 py-1.5 font-medium">{label}</td>
-                        <td className="px-2 py-1.5">{who ? first(who) : '—'}</td>
+                        <td className="px-2 py-1.5">{who ? first(who) : '—'}{pp?.movedTo && pp.rule && <span className="ml-1 text-[11.5px] text-violet-700" title="Handed over on this deal (Payouts › Edit)">· instead of {first(pp.rule)}</span>}{pp?.typed && <span className="ml-1 text-[11.5px] text-violet-700">· typed</span>}</td>
                         <td className="px-2 py-1.5 text-right font-semibold">{v ? money(v) : '—'}</td>
-                        <td className="px-4 py-1.5">{fin && fin.parts[partOfField(amt)] ? <PayTag line={fin.parts[partOfField(amt)]} /> : isBlank(merged[on]) ? '—' : show(FIELD[on], merged[on])}</td>
+                        <td className="px-4 py-1.5">{line ? <PayTag line={line} /> : isBlank(merged[on]) ? '—' : show(FIELD[on], merged[on])}</td>
+                        {owner && !s.readOnly && <td className="pr-4 py-1.5 text-right">{line?.status === 'paid' ? <span className="text-[11.5px] text-zinc-400" title="Undo the payment in Finance first">paid</span> : <button type="button" onClick={() => setPayEdit(partOfField(amt))} className="text-[12px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button>}</td>}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             )}
+            {c.table && merged.payNote && <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] text-zinc-700"><b className="font-semibold text-navy-800">Payout note:</b> {merged.payNote}</div>}
           </div>
         )) : sec.groups.map((gid) => (
           <div key={gid} id={`deal-g-${gid}`} className={sec.groups.length > 1 ? 'border-t border-tan-100 first-of-type:border-t-0' : ''}>
@@ -879,6 +886,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus }) {
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
         )}
+        {payEdit && <PayoutEditor dealId={id} part={payEdit} onClose={() => setPayEdit(null)} />}
         {stageAsk && <StageDialog stage={stageAsk} deal={merged} busy={busy} err={err} onBack={() => { setStageAsk(null); setErr(null); }} onConfirm={confirmStage} />}
         {cancelAsk && <CancelDialog deal={merged} reasons={reasonList(s.lists)} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmStage} />}
         {leaving && (

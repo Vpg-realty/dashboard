@@ -75,7 +75,7 @@ export function buildLines(deals, rules, rows = []) {
       seen.add(key);
       const r = byKey.get(key);
       const amount = cents(p.amount);
-      const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount };
+      const base = { key, dealId: d.id, address: d.address, coe: d.coe, part: p.part, who: p.who, amount, rule: p.rule, edited: p.edited, typed: p.typed, note: d.payNote || null };
       // The TC's month: the month the deal closed or was cancelled.
       if (p.part === 'tc') {
         Object.assign(base, { dealStatus: d.status, finishOn: finishDate(d) });
@@ -88,7 +88,10 @@ export function buildLines(deals, rules, rows = []) {
         continue;
       }
       out.push({
-        ...base, status: r.status, due: cents(r.amount), changed: r.status === 'approved' && Math.abs(cents(r.amount) - amount) >= 0.01,
+        // A paid line stays with whoever was paid; an approval for someone
+        // else (the payout was handed over since) needs approving again.
+        ...base, who: r.status === 'paid' && r.who ? r.who : p.who, status: r.status, due: cents(r.amount),
+        changed: r.status === 'approved' && (Math.abs(cents(r.amount) - amount) >= 0.01 || (!!r.who && r.who !== p.who)),
         approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
       });
     }

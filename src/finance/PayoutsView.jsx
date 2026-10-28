@@ -16,6 +16,7 @@ import { useFinance, act } from './store.js';
 import { METHODS, lineAmount, partLabel, sum, isTcLine, tcMonths, TC_MONTHLY_FROM } from './lines.js';
 import { StatusPill, Trail, MoneyTile, FinanceHead } from './ui.jsx';
 import CompanyOutlook from './CompanyOutlook.jsx';
+import PayoutEditor from './PayoutEditor.jsx';
 import { Loading, Search, StatusChip } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, primaryCls, selectCls } from '../deals/format.js';
 import { Person } from '../deals/people.jsx';
@@ -72,7 +73,7 @@ function PayDialog({ lines, title, onClose, onDone }) {
 }
 
 // One closed deal and its commissions (TC left out — it's paid monthly).
-function DealCard({ deal, lines, onOpen, run, pay, busy }) {
+function DealCard({ deal, lines, onOpen, run, pay, busy, onEdit }) {
   const owed = lines.filter((l) => l.status === 'owed' || l.changed);
   const ready = lines.filter((l) => l.status === 'approved' && !l.changed);
   const paid = lines.filter((l) => l.status === 'paid');
@@ -87,16 +88,18 @@ function DealCard({ deal, lines, onOpen, run, pay, busy }) {
           <span className="rounded-md bg-white/10 px-2 py-0.5 font-semibold tabular-nums">{money(total)}</span>
         </span>
       </header>
+      {lines[0]?.note && <div className="px-4 py-1.5 bg-tan-50 border-b border-tan-100 text-[12.5px] text-zinc-700"><b className="font-semibold text-navy-800">Note:</b> {lines[0].note}</div>}
       <table className="w-full text-[13.5px]">
         <tbody>
           {lines.map((l) => (
             <tr key={l.key} className="border-t border-tan-100 first:border-t-0">
               <td className="pl-4 pr-2 py-2 w-[220px]"><Person name={l.who} full /></td>
-              <td className="px-2 py-2 text-zinc-600 whitespace-nowrap">{partLabel(l.part)}</td>
+              <td className="px-2 py-2 text-zinc-600 whitespace-nowrap">{partLabel(l.part)}{l.edited && <span title={[l.who !== l.rule && l.rule ? `Rules say ${l.rule}` : null, l.typed ? 'Amount typed in' : null].filter(Boolean).join(' · ')} className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">edited</span>}</td>
               <td className="px-2 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(lineAmount(l))}</td>
               <td className="px-2 py-2"><StatusPill l={l} /></td>
               <td className="px-2 py-2 text-[12.5px] w-full"><Trail l={l} /></td>
               <td className="pr-4 pl-2 py-2 text-right whitespace-nowrap">
+                {l.status !== 'paid' && <><button type="button" disabled={busy} onClick={() => onEdit(deal.dealId, l.part)} className="text-[12.5px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button><span className="text-zinc-300 mx-1.5">·</span></>}
                 {(l.status === 'owed' || l.changed) && <button type="button" disabled={busy || lineAmount(l) <= 0} onClick={() => run('approve', [l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Approve</button>}
                 {l.status === 'approved' && !l.changed && <><button type="button" disabled={busy} onClick={() => pay([l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Mark paid…</button><span className="text-zinc-300 mx-1.5">·</span><button type="button" disabled={busy} onClick={() => run('unapprove', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button></>}
                 {l.status === 'paid' && !l.sheet && <button type="button" disabled={busy} onClick={() => run('unpay', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo payment</button>}
@@ -109,6 +112,7 @@ function DealCard({ deal, lines, onOpen, run, pay, busy }) {
         <footer className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-tan-50 border-t border-tan-100">
           {owed.length > 0 && <button type="button" disabled={busy} onClick={() => run('approve', owed.filter((l) => lineAmount(l) > 0))} className={primaryCls}>Approve {owed.length === lines.length ? 'deal' : `${owed.length}`} · {money(sum(owed))}</button>}
           {ready.length > 0 && <button type="button" disabled={busy} onClick={() => pay(ready)} className={owed.length ? btnCls : primaryCls}>Mark {ready.length === lines.length ? 'deal' : `${ready.length}`} paid… · {money(sum(ready))}</button>}
+          <button type="button" disabled={busy} onClick={() => onEdit(deal.dealId, null, lines.map((l) => l.part))} className="text-[12.5px] font-semibold text-navy-700 hover:underline">+ Add a Payout</button>
           <span className="ml-auto text-[12px] text-zinc-500">{owed.length ? 'Approve, then mark paid.' : 'Approved — waiting to be paid.'}</span>
         </footer>
       )}
@@ -213,6 +217,7 @@ export default function PayoutsView({ embedded = false }) {
   const who = query.get('who') || '';
   const [q, setQ] = useState('');
   const [paying, setPaying] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const today = laToday();
@@ -289,7 +294,7 @@ export default function PayoutsView({ embedded = false }) {
                 <h2 className="text-[16px] font-semibold text-navy-800">{titleCase(title)}</h2>
                 <span className="text-[13px] text-zinc-500">{list.length ? `${n(list.length, 'deal')} · ${money(sum(list.flatMap((d) => d.lines.filter((l) => l.status !== 'paid'))))}` : ''} — {sub}</span>
               </div>
-              {list.length ? <div className="grid gap-3">{list.map((d) => <DealCard key={d.dealId} deal={d} lines={d.lines} onOpen={open} run={run} pay={pay} busy={busy} />)}</div>
+              {list.length ? <div className="grid gap-3">{list.map((d) => <DealCard key={d.dealId} deal={d} lines={d.lines} onOpen={open} run={run} pay={pay} busy={busy} onEdit={(id, part, have) => setEditing({ id, part, have })} />)}</div>
                 : <div className="rounded-xl border border-dashed border-tan-200 bg-white px-5 py-6 text-center text-[13.5px] text-zinc-500">Nothing here.</div>}
             </section>
           ))}
@@ -313,6 +318,7 @@ export default function PayoutsView({ embedded = false }) {
           {comingRows.length ? <LineTable rows={comingRows} coming onOpen={open} run={run} busy={busy} /> : <div className="px-5 py-8 text-center text-zinc-500">No assigned deals with a price yet.</div>}
         </section>
       )}
+      {editing && <PayoutEditor dealId={editing.id} part={editing.part} lockedParts={editing.have || []} onClose={() => setEditing(null)} />}
       {paying && <PayDialog lines={paying.lines} title={paying.title} onClose={() => setPaying(null)} onDone={() => setPaying(null)} />}
       {panel}
     </div>
