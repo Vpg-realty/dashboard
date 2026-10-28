@@ -143,7 +143,7 @@ function Menu({ label, children, align = 'right' }) {
         {label}<span className="text-[10px] text-zinc-400">▾</span>
       </button>
       <Floating anchor={anchor} open={open} align={align} className="rounded-xl border border-tan-200 bg-white shadow-lg">
-        <div ref={pop}>{children}</div>
+        <div ref={pop}>{typeof children === 'function' ? children(() => setOpen(false)) : children}</div>
       </Floating>
     </>
   );
@@ -228,6 +228,8 @@ export default function AllDealsView() {
   // A band's name stays in view beside the sticky address column when the
   // sheet scrolls sideways.
   const [addrW, setAddrW] = useState(0);
+  // The section on screen, raised in tan on the Jump To switch.
+  const [inView, setInView] = useState('address');
   const addrObs = useRef(null);
   const addrTh = useCallback((el) => {
     addrObs.current?.disconnect();
@@ -284,6 +286,33 @@ export default function AllDealsView() {
     if (last && last.id === id) last.span += 1;
     else bands.push({ id, span: 1, start: starts.has(f.key), label: id === 'address' ? 'Deal' : id === 'deal2' ? '' : GROUP_LABEL[id], bg: BAND_COLOR[g] || BAND_COLOR.deal });
   }
+  const jumps = bands.filter((b) => b.label);
+  const jumpTo = (id) => {
+    const box = tableBox.current;
+    const th = box?.querySelector(`th[data-band="${id}"]`);
+    if (!box || !th) return;
+    // Measured on screen (a sticky header's offsetLeft isn't reliable); the
+    // site's zoom (--ui-zoom) scales screen pixels, so convert back.
+    const r = box.getBoundingClientRect();
+    const z = box.offsetWidth ? r.width / box.offsetWidth : 1;
+    const shift = (th.getBoundingClientRect().left - r.left) / z - addrW;
+    box.scrollTo({ left: id === 'address' ? 0 : Math.max(0, box.scrollLeft + shift), behavior: 'smooth' });
+    setInView(id);
+  };
+  // Which section sits right of the pinned address as the sheet scrolls.
+  const onSheetScroll = () => {
+    const box = tableBox.current;
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const z = box.offsetWidth ? r.width / box.offsetWidth : 1;
+    let at = 'address';
+    for (const th of box.querySelectorAll('th[data-band]')) {
+      const id = th.dataset.band;
+      if (id === 'address' || id === 'deal2') continue;
+      if ((th.getBoundingClientRect().left - r.left) / z - addrW <= 8) at = id;
+    }
+    if (at !== inView) setInView(at);
+  };
 
   return (
     <div className="h-full w-full max-w-[1720px] mx-auto flex flex-col min-h-0">
@@ -340,13 +369,29 @@ export default function AllDealsView() {
         )}
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>
       </div>
+      {/* Jump to a section (Luke, Oct 28: "quickly switch to each section …
+          scroll over to the start of that section", then "buttons similar to
+          … year, quarter, month"): the period switch's style; a click slides
+          the sheet so the section's first column sits right of the pinned
+          address, and the section on screen stays raised in tan. */}
+      {jumps.length > 1 && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tan-700">Jump to</span>
+          <span role="group" aria-label="Jump to a section" className="inline-flex flex-wrap gap-0.5 rounded-lg bg-navy-800 p-[3px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
+            {jumps.map((b) => (
+              <button key={b.id} type="button" aria-pressed={inView === b.id} onClick={() => jumpTo(b.id)}
+                className={`h-7 px-2.5 rounded-md text-[12.5px] font-semibold whitespace-nowrap ${inView === b.id ? 'bg-tan-500 text-navy-900 shadow-[0_1px_3px_rgba(0,0,0,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}>{b.label}</button>
+            ))}
+          </span>
+        </div>
+      )}
       <section className="flex-1 min-h-0 flex flex-col rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)]">
-        <div ref={tableBox} className="flex-1 min-h-0 overflow-auto">
+        <div ref={tableBox} onScroll={onSheetScroll} className="flex-1 min-h-0 overflow-auto">
           <table className="text-left border-separate border-spacing-0 text-[12.5px] text-navy-900">
             <thead>
               <tr>
                 {bands.map((b, i) => (
-                  <th key={i} ref={b.id === 'address' ? addrTh : undefined} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
+                  <th key={i} data-band={b.id} ref={b.id === 'address' ? addrTh : undefined} colSpan={b.span} className={`sticky top-0 h-[30px] px-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${i === 0 && cols[0]?.key === 'address' ? 'left-0 z-30' : 'z-20'}`}
                     style={{ background: b.bg, color: '#FFFFFF', ...(b.start ? { borderLeft: '2px solid #FFFFFF' } : {}) }}>{b.id === 'address' ? b.label : <span className="sticky inline-block" style={{ left: addrW + 12 }}>{b.label}</span>}</th>
                 ))}
               </tr>

@@ -30,7 +30,7 @@ export const SECTIONS = [
   // Luke, Oct 18: the main daily page — GHL tasks, site tasks, 30-day
   // check-ins and leads Claude spotted (src/alerts). The sidebar shows a red
   // count of what's new since the person last opened it.
-  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: ['owner', 'manager', 'team'], solo: true,
+  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: PEOPLE, solo: true,
     tabs: [{ id: 'all', label: 'Alerts', view: 'alerts', scroll: true }] },
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
@@ -77,8 +77,26 @@ export const SECTIONS = [
     // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
     // managers, trainees and owners request zips here; the rules open from
     // an ⓘ on the page.
-    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee'], solo: true,
+    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee', 'tc'], solo: true,
     tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
+  },
+  {
+    // Territory (Oct 14: areas, states and zips in one place) — owners and,
+    // since Oct 28, the TC read-only; right under Get Zips (Luke, Oct 28).
+    // Laid out like Settings: a left rail (src/settings/Frame.jsx).
+    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'tc'], rail: true,
+    tabs: [
+      { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
+      // Luke, Oct 19: Needs Review and the team structure review as one list,
+      // with the Reps × States grid.
+      { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
+      // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
+      // as one page with tabs (Overview / Browse & Assign / Holds & History).
+      // Oct 22 (Luke: no tabs inside tabs): its three views are rail entries.
+      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
+      { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
+      { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
+    ],
   },
   {
     // Luke, Oct 22: documents and calculators for everyone — the proof of
@@ -93,24 +111,6 @@ export const SECTIONS = [
       { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
       { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
       { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
-    ],
-  },
-  {
-    // Territory (Oct 14: areas, states and zips in one place) is owners only
-    // since Oct 19 (Luke's site map), laid out like Settings: a left rail with
-    // the Map and the Manage pages (src/settings/Frame.jsx).
-    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner'], rail: true,
-    tabs: [
-      { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
-      // Luke, Oct 19: Needs Review and the team structure review as one list,
-      // with the Reps × States grid.
-      { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
-      // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
-      // as one page with tabs (Overview / Browse & Assign / Holds & History).
-      // Oct 22 (Luke: no tabs inside tabs): its three views are rail entries.
-      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
-      { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
-      { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
     ],
   },
   {

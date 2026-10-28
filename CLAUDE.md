@@ -1708,11 +1708,35 @@ narrower"). `src/deals/TcListView.jsx`:
   ✓ From the deal (ticked from a deal field, the field on hover), Not needed,
   **Not tracked** (due before the step was on the list — not counted late,
   tick it if done) and Later (phase not started). The how-to shows only on
-  open steps. **The TC has no Alerts** ("for managers, owners and reps
-  only"): off her sidebar, Today at a Glance's Alerts links, the account
-  menu's Alert sound, no polling (`alertsOff` in src/alerts/store.js), and
-  /api/alerts refuses role tc (`ROLES`, edge/alerts.js). TC List flags never
-  went to her (owners + the deal's reps).
+  open steps.
+- **The TC: tasks-only Alerts, Get Zips, Territory** (Luke, later Oct 28 —
+  first "tc does not need to see alerts", then "add back in alerts for her,
+  but it would only be tasks … created on the site such as POF letter
+  updates, property needs, follow ups with title"): /api/alerts gives role tc
+  only kind `task` (`tasksOnly` in edge/alerts.js — load and the red-dot
+  poll; no leads, duplicates, GHL tasks, check-ins or deal deadlines), the
+  page opens on Tasks with only Tasks / Upcoming in the rail and New / Due
+  today / Overdue counters. Owners can hand her tasks (she's in the people
+  list); she adds her own. The proof of funds reminder now goes to the TC
+  too (scripts/sync-alerts.mjs), and she can upload the new letter
+  (`canUploadPof`, edge/toolkit.js). TC List flags still go only to owners
+  and the deal's reps. **Get Zips**: the TC requests as herself like an owner
+  (`holderOf` — tc@ → `owner:tc`, any Active state, same weekly rules; she
+  shows in owners' Assign list); she can release / flag her own. **Territory**
+  (Who Works Where, Coverage, Zip Center views) is open to her read-only —
+  every change there stays owners only, and she gets no Ask Claude. Territory sits right under Get Zips in the sidebar (Luke, Oct 28).
+- **Alerts = her inbox, the TC List = her to-do list** (Luke, later Oct 28:
+  "build it"): due-today checklist steps never go to Alerts (My Day has
+  them). A task on a property lives in `tc_tasks` — on the deal's checklist
+  and in My Day — wherever it's added: the TC List's "Add a task", or Alerts'
+  add form, where picking the TC shows a property picker (`DealPick`, open
+  deals; POST /api/alerts `{action: 'add', dealId}`, owners / TC). When
+  someone other than the TC adds one, every active TC gets an Alerts task
+  "New task on <street>: …" (`edge/tcTasks.js` `addTcTask`; ext_id
+  `tctask:<taskId>:<holder>`, `opp` = the deal, an **Open checklist** link).
+  Ticking it in either place ticks both (`tickTcTask`, also from Home's
+  Today), changing its date or removing it does too (`removeTcTask`). Tasks
+  with no property (POF letter, anything else) stay Alerts-only.
 
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 
@@ -1779,6 +1803,16 @@ and a band's name stays in view beside the sticky address when the sheet
 scrolls sideways (measured width, `addrTh`). Key Dates' headers are blue and
 their values bold blue on open deals (flags keep their red / amber chips;
 closed / cancelled rows keep the row colour, bold).
+**Jump to** (Luke, Oct 28: "click it and then have it scroll over to the
+start of that section", then "buttons similar to … year, quarter, month"):
+a row right above the sheet — "Jump to" and one button per section shown
+(Deal, Key Dates, Contract …) in the period switch's style (navy track, the
+section on screen raised in tan, followed as the sheet scrolls,
+`onSheetScroll`); a click slides the sheet sideways so that section's first
+column sits right of the pinned address (`jumpTo`, band headers carry
+`data-band`; measured on screen and divided by the page zoom, since
+`--ui-zoom` scales screen pixels). No new colours or filter rows (Luke: "I
+like it how it is now").
 
 ## Deal files & Claude Review (Luke, Oct 27)
 

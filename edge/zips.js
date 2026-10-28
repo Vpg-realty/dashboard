@@ -92,12 +92,15 @@ const MARKET = new Map(roster.markets.map((m) => [m.id, m.name]));
 // by every zips / chat endpoint; the first name of the email until then).
 export const OWNER_PREFIX = 'owner:';
 export const isOwnerHolder = (id) => String(id || '').startsWith(OWNER_PREFIX);
-export const holderOf = (user) => user?.rep_id || (user?.role === 'owner' && user.email ? `${OWNER_PREFIX}${String(user.email).split('@')[0].toLowerCase()}` : null);
+// The TC (Aiza) holds zips the same way (Luke, Oct 28: "add territory and
+// get zips for aiza") — tc@ → owner:tc; the prefix only means "no rep".
+const SELF_HOLDERS = ['owner', 'tc'];
+export const holderOf = (user) => user?.rep_id || (SELF_HOLDERS.includes(user?.role) && user.email ? `${OWNER_PREFIX}${String(user.email).split('@')[0].toLowerCase()}` : null);
 const OWNER_NAME = new Map();
 export async function loadHolderNames(db) {
   try {
-    const rows = (await db.prepare("SELECT email, name, rep_id FROM users WHERE role = 'owner'").all()).results;
-    for (const u of rows) if (!u.rep_id) OWNER_NAME.set(holderOf({ ...u, role: 'owner' }), u.name);
+    const rows = (await db.prepare("SELECT email, name, rep_id, role FROM users WHERE role IN ('owner', 'tc')").all()).results;
+    for (const u of rows) if (!u.rep_id) OWNER_NAME.set(holderOf(u), u.name);
   } catch { /* no users table */ }
   return ownerHolders();
 }
@@ -300,7 +303,8 @@ export async function flag(db, user, { zip, reason, note }) {
   if (!FLAG_REASONS.includes(reason)) return { status: 400, body: { error: 'pick a reason' } };
   const z = await db.prepare('SELECT zip, state FROM zips WHERE zip = ?').bind(String(zip)).first();
   if (!z) return { status: 404, body: { error: 'unknown zip' } };
-  if (user.role !== 'owner' && !repStates(user.rep_id).includes(z.state)) return { status: 403, body: { error: 'only zips in your states' } };
+  const holder = holderOf(user);
+  if (user.role !== 'owner' && !(isOwnerHolder(holder) ? await holderStates(db, holder) : repStates(holder)).includes(z.state)) return { status: 403, body: { error: 'only zips in your states' } };
   const now = new Date().toISOString();
   await db.prepare('UPDATE zips SET flag = ?, flag_note = ?, flag_by = ?, flag_at = ?, updated_at = ? WHERE zip = ?')
     .bind(reason, String(note || '').slice(0, 300) || null, user.name, now, now, z.zip).run();

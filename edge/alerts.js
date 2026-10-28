@@ -10,13 +10,18 @@
 // their pod lead and owners"), so it counts toward the red dot of all three;
 // everything else only toward its holder's. Nothing is written while viewing
 // as someone (currentUser makes the role 'none').
+import { tcTaskOf, tickTcTask, removeTcTask } from './tcTasks.js';
 import { getPods } from './pods.js';
 
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
 // Kinds that also ring the holder's pod lead and the owners.
 const SHARED = new Set(['lead', 'deal', 'dupe']);
-// Not the TC (Luke, Oct 28: "for managers, owners and reps only").
-export const ROLES = ['owner', 'manager', 'team'];
+// The TC sees tasks only — the ones added on the site (Luke, Oct 28: "it
+// would only be tasks … created on the site such as POF letter updates,
+// property needs, follow ups with title"): no leads, duplicates, GHL tasks
+// or check-ins (`tasksOnly`).
+export const ROLES = ['owner', 'manager', 'tc', 'team'];
+export const tasksOnly = (u) => u?.role === 'tc';
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 
 export const holderOf = (u) => u?.rep_id || `u:${String(u?.email || '').split('@')[0].toLowerCase()}`;
@@ -65,11 +70,11 @@ export const MANY_MAX = 300;
 export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
   const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
-  const where = scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '';
+  const where = (scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '') + (tasksOnly(user) ? " AND kind = 'task'" : '');
   const [rows, seen, people, marks] = await Promise.all([
     db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
-    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'team') AND status != 'inactive'").all(),
+    db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).
     db.prepare('SELECT alert_id, who, name, at, grade FROM alert_marks WHERE at >= ?').bind(new Date(now.getTime() - 60 * 86400000).toISOString()).all(),
   ]);
@@ -79,10 +84,11 @@ export async function load(db, user, now = new Date()) {
   for (const p of people.results) names[holderOf(p)] = p.name;
   // Who this person can hand a task to: themself; a pod lead also their
   // reps; owners anyone.
-  const assignable = people.results.map((p) => ({ id: holderOf(p), name: p.name })).filter((p) => p.id === scope.me || (inScope(scope, p.id) && user.role !== 'team' && user.role !== 'tc'));
+  const assignable = people.results.map((p) => ({ id: holderOf(p), name: p.name, tc: p.role === 'tc' || undefined })).filter((p) => p.id === scope.me || (inScope(scope, p.id) && user.role !== 'team' && user.role !== 'tc'));
   return {
     me: scope.me,
     mine: scope.keys,
+    tasksOnly: tasksOnly(user),
     pod: podOf(user) ? { title: podOf(user).title, reps: podOf(user).reps } : null,
     seenAt: seen?.seen_at || null,
     chime: seen ? !!seen.chime : chimeDefault(user),
@@ -135,8 +141,8 @@ const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
   const [mine, leads, seen, marked] = await Promise.all([
-    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL").bind(scope.me).all(),
-    db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
+    db.prepare(`SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL${tasksOnly(user) ? " AND kind = 'task'" : ''}`).bind(scope.me).all(),
+    tasksOnly(user) ? { results: [] } : db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     // What this person has ticked off themself (index alert_marks_who).
     db.prepare(`SELECT alert_id FROM alert_marks WHERE who IN (${scope.keys.map(() => '?').join(', ')})`).bind(...scope.keys).all(),
@@ -160,6 +166,9 @@ export function ghlTick(x, done, user, now) {
 
 // The statements for one tick / untick by this person.
 function tick(x, done, user, scope, now) {
+  // A property task for the TC ticks the task on the TC List too.
+  const tcTask = tcTaskOf(x.ext_id);
+  if (tcTask) return tickTcTask(tcTask, done, user.name, now);
   if (!personal(x, scope)) {
     return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now)];
   }
@@ -257,12 +266,15 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
     if (b.dueTime && (!HM.test(b.dueTime) || !b.due)) return { error: 'Pick a due date for the time' };
     if (existing.kind === 'ghl') return { error: 'Change a GHL task’s date in GHL' };
+    const tcTask = tcTaskOf(existing.ext_id);
+    if (tcTask) return { run: [['UPDATE tc_tasks SET due = ? WHERE id = ?', [b.due || null, tcTask]], ['UPDATE alerts SET due = ? WHERE ext_id LIKE ?', [b.due || null, `tctask:${tcTask}:%`]]] };
     return { run: [['UPDATE alerts SET due = ?, due_time = ? WHERE id = ?', [b.due || null, (b.due && b.dueTime) || null, b.id]]] };
   }
   if (a === 'remove') {
     if (existing.kind !== 'task') return { error: 'Only tasks added on the site can be removed — tick it instead' };
     if (existing.created_by !== user.name && existing.holder !== scope.me && user.role !== 'owner') return { error: 'Only whoever added it (or an owner) can remove it' };
-    return { run: [['DELETE FROM alerts WHERE id = ?', [b.id]]] };
+    const tcTask = tcTaskOf(existing.ext_id);
+    return { run: tcTask ? removeTcTask(tcTask) : [['DELETE FROM alerts WHERE id = ?', [b.id]]] };
   }
   return { error: 'Unknown action' };
 }

@@ -16,6 +16,7 @@ import { currentUser, json } from '../../../edge/auth.js';
 import { canUse, load, plan, counts, countFor, scopeOf, azHM, closeReviewed, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 import { refreshPods } from '../../../edge/pods.js';
+import { addTcTask } from '../../../edge/tcTasks.js';
 
 async function answer(db, user) {
   const data = await load(db, user);
@@ -60,6 +61,15 @@ export async function onRequestPost(context) {
     }
   }
   const now = new Date().toISOString();
+  // A task on a property for the TC (Luke, Oct 28): it goes on the deal's
+  // checklist in the TC List (tc_tasks) and the TC gets a note in Alerts.
+  if (b?.action === 'add' && b.dealId) {
+    if (!['owner', 'tc'].includes(user.role)) return json({ error: 'Only owners can add a task on a property' }, 403);
+    const r = await addTcTask(db, user, { dealId: String(b.dealId), text: b.title, due: b.due }, now);
+    if (r.error) return json({ error: r.error }, 400);
+    await db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, 'alerts.addTcTask', JSON.stringify({ id: r.id, dealId: b.dealId })).run();
+    return json(await answer(db, viewed));
+  }
   const p = plan(b, user, now, existing);
   if (p.error) return json({ error: p.error }, 400);
   const log = b.action === 'seen' || b.action === 'chime' ? [] : [

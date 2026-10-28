@@ -62,12 +62,12 @@ async function main() {
     judge: client ? (batch, examples) => judgeLeads(client, batch, examples) : null,
     parts: liveOk ? { checkins: true, deals: true } : ALL_PARTS,
   });
-  // Toolkit: owners' reminder before the proof of funds letter expires (two
+  // Toolkit: owners' and the TC's reminder before the proof of funds letter expires (two
   // small reads per run).
   try {
     const pof = (await query("SELECT expires FROM toolkit_files WHERE name = 'pof'"))[0]?.results?.[0];
     if (pof?.expires) {
-      const owners = (await query("SELECT email, rep_id FROM users WHERE role = 'owner' AND status != 'inactive'"))[0].results.map(holderOf);
+      const owners = (await query("SELECT email, rep_id FROM users WHERE role IN ('owner', 'tc') AND status != 'inactive'"))[0].results.map(holderOf);
       for (const r of pofReminders(pof.expires, owners)) await query(r.sql, r.args);
     }
   } catch (err) { console.warn(`[alerts] proof of funds reminder skipped: ${err.message}`); }

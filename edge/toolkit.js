@@ -16,7 +16,8 @@ import { refreshPods } from './pods.js';
 export const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee'];
 export const canUse = (u) => !!u && ROLES.includes(u.role);
 export const canEditAgencies = (u) => !!u && ['owner', 'manager', 'tc'].includes(u.role) && !u.viewAs;
-export const canUploadPof = (u) => u?.role === 'owner' && !u.viewAs;
+// The TC too (Luke, Oct 28: POF letter updates are one of her tasks).
+export const canUploadPof = (u) => ['owner', 'tc'].includes(u?.role) && !u.viewAs;
 
 // A letter is a page or two; D1 keeps a value up to 2 MB, base64 adds a third.
 export const POF_MAX_BYTES = 1_400_000;
@@ -87,7 +88,7 @@ function cleanOpp(o) {
 export function plan(b, u, now = new Date().toISOString(), existing = null) {
   const a = b?.action;
   if (a === 'pof') {
-    if (!canUploadPof(u)) return { error: 'Only owners replace the letter' };
+    if (!canUploadPof(u)) return { error: 'Only owners and the TC replace the letter' };
     const data = String(b.data || '');
     if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { error: 'Pick a PDF file' };
     const size = Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
@@ -99,7 +100,7 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
       [filename, size, data, b.expires, u.name, u.email, now]], closeOldPof(b.expires, now)] };
   }
   if (a === 'pofExpires') {
-    if (!canUploadPof(u)) return { error: 'Only owners change the letter' };
+    if (!canUploadPof(u)) return { error: 'Only owners and the TC change the letter' };
     if (!DATE.test(String(b.expires || ''))) return { error: 'Pick the expiry date' };
     return { run: [["UPDATE toolkit_files SET expires = ? WHERE name = 'pof'", [b.expires]], closeOldPof(b.expires, now)] };
   }
