@@ -20,13 +20,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDeals, saveDeal } from './store.js';
 import { call } from '../utils/dashApi.js';
 import { buildTcCards, CHECKLIST, REMOVED, MILESTONES, ISSUE_KINDS, issueLabel, email48, standing, milestone, vpgPlacedEm, firstLine, NA } from './tcList.js';
-import { Loading, StatusChip, CoeChip, PageHead } from './ui.jsx';
+import { Loading, StatusChip, CoeChip, PageHead, CrossLink } from './ui.jsx';
+import { isOpen } from './math.js';
 import SearchBox from '../shell/SearchBox.jsx';
 import { PANEL_HEAD } from '../shell/panelStyle.js';
 import BandCounter from '../shell/BandCounter.jsx';
 import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
 import RepTag from '../shell/RepTag.jsx';
-import { dealTag } from './urgency.js';
+import { dealTag, urgency } from './urgency.js';
 import { personColor } from './personColor.js';
 import { shortDate, primaryCls, btnCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
@@ -513,6 +514,7 @@ export default function TcListView() {
   const closing = cards.filter(isClosing);
   const shown = filter === 'urgent' ? urgent : filter === 'closing' ? closing : filter === 'issues' ? cards.filter((c) => c.issues.length) : cards;
   const issues = cards.reduce((n, c) => n + c.issues.length, 0);
+  const actNow = s.deals.filter((d) => isOpen(d) && urgency(d, today).sec === 'act').length;
   const go = (v) => setQuery({ view: v === 'day' ? null : v, f: null, card: null });
   const pickFilter = (f) => setQuery({ view: 'all', f: view === 'all' && filter === f ? null : f, card: null });
   const onCard = (id) => setQuery({ card: id });
@@ -529,6 +531,7 @@ export default function TcListView() {
   return (
     <div className="max-w-[1720px] mx-auto">
       <PageHead title="TC List" sub={`${longDay(today)} · what needs doing on every deal, property by property`}
+        right={<CrossLink to="/deals/active?only=act" label="Active Deals" n={actNow} word="act now" title="The owners' view of deal problems — past deadlines, EMD, IP ending with no buyer" />}
         counters={<>
           <BandCounter label="Urgent" sub="late or due today" value={urgent.length} warn filter active={view === 'all' && filter === 'urgent'} onClick={() => pickFilter('urgent')} title="All Deals with something late or due today" />
           <BandCounter label="Closing this week" value={closing.length} filter active={view === 'all' && filter === 'closing'} onClick={() => pickFilter('closing')} title="All Deals with a COE in the next 7 days" />
