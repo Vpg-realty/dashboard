@@ -81,24 +81,9 @@ export const SECTIONS = [
     tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
   },
   {
-    // Luke, Oct 22: documents and calculators for everyone — the proof of
-    // funds letter, title agencies by market, the seller finance and
-    // multifamily calculators, and the calculations people saved
-    // (src/toolkit; data in D1, functions/api/toolkit).
-    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
-    tabs: [
-      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The current letter', title: 'Proof of funds', blurb: 'The letter to send with offers. Always download it from here — it’s replaced whenever a new one comes in.' },
-      { id: 'offer', label: 'Cash Offer', view: 'tk-offer', scroll: true, group: 'Documents', sub: 'Offer template to text or email', title: 'Cash offer template', blurb: 'Fill in the property and the terms, create the message, then copy it, email it or text it to the agent.' },
-      { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
-      { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
-      { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
-      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
-    ],
-  },
-  {
-    // Territory (Oct 14: areas, states and zips in one place) is owners only
-    // since Oct 19 (Luke's site map), laid out like Settings: a left rail with
-    // the Map and the Manage pages (src/settings/Frame.jsx).
+    // Territory (Oct 14: areas, states and zips in one place) — owners and,
+    // since Oct 28, the TC read-only; right under Get Zips (Luke, Oct 28).
+    // Laid out like Settings: a left rail (src/settings/Frame.jsx).
     id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'tc'], rail: true,
     tabs: [
       { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
@@ -111,6 +96,21 @@ export const SECTIONS = [
       { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
       { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
       { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
+    ],
+  },
+  {
+    // Luke, Oct 22: documents and calculators for everyone — the proof of
+    // funds letter, title agencies by market, the seller finance and
+    // multifamily calculators, and the calculations people saved
+    // (src/toolkit; data in D1, functions/api/toolkit).
+    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
+    tabs: [
+      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The current letter', title: 'Proof of funds', blurb: 'The letter to send with offers. Always download it from here — it’s replaced whenever a new one comes in.' },
+      { id: 'offer', label: 'Cash Offer', view: 'tk-offer', scroll: true, group: 'Documents', sub: 'Offer template to text or email', title: 'Cash offer template', blurb: 'Fill in the property and the terms, create the message, then copy it, email it or text it to the agent.' },
+      { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
+      { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
+      { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
+      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
     ],
   },
   {

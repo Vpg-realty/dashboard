@@ -1724,7 +1724,7 @@ narrower"). `src/deals/TcListView.jsx`:
   (`holderOf` — tc@ → `owner:tc`, any Active state, same weekly rules; she
   shows in owners' Assign list); she can release / flag her own. **Territory**
   (Who Works Where, Coverage, Zip Center views) is open to her read-only —
-  every change there stays owners only, and she gets no Ask Claude.
+  every change there stays owners only, and she gets no Ask Claude. Territory sits right under Get Zips in the sidebar (Luke, Oct 28).
 - **Alerts = her inbox, the TC List = her to-do list** (Luke, later Oct 28:
   "build it"): due-today checklist steps never go to Alerts (My Day has
   them). A task on a property lives in `tc_tasks` — on the deal's checklist
