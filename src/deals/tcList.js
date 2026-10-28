@@ -259,9 +259,8 @@ export function buildTcCards(deals, { checks = [], tasks = [], issues = [], assi
       missing, left, total, out, closed,
     });
   }
-  // Late / due work first, then the soonest COE.
-  const rank = (c) => (c.warns.some((w) => w.warn.red) ? 0 : c.late.length ? 1 : c.today.length ? 2 : 3);
-  cards.sort((a, b) => rank(a) - rank(b) || String(a.deal.coe || '9999').localeCompare(String(b.deal.coe || '9999')));
+  // By COE, soonest first; no COE last (Luke, Oct 28: "organize the TC list by COE").
+  cards.sort((a, b) => String(a.deal.coe || '9999').localeCompare(String(b.deal.coe || '9999')) || String(a.deal.address).localeCompare(String(b.deal.address)));
   return cards;
 }
 

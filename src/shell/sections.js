@@ -30,7 +30,7 @@ export const SECTIONS = [
   // Luke, Oct 18: the main daily page — GHL tasks, site tasks, 30-day
   // check-ins and leads Claude spotted (src/alerts). The sidebar shows a red
   // count of what's new since the person last opened it.
-  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: PEOPLE, solo: true,
+  { id: 'alerts', label: 'Alerts', icon: 'bell', roles: ['owner', 'manager', 'team'], solo: true,
     tabs: [{ id: 'all', label: 'Alerts', view: 'alerts', scroll: true }] },
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a

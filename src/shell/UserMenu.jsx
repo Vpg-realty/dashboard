@@ -56,10 +56,10 @@ export default function UserMenu({ me, collapsed, phone, Avatar }) {
                 ))}
               </span>
             </div>
-            <button onClick={() => setChime(!chime).catch(() => {})} className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg text-left font-medium text-navy-700 hover:bg-tan-50" title="A short sound when a new alert arrives while the site is open">
+            {me?.role !== 'tc' && <button onClick={() => setChime(!chime).catch(() => {})} className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg text-left font-medium text-navy-700 hover:bg-tan-50" title="A short sound when a new alert arrives while the site is open">
               <span aria-hidden="true">{chime ? '🔔' : '🔕'}</span> Alert sound
               <span className={`ml-auto text-[12px] font-semibold rounded-md px-1.5 py-0.5 ${chime ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>{chime ? 'On' : 'Off'}</span>
-            </button>
+            </button>}
           </>)}
           <button onClick={logout} className="w-full flex items-center gap-2 h-9 px-2.5 rounded-lg text-left font-medium text-red-700 hover:bg-red-50">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></svg>

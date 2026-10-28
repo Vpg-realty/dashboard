@@ -337,26 +337,44 @@ function Timeline({ d, c, today }) {
   );
 }
 
+const day = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric' });
+const plain = (t) => String(t || '').replace(/^(done|not needed) — /, '');
+
+// One slim line per step (Luke, Oct 28: "hard to navigate … more streamlined
+// … make them all the normal color"): every step reads in navy; what state it
+// is in is a small tag on the right instead of grey or struck-through text —
+// ✓ Done (who / when), ✓ From the deal (ticked by itself from a deal field),
+// Not needed, Not tracked (due before the step was on the list), or the due
+// chip while it's open. The how-to shows only on open steps.
 function StepLine({ it, d, post, today }) {
   const { ask, setAsk, saving, tick, save } = useTick(d, post);
-  const dueCls = !it.open ? '' : it.dueOn && it.dueOn < today ? 'bg-[#4c0519] text-white' : it.dueOn === today ? 'bg-[#B42318] text-white' : 'bg-tan-100 text-tan-800';
+  const undo = (item) => <button type="button" className="ml-1 underline text-zinc-500 hover:text-navy-800" onClick={() => post({ action: 'check', dealId: d.id, item, done: false })}>undo</button>;
+  const tagCls = 'rounded-md px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap';
+  let tag = null;
+  if (it.open) {
+    const late = it.dueOn && it.dueOn < today;
+    tag = it.dueOn ? <span className={`${tagCls} ${late ? 'bg-[#4c0519] text-white' : it.dueOn === today ? 'bg-[#B42318] text-white' : 'bg-tan-100 text-tan-800'}`}>{late ? `${shortDate(it.dueOn)} · late` : it.dueOn === today ? 'Today' : longDay(it.dueOn)}</span> : null;
+  } else if (it.na) tag = <span className="text-[12px] text-zinc-500 whitespace-nowrap"><span className={`${tagCls} bg-zinc-100 text-zinc-600`}>Not needed</span> {it.na.done_by} {day(it.na.done_at)}{undo(NA(it.id))}</span>;
+  else if (it.done) tag = <span className="text-[12px] text-zinc-500 whitespace-nowrap"><span className={`${tagCls} bg-emerald-50 text-emerald-700`}>✓ Done</span> {it.done.done_by} {day(it.done.done_at)}{undo(it.id)}</span>;
+  else if (it.skip) tag = <span className={`${tagCls} bg-zinc-100 text-zinc-600`} title={plain(it.why)}>Not needed</span>;
+  else if (it.auto) tag = <span className={`${tagCls} bg-emerald-50 text-emerald-700`} title={it.why || ''}>✓ From the deal</span>;
+  else if (it.stale) tag = <span className={`${tagCls} bg-amber-50 text-amber-800`} title="Due before this step was added to the list — not counted late. Tick it if it’s done.">Not tracked</span>;
+  else if (!it.active) tag = <span className={`${tagCls} bg-zinc-50 text-zinc-400`}>Later</span>;
+  const sub = it.open ? it.how : it.done || it.na ? null : it.skip || it.auto ? plain(it.why) : null;
   return (
-    <li className={`grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 px-4 py-2.5 border-t border-tan-100 ${it.active ? '' : 'opacity-50'}`}>
+    <li className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-2 border-t border-tan-100 hover:bg-tan-50/50">
       <input type="checkbox" checked={!!it.done || !!it.auto || !!it.na || !!it.skip} disabled={!it.active || !!it.auto || !!it.skip || !!it.na || saving} onChange={(e) => tick(it, e.target.checked)} aria-label={it.label}
-        className="mt-0.5 w-[18px] h-[18px] accent-[#1b385f] cursor-pointer disabled:cursor-default" />
+        className="mt-[3px] w-[17px] h-[17px] accent-[#1b385f] cursor-pointer disabled:cursor-default" />
       <div className="min-w-0">
-        <div className={`text-[14px] font-semibold ${it.open || !it.active ? 'text-navy-900' : it.stale ? 'text-zinc-500' : 'text-zinc-400 line-through decoration-tan-300'}`}>{it.label}</div>
-        <div className="text-[12.5px] text-zinc-500">
-          {it.na ? <>Not needed · {it.na.done_by} {when(it.na.done_at)} · <button type="button" className="underline hover:text-navy-800" onClick={() => post({ action: 'check', dealId: d.id, item: NA(it.id), done: false })}>undo</button></>
-            : it.why ? it.why
-              : it.done ? <>{it.done.done_by} · {when(it.done.done_at)} · <button type="button" className="underline hover:text-navy-800" onClick={() => post({ action: 'check', dealId: d.id, item: it.id, done: false })}>undo</button></>
-                : it.active ? it.how : ''}
-        </div>
-        {it.open && it.mail && <div className="mt-1.5"><CopyButton text={email48(d)} label="Copy the 48-Hour Email" /></div>}
-        {it.open && <button type="button" onClick={() => post({ action: 'check', dealId: d.id, item: NA(it.id), done: true })} className="mt-1 text-[12px] text-zinc-400 hover:text-navy-800 hover:underline">Not needed on this deal</button>}
+        <div className="text-[14px] font-semibold text-navy-900 leading-snug">{it.label}</div>
+        {sub && <div className="text-[12.5px] text-zinc-500 truncate" title={sub}>{sub}</div>}
+        {it.open && it.mail && <div className="mt-1"><CopyButton text={email48(d)} label="Copy the 48-Hour Email" /></div>}
         {ask && <div className="mt-1.5"><LinkAsk kind={ask} d={d} save={save} onDone={() => setAsk(null)} /></div>}
       </div>
-      <span className={`self-start rounded-md px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap ${dueCls}`}>{it.open && it.dueOn ? (it.dueOn < today ? `${shortDate(it.dueOn)} · late` : it.dueOn === today ? 'Today' : longDay(it.dueOn)) : ''}</span>
+      <div className="pt-0.5 flex flex-col items-end gap-0.5">
+        {tag}
+        {it.open && <button type="button" onClick={() => post({ action: 'check', dealId: d.id, item: NA(it.id), done: true })} className="text-[11.5px] text-zinc-400 hover:text-navy-800 hover:underline whitespace-nowrap">Not needed</button>}
+      </div>
     </li>
   );
 }
@@ -385,15 +403,18 @@ function DealChecklist({ c, today, post, onDeal, onFlag, onClose }) {
           {tag && <RepTag label={tag.label} color={tag.color} />}
           <StatusChip status={d.status} />
           <span className="rounded-md bg-white/10 px-2 py-0.5">{firstLine(d.title) || <span className="text-rose-200">no title agency</span>}{d.escrow ? ` · escrow #${d.escrow}` : ''}</span>
-          <span className="rounded-md bg-tan-500 text-navy-900 font-semibold px-2 py-0.5">{done} of {c.total} done</span>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <span className="h-2 flex-1 rounded-full bg-white/15 overflow-hidden"><span className="block h-full bg-tan-500" style={{ width: `${c.total ? Math.round((done / c.total) * 100) : 0}%` }} /></span>
+          <span className="text-[12.5px] font-semibold text-tan-300 whitespace-nowrap">{done} of {c.total} done</span>
+          <span className="flex rounded-lg bg-tan-500 text-navy-900 text-[12.5px] font-semibold overflow-hidden">
+            <button type="button" onClick={() => onDeal(d.id)} className="px-2.5 py-1 hover:bg-tan-400">Open Deal</button>
+            <button type="button" onClick={() => onFlag(d)} className="px-2.5 py-1 border-l border-navy-900/20 hover:bg-tan-400">⚑ Flag</button>
+          </span>
         </div>
       </div>
       <div className="px-5 py-4 flex flex-col gap-3 bg-tan-50/60">
-        <div className="rounded-xl border border-tan-200 bg-white px-4 py-3">
-          <div className="flex flex-wrap gap-2 justify-end">
-            <button type="button" onClick={() => onDeal(d.id)} className={btnCls}>Open Full Deal</button>
-            <button type="button" onClick={() => onFlag(d)} className={`${btnCls} !text-[#B42318] !border-[#F5C2BD]`}>⚑ Flag an Issue</button>
-          </div>
+        <div className="rounded-xl border border-tan-200 bg-white px-4 pt-1 pb-3">
           <Timeline d={d} c={c} today={today} />
         </div>
         {c.warns.map((w) => <div key={w.warn.id} className={`rounded-xl px-4 py-2.5 text-[13.5px] ${w.warn.red ? 'bg-[#FDECEA] text-[#B42318] border border-[#F5C2BD]' : 'bg-amber-50 text-amber-900 border border-amber-200'}`}><b>{w.warn.text}</b> · {w.warn.how}</div>)}
@@ -403,24 +424,32 @@ function DealChecklist({ c, today, post, onDeal, onFlag, onClose }) {
             <button type="button" onClick={() => post({ action: 'resolve', id: x.id })} className="underline font-semibold">Mark resolved</button>
           </div>
         ))}
-        <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
-          {c.groups.map((g, i) => {
-            const n = g.items.filter((s) => s.active && !s.open).length;
-            const m = g.items.filter((s) => s.active).length;
-            const isOpen = open.has(g.id);
-            return (
-              <div key={g.id} className={i ? 'border-t border-tan-200' : ''}>
-                <button type="button" onClick={() => flip(g.id)} aria-expanded={isOpen} className="w-full flex items-center gap-2 px-4 py-2.5 bg-tan-100/70 text-left hover:bg-tan-100">
-                  <span className="grid place-items-center w-6 h-6 rounded-md bg-navy-700 text-white text-[12px] font-bold">{i + 1}</span>
-                  <span className={`text-[14px] font-semibold ${g.active ? 'text-navy-900' : 'text-zinc-500'}`}>{g.label}</span>
-                  <span className="ml-auto text-[12px] text-tan-800">{!g.active ? g.wait : n === m ? '✓ done' : `${n} of ${m}`} · {g.span}</span>
-                  <span className={`text-zinc-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
-                </button>
-                {isOpen && <ul>{g.items.map((it) => <StepLine key={it.id} it={it} d={d} post={post} today={today} />)}</ul>}
-              </div>
-            );
-          })}
-        </section>
+        <div className="flex items-center gap-3 text-[12.5px]">
+          <span className="font-semibold text-navy-900">Checklist</span>
+          <span className="text-zinc-500">phases with work due this week are open</span>
+          <button type="button" onClick={() => setOpen(new Set(c.groups.map((g) => g.id)))} className="ml-auto font-semibold text-navy-700 hover:underline">Open All</button>
+          <button type="button" onClick={() => setOpen(new Set())} className="font-semibold text-navy-700 hover:underline">Fold All</button>
+        </div>
+        {c.groups.map((g, i) => {
+          const n = g.items.filter((s) => s.active && !s.open && !s.stale).length;
+          const m = g.items.filter((s) => s.active).length;
+          const late = g.items.filter((s) => s.open && s.dueOn && s.dueOn < today).length;
+          const isOpen = open.has(g.id);
+          const state = !g.active ? g.wait : n === m ? '✓ Done' : `${n} of ${m}`;
+          return (
+            <section key={g.id} className="rounded-xl border border-tan-200 bg-white overflow-hidden">
+              <button type="button" onClick={() => flip(g.id)} aria-expanded={isOpen} className={`w-full flex items-center gap-2.5 px-4 py-2 text-left ${PANEL_HEAD}`}>
+                <span className={`text-white/70 text-[12px] transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+                <span className="grid place-items-center w-5 h-5 rounded bg-white/15 text-[11.5px] font-bold">{i + 1}</span>
+                <span className="text-[14px] font-semibold">{g.label}</span>
+                <span className="text-[12px] text-white/60 truncate">{g.span}</span>
+                {late > 0 && <span className="rounded-md bg-[#4c0519] px-1.5 py-0.5 text-[11.5px] font-semibold">{late} late</span>}
+                <span className={`ml-auto rounded-md px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap ${n === m && g.active ? 'bg-emerald-600 text-white' : 'bg-tan-500 text-navy-900'}`}>{state}</span>
+              </button>
+              {isOpen && <ul>{g.items.map((it) => <StepLine key={it.id} it={it} d={d} post={post} today={today} />)}</ul>}
+            </section>
+          );
+        })}
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
           <div className="px-4 py-2.5 bg-navy-700 text-white text-[14px] font-semibold">Tasks for This Deal</div>
           {c.tasks.length === 0 && <div className="px-4 py-2.5 text-[12.5px] text-zinc-400">No extra tasks yet.</div>}
@@ -508,8 +537,7 @@ export default function TcListView() {
     .filter((x) => x.rows.length);
   const now = day.filter((x) => x.rows.some((r) => r.bucket !== 'soon'));
   const next = day.filter((x) => x.rows.every((r) => r.bucket === 'soon'));
-  const firstDue = (x) => String(x.rows[0]?.dueOn || '');
-  now.sort((a, b) => (b.rows.some((r) => r.bucket === 'late') - a.rows.some((r) => r.bucket === 'late')) || firstDue(a).localeCompare(firstDue(b)));
+  // Both groups keep the cards' COE order (soonest closing first).
   const weekOut = new Date(Date.parse(`${today}T12:00:00Z`) + 7 * 86400000).toISOString().slice(0, 10);
   const isClosing = (c) => !c.closed && c.deal.coe && c.deal.coe >= today && c.deal.coe <= weekOut;
   const isUrgent = (c) => c.late.length > 0 || c.today.length > 0;

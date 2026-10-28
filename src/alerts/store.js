@@ -14,6 +14,8 @@ let data = null;       // the full GET
 const listeners = new Set();
 const emit = () => listeners.forEach((f) => f({ counts, chime, data }));
 let timer = null;
+let off = false;      // the TC has no Alerts (Luke, Oct 28)
+export const alertsOff = (v) => { off = !!v; };
 let lastUnseen = null;
 let lastDueNow = null;
 
@@ -33,8 +35,8 @@ function take(r) {
 }
 
 // A tab in the background doesn't ask (it asks again when it's looked at).
-export const pollCount = () => (typeof document !== 'undefined' && document.hidden ? Promise.resolve() : call('alerts?count=1').then(take).catch(() => {}));
-export const loadAlerts = () => call('alerts').then(take);
+export const pollCount = () => (off ? Promise.resolve() : typeof document !== 'undefined' && document.hidden ? Promise.resolve() : call('alerts?count=1').then(take).catch(() => {}));
+export const loadAlerts = () => (off ? Promise.resolve(null) : call('alerts').then(take));
 
 const post = (body) => call('alerts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(take);
 export const markSeen = () => post({ action: 'seen' });
