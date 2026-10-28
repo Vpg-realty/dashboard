@@ -175,9 +175,10 @@ one can't fit a page, tell Luke instead of making a one-off.
   tan (a brand fill for a group of tiles — Finance Overview's Deal Flow navy,
   Money tan; Luke, Oct 22: "darker … match our branding") and `big` (a
   headline tile, 40px number). `BrandTile`,
-  Finance's `MoneyTile`, `Stat` / `BandStat` (Finance Overview), the deals
+  `Stat` / `BandStat` (Finance Overview), the deals
   `Tile` and every page's former tile draw through it. Not the TV board's
-  boxes (KpiCard) — the TV keeps its look.
+  boxes (KpiCard) — the TV keeps its look — nor Finance's `MoneyTile`
+  (Oct 28: its own branded design again, see "Edit a payout").
 - **Band counters** are their own kind, not `Tile` (Luke, Oct 22: "these
   will be classified as different tiles than the others"): the small
   translucent boxes inside a navy page band — `BandCounter`
@@ -1690,6 +1691,34 @@ narrower"). `src/deals/TcListView.jsx`:
   fields (EM placed, title opened, EM returned) save the deal, so Active
   follows; a stage set on Active (Assigned / Closed / Cancelled) moves the
   checklist.
+
+## Edit a payout; Finance's own tiles (Luke, Oct 28)
+
+- **Edit a payout** ("sam was gone for lewis and alcott so anthony stepped in
+  … input specific amounts … have these edits link to the entire sheet and
+  the other way around"): `src/finance/PayoutEditor.jsx`, owners only, from
+  Payouts › By Deal (Edit on every line not yet paid, "+ Add a Payout" for a
+  commission that's 0) and the deal panel's Commissions table (Edit). It
+  saves on the deal: **Paid to** = `payToAcq` / `payToDispo` / `payToMgr` /
+  `payToOverride` / `payToTc` (group `payto`, secret, never a column — only
+  set when it differs from who the rules name), **Amount** = the commission
+  typed in (`fixed`, "Use formula" clears it), **Why** = one `payNote` per
+  deal (shown on the Payouts card and under the deal's Commissions).
+  `payoutParts` / `PAY_TO` / `PAY_AMOUNT` (math.js) give each part's `who`,
+  `rule`, `typed`; `payouts` reads them, so Payouts, Statements, the deal
+  sheet, net profit and Finance's server checks all follow. Lines show an
+  "edited" chip. An approval for a different person or amount turns
+  "Changed — approve again" (lines.js); a paid line stays with whoever was
+  paid (undo the payment first to edit it).
+- **Finance's own tile** ("turn them back to what we had before where they
+  were very branded … a separate tile design"): `MoneyTile` (finance/ui.jsx)
+  is again the Oct 19 brand tile — tan eyebrow + dot, big navy number, tan
+  rule, faint V, navy when picked — and no longer draws through `Tile`. Every
+  other page keeps the shared `Tile`. The five boxes of How the Company Is
+  Looking (CompanyOutlook.jsx) use it too.
+- **How the Company Is Looking**: its This month / Next month / This quarter /
+  This year switch is the site's navy-band switch (dark track, picked one in
+  tan), not the tan tray.
 
 ## All Deals column layout (Luke, Oct 27)
 

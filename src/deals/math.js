@@ -97,6 +97,17 @@ export const FIELDS = [
   ['grossProfit', 'Gross profit', 'pay', 'money', 'calc', 'secret'],
   ['netProfit', 'Net profit', 'pay', 'money', 'calc', 'secret'],
   ['commPaid', 'Commission paid', 'pay', 'list', null, 'secret'],
+  // Who a commission goes to when it isn't the usual person (Luke, Oct 28:
+  // "sam was gone for lewis and alcott so anthony stepped in") and why —
+  // edited from Payouts or the deal's Money section, never shown as columns
+  // (group 'payto' is in no GROUPS / LAYOUT). A different amount is the
+  // commission typed in (`fixed`), like any formula column.
+  ['payToAcq', 'Acquisition commission paid to', 'payto', 'text', null, 'secret'],
+  ['payToDispo', 'Dispo commission paid to', 'payto', 'text', null, 'secret'],
+  ['payToMgr', 'Manager commission paid to', 'payto', 'text', null, 'secret'],
+  ['payToOverride', 'Override paid to', 'payto', 'text', null, 'secret'],
+  ['payToTc', 'TC commission paid to', 'payto', 'text', null, 'secret'],
+  ['payNote', 'Payout note', 'payto', 'longtext', null, 'secret'],
   ['notes', 'Notes', 'notes', 'longtext'],
   // Luke, Oct 14: "Zillow link"; filled in automatically for new deals.
   ['links', 'Zillow link', 'notes', 'longtext'],
@@ -362,12 +373,21 @@ export function compute(deal, rules, lists) {
 // Who is owed what on a deal (the sheet's Commissions tab): acq → the acq
 // manager, dispo → the dispo member, manager → rules.manager.name, override
 // → rules.override.name, TC → rules.tcName.
-export function payouts(d, rules) {
+// A part can be handed to someone else on one deal (`PAY_TO`, Oct 28); `rule`
+// is who the rules name, `edited` = a different person or a typed amount.
+export const PAY_TO = { acq: 'payToAcq', dispo: 'payToDispo', manager: 'payToMgr', override: 'payToOverride', tc: 'payToTc' };
+export const PAY_AMOUNT = { acq: 'acqComm', dispo: 'dispoComm', manager: 'mgrComm', override: 'override', tc: 'tcComm' };
+export function payoutParts(d, rules) {
   const r = pickRules(rules, d);
-  return [
-    ['acq', d.acq, d.acqComm], ['dispo', d.dispoMember, d.dispoComm],
-    ['manager', r.manager?.name, d.mgrComm], ['override', r.override?.name, d.override], ['tc', r.tcName, d.tcComm],
-  ].filter(([, who, amt]) => who && typeof amt === 'number' && amt !== 0).map(([part, who, amount]) => ({ part, who, amount }));
+  const rule = { acq: d.acq, dispo: d.dispoMember, manager: r.manager?.name, override: r.override?.name, tc: r.tcName };
+  return Object.keys(PAY_TO).map((part) => {
+    const to = d[PAY_TO[part]];
+    const typed = PAY_AMOUNT[part] in (d.fixed || {});
+    return { part, who: to || rule[part] || null, rule: rule[part] || null, amount: d[PAY_AMOUNT[part]], edited: !!to || typed, movedTo: to || null, typed };
+  });
+}
+export function payouts(d, rules) {
+  return payoutParts(d, rules).filter((p) => p.who && typeof p.amount === 'number' && p.amount !== 0);
 }
 
 // Reps and managers (Luke, Oct 14) see only Contract, Title, EMD, Due

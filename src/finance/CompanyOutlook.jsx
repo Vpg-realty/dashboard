@@ -3,8 +3,7 @@
 // this month / next month / this quarter / this year (by COE; outlook.js).
 // The pick is remembered per device (localStorage `vpg.fin.outlook`).
 import { useMemo, useState } from 'react';
-import { PanelHead } from '../shell/Panel.jsx';
-import { Tile } from '../shell/Tile.jsx';
+import { MoneyTile } from './ui.jsx';
 import { money } from '../deals/format.js';
 import { outlook, outlookRanges } from './outlook.js';
 
@@ -12,8 +11,10 @@ const KEY = 'vpg.fin.outlook';
 const read = () => { try { return localStorage.getItem(KEY) || 'month'; } catch { return 'month'; } };
 
 // Each number is the site's Tile (Oct 22); the dot says which part it is.
+// Finance's own branded tile (Luke, Oct 28: "make the top tiles for how the
+// company is looking the same as well").
 function Box({ label, value, sub, tone, dot }) {
-  return <Tile className="flex-1 min-w-[150px]" label={label} value={value} sub={sub} tone={tone} dot={dot} />;
+  return <div className="flex-1 min-w-[150px] grid"><MoneyTile label={label} value={value} sub={sub} tone={tone} accent={dot} /></div>;
 }
 const Op = ({ children }) => <span className="hidden md:grid place-items-center text-[22px] font-light text-zinc-400 w-5 shrink-0">{children}</span>;
 
@@ -26,14 +27,18 @@ export default function CompanyOutlook({ deals, rules, wires = false }) {
   const s = (x, one) => `${x} ${one}${x === 1 ? '' : 's'}`;
   return (
     <section className="rounded-xl border border-tan-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.05)] mb-4">
-      <PanelHead title="How the company is looking" sub={`${range.long} · by COE`} right={
-        <span className="flex items-center gap-0.5">
+      {/* The site's switch on a navy band (Pipeline's Viewing, the period
+          picker): a dark track, the picked one raised in tan — Luke, Oct 28. */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-5 py-2.5 bg-navy-700 text-white border-b border-navy-800">
+        <h2 className="text-[14.5px] font-semibold">How the Company Is Looking</h2>
+        <span className="text-[12.5px] text-white/70">{range.long} · by COE</span>
+        <span className="ml-auto inline-flex rounded-lg bg-white/10 p-0.5 text-[12.5px] font-medium">
           {ranges.map((r) => (
             <button key={r.key} type="button" onClick={() => pick(r.key)} aria-pressed={r.key === range.key}
-              className={`h-7 px-2.5 rounded-md text-[12.5px] font-medium ${r.key === range.key ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}>{r.label}</button>
+              className={`h-7 px-2.5 rounded-md whitespace-nowrap ${r.key === range.key ? 'bg-tan-500 text-navy-900 font-semibold' : 'text-white/80 hover:bg-white/10'}`}>{r.label}</button>
           ))}
         </span>
-      } />
+      </div>
       <div className="p-4 flex flex-wrap md:flex-nowrap items-stretch gap-2">
         <Box label="Closed" value={money(o.closedNet)} sub={`${s(o.closed, 'deal')} · net assignment`} tone="text-[#15803D]" dot="green" />
         <Op>+</Op>
