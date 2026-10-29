@@ -49,7 +49,7 @@ export function toneOf(key, v) {
   switch (key) {
     case 'status': return { UNDER_CONTRACT: 'blue', DISPO_ACTIVE: 'amber', PENDING: 'amber', ASSIGNED: 'violet', COMPLETE: 'green', CANCELLED: 'red' }[x] || 'grey';
     case 'emdStatus': return { COMPLETE: 'green', PENDING: 'red' }[x] || 'grey';
-    case 'emdPaidBy': return x === 'PENDING' ? 'amber' : 'navy';
+    case 'emdPaidBy': return x === 'PENDING' ? 'amber' : x === 'NA' || x === 'N/A' ? 'grey' : 'navy';
     case 'cfar': return x === 'NO' ? 'amber' : x === 'YES' ? 'green' : 'grey';
     case 'emdReturned': return x === 'NO' || x === 'LOST' ? 'red' : x === 'YES' ? 'green' : 'grey';
     case 'emdLostWhy': return x ? 'red' : 'grey';

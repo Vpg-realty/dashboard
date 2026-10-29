@@ -14,7 +14,7 @@
 // needed" — status Assigned with no assignment price yet lands in "Moved to
 // Assigned". Used by Active ("Needs info"), All deals (the `need` filter and
 // the "N missing" badge) and the deal panel (missing fields highlighted).
-import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending, isOpen, emdIn } from './math.js';
+import { FIELD, isBlank, BOOKS_KEYS, booksOpen, retradePending, isOpen, emdPlaced, emdNa } from './math.js';
 import { laToday } from '../utils/historyRange.js';
 
 const up = (x) => String(x ?? '').trim().toUpperCase();
@@ -50,8 +50,8 @@ const isMissing = {
 const RULE = {
   address: ['value'], acq: ['value'], state: ['value'], accepted: ['value'], coe: ['value'], dealType: ['value'], listing: ['value'],
   price: ['price'], title: ['value'], ddDays: ['value'],
-  emd: ['value'],
-  emdSent: ['value', emdIn],
+  emd: ['value', (d) => !emdNa(d)],
+  emdSent: ['value', emdPlaced],
   emdPaidBy: ['placeholder'],
   dispoMember: ['value'],
   buyer: ['value'],
