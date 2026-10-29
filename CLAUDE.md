@@ -1504,7 +1504,10 @@ opens `StageDialog.jsx` (what it asks: `STAGE_ASKS` / `asksStage` in
   titled categories (`MONEY_CATS` in DealPanel.jsx, a coloured left bar
   each): Costs, What We Make, Wire & EMD Return, Commissions (commission
   base + commission paid, then a Commission · Who · Amount · Paid table —
-  Finance's paid tag or the paid-on date), Profit.
+  Finance's paid tag or the paid-on date), Profit. Oct 29 (Luke: "match the
+  rest … no random colors … too claude-like"): the categories use the same
+  small tan title and dividing line as the other sections' groups — no
+  coloured left bars or boxed headers (the hint shows on hover).
 
 ## Rail pages don't shift (Luke, Oct 26)
 
@@ -1752,6 +1755,21 @@ narrower"). `src/deals/TcListView.jsx`:
   panel is 880px wide for everyone (was 760). /api/tc's data is one shared
   store (`src/deals/tcStore.js`), so a tick in the tab shows on the page
   behind it at once; it reloads whenever the page or the tab opens.
+
+- **Flag an Issue from any tab** (Luke, Oct 29: "a flag an issue button on
+  any tab … even if it doesnt have to deal with the TC … on every tab we need
+  to see the flagged issue … a small note on the deal status area"): the deal
+  panel's tab row carries **⚑ Flag an Issue** on the right (owners and the TC
+  — the same dialog and `tc_issues` / Alerts as the TC List, `FlagDialog`
+  exported from TcListView.jsx), and every tab but TC Checklist (which shows
+  them in full) gets a red note right under the header, one line per open
+  issue — kind, the note, who and when — with **Mark resolved**. The panel
+  reads them from the shared /api/tc store (`useTc(on)` in tcStore.js; off
+  for reps / managers, who can't read /api/tc). The Alerts text no longer
+  says "on the TC List". The status report = TC List › Deal Overview's Open
+  Issues filter and its Flagged column. Usage: one /api/tc read per deal
+  panel opened by an owner / the TC (a few thousand rows — a few hundred
+  thousand rows a day at most, far inside the plan).
 
 ## Edit a payout; Finance's own tiles (Luke, Oct 28)
 
