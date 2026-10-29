@@ -109,7 +109,7 @@ function LinkAsk({ kind, d, save, onDone }) {
 
 // Flag an Issue (Luke, Oct 26): what kind, a line on it; it goes to the
 // owners and the deal's acq rep and dispo rep in Alerts.
-function FlagDialog({ d, post, onClose }) {
+export function FlagDialog({ d, post, onClose }) {
   const [kind, setKind] = useState(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);

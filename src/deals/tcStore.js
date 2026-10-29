@@ -23,8 +23,9 @@ export async function postTc(body) {
   try { st = await call('tc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); return true; } catch (e) { err = e.message; return false; } finally { emit(); }
 }
 
-export function useTc() {
+// `on` = false for people who can't read /api/tc (reps, managers): no load.
+export function useTc(on = true) {
   const [, render] = useReducer((x) => x + 1, 0);
-  useEffect(() => { subs.add(render); loadTc(); return () => { subs.delete(render); }; }, []);
-  return { st, err, post: postTc };
+  useEffect(() => { if (!on) return undefined; subs.add(render); loadTc(); return () => { subs.delete(render); }; }, [on]);
+  return { st: on ? st : null, err, post: postTc };
 }

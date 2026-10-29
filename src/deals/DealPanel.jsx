@@ -8,7 +8,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { setLeaveGuard, linkProps } from '../shell/router.js';
 import { FIELD, FIELDS, GROUPS, compute, payouts, payoutParts, repSees, zillowUrl, BOOKS_KEYS, booksOpen, retradePending, isBlank, isOpen, ghlMismatches, keptMoney } from './math.js';
 // The TC Checklist tab (owners and the TC) — the TC List page's checklist.
-import { DealTcTab } from './TcListView.jsx';
+import { DealTcTab, FlagDialog } from './TcListView.jsx';
+import { useTc } from './tcStore.js';
+import { issueLabel } from './tcList.js';
 import { useDeals, saveDeal, createDeal, deleteDeal, dealHistory, ghlDeals, addrKeys, pushToGhl } from './store.js';
 import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
@@ -173,12 +175,12 @@ const SECTIONS = [
 // The Money's fields in categories (Luke, Oct 26: "hard to read and
 // navigate … category titles above"), under the breakdown box.
 const MONEY_CATS = [
-  { id: 'costs', anchor: 'money', label: 'Costs', hint: 'taken out of the gross', bar: 'border-[#B42318]', group: 'money', keys: ['addlFees', 'closingCosts', 'tcFee'] },
-  { id: 'made', label: 'What We Make', hint: 'worked out from the prices', bar: 'border-navy-700', group: 'money', keys: ['grossAssign', 'netAssign', 'emdReturn', 'wireExpected'] },
-  { id: 'wire', label: 'Wire & EMD Return', hint: 'fill in at closing', bar: 'border-sky-600', group: 'money', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy'] },
-  { id: 'comm', anchor: 'pay', label: 'Commissions', hint: 'each one and when Finance paid it', bar: 'border-violet-600', group: 'pay', keys: ['commBase', 'commPaid'],
+  { id: 'costs', anchor: 'money', label: 'Costs', hint: 'taken out of the gross', group: 'money', keys: ['addlFees', 'closingCosts', 'tcFee'] },
+  { id: 'made', label: 'What We Make', hint: 'worked out from the prices', group: 'money', keys: ['grossAssign', 'netAssign', 'emdReturn', 'wireExpected'] },
+  { id: 'wire', label: 'Wire & EMD Return', hint: 'fill in at closing', group: 'money', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy'] },
+  { id: 'comm', anchor: 'pay', label: 'Commissions', hint: 'each one and when Finance paid it', group: 'pay', keys: ['commBase', 'commPaid'],
     table: [['acqComm', 'acqPaidOn', 'Acq. manager'], ['dispoComm', 'dispoPaidOn', 'Dispo'], ['mgrComm', 'mgrPaidOn', 'Manager'], ['override', 'overridePaidOn', 'Mgmt override'], ['tcComm', 'tcPaidOn', 'TC']] },
-  { id: 'profit', label: 'Profit', hint: 'what VPG keeps', bar: 'border-[#15803d]', group: 'pay', keys: ['grossProfit', 'netProfit'] },
+  { id: 'profit', label: 'Profit', hint: 'what VPG keeps', group: 'pay', keys: ['grossProfit', 'netProfit'] },
 ];
 const SUB_LABEL = { contract: 'Contract', title: 'Title', emd: 'Earnest Money', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
 const HERE = { UNDER_CONTRACT: 'emd', DISPO_ACTIVE: 'dispo', ASSIGNED: 'dispo', COMPLETE: 'money', CANCELLED: 'emd' };
@@ -330,6 +332,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const [err, setErr] = useState(null);
   const [fixErr, setFixErr] = useState(null); // { key, msg } — shown under that mismatch row
   const [payEdit, setPayEdit] = useState(null); // a commission being edited (finance/PayoutEditor)
+  const [flagging, setFlagging] = useState(false);
   const [base, setBase] = useState(raw?.updatedAt);
   const [flash, setFlash] = useState(false);
   // Leaving with unsaved edits (Luke, Oct 15: "warning me when I click out …
@@ -342,6 +345,12 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const [onSec, setOnSec] = useState(null);
   const owner = s.owner;
   const ro = s.readOnly; // reps / managers: their own deals, view only
+  // Flagged issues (Luke, Oct 29: "a flag an issue button on any tab … on
+  // every tab we need to see the flagged issue"): owners and the TC flag from
+  // the header; open ones show as a note under it on every tab. Same
+  // tc_issues as the TC List (its Open Issues filter is the status report).
+  const { st: tcSt, post: tcPost } = useTc(!id ? false : !ro);
+  const issues = (tcSt?.issues || []).filter((x) => x.deal_id === id && !x.resolved_at);
   // …except the few fields a manager may fix (Luke, Oct 18: COE, IP end via
   // its DD days, EMD amount) — `editable` from the API.
   const editable = new Set(s.editable || []);
@@ -717,11 +726,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
         </h3>
         {sec.id === 'money' && moneyBox}
         {sec.id === 'money' ? MONEY_CATS.filter((c) => c.keys.some((k) => FIELD[k] && visible(FIELD[k]))).map((c) => (
-          <div key={c.id} id={c.anchor ? `deal-g-${c.anchor}` : undefined} className="mx-2 mt-3 last:mb-2 rounded-lg border border-tan-200 overflow-hidden">
-            <div className={`flex items-baseline gap-2 border-l-4 ${c.bar} bg-tan-50 px-3 py-1.5`}>
-              <span className="text-[12.5px] font-bold uppercase tracking-[0.1em] text-navy-800">{c.label}</span>
-              <span className="text-[12px] text-zinc-500">{c.hint}</span>
-            </div>
+          // Same small tan title and dividing line as the other sections'
+          // groups (Luke, Oct 29: no coloured bars or boxes).
+          <div key={c.id} id={c.anchor ? `deal-g-${c.anchor}` : undefined} className="border-t border-tan-100 first-of-type:border-t-0">
+            <div className="px-4 pt-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-tan-700" title={c.hint}>{c.label}</div>
             {groupGrid(c.group, c.keys)}
             {c.table && (
               <table className="w-full text-[13px] tabular-nums border-t border-tan-100">
@@ -786,9 +794,20 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
               {[['details', 'Details'], ...(ro ? [] : [['tc', 'TC Checklist']]), ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
+              {!ro && <button type="button" onClick={() => setFlagging(true)} title="Flag an issue on this deal — it goes to Alerts and stays on the deal until it’s resolved" className="ml-auto mb-2 self-center h-7 rounded-lg bg-tan-500 px-2.5 text-[12.5px] font-semibold text-navy-900 hover:bg-tan-400">⚑ Flag an Issue</button>}
             </nav>
           )}
         </header>
+        {!isNew && tab !== 'tc' && issues.length > 0 && (
+          <div className="shrink-0 border-b border-[#F5C2BD] bg-[#FDECEA] px-5 py-1.5 text-[13px] text-[#B42318]">
+            {issues.map((x) => (
+              <div key={x.id} className="flex items-baseline gap-2 py-0.5">
+                <span className="min-w-0 flex-1 truncate" title={x.text || ''}><b>⚑ {issueLabel(x.kind)}</b>{x.text ? ` · “${x.text}”` : ''} <span className="text-[#B42318]/70">· {x.created_by} {new Date(x.created_at).toLocaleDateString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric' })}</span></span>
+                <button type="button" onClick={() => tcPost({ action: 'resolve', id: x.id })} className="shrink-0 text-[12px] font-semibold underline">Mark resolved</button>
+              </div>
+            ))}
+          </div>
+        )}
         {!isNew && tab === 'details' && (
           <div className="shrink-0 border-b border-tan-200">
             <div className="px-5 pt-2.5 pb-3 bg-tan-50">
@@ -889,6 +908,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
             <button onClick={save} disabled={busy} className={primaryCls}>{busy ? 'Saving…' : isNew ? 'Add deal' : 'Save'}</button>
           </footer>
         )}
+        {flagging && <FlagDialog d={merged} post={tcPost} onClose={() => setFlagging(false)} />}
         {payEdit && <PayoutEditor dealId={id} part={payEdit} onClose={() => setPayEdit(null)} />}
         {stageAsk && <StageDialog stage={stageAsk} deal={merged} busy={busy} err={err} onBack={() => { setStageAsk(null); setErr(null); }} onConfirm={confirmStage} />}
         {cancelAsk && <CancelDialog deal={merged} reasons={reasonList(s.lists)} busy={busy} err={err} onBack={() => { setCancelAsk(false); setErr(null); }} onConfirm={confirmStage} />}

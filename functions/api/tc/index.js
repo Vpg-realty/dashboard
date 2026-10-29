@@ -86,7 +86,7 @@ export async function onRequestPost(context) {
     const id = newId('i');
     const holders = await issueHolders(db, deal);
     const title = `⚑ ${deal.address || 'A deal'}: ${issueLabel(b.kind)}`;
-    const body = `${text ? `${text} — ` : ''}flagged by ${user.name} on the TC List`;
+    const body = `${text ? `${text} — ` : ''}flagged by ${user.name}`;
     await db.batch([
       db.prepare('INSERT INTO tc_issues (id, deal_id, kind, text, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, b.dealId, b.kind, text || null, user.name, now),
       ...holders.map((h) => db.prepare("INSERT INTO alerts (id, ext_id, holder, kind, title, body, addr, due, created_by, created_at) VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?) ON CONFLICT (ext_id) DO NOTHING")
@@ -96,7 +96,7 @@ export async function onRequestPost(context) {
     if (!ID.test(String(b.id || ''))) return json({ error: 'unknown issue' }, 400);
     await db.batch([
       db.prepare('UPDATE tc_issues SET resolved_by = ?, resolved_at = ? WHERE id = ? AND resolved_at IS NULL').bind(user.name, now, b.id),
-      db.prepare("UPDATE alerts SET done_by = ?, done_at = ? WHERE ext_id LIKE ? AND done_at IS NULL").bind(`${user.name} (resolved on the TC List)`, now, `tcissue:${b.id}:%`),
+      db.prepare("UPDATE alerts SET done_by = ?, done_at = ? WHERE ext_id LIKE ? AND done_at IS NULL").bind(`${user.name} (resolved)`, now, `tcissue:${b.id}:%`),
     ]);
   } else {
     return json({ error: 'unknown action' }, 400);
