@@ -218,7 +218,11 @@ const is = (x, y) => up(x) === up(y);
 // compute() puts it on every deal as `emdStatus` (COMPLETE / PENDING), so the
 // checks that read it keep working. A stored value in D1 is ignored.
 export const EMD_PAYERS = ['VPG', 'BUYER', 'VPG + BUYER'];
-export const emdIn = (d) => EMD_PAYERS.includes(up(d?.emdPaidBy));
+// N/A (Luke, Oct 29: it replaced Pending in the list) = no EMD on this deal:
+// nothing to chase, so it counts as in, but there's no amount or sent date.
+export const emdNa = (d) => ['NA', 'N/A'].includes(up(d?.emdPaidBy));
+export const emdPlaced = (d) => EMD_PAYERS.includes(up(d?.emdPaidBy));
+export const emdIn = (d) => emdPlaced(d) || emdNa(d);
 export const emdStatusOf = (d) => (emdIn(d) ? 'COMPLETE' : 'PENDING');
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 const isDate = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);

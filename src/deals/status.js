@@ -80,6 +80,7 @@ export function emdCell(d) {
   if (by === 'VPG') return { text: 'In · VPG only', tone: 'red' };
   if (by === 'BUYER') return { text: 'In · Buyer', tone: 'green' };
   if (by === 'VPG + BUYER') return { text: 'In · VPG + Buyer', tone: 'green' };
+  if (by === 'NA' || by === 'N/A') return { text: 'N/A · no EMD', tone: 'grey' };
   return { text: 'Pending', tone: 'red' };
 }
 // Its Days column: red when past, amber within 7 days.

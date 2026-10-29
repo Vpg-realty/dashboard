@@ -2505,7 +2505,14 @@ the server strips them (`forTc`) and refuses edits to them.
   derive it and compute() sets `emdStatus` (COMPLETE / PENDING) on every
   deal, so older checks still read it; a stored value in D1 is ignored.
   "PENDING" in the paid-by list counts as empty. EMD sent on is needed once
-  a payer is in.
+  a payer is in. **Oct 29** (Luke: "pending should become NA, then buyer, VPG,
+  VPG + Buyer"): EMD paid by is a fixed list in that order (`FIXED_LISTS.
+  emdPaidBy` / `KEEP_ORDER` in fieldLib.js — the stored deal_lists entry is
+  no longer used); an empty box is pending, older deals' PENDING still reads
+  as empty. **N/A** = no EMD on the deal (`emdNa` in math.js): it counts as in
+  (`emdIn` — no "EMD pending" step, alert or Discord line), shows "N/A · no
+  EMD" in grey, and needs no EMD amount or sent date (`emdPlaced` = a real
+  payer, required.js).
 - **Deal status** (Luke, Oct 14: "everything [should] match the pipeline
   stages"): `STATUS_KEYS` (math.js) = PENDING, ASSIGNED (new), COMPLETE
   (reads "Closed"), CANCELLED — a fixed list in that order (`FIXED_LISTS`

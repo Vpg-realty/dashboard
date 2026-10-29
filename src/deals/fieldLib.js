@@ -21,8 +21,11 @@ export const CANCEL_REASONS = ['BUYER_DEFAULT', 'SELLER_DEFAULT', 'RETRADE_REJEC
 export const reasonList = (lists) => (Array.isArray(lists?.cancelReasons) && lists.cancelReasons.length ? lists.cancelReasons : CANCEL_REASONS);
 // The list plus any reason a deal already carries (one since removed from the list).
 export const reasonsInUse = (lists, deals) => { const out = [...reasonList(lists)]; const seen = new Set(out.map((x) => x.toLowerCase())); for (const d of deals || []) { const r = d.cancelReason; if (r && !seen.has(String(r).toLowerCase())) { seen.add(String(r).toLowerCase()); out.push(r); } } return out; };
-export const FIXED_LISTS = { cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY };
-export const KEEP_ORDER = new Set(['cancelReason', 'cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
+export const FIXED_LISTS = { cancelAs: CANCEL_AS, retrade: ['Y', 'N'], ddEndTz: ZONE_KEYS, status: STATUS_KEYS, emdReturned: ['YES', 'NO', 'LOST', 'NA'], emdLostWhy: EMD_LOST_WHY,
+  // EMD paid by (Luke, Oct 29): N/A first, then Buyer, VPG, VPG + Buyer — no
+  // Pending (an empty box is pending; older deals' PENDING still reads as empty).
+  emdPaidBy: ['NA', 'BUYER', 'VPG', 'VPG + BUYER'] };
+export const KEEP_ORDER = new Set(['emdPaidBy', 'cancelReason', 'cancelAs', 'ddEndTz', 'status', 'emdReturned', 'emdLostWhy']);
 // Buyer and title agency (Luke, Oct 14): pick one used on an earlier deal, or
 // "Custom" to type it in.
 export const PICK_FROM_PAST = new Set(['buyer', 'title']);
