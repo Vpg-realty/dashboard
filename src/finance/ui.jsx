@@ -9,21 +9,37 @@ const PILL = {
   approved: 'bg-sky-50 text-sky-800 ring-sky-200',
   paid: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
   changed: 'bg-red-50 text-red-700 ring-red-200',
+  partial: 'bg-violet-50 text-violet-800 ring-violet-200',
 };
 export function StatusPill({ l }) {
-  const k = l.changed ? 'changed' : l.status;
-  const text = l.changed ? 'Changed — approve again' : l.status === 'owed' ? 'To approve' : l.status === 'approved' ? 'Approved · to pay' : l.sheet ? 'Paid (tracker)' : 'Paid';
+  const partial = l.status === 'approved' && l.paidSoFar > 0 && !l.changed;
+  const k = l.changed ? 'changed' : partial ? 'partial' : l.status;
+  const text = l.changed ? 'Changed — approve again' : partial ? `Partly paid · ${money(l.left)} left` : l.status === 'owed' ? 'To approve' : l.status === 'approved' ? 'Approved · to pay' : l.sheet ? 'Paid (tracker)' : 'Paid';
   return <span className={`inline-flex items-center rounded-md px-1.5 py-[1px] text-[12px] font-semibold ring-1 ring-inset whitespace-nowrap ${PILL[k]}`}>{text}</span>;
 }
 
-// Who approved / paid, in one line.
-export function Trail({ l }) {
+const payBit = (p) => `${shortDate(p.paidOn)} · ${METHODS[p.method] || p.method}${p.ref ? ` · ${p.ref}` : ''}`;
+// Who approved / paid, in one line — with every part payment under it
+// (onUndoPart = an Undo on each one while the line isn't paid off).
+export function Trail({ l, onUndoPart }) {
   if (l.sheet) return <span className="text-zinc-400">marked paid in the deal tracker (Commission paid = Yes)</span>;
   const bits = [];
   if (l.approvedBy) bits.push(`approved by ${l.approvedBy}${l.approvedAt ? ` ${shortDate(l.approvedAt.slice(0, 10))}` : ''}`);
-  if (l.status === 'paid') bits.push(`paid ${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
+  const pays = l.payments || [];
+  if (l.status === 'paid' && pays.length <= 1) bits.push(`paid ${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
   if (l.changed) bits.push(l.gone ? 'no longer owed under the rules' : `was ${money(l.due)} when approved`);
-  return <span className="text-zinc-500">{bits.join(' · ') || '—'}</span>;
+  const parts = l.status === 'paid' && pays.length <= 1 ? [] : pays;
+  return (
+    <span className="text-zinc-500">
+      {bits.join(' · ') || (parts.length ? '' : '—')}
+      {parts.map((p) => (
+        <span key={p.id ?? 'row'} className="block">
+          <b className="font-semibold text-navy-800 tabular-nums">{money(p.amount)}</b> {p.final ? 'paid off' : 'sent'} {payBit(p)}
+          {onUndoPart && !p.final && l.status !== 'paid' && <button type="button" onClick={() => onUndoPart(l, p)} className="ml-1.5 text-zinc-400 hover:text-navy-800 hover:underline">undo</button>}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 // Finance's own tile (Luke, Oct 28: "turn them back to what we had before

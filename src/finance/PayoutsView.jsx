@@ -10,10 +10,14 @@
 // - **TC monthly** — the TC's fee for each month's closings as one payment:
 //   approve the month, mark it paid; never touches a deal's Commission paid.
 // - **Paid** (history) and **Coming due** (open assigned deals, by COE month).
+// Oct 30 (Luke): **part payments** — Mark paid on one payout asks how much
+// went out; less than what's left is a part payment ("Zelle caps at 5k a
+// day"), the rest stays to pay — and **Other payments** on By deal: a bonus
+// or spiff with who, amount, what it was for and (optionally) its deal.
 import { PAYOUT_TABS } from './tabs.js';
 import { useMemo, useState } from 'react';
 import { useFinance, act } from './store.js';
-import { METHODS, lineAmount, partLabel, sum, isTcLine, tcMonths, TC_MONTHLY_FROM } from './lines.js';
+import { METHODS, lineAmount, partLabel, sum, isTcLine, isExtra, tcMonths, TC_MONTHLY_FROM, leftOf, sumLeft, paymentsOf } from './lines.js';
 import { StatusPill, Trail, MoneyTile, FinanceHead } from './ui.jsx';
 import CompanyOutlook from './CompanyOutlook.jsx';
 import PayoutEditor from './PayoutEditor.jsx';
@@ -42,20 +46,33 @@ function PayDialog({ lines, title, onClose, onDone }) {
   const [paidOn, setPaidOn] = useState(laToday());
   const [method, setMethod] = useState('ACH');
   const [ref, setRef] = useState('');
+  const left = sumLeft(lines);
+  const one = lines.length === 1;
+  const [amt, setAmt] = useState(left.toFixed(2));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const sent = Math.round(Number(String(amt).replace(/[$,\s]/g, '')) * 100) / 100;
+  const partial = one && sent > 0 && sent < left - 0.005;
+  const tooMuch = one && sent > left + 0.005;
   async function go() {
     setBusy(true); setErr(null);
-    try { await act({ action: 'pay', keys: lines.map((l) => l.key), paidOn, method, ref }); onDone(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+    try { await act({ action: 'pay', keys: lines.map((l) => l.key), paidOn, method, ref, ...(one ? { amount: sent } : {}) }); onDone(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   }
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy-900/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label="Mark paid" className="w-full max-w-md rounded-xl bg-white shadow-xl overflow-hidden">
-        <div className={`px-5 py-3 ${PANEL_HEAD}`}><h2 className="font-semibold">{title || `Mark ${lines.length} payout${lines.length === 1 ? '' : 's'} paid`} · {money(sum(lines))}</h2></div>
+        <div className={`px-5 py-3 ${PANEL_HEAD}`}><h2 className="font-semibold">{title || `Mark ${lines.length} payout${lines.length === 1 ? '' : 's'} paid`} · {money(left)}{one && lines[0].paidSoFar > 0 ? ' left' : ''}</h2></div>
         <div className="p-5 grid gap-3 text-[13.5px]">
           <ul className="rounded-lg bg-tan-50 px-3 py-2 grid gap-1 max-h-40 overflow-auto">
-            {lines.map((l) => <li key={l.key} className="flex justify-between gap-3"><span className="truncate">{l.who} · {partLabel(l.part)}{isTcLine(l) ? ` · ${l.address}` : ''}</span><b className="tabular-nums">{money(lineAmount(l))}</b></li>)}
+            {lines.map((l) => <li key={l.key} className="flex justify-between gap-3"><span className="truncate">{l.who} · {partLabel(l.part)}{isTcLine(l) ? ` · ${l.address}` : ''}</span><b className="tabular-nums">{money(leftOf(l))}</b></li>)}
           </ul>
+          {one && (
+            <label className="grid gap-1"><span className="text-zinc-600">Amount sent <span className="text-zinc-400">(less than {money(left)} = a part payment; the rest stays to pay)</span></span>
+              <input inputMode="decimal" value={amt} onChange={(e) => setAmt(e.target.value)} className={`${selectCls} tabular-nums`} />
+              {partial && <span className="text-[12.5px] text-violet-800">Part payment — {money(Math.round((left - sent) * 100) / 100)} still to pay after this.</span>}
+              {tooMuch && <span className="text-[12.5px] text-red-700">Only {money(left)} is left on it.</span>}
+            </label>
+          )}
           <label className="grid gap-1"><span className="text-zinc-600">Paid on</span><input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className={selectCls} /></label>
           <label className="grid gap-1"><span className="text-zinc-600">How</span>
             <SearchSelect value={method} onChange={(v) => v && setMethod(v)} clearable={false} sort={false} options={Object.entries(METHODS).map(([k, v]) => ({ value: k, label: v }))} />
@@ -64,7 +81,7 @@ function PayDialog({ lines, title, onClose, onDone }) {
           {err && <div className="text-red-700">{err}</div>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className={btnCls}>Cancel</button>
-            <button type="button" onClick={go} disabled={busy || !paidOn} className={primaryCls}>{busy ? 'Saving…' : 'Mark paid'}</button>
+            <button type="button" onClick={go} disabled={busy || !paidOn || (one && (!(sent > 0) || tooMuch))} className={primaryCls}>{busy ? 'Saving…' : partial ? `Record part payment · ${money(sent)}` : 'Mark paid'}</button>
           </div>
         </div>
       </div>
@@ -73,7 +90,7 @@ function PayDialog({ lines, title, onClose, onDone }) {
 }
 
 // One closed deal and its commissions (TC left out — it's paid monthly).
-function DealCard({ deal, lines, onOpen, run, pay, busy, onEdit }) {
+function DealCard({ deal, lines, onOpen, run, pay, busy, onEdit, undoPart }) {
   const owed = lines.filter((l) => l.status === 'owed' || l.changed);
   const ready = lines.filter((l) => l.status === 'approved' && !l.changed);
   const paid = lines.filter((l) => l.status === 'paid');
@@ -97,11 +114,11 @@ function DealCard({ deal, lines, onOpen, run, pay, busy, onEdit }) {
               <td className="px-2 py-2 text-zinc-600 whitespace-nowrap">{partLabel(l.part)}{l.edited && <span title={[l.who !== l.rule && l.rule ? `Rules say ${l.rule}` : null, l.typed ? 'Amount typed in' : null].filter(Boolean).join(' · ')} className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">edited</span>}</td>
               <td className="px-2 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(lineAmount(l))}</td>
               <td className="px-2 py-2"><StatusPill l={l} /></td>
-              <td className="px-2 py-2 text-[12.5px] w-full"><Trail l={l} /></td>
+              <td className="px-2 py-2 text-[12.5px] w-full"><Trail l={l} onUndoPart={busy ? null : undoPart} /></td>
               <td className="pr-4 pl-2 py-2 text-right whitespace-nowrap">
-                {l.status !== 'paid' && <><button type="button" disabled={busy} onClick={() => onEdit(deal.dealId, l.part)} className="text-[12.5px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button><span className="text-zinc-300 mx-1.5">·</span></>}
+                {l.status !== 'paid' && !l.paidSoFar && <><button type="button" disabled={busy} onClick={() => onEdit(deal.dealId, l.part)} className="text-[12.5px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button><span className="text-zinc-300 mx-1.5">·</span></>}
                 {(l.status === 'owed' || l.changed) && <button type="button" disabled={busy || lineAmount(l) <= 0} onClick={() => run('approve', [l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Approve</button>}
-                {l.status === 'approved' && !l.changed && <><button type="button" disabled={busy} onClick={() => pay([l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Mark paid…</button><span className="text-zinc-300 mx-1.5">·</span><button type="button" disabled={busy} onClick={() => run('unapprove', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button></>}
+                {l.status === 'approved' && !l.changed && <><button type="button" disabled={busy} onClick={() => pay([l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">{l.paidSoFar > 0 ? 'Pay the rest…' : 'Mark paid…'}</button>{!l.paidSoFar && <><span className="text-zinc-300 mx-1.5">·</span><button type="button" disabled={busy} onClick={() => run('unapprove', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button></>}</>}
                 {l.status === 'paid' && !l.sheet && <button type="button" disabled={busy} onClick={() => run('unpay', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo payment</button>}
               </td>
             </tr>
@@ -111,7 +128,7 @@ function DealCard({ deal, lines, onOpen, run, pay, busy, onEdit }) {
       {(owed.length > 0 || ready.length > 0) && (
         <footer className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-tan-50 border-t border-tan-100">
           {owed.length > 0 && <button type="button" disabled={busy} onClick={() => run('approve', owed.filter((l) => lineAmount(l) > 0))} className={primaryCls}>Approve {owed.length === lines.length ? 'deal' : `${owed.length}`} · {money(sum(owed))}</button>}
-          {ready.length > 0 && <button type="button" disabled={busy} onClick={() => pay(ready)} className={owed.length ? btnCls : primaryCls}>Mark {ready.length === lines.length ? 'deal' : `${ready.length}`} paid… · {money(sum(ready))}</button>}
+          {ready.length > 0 && <button type="button" disabled={busy} onClick={() => pay(ready)} className={owed.length ? btnCls : primaryCls}>Mark {ready.length === lines.length ? 'deal' : `${ready.length}`} paid… · {money(sumLeft(ready))}</button>}
           <button type="button" disabled={busy} onClick={() => onEdit(deal.dealId, null, lines.map((l) => l.part))} className="text-[12.5px] font-semibold text-navy-700 hover:underline">+ Add a Payout</button>
           <span className="ml-auto text-[12px] text-zinc-500">{owed.length ? 'Approve, then mark paid.' : 'Approved — waiting to be paid.'}</span>
         </footer>
@@ -148,7 +165,7 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
               {m.status === 'paid' && paid[0]?.paidOn && <span className="text-[12.5px] text-zinc-500">paid {shortDate(paid[0].paidOn)} · {METHODS[paid[0].method] || paid[0].method}</span>}
               <span className="ml-auto flex items-center gap-2">
                 {owed.length > 0 && <button type="button" disabled={busy} onClick={() => run('approve', owed.filter((l) => lineAmount(l) > 0))} className={primaryCls}>Approve {owed.length === m.lines.length ? 'month' : owed.length} · {money(sum(owed))}</button>}
-                {ready.length > 0 && <button type="button" disabled={busy} onClick={() => pay(ready, `Pay the TC for ${monthName(m.month)}`)} className={owed.length ? btnCls : primaryCls}>Mark paid… · {money(sum(ready))}</button>}
+                {ready.length > 0 && <button type="button" disabled={busy} onClick={() => pay(ready, `Pay the TC for ${monthName(m.month)}`)} className={owed.length ? btnCls : primaryCls}>Mark paid… · {money(sumLeft(ready))}</button>}
                 {ready.length > 0 && !owed.length && <button type="button" disabled={busy} onClick={() => run('unapprove', ready)} className="text-[12.5px] text-zinc-500 hover:underline">Undo approval</button>}
                 {paid.length > 0 && !owed.length && !ready.length && <button type="button" disabled={busy} onClick={() => run('unpay', paid)} className="text-[12.5px] text-zinc-500 hover:underline">Undo payment</button>}
               </span>
@@ -171,6 +188,135 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Add or change an other payment (Luke, Oct 30: "danni did a wheel spin where
+// she received an additional 1% … a general payment with a note as to what it
+// was and why"). Adding it is the approval; it can be changed or removed
+// until money goes out on it.
+function ExtraDialog({ line, payees, deals, onClose }) {
+  const [who, setWho] = useState(line?.who || '');
+  const [amount, setAmount] = useState(line ? String(line.amount) : '');
+  const [note, setNote] = useState(line?.note || '');
+  const [dealId, setDealId] = useState(line?.dealId || null);
+  const [on, setOn] = useState(line?.coe || laToday());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const amt = Math.round(Number(String(amount).replace(/[$,\s]/g, '')) * 100) / 100;
+  const ok = who && amt > 0 && note.trim() && on;
+  const dealOpts = useMemo(() => deals.filter((d) => d.address).map((d) => ({ value: d.id, label: d.address })), [deals]);
+  async function save(remove = false) {
+    setBusy(true); setErr(null);
+    try {
+      await act(remove ? { action: 'extraRemove', id: line.extraId } : { action: line ? 'extraEdit' : 'extraAdd', id: line?.extraId, who, amount: amt, note, dealId, on });
+      onClose();
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-navy-900/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label="Other payment" className="w-full max-w-md rounded-xl bg-white shadow-xl overflow-hidden">
+        <div className={`px-5 py-3 ${PANEL_HEAD}`}><h2 className="font-semibold">{line ? 'Change This Payment' : 'Add a Payment'}</h2></div>
+        <div className="p-5 grid gap-3 text-[13.5px]">
+          <p className="text-zinc-600">A bonus, spiff or anything else that isn't a deal's commission. It's approved as you add it — then mark it paid like any payout.</p>
+          <label className="grid gap-1"><span className="text-zinc-600">Paid to</span>
+            <SearchSelect value={who} onChange={(v) => setWho(v || '')} placeholder="Pick a person" options={payees.map((p) => ({ value: p, label: p }))} />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1"><span className="text-zinc-600">Amount</span><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className={`${selectCls} tabular-nums`} /></label>
+            <label className="grid gap-1"><span className="text-zinc-600">Date</span><input type="date" value={on} onChange={(e) => setOn(e.target.value)} className={selectCls} /></label>
+          </div>
+          <label className="grid gap-1"><span className="text-zinc-600">What it's for and why</span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} placeholder="e.g. Wheel spin — extra 1% on 123 Main St" className={`${selectCls} h-auto py-2`} />
+          </label>
+          <label className="grid gap-1"><span className="text-zinc-600">Deal <span className="text-zinc-400">(optional — shows it on that deal)</span></span>
+            <SearchSelect value={dealId} onChange={(v) => setDealId(v || null)} placeholder="Not tied to a deal" options={dealOpts} />
+          </label>
+          {err && <div className="text-red-700">{err}</div>}
+          <div className="flex items-center gap-2 pt-1">
+            {line && <button type="button" onClick={() => save(true)} disabled={busy} className="text-[12.5px] text-red-700 hover:underline">Remove</button>}
+            <span className="ml-auto flex gap-2">
+              <button type="button" onClick={onClose} className={btnCls}>Cancel</button>
+              <button type="button" onClick={() => save()} disabled={busy || !ok} className={primaryCls}>{busy ? 'Saving…' : line ? 'Save' : `Add · ${amt > 0 ? money(amt) : '$0'}`}</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Other payments still to pay (part paid included), on By deal.
+function OtherPayments({ lines, onAdd, onEdit, pay, run, busy, onOpen, undoPart }) {
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
+      <PanelHead title="Other Payments" sub="bonuses, spiffs and anything that isn't a deal's commission" right={<button type="button" onClick={onAdd} className="text-[12.5px] font-semibold">+ Add a Payment</button>} />
+      {!lines.length ? <div className="px-5 py-5 text-center text-[13.5px] text-zinc-500">Nothing waiting. Use + Add a Payment for a bonus or anything else to pay out.</div> : (
+        <table className="w-full text-[13.5px]">
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.key} className="border-t border-tan-100 first:border-t-0 align-top">
+                <td className="pl-4 pr-2 py-2 w-[200px]"><Person name={l.who} full /></td>
+                <td className="px-2 py-2 min-w-[360px]">
+                  <div className="text-navy-800">{l.note}</div>
+                  <div className="text-[12px] text-zinc-500">{shortDate(l.coe, { year: true })}{l.dealId && <> · <button type="button" onClick={() => onOpen(l.dealId)} className="hover:underline">{l.address || 'deal'}</button></>} · added by {l.createdBy || l.approvedBy || '—'}</div>
+                </td>
+                <td className="px-2 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(lineAmount(l))}</td>
+                <td className="px-2 py-2"><StatusPill l={l} /></td>
+                <td className="px-2 py-2 text-[12.5px] w-full min-w-[200px]">{l.paidSoFar > 0 && <Trail l={{ ...l, approvedBy: null }} onUndoPart={busy ? null : undoPart} />}</td>
+                <td className="pr-4 pl-2 py-2 text-right whitespace-nowrap">
+                  {!l.paidSoFar && <><button type="button" disabled={busy} onClick={() => onEdit(l)} className="text-[12.5px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button><span className="text-zinc-300 mx-1.5">·</span></>}
+                  {(l.status === 'owed' || l.changed) && <button type="button" disabled={busy} onClick={() => run('approve', [l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Approve</button>}
+                  {l.status === 'approved' && !l.changed && <button type="button" disabled={busy} onClick={() => pay([l])} className="text-[12.5px] font-semibold text-navy-700 hover:underline">{l.paidSoFar > 0 ? 'Pay the rest…' : 'Mark paid…'}</button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+// Every payment that went out, newest first — a part payment is its own row.
+function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-[13.5px]">
+        <thead className="text-[12px] font-semibold text-navy-700 bg-navy-50/70">
+          <tr>
+            <th className="pl-4 px-2.5 py-2">Paid on</th>
+            <th className="px-2.5 py-2">Deal</th>
+            <th className="px-2.5 py-2">Person</th>
+            <th className="px-2.5 py-2">For</th>
+            <th className="px-2.5 py-2 text-right">Amount</th>
+            <th className="px-2.5 py-2 w-full">How</th>
+            <th className="px-2.5 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => {
+            const l = p.line;
+            const partly = !p.final || (l.payments || []).length > 1;
+            return (
+              <tr key={p.key} className="border-t border-tan-100 hover:bg-tan-50">
+                <td className="pl-4 px-2.5 py-2 whitespace-nowrap">{shortDate(p.paidOn, { year: true }) || '—'}</td>
+                <td className="px-2.5 py-2 min-w-[220px]">{l.dealId ? <button type="button" onClick={() => onOpen(l.dealId)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{l.address}</button> : <span className="text-zinc-500">—</span>}</td>
+                <td className="px-2.5 py-2 whitespace-nowrap"><Person name={l.who} full /></td>
+                <td className="px-2.5 py-2 text-zinc-700">{isExtra(l) ? <span title={l.note}>Other · {l.note}</span> : partLabel(l.part)}{isTcLine(l) ? <span className="text-zinc-400"> · monthly</span> : ''}{partly && <span className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">{p.final ? 'paid off' : 'part'}</span>}</td>
+                <td className="px-2.5 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(p.amount)}</td>
+                <td className="px-2.5 py-2 text-[12.5px] text-zinc-500 whitespace-nowrap">{METHODS[p.method] || p.method}{p.ref ? ` · ${p.ref}` : ''}{p.by ? ` · ${p.by}` : ''}</td>
+                <td className="px-2.5 py-2 text-right">
+                  {p.final && l.status === 'paid' && <button type="button" disabled={busy} onClick={() => run('unpay', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button>}
+                  {!p.final && l.status !== 'paid' && <button type="button" disabled={busy} onClick={() => undoPart(l, p)} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot><tr className="border-t-2 border-navy-100 bg-navy-50/60 font-semibold"><td colSpan={4} className="pl-4 px-2.5 py-2 text-navy-800">Total · {rows.length}</td><td className="px-2.5 py-2 text-right tabular-nums">{money(rows.reduce((t, p) => t + p.amount, 0))}</td><td colSpan={2} /></tr></tfoot>
+      </table>
     </div>
   );
 }
@@ -218,6 +364,7 @@ export default function PayoutsView({ embedded = false }) {
   const [q, setQ] = useState('');
   const [paying, setPaying] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [extra, setExtra] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const today = laToday();
@@ -227,7 +374,7 @@ export default function PayoutsView({ embedded = false }) {
   const deals = useMemo(() => {
     const by = new Map();
     for (const l of f.lines) {
-      if (isTcLine(l) || l.gone) continue;
+      if (isTcLine(l) || isExtra(l) || l.gone) continue;
       by.set(l.dealId, [...(by.get(l.dealId) || []), l]);
     }
     return [...by.values()]
@@ -243,10 +390,12 @@ export default function PayoutsView({ embedded = false }) {
   const readyToPay = shownDeals.filter((d) => !d.toApprove);
   const nonTc = f.lines.filter((l) => !isTcLine(l));
   const owedAmt = sum(nonTc.filter((l) => l.status === 'owed' || l.changed));
-  const readyAmt = sum(nonTc.filter((l) => l.status === 'approved' && !l.changed));
+  const readyAmt = sumLeft(nonTc.filter((l) => l.status === 'approved' && !l.changed));
+  const others = f.lines.filter((l) => isExtra(l) && l.status !== 'paid' && match(l)).sort((a, b) => String(a.coe).localeCompare(String(b.coe)));
   const tcDue = months.filter((m) => m.status !== 'paid');
-  const paidRows = f.lines.filter((l) => l.status === 'paid' && !l.sheet && match(l)).sort((a, b) => String(b.paidOn || '').localeCompare(String(a.paidOn || '')));
-  const paidThisMonth = f.lines.filter((l) => l.status === 'paid' && !l.sheet && String(l.paidOn || '').startsWith(today.slice(0, 7)));
+  const payments = paymentsOf(f.lines);
+  const paidRows = payments.filter((p) => match(p.line));
+  const paidThisMonth = payments.filter((p) => String(p.paidOn || '').startsWith(today.slice(0, 7)));
   const comingRows = f.coming.filter(match).sort((a, b) => String(a.coe || '9999').localeCompare(String(b.coe || '9999')));
   const setTab = (k) => { setErr(null); setQuery({ tab: k === 'deals' ? null : k }); };
   async function run(action, ls) {
@@ -255,6 +404,10 @@ export default function PayoutsView({ embedded = false }) {
     try { await act({ action, keys: ls.map((l) => l.key) }); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   }
   const pay = (ls, title) => setPaying({ lines: ls, title });
+  async function undoPart(l, p) {
+    setBusy(true); setErr(null);
+    try { await act({ action: 'unpart', keys: [l.key], payment: p.id }); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  }
   const n = (x, one, many = `${one}s`) => `${x} ${x === 1 ? one : many}`;
 
   return (
@@ -271,9 +424,9 @@ export default function PayoutsView({ embedded = false }) {
       {!embedded && <CompanyOutlook deals={f.deals} rules={f.rules} />}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MoneyTile label="To approve" accent="amber" value={money(owedAmt)} sub={n(deals.filter((d) => d.toApprove).length, 'deal')} tone={owedAmt ? 'text-[#B54708]' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
-        <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={n(deals.filter((d) => !d.toApprove).length, 'deal')} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
-        <MoneyTile label="TC monthly" accent="violet" value={money(sum(tcDue.flatMap((m) => m.lines.filter((l) => l.status !== 'paid'))))} sub={tcDue.length ? `${tcDue.map((m) => monthName(m.month).split(' ')[0]).join(', ')} not paid yet` : 'all months paid'} tone="text-violet-800" active={tab === 'tc'} onClick={() => setTab('tc')} />
-        <MoneyTile label="Paid this month" accent="green" value={money(sum(paidThisMonth))} sub={n(paidThisMonth.length, 'payout')} tone="text-[#15803D]" active={tab === 'paid'} onClick={() => setTab('paid')} />
+        <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={`${n(deals.filter((d) => !d.toApprove).length, 'deal')}${others.length ? ` · ${n(others.length, 'other')}` : ''}`} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
+        <MoneyTile label="TC monthly" accent="violet" value={money(sumLeft(tcDue.flatMap((m) => m.lines.filter((l) => l.status !== 'paid'))))} sub={tcDue.length ? `${tcDue.map((m) => monthName(m.month).split(' ')[0]).join(', ')} not paid yet` : 'all months paid'} tone="text-violet-800" active={tab === 'tc'} onClick={() => setTab('tc')} />
+        <MoneyTile label="Paid this month" accent="green" value={money(paidThisMonth.reduce((t, p) => t + p.amount, 0))} sub={n(paidThisMonth.length, 'payment')} tone="text-[#15803D]" active={tab === 'paid'} onClick={() => setTab('paid')} />
         <MoneyTile label="Coming due" accent="tan" value={money(sum(f.coming))} sub="open assigned deals · paid at closing" active={tab === 'coming'} onClick={() => setTab('coming')} />
       </div>
 
@@ -288,13 +441,14 @@ export default function PayoutsView({ embedded = false }) {
 
       {tab === 'deals' && (
         <div className="grid gap-5">
+          <OtherPayments lines={others} onAdd={() => setExtra({})} onEdit={(l) => setExtra({ line: l })} pay={pay} run={run} busy={busy} onOpen={open} undoPart={undoPart} />
           {[['To approve', 'Closed deals with commissions waiting for Luke or Jack', toApprove], ['Approved — ready to pay', 'Mark each deal paid once the money has gone out', readyToPay]].map(([title, sub, list]) => (
             <section key={title}>
               <div className="flex items-baseline gap-2 mb-2">
                 <h2 className="text-[16px] font-semibold text-navy-800">{titleCase(title)}</h2>
-                <span className="text-[13px] text-zinc-500">{list.length ? `${n(list.length, 'deal')} · ${money(sum(list.flatMap((d) => d.lines.filter((l) => l.status !== 'paid'))))}` : ''} — {sub}</span>
+                <span className="text-[13px] text-zinc-500">{list.length ? `${n(list.length, 'deal')} · ${money(sumLeft(list.flatMap((d) => d.lines.filter((l) => l.status !== 'paid'))))}` : ''} — {sub}</span>
               </div>
-              {list.length ? <div className="grid gap-3">{list.map((d) => <DealCard key={d.dealId} deal={d} lines={d.lines} onOpen={open} run={run} pay={pay} busy={busy} onEdit={(id, part, have) => setEditing({ id, part, have })} />)}</div>
+              {list.length ? <div className="grid gap-3">{list.map((d) => <DealCard key={d.dealId} deal={d} lines={d.lines} onOpen={open} run={run} pay={pay} busy={busy} undoPart={undoPart} onEdit={(id, part, have) => setEditing({ id, part, have })} />)}</div>
                 : <div className="rounded-xl border border-dashed border-tan-200 bg-white px-5 py-6 text-center text-[13.5px] text-zinc-500">Nothing here.</div>}
             </section>
           ))}
@@ -308,8 +462,8 @@ export default function PayoutsView({ embedded = false }) {
       )}
       {tab === 'paid' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
-          <PanelHead title="Paid" sub="every payout marked paid here, newest first (ones marked paid in the tracker aren't listed)" />
-          {paidRows.length ? <LineTable rows={paidRows} onOpen={open} run={run} busy={busy} /> : <div className="px-5 py-8 text-center text-zinc-500">No payments recorded yet.</div>}
+          <PanelHead title="Paid" sub="every payment made here, newest first — a part payment is its own row (ones marked paid in the tracker aren't listed)" />
+          {paidRows.length ? <PaymentsTable rows={paidRows} onOpen={open} run={run} undoPart={undoPart} busy={busy} /> : <div className="px-5 py-8 text-center text-zinc-500">No payments recorded yet.</div>}
         </section>
       )}
       {tab === 'coming' && (
@@ -319,6 +473,7 @@ export default function PayoutsView({ embedded = false }) {
         </section>
       )}
       {editing && <PayoutEditor dealId={editing.id} part={editing.part} lockedParts={editing.have || []} onClose={() => setEditing(null)} />}
+      {extra && <ExtraDialog line={extra.line} payees={f.payees} deals={f.deals} onClose={() => setExtra(null)} />}
       {paying && <PayDialog lines={paying.lines} title={paying.title} onClose={() => setPaying(null)} onDone={() => setPaying(null)} />}
       {panel}
     </div>

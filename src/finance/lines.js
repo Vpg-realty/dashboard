@@ -13,7 +13,7 @@
 // edited) is flagged `changed` and needs approving again.
 import { payouts, isAssigned, isOpen, keptMoney } from '../deals/math.js';
 
-export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC' };
+export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC', extra: 'Other payment' };
 export const METHODS = { ACH: 'ACH', CHECK: 'Check', WIRE: 'Wire', ZELLE: 'Zelle', OTHER: 'Other' };
 export const STATUS_LABEL = { owed: 'To approve', approved: 'To pay', paid: 'Paid' };
 
@@ -57,10 +57,36 @@ export function finishDate(d) {
 export const tcOnFinish = (d) => (isClosed(d) || (isCancelled(d) && reachedDispo(d))) && (finishDate(d) || '') >= TC_MONTHLY_FROM;
 const settles = (d, part) => settledInSheet(d) && (part !== 'tc' || (!tcOnFinish(d) && String(d.coe || '') < TC_MONTHLY_FROM));
 export const lineKey = (dealId, part) => `${dealId}:${part}`;
+// Other payments (Luke, Oct 30: "a general payment with a note as to what it
+// was and why" — a wheel-spin bonus, a spiff): D1 `fin_extras`, one line each
+// with part 'extra', its approval / payment in fin_payouts under the extra's
+// own id (deal_id = the extra id). It may name a deal (shown on the deal) but
+// never changes the deal's numbers or its Commission paid.
+export const isExtra = (l) => l.part === 'extra';
+const cents2 = (n) => Math.round(Number(n) * 100) / 100;
+// Payments toward a line (Luke, Oct 30: "my zelle is capped at 5k per day …
+// pay him partially, … the remainder tomorrow"): D1 `fin_payments`, one row
+// per payment; `final` = the one that paid it off. A line paid before
+// partial payments existed has no rows — its one payment is the fin_payouts
+// row itself.
+function withPayments(line, r, pays) {
+  const list = (pays || []).map((p) => ({ id: p.id, amount: cents2(p.amount), paidOn: p.paid_on, method: p.method, ref: p.ref, by: p.paid_by, final: !!p.final }))
+    .sort((a, b) => String(a.paidOn).localeCompare(String(b.paidOn)) || a.id - b.id);
+  if (line.status === 'paid' && !list.length && !line.sheet) list.push({ id: null, amount: line.due ?? line.amount, paidOn: r?.paid_on, method: r?.method, ref: r?.ref, by: r?.paid_by, final: true });
+  const paidSoFar = cents2(list.reduce((t, p) => t + p.amount, 0));
+  const worth = line.status === 'approved' ? (line.due ?? line.amount) : line.amount;
+  line.payments = list;
+  line.paidSoFar = paidSoFar;
+  line.left = line.status === 'paid' ? 0 : Math.max(0, cents2(worth - paidSoFar));
+  return line;
+}
 
-// deals: computed (math.js compute); rows: fin_payouts rows.
-export function buildLines(deals, rules, rows = []) {
+// deals: computed (math.js compute); rows: fin_payouts rows; extras:
+// fin_extras rows; payments: fin_payments rows.
+export function buildLines(deals, rules, rows = [], { extras = [], payments = [] } = {}) {
   const byKey = new Map(rows.map((r) => [lineKey(r.deal_id, r.part), r]));
+  const paysBy = new Map();
+  for (const p of payments) { const k = lineKey(p.deal_id, p.part); paysBy.set(k, [...(paysBy.get(k) || []), p]); }
   const out = [];
   const seen = new Set();
   for (const d of deals) {
@@ -83,31 +109,46 @@ export function buildLines(deals, rules, rows = []) {
       }
       // "Commission paid" = Yes in the tracker settles every line not paid
       // here (no row, or only approved).
+      base.rowDeal = d.id;
       if (!r || (r.status !== 'paid' && settles(d, p.part))) {
-        out.push({ ...base, status: settles(d, p.part) ? 'paid' : 'owed', sheet: settles(d, p.part) });
+        out.push(withPayments({ ...base, status: settles(d, p.part) ? 'paid' : 'owed', sheet: settles(d, p.part) }, r, paysBy.get(key)));
         continue;
       }
-      out.push({
+      out.push(withPayments({
         // A paid line stays with whoever was paid; an approval for someone
         // else (the payout was handed over since) needs approving again.
         ...base, who: r.status === 'paid' && r.who ? r.who : p.who, status: r.status, due: cents(r.amount),
         changed: r.status === 'approved' && (Math.abs(cents(r.amount) - amount) >= 0.01 || (!!r.who && r.who !== p.who)),
         approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
-      });
+      }, r, paysBy.get(key)));
     }
+  }
+  const dealOf = new Map(deals.map((d) => [d.id, d]));
+  for (const x of extras) {
+    const key = lineKey(x.id, 'extra');
+    seen.add(key);
+    const r = byKey.get(key);
+    const d = x.deal_id ? dealOf.get(x.deal_id) : null;
+    const amount = cents(x.amount);
+    const base = { key, rowDeal: x.id, extraId: x.id, dealId: x.deal_id || null, address: d?.address || null, coe: x.on, part: 'extra', who: x.who, amount, note: x.note, createdBy: x.created_by };
+    out.push(withPayments(!r ? { ...base, status: 'owed' } : {
+      ...base, status: r.status, due: cents(r.amount),
+      changed: r.status === 'approved' && (Math.abs(cents(r.amount) - amount) >= 0.01 || (!!r.who && r.who !== x.who)),
+      approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
+    }, r, paysBy.get(key)));
   }
   // A row whose line is gone (the deal reopened, or its commission is now 0):
   // a payment stays on record; an approval shows as changed so it can be undone.
   const dealById = new Map(deals.map((d) => [d.id, d]));
   for (const r of rows) {
     const key = lineKey(r.deal_id, r.part);
-    if (seen.has(key)) continue;
+    if (seen.has(key) || r.part === 'extra') continue;
     const d = dealById.get(r.deal_id);
-    out.push({
-      key, dealId: r.deal_id, address: d?.address || '(deleted deal)', coe: d?.coe || null, part: r.part, who: r.who, amount: 0,
+    out.push(withPayments({
+      key, rowDeal: r.deal_id, dealId: r.deal_id, address: d?.address || '(deleted deal)', coe: d?.coe || null, part: r.part, who: r.who, amount: 0,
       status: r.status, due: cents(r.amount), changed: r.status === 'approved', gone: true,
       approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
-    });
+    }, r, paysBy.get(key)));
   }
   return out;
 }
@@ -126,7 +167,15 @@ export function payByDeal(lines) {
   const out = new Map();
   for (const l of lines) {
     if (l.gone || !(l.amount > 0 || l.status !== 'owed')) continue;
-    const e = out.get(l.dealId) || { parts: {}, paid: 0, total: 0 };
+    // Other payments naming the deal are listed under its commissions.
+    if (isExtra(l)) {
+      if (!l.dealId) continue;
+      const e = out.get(l.dealId) || { parts: {}, paid: 0, total: 0, extras: [] };
+      e.extras = [...(e.extras || []), l];
+      out.set(l.dealId, e);
+      continue;
+    }
+    const e = out.get(l.dealId) || { parts: {}, paid: 0, total: 0, extras: [] };
     e.parts[l.part] = l;
     // "N of M paid" is what Commission paid covers — not the monthly TC fee.
     if (!isTcLine(l)) { e.total += 1; if (l.status === 'paid') e.paid += 1; }
@@ -134,11 +183,13 @@ export function payByDeal(lines) {
   }
   return out;
 }
+const moneyShort = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const shortDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 // How a line reads next to its commission: { text, tone }.
 export function payText(l) {
   if (!l) return null;
   if (l.status === 'paid') return l.sheet ? { text: 'Paid', tone: 'green' } : { text: `Paid ${l.paidOn ? shortDay(l.paidOn) : ''}${l.method ? ` · ${METHODS[l.method] || l.method}` : ''}`.trim(), tone: 'green' };
+  if (l.status === 'approved' && l.paidSoFar > 0 && !l.changed) return { text: `Partly paid · ${moneyShort(l.left)} left`, tone: 'violet' };
   if (l.status === 'approved') return l.changed ? { text: 'Changed — approve again', tone: 'red' } : { text: 'Approved · to pay', tone: 'blue' };
   return { text: 'To approve', tone: 'amber' };
 }
@@ -162,6 +213,13 @@ export function tcMonths(lines) {
 export const lineAmount = (l) => (l.status === 'paid' && l.due != null ? l.due : l.status === 'approved' ? (l.due ?? l.amount) : l.amount);
 
 export const sum = (ls) => ls.reduce((t, l) => t + lineAmount(l), 0);
+// What's still to send on a line (approved less any partial payments).
+export const leftOf = (l) => (l.status === 'paid' ? 0 : l.left ?? lineAmount(l));
+export const sumLeft = (ls) => cents2(ls.reduce((t, l) => t + leftOf(l), 0));
+// Every payment, newest first (the Paid list, "paid this month"):
+// [{ key, line, amount, paidOn, method, ref, by, id, final }].
+export const paymentsOf = (lines) => lines.filter((l) => !l.sheet).flatMap((l) => (l.payments || []).map((p) => ({ ...p, key: `${l.key}#${p.id ?? 'row'}`, line: l })))
+  .sort((a, b) => String(b.paidOn || '').localeCompare(String(a.paidOn || '')));
 export const partLabel = (p) => PARTS[p] || p;
 
 // Coming due: commissions on open deals that are assigned with a price in,
