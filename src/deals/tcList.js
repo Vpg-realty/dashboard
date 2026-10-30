@@ -191,6 +191,7 @@ export const ISSUE_KINDS = [
   ['seller', 'Seller not responding'],
   ['buyer', 'Buyer not responding or funding at risk'],
   ['coe', 'COE needs to move'],
+  ['paperwork', 'Contract / paperwork problem'],
   ['other', 'Something else'],
 ];
 export const issueLabel = (k) => ISSUE_KINDS.find(([id]) => id === k)?.[1] || 'Issue';

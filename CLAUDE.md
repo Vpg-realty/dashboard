@@ -1607,8 +1607,8 @@ TC List notes under "Deal tracker" where they differ.
   / 48 h with no buyer, past COE while open, COE within 7 days with no buyer,
   EMD due tomorrow and not sent. (No escrow-# or no-contact warnings — Luke.)
 - **Flag an Issue** (Title problem / Seller not responding / Buyer not
-  responding or funding at risk / COE needs to move / Something else + a
-  line): D1 `tc_issues` (edge/deals.sql; created Oct 26) and one Alerts task
+  responding or funding at risk / COE needs to move / Contract / paperwork
+  problem (`paperwork`, Luke Oct 30) / Something else + a line): D1 `tc_issues` (edge/deals.sql; created Oct 26) and one Alerts task
   per person — the owners and the deal's acq rep and dispo rep only (Luke:
   "only if it is tied to them"; name → rep via subaccounts.json), ext_id
   `tcissue:<id>:<holder>`. Red on the deal until **Mark resolved**, which
