@@ -48,6 +48,22 @@ export async function loadAll(db) {
   return { deals, ...fin, rules, lists, lines: buildLines(deals, rules, fin.rows, fin) };
 }
 
+// A deal's "Other payments" (math.js `otherPay`, out of its net profit) =
+// the other payments that name it. Given the extras as they'll stand, the
+// deal writes that bring every deal in line (also fixes any drift).
+const cents2 = (n) => Math.round(Number(n) * 100) / 100;
+function otherPaySets(all, extras) {
+  const want = new Map();
+  for (const x of extras) if (x.deal_id) want.set(x.deal_id, cents2((want.get(x.deal_id) || 0) + Number(x.amount)));
+  const out = [];
+  for (const d of all.deals) {
+    const to = want.get(d.id) || null;
+    const from = d.otherPay ?? null;
+    if ((from == null ? null : cents2(from)) !== to) out.push({ deal: { id: d.id, set: { otherPay: [from, to] } } });
+  }
+  return out;
+}
+
 // Other payments: add / change / remove (owners). body = { action, id?, who,
 // amount, note, dealId?, on }.
 function planExtra(all, body, user, now) {
@@ -60,6 +76,7 @@ function planExtra(all, body, user, now) {
     return { action, lines: [lineKey(x.id, 'extra')], detail: { who: x.who, amount: x.amount, note: x.note }, statements: [
       ['DELETE FROM fin_extras WHERE id = ?', [x.id]],
       ['DELETE FROM fin_payouts WHERE deal_id = ? AND part = ?', [x.id, 'extra']],
+      ...otherPaySets(all, all.extras.filter((e) => e.id !== x.id)),
     ] };
   }
   const who = String(body.who || '').trim().slice(0, 60);
@@ -78,6 +95,7 @@ function planExtra(all, body, user, now) {
       ['UPDATE fin_extras SET who = ?, amount = ?, note = ?, deal_id = ?, on_day = ?, updated_at = ? WHERE id = ?', [who, amount, note, dealId, on, now, x.id]],
       // Still approved — by whoever changed it, for the new amount.
       ['UPDATE fin_payouts SET who = ?, amount = ?, approved_by = ?, approved_at = ?, updated_at = ? WHERE deal_id = ? AND part = ? AND status = ?', [who, amount, user.name, now, now, x.id, 'extra', 'approved']],
+      ...otherPaySets(all, all.extras.map((e) => (e.id === x.id ? { ...e, amount, deal_id: dealId } : e))),
     ] };
   }
   // An owner adding it is the approval (Luke or Jack).
@@ -85,6 +103,7 @@ function planExtra(all, body, user, now) {
   return { action, lines: [lineKey(id, 'extra')], detail, statements: [
     ['INSERT INTO fin_extras (id, who, amount, note, deal_id, on_day, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, who, amount, note, dealId, on, user.name, now, now]],
     ['INSERT INTO fin_payouts (deal_id, part, who, amount, status, approved_by, approved_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [id, 'extra', who, amount, 'approved', user.name, now, now]],
+    ...otherPaySets(all, [...all.extras, { id, amount, deal_id: dealId }]),
   ] };
 }
 

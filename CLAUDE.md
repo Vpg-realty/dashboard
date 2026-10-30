@@ -2918,9 +2918,18 @@ the approval records who).
   payouts at once always pay what's left in full. **Other Payments** (top of
   Money In & Out › By Deal, "+ Add a Payment"): adding it is the approval
   (`extraAdd`; fin_payouts row deal_id = the extra's id, part `extra`);
-  Edit / Remove until money goes out (`extraEdit` / `extraRemove`). It shows
-  under its deal's Commissions in the deal panel but never changes the deal's
-  numbers, Commission paid or the company outlook. Paid lists every payment
+  Edit / Remove until money goes out (`extraEdit` / `extraRemove`). One tied
+  to a deal **comes out of that deal's net profit** (Luke, later Oct 30: "if
+  an additional payment is added on the deal take it out. internal items
+  would remain off of the deal specific numbers"): the deal field `otherPay`
+  (math.js, 'fin' = set by Finance only, owners only) = the total of the
+  other payments naming it, rewritten by `otherPaySets` (edge/finance.js) on
+  every add / change / remove and logged in the deal's history; compute()
+  takes it out of net profit (so Finance Overview, the outlook and the All
+  Deals "Other payments" column follow); The Money's breakdown lists each
+  one. A payment with no deal never touches any deal. It never changes the
+  deal's Commission paid. "Paid to" can be anyone in the tracker or a name
+  typed in ("✎ Someone else"). Paid lists every payment
   (a part is its own row); Statements count parts as paid and list other
   payments by their date. Usage: two tiny tables read per Finance load.
 - **Lines** (`src/finance/lines.js`, shared by the pages and the server):

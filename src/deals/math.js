@@ -94,6 +94,12 @@ export const FIELDS = [
   ['overridePaidOn', 'Override paid on', 'pay', 'date', 'fin', 'secret'],
   ['tcComm', 'TC commission', 'pay', 'money', 'calc', 'secret'],
   ['tcPaidOn', 'TC commission paid on', 'pay', 'date', 'fin', 'secret'],
+  // Other payments tied to the deal (Luke, Oct 30: "if an additional payment
+  // is added on the deal take it out" — a bonus like a wheel-spin 1%): their
+  // total, written by Finance (edge/finance.js) when one is added, changed or
+  // removed, and taken out of net profit. Payments with no deal never touch
+  // a deal's numbers.
+  ['otherPay', 'Other payments', 'pay', 'money', 'fin', 'secret'],
   ['grossProfit', 'Gross profit', 'pay', 'money', 'calc', 'secret'],
   ['netProfit', 'Net profit', 'pay', 'money', 'calc', 'secret'],
   ['commPaid', 'Commission paid', 'pay', 'list', null, 'secret'],
@@ -370,7 +376,8 @@ export function compute(deal, rules, lists) {
   // A kept-money cancel already took VPG's lost EMD out of its gross.
   const emdLost = !kept && (is(d.emdReturned, 'NO') || is(d.emdReturned, 'LOST'));
   set('grossProfit', emdLost ? num(d.netAssign) - num(d.emd) : cancelled ? -num(d.optionFee) - paid : num(d.netAssign));
-  set('netProfit', emdLost ? num(d.netAssign) - num(d.emd) - paid : cancelled ? -num(d.optionFee) - paid : num(d.netAssign) - paid);
+  const other = num(d.otherPay);
+  set('netProfit', (emdLost ? num(d.netAssign) - num(d.emd) - paid : cancelled ? -num(d.optionFee) - paid : num(d.netAssign) - paid) - other);
   return d;
 }
 

@@ -198,6 +198,8 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
 // until money goes out on it.
 function ExtraDialog({ line, payees, deals, onClose }) {
   const [who, setWho] = useState(line?.who || '');
+  // Someone not in the tracker (Luke, Oct 30): type the name in.
+  const [typing, setTyping] = useState(!!line?.who && !payees.includes(line.who));
   const [amount, setAmount] = useState(line ? String(line.amount) : '');
   const [note, setNote] = useState(line?.note || '');
   const [dealId, setDealId] = useState(line?.dealId || null);
@@ -205,7 +207,7 @@ function ExtraDialog({ line, payees, deals, onClose }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const amt = Math.round(Number(String(amount).replace(/[$,\s]/g, '')) * 100) / 100;
-  const ok = who && amt > 0 && note.trim() && on;
+  const ok = who.trim() && amt > 0 && note.trim() && on;
   const dealOpts = useMemo(() => deals.filter((d) => d.address).map((d) => ({ value: d.id, label: d.address })), [deals]);
   async function save(remove = false) {
     setBusy(true); setErr(null);
@@ -221,7 +223,9 @@ function ExtraDialog({ line, payees, deals, onClose }) {
         <div className="p-5 grid gap-3 text-[13.5px]">
           <p className="text-zinc-600">A bonus, spiff or anything else that isn't a deal's commission. It's approved as you add it — then mark it paid like any payout.</p>
           <label className="grid gap-1"><span className="text-zinc-600">Paid to</span>
-            <SearchSelect value={who} onChange={(v) => setWho(v || '')} placeholder="Pick a person" options={payees.map((p) => ({ value: p, label: p }))} />
+            {typing
+              ? <span className="flex gap-2"><input autoFocus value={who} onChange={(e) => setWho(e.target.value)} maxLength={60} placeholder="Their name" className={`${selectCls} flex-1`} /><button type="button" onClick={() => { setTyping(false); setWho(''); }} className="text-[12.5px] text-zinc-500 hover:underline">Pick from list</button></span>
+              : <SearchSelect value={who} onChange={(v) => { if (v === '__type') { setTyping(true); setWho(''); } else setWho(v || ''); }} placeholder="Pick a person" pinned={[{ value: '__type', label: '✎ Someone else — type the name' }]} options={payees.map((p) => ({ value: p, label: p }))} />}
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1"><span className="text-zinc-600">Amount</span><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className={`${selectCls} tabular-nums`} /></label>
@@ -230,7 +234,7 @@ function ExtraDialog({ line, payees, deals, onClose }) {
           <label className="grid gap-1"><span className="text-zinc-600">What it's for and why</span>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} placeholder="e.g. Wheel spin — extra 1% on 123 Main St" className={`${selectCls} h-auto py-2`} />
           </label>
-          <label className="grid gap-1"><span className="text-zinc-600">Deal <span className="text-zinc-400">(optional — shows it on that deal)</span></span>
+          <label className="grid gap-1"><span className="text-zinc-600">Deal <span className="text-zinc-400">(optional — comes out of that deal's profit; with none it stays off every deal)</span></span>
             <SearchSelect value={dealId} onChange={(v) => setDealId(v || null)} placeholder="Not tied to a deal" options={dealOpts} />
           </label>
           {err && <div className="text-red-700">{err}</div>}

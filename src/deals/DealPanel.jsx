@@ -680,6 +680,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
     add('Net assignment', merged.netAssign, 'sum');
     if (owner) {
       for (const p of pay) add(`${p.part[0].toUpperCase()}${p.part.slice(1)} · ${first(p.who)}`, -p.amount, 'minus');
+      // Other payments on this deal (Finance › Other Payments).
+      if (fin?.extras?.length) for (const x of fin.extras) add(`Other · ${first(x.who)}`, -x.amount, 'minus');
+      else if (Number(merged.otherPay)) add('Other payments', -Number(merged.otherPay), 'minus');
       add('Net profit', merged.netProfit, 'total');
     }
     return { rows };
