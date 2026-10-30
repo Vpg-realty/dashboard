@@ -4,7 +4,7 @@
 // a new window) and CSV.
 import { useMemo } from 'react';
 import { useFinance } from './store.js';
-import { METHODS, lineAmount, partLabel, sum } from './lines.js';
+import { METHODS, lineAmount, partLabel, sum, isExtra } from './lines.js';
 import { StatusPill, MoneyTile, FinanceHead } from './ui.jsx';
 import { Loading } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, downloadCsv } from '../deals/format.js';
@@ -17,13 +17,21 @@ import { PanelHead } from '../shell/Panel.jsx';
 import { laToday } from '../utils/historyRange.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const paidText = (l) => (l.status !== 'paid' ? '' : l.sheet ? 'Paid (tracker)' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
-const statusText = (l) => (l.status === 'paid' ? 'Paid' : l.status === 'approved' ? 'Approved' : 'Owed');
+// Every payment on the line (part payments each with their date).
+const payOne = (p) => `${money(p.amount)} ${shortDate(p.paidOn)} · ${METHODS[p.method] || p.method}${p.ref ? ` · ${p.ref}` : ''}`;
+const paidText = (l) => (l.sheet ? 'Paid (tracker)' : (l.payments || []).length > 1 || (l.status !== 'paid' && l.paidSoFar > 0) ? l.payments.map(payOne).join('; ')
+  : l.status !== 'paid' ? '' : `${shortDate(l.paidOn)} · ${METHODS[l.method] || l.method}${l.ref ? ` · ${l.ref}` : ''}`);
+const statusText = (l) => (l.status === 'paid' ? 'Paid' : l.paidSoFar > 0 ? 'Partly paid' : l.status === 'approved' ? 'Approved' : 'Owed');
+// What was paid on a line so far (all of it once paid).
+const paidOf = (l) => (l.status === 'paid' ? lineAmount(l) : l.paidSoFar || 0);
+// Other payments read by what they were for.
+const what = (l) => (isExtra(l) ? (l.address ? `${l.note} · ${l.address}` : l.note) : l.address);
+const forText = (l) => (isExtra(l) ? 'Other payment' : partLabel(l.part));
 
 function printStatement({ who, period, rows, totals }) {
   const w = window.open('', '_blank');
   if (!w) return;
-  const tr = rows.map((l) => `<tr><td>${esc(l.address)}</td><td>${esc(shortDate(l.coe))}</td><td>${esc(partLabel(l.part))}</td><td class="r">${esc(money(lineAmount(l)))}</td><td>${esc(statusText(l))}</td><td>${esc(paidText(l))}</td></tr>`).join('');
+  const tr = rows.map((l) => `<tr><td>${esc(what(l))}</td><td>${esc(shortDate(l.coe))}</td><td>${esc(forText(l))}</td><td class="r">${esc(money(lineAmount(l)))}</td><td>${esc(statusText(l))}</td><td>${esc(paidText(l))}</td></tr>`).join('');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Statement · ${esc(who)} · ${esc(period.label)}</title>
 <style>body{font:13px/1.45 -apple-system,Segoe UI,Arial,sans-serif;color:#1f2937;margin:32px}h1{color:#1b385f;font-size:20px;margin:0}
 .sub{color:#6b7280;margin:4px 0 18px}.tot{display:flex;gap:28px;margin:0 0 18px}.tot div{border-top:3px solid #1b385f;padding-top:6px}
@@ -49,15 +57,16 @@ export default function StatementsView() {
   if (f.status !== 'ready') return <Loading s={f} />;
   const paid = rows.filter((l) => l.status === 'paid');
   const owed = rows.filter((l) => l.status !== 'paid');
-  const totals = { earned: sum(rows), paid: sum(paid), owed: sum(owed) };
+  const paidAmt = Math.round(rows.reduce((t, l) => t + paidOf(l), 0) * 100) / 100;
+  const totals = { earned: sum(rows), paid: paidAmt, owed: Math.round((sum(rows) - paidAmt) * 100) / 100 };
   const csv = () => downloadCsv(`statement-${who.replace(/\s+/g, '-').toLowerCase()}-${period.key.replace(/[:.]/g, '-')}.csv`, [
-    { label: 'Property', get: (l) => l.address }, { label: 'Closed', get: (l) => l.coe }, { label: 'For', get: (l) => partLabel(l.part) },
+    { label: 'Property', get: what }, { label: 'Closed', get: (l) => l.coe }, { label: 'For', get: forText },
     { label: 'Amount', get: (l) => lineAmount(l) }, { label: 'Status', get: statusText }, { label: 'Paid', get: paidText },
   ], rows);
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <FinanceHead eyebrow="Statements" title="Commission statements" sub="One person's commissions for a period, by the deal's closing date — print it or download a CSV." right={<>
+      <FinanceHead eyebrow="Statements" title="Commission statements" sub="One person's commissions for a period, by the deal's closing date (other payments by their own date) — print it or download a CSV." right={<>
         <button type="button" onClick={csv} className={btnCls} disabled={!rows.length}>Export CSV</button>
         <button type="button" onClick={() => printStatement({ who, period, rows, totals })} className={btnCls} disabled={!who}>Print statement</button>
       </>} />
@@ -67,7 +76,7 @@ export default function StatementsView() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <MoneyTile label="Earned" value={money(totals.earned)} sub={`${rows.length} payout${rows.length === 1 ? '' : 's'} · ${period.label}`} />
-        <MoneyTile label="Paid" accent="green" value={money(totals.paid)} sub={`${paid.length} paid`} tone="text-[#15803D]" />
+        <MoneyTile label="Paid" accent="green" value={money(totals.paid)} sub={`${paid.length} paid${owed.some((l) => l.paidSoFar > 0) ? ` · ${owed.filter((l) => l.paidSoFar > 0).length} in part` : ''}`} tone="text-[#15803D]" />
         <MoneyTile label="Still owed" accent="amber" value={money(totals.owed)} sub={`${owed.filter((l) => l.status === 'approved').length} approved · ${owed.filter((l) => l.status === 'owed').length} to approve`} tone={totals.owed ? 'text-[#B54708]' : 'text-zinc-400'} />
         <MoneyTile label="Coming due" accent="tan" value={money(sum(coming))} sub={`${coming.length} open assigned deal${coming.length === 1 ? '' : 's'}`} />
       </div>
@@ -82,9 +91,10 @@ export default function StatementsView() {
               <tbody>
                 {rows.map((l, i) => (
                   <tr key={l.key} className="border-t border-[#E5E9F0]" style={i % 2 ? { background: '#F8FAFC' } : undefined}>
-                    <td className="pl-5 px-2.5 py-2 min-w-[260px]"><button type="button" onClick={() => open(l.dealId)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{l.address}</button></td>
+                    <td className="pl-5 px-2.5 py-2 min-w-[260px]">{isExtra(l) ? <span className="text-navy-800">{l.note}{l.dealId && <> · <button type="button" onClick={() => open(l.dealId)} className="font-semibold hover:underline underline-offset-2">{l.address}</button></>}</span>
+                      : <button type="button" onClick={() => open(l.dealId)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{l.address}</button>}</td>
                     <td className="px-2.5 py-2 whitespace-nowrap">{shortDate(l.coe)}</td>
-                    <td className="px-2.5 py-2">{partLabel(l.part)}</td>
+                    <td className="px-2.5 py-2">{forText(l)}</td>
                     <td className="px-2.5 py-2 text-right tabular-nums font-semibold">{money(lineAmount(l))}</td>
                     <td className="px-2.5 py-2"><StatusPill l={l} /></td>
                     <td className="px-2.5 py-2 text-[12.5px] text-zinc-600">{paidText(l) || '—'}</td>

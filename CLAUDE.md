@@ -2902,6 +2902,27 @@ the approval records who).
   the API refuses edits, "from Finance" in the panel) — edge/finance.js sets
   the part's date when a payout is marked paid and clears it on undo, logged
   in the deal's history with Commission paid (`PART_PAID_ON` in lines.js).
+- **Part payments & other payments** (Luke, Oct 30: "my zelle is capped at
+  5k per day … pay him partially … the remainder tomorrow"; "danni did a
+  wheel spin where she received an additional 1% … a general payment with a
+  note as to what it was and why"): D1 `fin_payments` — one row per payment
+  toward a line (`final` = the one that paid it off; lines paid before Oct 30
+  have none, their fin_payouts row is the payment) — and `fin_extras` (who,
+  amount, note, optional deal, date), both in edge/finance.sql and made by
+  `ensure` (edge/finance.js) on first use. **Mark paid…** on one payout asks
+  the amount sent: less than what's left is a part payment (`pay` with
+  `amount`), the line stays "Partly paid · $X left" (violet) with each part
+  under it (undo = `unpart`), "Pay the rest…" finishes it; only then does the
+  deal sheet get its Paid on date / Commission paid. Unapprove waits until
+  the parts are undone; Undo payment removes only the final payment. Several
+  payouts at once always pay what's left in full. **Other Payments** (top of
+  Money In & Out › By Deal, "+ Add a Payment"): adding it is the approval
+  (`extraAdd`; fin_payouts row deal_id = the extra's id, part `extra`);
+  Edit / Remove until money goes out (`extraEdit` / `extraRemove`). It shows
+  under its deal's Commissions in the deal panel but never changes the deal's
+  numbers, Commission paid or the company outlook. Paid lists every payment
+  (a part is its own row); Statements count parts as paid and list other
+  payments by their date. Usage: two tiny tables read per Finance load.
 - **Lines** (`src/finance/lines.js`, shared by the pages and the server):
   every closed (COMPLETE) deal's `payouts()` (math.js — acq, dispo,
   manager, override, TC) is a line `<dealId>:<part>`: **Owed → Approved →

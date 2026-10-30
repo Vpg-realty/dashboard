@@ -1,18 +1,20 @@
-// GET  /api/finance → { rows } — approvals / payments (fin_payouts); the
-//      pages build the lines from GET /api/deals with src/finance/lines.js.
-// POST /api/finance { action: approve | unapprove | pay | unpay, keys,
-//      paidOn?, method?, ref? } → { rows } after the change.
+// GET  /api/finance → { rows, payments, extras } — approvals (fin_payouts),
+//      payments incl. part payments (fin_payments) and other payments
+//      (fin_extras); the pages build the lines from GET /api/deals with
+//      src/finance/lines.js.
+// POST /api/finance { action: approve | unapprove | pay | unpay | unpart,
+//      keys, paidOn?, method?, ref?, amount?, payment? } or { action:
+//      extraAdd | extraEdit | extraRemove, id?, who, amount, note, dealId?,
+//      on } → the same as GET after the change.
 // Owners only, never while viewing as (edge/settings.js `owner`).
 import { json } from '../../../edge/auth.js';
 import { owner } from '../../../edge/settings.js';
-import { loadAll, plan, run } from '../../../edge/finance.js';
-
-const rowsOf = async (db) => (await db.prepare('SELECT * FROM fin_payouts').all()).results;
+import { loadAll, loadRows, plan, run } from '../../../edge/finance.js';
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);
   if (res) return res;
-  return json({ rows: await rowsOf(context.env.DB) });
+  return json(await loadRows(context.env.DB));
 }
 
 export async function onRequestPost(context) {
@@ -24,5 +26,5 @@ export async function onRequestPost(context) {
   const p = plan(await loadAll(db), body, user);
   if (p.error) return json({ error: p.error }, 400);
   await run(db, p, user);
-  return json({ rows: await rowsOf(db) });
+  return json(await loadRows(db));
 }

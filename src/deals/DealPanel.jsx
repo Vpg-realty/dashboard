@@ -753,6 +753,13 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                 </tbody>
               </table>
             )}
+            {c.table && fin?.extras?.length > 0 && (
+              // Other payments that name this deal (Finance › Other Payments) —
+              // paid on their own, they don't change the deal's numbers.
+              <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] grid gap-1">
+                {fin.extras.map((x) => <div key={x.key} className="flex flex-wrap items-center gap-x-2"><b className="font-semibold text-navy-800">Other payment:</b><span>{first(x.who)} · <b className="font-semibold tabular-nums">{money(x.amount)}</b> · {x.note}</span><PayTag line={x} /></div>)}
+              </div>
+            )}
             {c.table && merged.payNote && <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] text-zinc-700"><b className="font-semibold text-navy-800">Payout note:</b> {merged.payNote}</div>}
           </div>
         )) : sec.groups.map((gid) => (
