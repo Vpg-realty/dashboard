@@ -33,7 +33,9 @@ export async function onRequestGet(context) {
   if (!user) return json({ error: 'not signed in' }, 401);
   if (user.role !== 'owner' || user.viewAs) return json({ error: 'owners only' }, 403);
   const k = await keyRow(context.env.DB);
-  return json({ connected: !!k?.token, by: k?.by || null, at: k?.at || null });
+  // The moves saved on the site since this deploy (src/settings/subStore.js
+  // lays them over the baked-in list, so Settings shows them at once).
+  return json({ connected: !!k?.token, by: k?.by || null, at: k?.at || null, changes: await readChanges(context.env.DB) });
 }
 
 export async function onRequestPost(context) {
