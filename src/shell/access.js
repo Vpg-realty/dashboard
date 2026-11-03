@@ -31,6 +31,9 @@ export const LOCKED = new Set(['finance', 'settings', 'toolkit/commission']);
 const SKIP = new Set(['training']);
 const ROW_LABEL = { calendar: 'Calendar', board: 'Team Overview & TV Mode', finance: 'Finance (every tab)', settings: 'Settings (every tab)', alerts: 'Alerts', zips: 'Get Zips', suggestions: 'Suggestion Box', home: 'Home' };
 
+// Grid headings: one-page sections join a group (the mock-up's Daily etc.).
+const GROUP = { home: 'Daily', alerts: 'Daily', pipeline: 'Daily', calendar: 'Daily', zips: 'Territory', board: 'Screens & More', suggestions: 'Screens & More' };
+
 // The page a section / tab belongs to.
 export const pageOf = (sid, tid) => ONE_ROW[sid] || (tid ? `${sid}/${tid}` : sid);
 
@@ -55,10 +58,10 @@ export function accessPages() {
     const add = (page, label) => {
       if (seen.has(page)) return;
       seen.add(page);
-      out.push({ id: page, label, group: s.label, locked: LOCKED.has(page) });
+      out.push({ id: page, label, group: GROUP[s.id] || s.label, locked: LOCKED.has(page) });
     };
     if (!s.tabs || ONE_ROW[s.id]) add(pageOf(s.id), ROW_LABEL[s.id] || s.label);
-    else for (const t of s.tabs) add(pageOf(s.id, t.id), t.label);
+    else for (const t of s.tabs) add(pageOf(s.id, t.id), s.id === 'pipeline' ? `Pipeline · ${t.label}` : t.label);
   }
   return out;
 }
