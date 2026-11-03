@@ -2378,6 +2378,23 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   File has **Oklahoma disclosure signed by the seller** on OK deals only
   (`okdisclosure`, `only: isOk`, counted from `OK_FROM` 2026-11-04). Usage:
   one small read per Toolkit load.
+- **Commission Calculator** (Luke, Nov 3: "we have different commissions
+  across the board … plug in the purchase price, sale price, and select the
+  acq and dispo members, then compare that to another scenario or multiple
+  scenarios"): Toolkit › Calculators › Commission Calculator
+  (`/toolkit/commission`, `CommissionCalc.jsx`, tab `roles: ['owner']`).
+  Up to six scenarios side by side (`MAX`): name, purchase price, sale price
+  (VPG assignment), acquisitions / dispo person (deal_lists `acqTeam` /
+  `dispoMembers`), additional fees, closing costs and a closing date — then
+  a Side by Side table (gross, fees, net, TC fee, commission base, every
+  commission by person, total commissions, net profit, margin) with each
+  scenario's difference from the first. Each scenario is a closed deal run
+  through `compute` / `payouts` (math.js) with the rules GET /api/deals
+  already gives owners, on its closing date — own rates, manager, pod
+  override (reportsTo), TC fee and TC commission as on a real deal (checked:
+  all 10 closed formula deals since Oct 1 give the same payouts and net
+  profit). No server writes and no new reads; scenarios stay on the device
+  (localStorage `vpg.commCalc`).
 - **Three top tabs** (Luke, Nov 3: "documents in one, then offer templates
   in another, then calculators … cleaner"): **Documents** (Proof of Funds,
   Title Agencies), **Offers** (Offer Templates, Contract Terms) and

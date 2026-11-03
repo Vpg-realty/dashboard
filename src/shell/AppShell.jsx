@@ -60,6 +60,7 @@ import TitleAgencies from '../toolkit/TitleAgencies.jsx';
 import SellerFinance from '../toolkit/SellerFinance.jsx';
 import Multifamily from '../toolkit/Multifamily.jsx';
 import MyCalcs from '../toolkit/MyCalcs.jsx';
+import CommissionCalc from '../toolkit/CommissionCalc.jsx';
 
 // Zip Center's views as Territory rail entries (Oct 22).
 const ZipBrowse = () => <AllZips view="browse" />;
@@ -72,7 +73,7 @@ const VIEWS = {
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
   'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView,
-  'tk-pof': ProofOfFunds, 'tk-docs': Disclosures, 'tk-offer': OfferTemplates, 'tk-terms': ContractTerms, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs,
+  'tk-pof': ProofOfFunds, 'tk-docs': Disclosures, 'tk-offer': OfferTemplates, 'tk-terms': ContractTerms, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs, 'tk-comm': CommissionCalc,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
 
