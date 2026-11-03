@@ -1351,6 +1351,11 @@ as 100+ "leads" a day. Now:
   set stays the same for an hour and sits in a 1-hour prompt cache (second
   system block, `ttl: '1h'`). Usage: one 150-row read per run with texts to
   judge. Claude cost: roughly $2–3 a day (~$60–90 a month) at today's volume.
+- **Cost cuts (Luke, Nov 3)**: the Console showed $139 in 30 days, ~$10–15
+  a day since Oct 20, mostly the lead judge. Now 50 examples
+  (`EXAMPLES_MAX`, was 150) and 14 days / last 8 messages of history
+  (`HISTORY_DAYS` / `HISTORY_MAX`, was 30 / 15) — expected to roughly halve
+  the lead judge's cost. The model is unchanged.
 
 ## Today at a Glance + Deals › Active rework (Luke, Oct 23)
 

@@ -25,9 +25,11 @@ export const ALL_PARTS = { tasks: true, checkins: true, deals: true, leads: true
 const DAY = 86400000;
 const CHECKIN_DAYS = 30;
 const LEAD_PER_CALL = 25;
-const EXAMPLES_MAX = 150;
-const HISTORY_DAYS = 30;
-const HISTORY_MAX = 15;
+// Cost cuts (Luke, Nov 3 — ~$10–15 a day of Claude, mostly this): 50
+// graded examples (was 150), 14 days / 8 messages of history (was 30 / 15).
+const EXAMPLES_MAX = 50;
+const HISTORY_DAYS = 14;
+const HISTORY_MAX = 8;
 const LEAD_MAX_PER_RUN = 200;
 const JUDGED_KEEP_DAYS = 10;
 // Same address to several reps: spotted leads this many days back.
@@ -43,7 +45,7 @@ const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 // The agent's name for a lead (Luke, Oct 23: "have the name of the agent
 // populate for each"): the contact's name from GHL — one read per new lead
 // (the 2-minute worker's texts carry no names). Best effort.
-// The texts of one conversation before the run being judged: up to a month,
+// The texts of one conversation before the run being judged: up to HISTORY_DAYS,
 // the last HISTORY_MAX (one GHL read per new text to judge). Best effort —
 // null keeps the day's few texts.
 export async function historyOf(token, locationId, conv, beforeMs) {
@@ -112,7 +114,7 @@ Flag a text as a lead when the agent:
 - sends a property address (a street address, even partial, for a house they want the rep to look at or make an offer on), or
 - says a deal or property is coming ("I'll have one next week", "got a pocket listing coming", "my seller is ready to sell", "sending you one tomorrow").
 
-The test (Luke, Oct 23): a lead is a property the agent BRINGS to the rep that they haven't already talked about. Each item shows the conversation's history (up to a month) — read it first.
+The test (Luke, Oct 23): a lead is a property the agent BRINGS to the rep that they haven't already talked about. Each item shows the conversation's history (up to two weeks) — read it first.
 
 Not a lead:
 - ANY text about a property the rep and agent have already talked about earlier in the history — whoever brought it up. That includes the rep's own outreach on a listing and every reply to it: "make an offer", "send an offer and I'll present it", condition answers (roof, HVAC, repairs, inspection), price reductions, "seller is motivated / will take X", counters, offer terms (down payment, rate, balloon), contract, inspection, title, closing. That's the rep working a property, not a new lead,
