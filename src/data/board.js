@@ -45,6 +45,16 @@ export function boardTrackerMoney() {
   const quarter = [0, 1, 2].map((i) => `${y}-${String(q * 3 - 2 + i).padStart(2, '0')}`).filter((x) => x <= today.slice(0, 7));
   return boardMoney(feed, { month: today.slice(0, 7), nextMonth, quarter, onBoard: onBoardRep });
 }
+// The same tracker money for Home (Luke, Nov 3: "make home use the tracker
+// numbers"): everyone (null), or only these reps — every rep, TV or not.
+// Shaped like metrics(): revenueM, closedM, assigned, projected; null with no feed.
+export function trackerMonthMoney(repIds = null) {
+  const feed = boardFeed();
+  if (!feed?.deals) return null;
+  const month = laToday().slice(0, 7);
+  const t = boardMoney(feed, { month, onBoard: repIds ? (r) => repIds.includes(r) : () => true, strict: !!repIds });
+  return { revenueM: t.closed, closedM: t.closedN, assigned: t.assigned, projected: t.closed + t.assigned };
+}
 // A live view of the pairs that behaves like the PAIRS array (filter, reduce,
 // for … of, length) — the source array is updated in place on every poll.
 export const BOARD_PAIRS = new Proxy([], {

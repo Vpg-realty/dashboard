@@ -10,6 +10,7 @@
 // wins — plus a weekly leaderboard for owners and managers.
 import { REPS, MARKETS } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
+import { trackerMonthMoney } from '../data/board.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { metrics, T } from '../views/manager/metrics.js';
@@ -221,6 +222,10 @@ export default function HomeView({ me }) {
   ].sort((a, b) => b.at - a.at);
 
   const m = metrics(pairs);
+  // Revenue from the deal tracker (Luke, Nov 3) — net assignment, closed and
+  // assigned by COE, the same numbers as Team Overview, Finance and Road to
+  // Hawaii; GHL's opportunity values only when the tracker feed is missing.
+  const money = (reps, ps) => trackerMonthMoney(reps) || metrics(ps);
   const n = scope ? scope.length : REPS.length;
   const isTc = me?.role === 'tc';
   // The same four tiles in the same order for every role, the TC included
@@ -278,9 +283,9 @@ export default function HomeView({ me }) {
             on the right), then the owners' cards. */}
         <div className="flex flex-col gap-6 min-w-0">
         {showMoney && (pod ? <>
-          <RevenueCard m={metrics(PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
-          <RevenueCard m={metrics(PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
-        </> : <RevenueCard m={m} n={n} />)}
+          <RevenueCard m={money([me.rep_id], PAIRS.filter((p) => p.repId === me.rep_id))} n={1} title="Revenue · this month · yours" />
+          <RevenueCard m={money(podIds, PAIRS.filter((p) => podIds.includes(p.repId)))} n={podIds.length} title={`Revenue · this month · ${pod.title}`} />
+        </> : <RevenueCard m={money(scope, pairs)} n={n} />)}
         <Card title="Wins this week · whole team">
           {wins.length === 0 ? (
             <div className="text-zinc-500">No new contracts, assignments or closings yet this week.</div>

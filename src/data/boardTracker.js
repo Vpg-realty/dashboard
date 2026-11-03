@@ -115,8 +115,9 @@ export function applyBoard(pairs, board, month) {
 // and Road to Hawaii: closed (and kept-EMD cancels) by COE, open deals
 // assigned with a price by COE. `onBoard(repId)` leaves out reps the TV
 // doesn't show; a deal with no known rep counts in the team totals only.
-export function boardMoney(board, { month, nextMonth, quarter = [], onBoard = () => true }) {
-  const list = (board?.deals || []).filter((t) => !t.rep || onBoard(t.rep));
+export function boardMoney(board, { month, nextMonth, quarter = [], onBoard = () => true, strict = false }) {
+  // strict: only deals with a known rep in scope (Home's rows for one person / a pod).
+  const list = (board?.deals || []).filter((t) => (t.rep ? onBoard(t.rep) : !strict));
   const earned = (t) => (t.s === 'COMPLETE' || t.kept) && t.net != null;
   const lined = (t) => t.asg && t.net != null && STAGE[t.s] && t.s !== 'COMPLETE';
   const mo = (t) => (t.coe || '').slice(0, 7);

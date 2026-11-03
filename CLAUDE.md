@@ -3628,8 +3628,15 @@ rule, kept-EMD cancels included) — the same numbers as Finance and Road to
 Hawaii. Reps off the TV board stay out; deals with no known rep count in the
 team totals only. Mock mode / no feed = GHL's numbers as before. Still from
 GHL by design: the sticky counts (opps, offers, contracts, closed counts on
-the Opportunities tab), conversations and agents. Home's revenue card and
-the scorecards' projected $ still use GHL's values (not changed here).
+the Opportunities tab), conversations and agents. **Home's revenue card**
+follows the tracker too since later Nov 3 (Luke: Team Overview showed $130k
+assigned, Home $147k — Home summed GHL's opportunity values):
+`trackerMonthMoney(repIds)` (src/data/board.js, `boardMoney` with `strict`
+= only deals whose rep is in scope) gives closed / assigned / projected net
+assignment by COE for everyone, one rep or a pod; GHL's values only without
+the feed. Home's "Closed this month" number tile is still GHL's sticky count
+(by the day GHL moved it to Closed), and the scorecards' projected $ still
+use GHL's values.
 
 ## Usage & cost — check every time (Luke, Oct 19)
 
