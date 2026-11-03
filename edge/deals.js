@@ -12,6 +12,7 @@
 import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen, compute } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
+import { withPeopleNames } from './subChanges.js';
 
 import roster from '../subaccounts.json' with { type: 'json' };
 
@@ -251,7 +252,8 @@ export const ALL_KEYS = FIELDS.map((f) => f.key);
 // member) and every state with a sub-account; inactive people's names drop
 // out. Old names stay on the deals that use them.
 export function effectiveLists(lists, users, roster) {
-  const repName = new Map(roster.reps.map((r) => [r.id, r.name]));
+  // Board names follow Settings › Team (withPeopleNames, edge/subChanges.js).
+  const repName = new Map(withPeopleNames(roster, users).reps.map((r) => [r.id, r.name]));
   const marketName = new Map(roster.markets.map((m) => [m.id, m.name]));
   // Everyone active who works deals, from the day they're added in People
   // (Luke, Oct 26: "jake is not in here … they should populate in the

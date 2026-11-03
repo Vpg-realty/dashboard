@@ -1016,6 +1016,17 @@ Overrides the Settings notes above where they differ.
   person off their own rate. The separate "Paid on net assignment instead"
   list is gone from Acquisition and Dispo (those rules still show in the
   history by date).
+- **Board names follow Team** (Luke, Nov 3: "i did a name change on uncle
+  dale to dale jeffries, but it created a completely new contact in the
+  commission section"): Dale's rep was created as `uncle` / "Uncle", so
+  `effectiveLists` added "Uncle" next to the "Dale Jeffries" his deals and
+  rate use. Now a rep linked to a person with a last name takes "<first>
+  <last>" from Settings › Team everywhere — `withPeopleNames`
+  (edge/subChanges.js), used by `effectiveLists` (live, the users query has
+  `last_name`) and by scripts/load-private-files.mjs, which rewrites
+  subaccounts.json at build (the board, every rep list). subaccounts.json's
+  `uncle` was also renamed to Dale Jeffries. Old names on deals / rules stay as
+  typed — rename those by hand if a rename ever changes them.
 - **Company-rate safeguard** (Luke, Nov 3 — a new company acq / dispo rate
   from Nov 2 moved every existing rep, when only new people like Jake were
   meant to get it): editing `acqRate` / `dispoRate` lists who is on the

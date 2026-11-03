@@ -68,3 +68,15 @@ export async function forgetChange(db, locationId) {
   delete ch.subs[locationId];
   await db.prepare('UPDATE settings SET value = ? WHERE key = ?').bind(JSON.stringify(ch), KEY).run();
 }
+
+// A person's board name follows their name in Settings › Team (Luke, Nov 3:
+// Dale was set up as rep "Uncle", renamed to Dale Jeffries in Team, and
+// Commissions showed both "Uncle" and "Dale Jeffries"). users = D1 rows
+// { rep_id, name, last_name }; only people with a last name are applied, so a
+// first-name-only entry never shortens a rep's full name.
+export function withPeopleNames(cfg, users) {
+  const full = new Map((users || []).filter((u) => u.rep_id && String(u.last_name || '').trim())
+    .map((u) => [u.rep_id, `${String(u.name || '').trim()} ${String(u.last_name).trim()}`.trim()]));
+  if (!full.size) return cfg;
+  return { ...cfg, reps: (cfg.reps || []).map((r) => (full.has(r.id) && full.get(r.id) !== r.name ? { ...r, name: full.get(r.id) } : r)) };
+}
