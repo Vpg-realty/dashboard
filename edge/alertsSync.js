@@ -18,6 +18,7 @@
 //  - Same address to reps in different pods (dupes).
 import { addrKey, isPending, isOpen } from '../src/deals/math.js';
 import { isManualOutbound } from '../server/messaging.js';
+import { ensureLeadAddrs, putAddrs, dealAddrs, priorOf } from './leadAddrs.js';
 import { PODS, podsFrom } from '../scripts/scorecard-lib.mjs';
 
 export const GHL = 'https://services.leadconnectorhq.com';
@@ -321,6 +322,13 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
   // in GHL) or whose COE has passed while it's still open. One alert per
   // deal and date, for its acquisitions rep — it also rings their pod lead
   // and the owners (edge/alerts.js rings); closed when the condition clears.
+  // Address memory (Nov 3): the tracker's deals join lead_addrs each deploy
+  // run (~200 keyed reads, writes only for new deals).
+  let addrsReady = false;
+  const readyAddrs = async () => { if (!addrsReady) { await ensureLeadAddrs(query); addrsReady = true; } };
+  if (deals && want.deals) {
+    try { await readyAddrs(); await putAddrs(query, dealAddrs(deals)); } catch (e) { status.addrError = String(e.message || e).slice(0, 200); }
+  }
   if (deals && want.deals) {
     const repIdOf = (name) => {
       const n = String(name || '').trim().toLowerCase();
@@ -407,11 +415,19 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         const auto = [null, null, null, null, null];
         if (v.bank_hud) v.type = 'cold';
         const agentName = m.who || await contactName(tokens?.[m.sub.locationId], m.contact);
-        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at, agent_name) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?)
+        // Had this address before? (lead_addrs — a deal, a closed sale or an
+        // earlier lead from another conversation.)
+        let prior = null;
+        if (addr) {
+          try { await readyAddrs(); prior = await priorOf(query, addr, { conv: m.conv }); } catch (e) { status.addrError = String(e.message || e).slice(0, 200); }
+        }
+        const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, addr, agent, hint, verdict, verdict_by, verdict_at, done_at, done_by, created_by, created_at, agent_name, prior) VALUES (?, ?, ?, 'lead', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?, ?)
           ON CONFLICT (ext_id) DO NOTHING`,
-        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip(v.summary, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at, agentName]);
+        [newId(), `lead:${m.id}`, m.sub.repId, leadTitle(v), clip(v.summary, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), addr, m.phone || null, v.type || null, ...auto, at, agentName, prior ? JSON.stringify(prior) : null]);
         if (r[0]?.meta?.changes) {
           status.leads++;
+          if (prior) status.seenBefore = (status.seenBefore || 0) + 1;
+          if (addr) { try { await putAddrs(query, [{ addr, src: 'lead', rep: m.sub.repId, sub: m.sub.key, conv: m.conv, at }]); } catch { /* best effort */ } }
           recent.push({ holder: m.sub.repId, agent: m.phone || null, contact: m.contact || null, addr, quote: m.body, created_at: at });
         }
       }

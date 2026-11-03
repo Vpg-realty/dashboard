@@ -17,7 +17,7 @@ import Icon from './icons.jsx';
 import { linkProps } from './router.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
 import { useAlerts, loadAlerts, alertAction } from '../alerts/store.js';
-import { LEAD_TYPE, HINT_WORD, linkOf, subTag } from '../alerts/kinds.js';
+import { LEAD_TYPE, HINT_WORD, linkOf, subTag, isCoaching } from '../alerts/kinds.js';
 import { isOpen } from '../deals/math.js';
 import { needsInfo } from '../deals/required.js';
 import { LABEL } from '../deals/fieldLib.js';
@@ -110,7 +110,9 @@ function alertRows(data, role, today) {
       if (a.kind === 'lead') leads.push(a);
       continue;
     }
-    if (a.holder !== me || !['task', 'ghl', 'checkin'].includes(a.kind)) continue;
+    // Development goals / points of improvement aren't today's urgent items
+    // (Luke, Nov 3) — they live on Alerts › Development and the scorecard.
+    if (a.holder !== me || !['task', 'ghl', 'checkin'].includes(a.kind) || isCoaching(a)) continue;
     const k = a.due ? daysInclusive(today, a.due) - 1 : 0;
     if (k > 2) continue;
     (a.kind === 'checkin' ? checks : tasks).push({ a, k });

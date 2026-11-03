@@ -65,10 +65,10 @@ async function main() {
   // Toolkit: owners' and the TC's reminder before the proof of funds letter expires (two
   // small reads per run).
   try {
-    const pof = (await query("SELECT expires FROM toolkit_files WHERE name = 'pof'"))[0]?.results?.[0];
-    if (pof?.expires) {
+    const letters = (await query("SELECT name, label, filename, expires FROM toolkit_files WHERE name = 'pof' OR name LIKE 'pof:%'"))[0]?.results || [];
+    if (letters.some((l) => l.expires)) {
       const owners = (await query("SELECT email, rep_id FROM users WHERE role IN ('owner', 'tc') AND status != 'inactive'"))[0].results.map(holderOf);
-      for (const r of pofReminders(pof.expires, owners)) await query(r.sql, r.args);
+      for (const l of letters) for (const r of pofReminders(l.expires, owners, Date.now(), l.name, l.label || l.filename.replace(/\.pdf$/i, ''))) await query(r.sql, r.args);
     }
   } catch (err) { console.warn(`[alerts] proof of funds reminder skipped: ${err.message}`); }
   if (liveOk) console.log(`[alerts] the 2-minute worker has GHL tasks and leads (last run ${live.at})`);

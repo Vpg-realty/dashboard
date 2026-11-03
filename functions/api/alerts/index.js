@@ -1,6 +1,6 @@
 // GET  /api/alerts            → { me, pod, seenAt, chime, names, assignable, alerts, counts }
 // GET  /api/alerts?count=1    → { counts, chime }   (the sidebar's red dot, polled)
-// POST /api/alerts { action: 'add', title, body?, due?, dueTime?, to? }   a task (pod leads / owners can assign)
+// POST /api/alerts { action: 'add', title, body?, due?, dueTime?, to?, cat?, recur? }   a task (pod leads / owners can assign; cat dev | improve, recur weekdays | weekly | biweekly | monthly)
 //                  { action: 'done', id, done }                 tick / untick
 //                  { action: 'doneMany', ids, done }            tick / untick several (not leads)
 //                  { action: 'verdict', id, verdict }           a spotted lead: hot | warm | cold | wholesale | not | null

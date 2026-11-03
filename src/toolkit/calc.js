@@ -58,7 +58,9 @@ export const DOWN_MAX_PCT = 10;         // seller finance: the one hard rule
 export const MARKETS_NO_ASSIGNS = ['AZ', 'AL', 'FL', 'OK'];
 
 // The offer message's fields, saved with either calculator.
-const OFFER = { state: '', emd: '', ipDays: '', coe: '', title: '' };
+// The offer message (Nov 3): agent's first name, the opening line, listed on
+// the MLS (off-market terms) and the optional terms picked.
+const OFFER = { state: '', emd: '', ipDays: '', coe: '', title: '', agent: '', intro: '', listed: '', picked: '' };
 // The rep's own read and Claude's review (Luke, Oct 22), kept with the
 // calculation: readCall go | adjust | pass, read = their words, review =
 // Claude's review as JSON text (with the numbers' signature it was made for).

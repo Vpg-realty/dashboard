@@ -2,7 +2,7 @@
 // TX to Cayden — "it does not let me save"; no GitHub key was on file).
 // Moving a sub-account to another rep, or another market, touches no secret,
 // so it doesn't need GitHub: it's saved in D1 settings `subaccount_changes`
-// = { subs: { locationId: { repId, marketId } }, reps: [{ id, name, color }],
+// = { subs: { locationId: { repId, marketId, since? } }, reps: [{ id, name, color }],
 // at, by }, and applied on top of subaccounts.json
 //   - by every deploy (scripts/load-private-files.mjs rewrites the file on
 //     disk before the snapshot, the app build and the functions bundle), and
@@ -21,7 +21,14 @@ export function applyChanges(cfg, ch) {
   for (const [loc, v] of Object.entries(ch.subs || {})) {
     const sa = out.subaccounts.find((s) => s.locationId === loc);
     if (!sa) continue;
-    if (v.repId && out.reps.some((r) => r.id === v.repId)) sa.repId = v.repId;
+    if (v.repId && out.reps.some((r) => r.id === v.repId)) {
+      sa.repId = v.repId;
+      // When this rep took it over (Nov 3): the notes check gives them a
+      // grace period on the deals they inherited (server/crm.js).
+      // Changes saved before Nov 3 have no date of their own: the record's.
+      const since = v.since || (ch.at ? String(ch.at).slice(0, 10) : null);
+      if (since) sa.since = since;
+    }
     if (v.marketId && out.markets.some((m) => m.id === v.marketId)) sa.marketId = v.marketId;
   }
   return out;
@@ -41,7 +48,12 @@ export async function saveChange(db, cfg, { locationId, repId, marketId, newRep 
   if (newRep && !now.reps.some((r) => r.id === newRep.id)) reps.push(newRep);
   if (!now.reps.some((r) => r.id === repId) && !reps.some((r) => r.id === repId)) throw Object.assign(new Error(`Unknown rep ${repId}`), { status: 400 });
   if (!now.markets.some((m) => m.id === marketId)) throw Object.assign(new Error(`Unknown market ${marketId} — a new market needs the GitHub connection`), { status: 400 });
-  const next = { subs: { ...(ch.subs || {}), [locationId]: { repId, marketId } }, reps, at: new Date().toISOString(), by };
+  const at = new Date().toISOString();
+  const was = ch.subs?.[locationId];
+  const before = now.subaccounts.find((s) => s.locationId === locationId);
+  // A new holder gets today as their takeover date; the same holder keeps theirs.
+  const since = before?.repId === repId ? (was?.since || before?.since || null) : at.slice(0, 10);
+  const next = { subs: { ...(ch.subs || {}), [locationId]: { repId, marketId, ...(since ? { since } : {}) } }, reps, at, by };
   await db.prepare(`INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, ?)
     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
     .bind(KEY, JSON.stringify(next), next.at, by).run();

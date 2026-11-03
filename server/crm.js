@@ -36,7 +36,9 @@ import { isManualOutbound } from './messaging.js';
 const DAY = 86400000;
 // Bump when the checks change so the cached result (reused for 55 min) is
 // recomputed on the next deploy.
-export const CRM_VERSION = 6;
+// 7 (Nov 3): the notes check names why a deal is flagged and gives a rep who
+// took a sub-account over a grace period on inherited deals.
+export const CRM_VERSION = 7;
 export const STALE_DAYS = 5;
 export const FOLLOWUP_BUSINESS_DAYS = 3;
 // Messages are read back this far: covers the staleness check and
@@ -131,7 +133,17 @@ export function businessMs(from, to) {
 // rankOf(opp) → funnel rank (aggregate.js STAGE_RANK); keyOf(opp) → stage key.
 // messages: { contactId: [message] } (null when the pull failed → no
 // pipeline-touch or follow-up check, only what notes / stages show).
-export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, now = Date.now(), weekStartMs }) {
+// A rep who takes over a sub-account (Luke, Nov 3: Jake got 0 on notes — most
+// of his deals were opened by Daniel before Jake took Missouri over) isn't
+// graded on notes for the deals they inherited until they've had them this
+// long.
+export const TAKEOVER_GRACE_DAYS = 14;
+// The workflow's blank "Required Property Info" note — on nearly every lead,
+// which reps took for a note (Nov 3). Filled in by a person, it counts.
+const isTemplate = (n) => /required property info/i.test(n?.title || '') || /^\s*ARV:\s*\$/i.test(n?.bodyText || '');
+const noteList = (o) => (Array.isArray(o.notes) ? o.notes : Array.isArray(o.notes?.notes) ? o.notes.notes : []).filter((n) => n && !n.deleted);
+
+export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, now = Date.now(), weekStartMs, takeoverMs = 0 }) {
   const today = laDate(now);
   const out = {
     v: CRM_VERSION,
@@ -171,9 +183,20 @@ export function crmChecks({ opportunities, rankOf, keyOf, fieldIds, messages, no
     else if (follow && messages && now - talk > STALE_DAYS * DAY) out.pipeline.bad.push({ id: o.id, addr, why: `no messaging with the agent in ${Math.floor((now - talk) / DAY)}d` });
 
     // 2 Notes — a day's grace for a deal opened today.
-    if (now - created >= DAY) {
+    // Deals opened before a takeover wait TAKEOVER_GRACE_DAYS (and then count
+    // a note written since the deal opened, as for anyone).
+    const inherited = takeoverMs && created < takeoverMs && now - takeoverMs < TAKEOVER_GRACE_DAYS * DAY;
+    if (now - created >= DAY && !inherited) {
       out.notes.total++;
-      if (!notes.length) out.notes.bad.push({ id: o.id, addr, why: 'no note' });
+      if (!notes.length) {
+        // Say exactly why (Nov 3), so a rep can see it and fix it.
+        const all = noteList(o);
+        const why = all.some(isTemplate) ? 'only the blank "Required Property Info" note — fill it in'
+          : humanNotes(o).length ? 'no note since this deal opened — the notes are older'
+            : all.length ? 'only automated notes — add your own'
+              : 'no note';
+        out.notes.bad.push({ id: o.id, addr, why });
+      }
     }
 
     // 5 Follow-ups — this week (from Monday, or from when the deal was

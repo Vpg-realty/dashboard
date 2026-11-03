@@ -16,6 +16,7 @@
 // owners (signed-in role, /api/me) and saved to the private database
 // (useScorecards.js); saving signs the week as reviewed by that person. Reps
 // get a read-only view without notes.
+import DevGoals from '../../alerts/DevGoals.jsx';
 import { CoachTop3, Standards, Examples } from './CrmBits.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
@@ -508,6 +509,7 @@ function DrawerCrm({ row, weekLabel, canEdit, showNotes, onCrm, onNote, dirty, s
         </div>
       )}
 
+      {showNotes && <DevGoals repId={id} whose={`${REPS.find((r) => r.id === id)?.name?.split(' ')[0] || 'Their'}’s`} />}
       {showNotes && (
         <section className="rounded-xl bg-white border border-tan-200 overflow-hidden">
           <div className={head}><h4 className="text-[16px] font-semibold">Manager Notes</h4><span className="text-[13px] text-white/70">Owners and managers only · never shown to the rep</span></div>

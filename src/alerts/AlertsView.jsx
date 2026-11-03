@@ -19,7 +19,7 @@ import { isOpen } from '../deals/math.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import TimePicker from '../deals/TimePicker.jsx';
 import { REPS } from '../data/config.js';
-import { LEAD_TYPE, HINT_WORD, linkOf, subTag, dupeRefs, refLink } from './kinds.js';
+import { LEAD_TYPE, HINT_WORD, linkOf, subTag, dupeRefs, refLink, priorText, TASK_CAT, RECUR, isCoaching } from './kinds.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
@@ -46,6 +46,9 @@ const RAIL = [
   { id: 'dupes', label: 'Duplicate Leads', sub: 'Same lead sent to more than one rep' },
   { id: 'tasks', label: 'Tasks', sub: 'From GHL and the site' },
   { id: 'checkins', label: 'Check-ins', sub: 'Abandoned 30+ days' },
+  // Development goals and points of improvement (Luke, Nov 3) — kept apart
+  // from the urgent items; they never ring the red dot.
+  { id: 'dev', label: 'Development', sub: 'Goals & points of improvement' },
 ];
 const LATER = [
   { id: 'upcoming', label: 'Upcoming', sub: 'Due after today' },
@@ -56,9 +59,10 @@ const LATER = [
 const PICK = {
   leads: (a) => a.kind === 'lead',
   dupes: (a) => a.kind === 'dupe',
-  tasks: (a) => a.kind === 'task' || a.kind === 'ghl' || a.kind === 'deal',
+  tasks: (a) => (a.kind === 'task' && !isCoaching(a)) || a.kind === 'ghl' || a.kind === 'deal',
+  dev: (a) => isCoaching(a),
   checkins: (a) => a.kind === 'checkin',
-  upcoming: (a, t, done) => !done && !SHARED.has(a.kind) && a.due && a.due > t,
+  upcoming: (a, t, done) => !done && !SHARED.has(a.kind) && !isCoaching(a) && a.due && a.due > t,
 };
 
 // Soonest first, a timed task before an untimed one on the same day.
@@ -77,6 +81,8 @@ const azNowHM = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Phoe
 
 function DueTag({ a, today }) {
   if (a.done_at || a.kind === 'lead' || a.kind === 'dupe' || !a.due) return null;
+  // Coaching items aren't urgent — a plain date, never red (Luke, Nov 3).
+  if (isCoaching(a)) return <span className="rounded px-1.5 py-px text-[11px] font-semibold bg-zinc-100 text-zinc-600">{a.due === today ? 'Today' : `${a.due < today ? 'Was ' : ''}${dayLabel(a.due)}`}</span>;
   if (a.due_time && a.due === today) {
     const past = a.due_time <= azNowHM();
     return <span className={`rounded px-1.5 py-px text-[11px] font-bold ${past ? 'bg-red-100 text-[#B42318]' : 'bg-amber-100 text-amber-800'}`}>{past ? 'Due' : 'Today'} {hm12(a.due_time)}</span>;
@@ -102,7 +108,8 @@ function SubTag({ t, arrow }) {
 }
 
 function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDeal }) {
-  const k = a.kind === 'dupe' && a.hint === 'potential' ? { ...KIND.dupe, label: 'Potential duplicate' } : KIND[a.kind] || KIND.task;
+  const cat = isCoaching(a) ? TASK_CAT[a.cat] : null;
+  const k = a.kind === 'dupe' && a.hint === 'potential' ? { ...KIND.dupe, label: 'Potential duplicate' } : cat ? { label: cat.label, tag: cat.chip, icon: cat.icon, bg: cat.bg } : KIND[a.kind] || KIND.task;
   const url = linkOf(a);
   const whose = a.holder !== me && a.kind !== 'lead' && a.kind !== 'dupe' ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
   // Done for this person: their own review (an owner's: the owners'), or
@@ -138,6 +145,11 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
             {a.kind === 'lead' && a.agent_name && <span className="text-[13px] text-zinc-600">· Agent: <b className="font-semibold text-navy-800">{a.agent_name}</b></span>}
           </div>
         )}
+        {/* We had this address before (Nov 3) — a deal, a closed sale or an
+            earlier lead from another conversation. */}
+        {a.kind === 'lead' && priorText(a) && (
+          <div className="mb-1.5"><span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[12.5px] font-semibold text-amber-900 ring-1 ring-amber-200">↺ {priorText(a)}</span></div>
+        )}
         {/* What each reviewer graded it (Luke, Oct 23: "clearly state what a
             reviewer marked the lead as … to everyone who can see the lead"). */}
         {a.kind === 'lead' && (a.marks || []).some((m) => m.grade) && (
@@ -156,6 +168,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           {/* Claude's proposed grade, always shown (Luke, Oct 22). */}
           {a.kind === 'lead' && HINT_WORD[a.hint] && <span title="Claude's proposed grade — your pick is what counts, and it teaches Claude" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
+          {a.kind === 'task' && RECUR[a.recur] && <span title="Ticking it adds the next one" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-navy-700 ring-1 ring-navy-200">↻ {RECUR[a.recur]}</span>}
           {a.title}
         </div>
         <div className="mt-0.5 text-[12.5px] text-zinc-500">
@@ -229,8 +242,10 @@ function DealPick({ value, onChange }) {
     pinned={[{ value: '', label: 'No property (just a task)' }]} options={options} />;
 }
 
-function AddTask({ assignable, me, act, busy }) {
+function AddTask({ assignable, me, act, busy, cat: startCat = '' }) {
   const [title, setTitle] = useState('');
+  const [cat, setCat] = useState(startCat);
+  const [recur, setRecur] = useState('');
   const [due, setDue] = useState('');
   const [time, setTime] = useState('');
   const [to, setTo] = useState(me);
@@ -241,8 +256,8 @@ function AddTask({ assignable, me, act, busy }) {
   const add = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const body = forTc && deal ? { action: 'add', title, due: due || null, dealId: deal } : { action: 'add', title, due: due || null, dueTime: (due && time) || null, to };
-    if (await act(body)) { setTitle(''); setDue(''); setTime(''); setDeal(''); }
+    const body = forTc && deal ? { action: 'add', title, due: due || null, dealId: deal } : { action: 'add', title, due: due || null, dueTime: (due && time) || null, to, cat: cat || null, recur: recur || null };
+    if (await act(body)) { setTitle(''); setDue(''); setTime(''); setDeal(''); setRecur(''); }
   };
   return (
     <form onSubmit={add} className="flex flex-wrap gap-2 px-4 md:px-5 py-3 border-t border-tan-100 bg-tan-50/60">
@@ -253,6 +268,14 @@ function AddTask({ assignable, me, act, busy }) {
           options={assignable.map((p) => ({ value: p.id, label: p.id === me ? 'For me' : `For ${p.name}` }))} />
       )}
       {forTc && <DealPick value={deal} onChange={(v) => setDeal(v || '')} />}
+      {!(forTc && deal) && (
+        <>
+          <SearchSelect className="w-52" value={cat} onChange={(v) => setCat(v || '')} clearable={false} sort={false}
+            options={[{ value: '', label: 'To-do' }, ...Object.entries(TASK_CAT).map(([v, c]) => ({ value: v, label: c.label }))]} />
+          <SearchSelect className="w-44" value={recur} onChange={(v) => setRecur(v || '')} clearable={false} sort={false}
+            options={[{ value: '', label: 'Doesn’t repeat' }, ...Object.entries(RECUR).map(([v, l]) => ({ value: v, label: `Repeats · ${l}` }))]} />
+        </>
+      )}
       <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]" aria-label="Due date" />
       {/* A due time (Luke, Oct 22): the alert rings when it comes. */}
       {due && !(forTc && deal) && <div className="w-36"><TimePicker value={time} onChange={setTime} placeholder="Time (optional)" /></div>}
@@ -339,8 +362,8 @@ export default function AlertsView() {
             : (y.created_at > x.created_at ? 1 : -1)));
 
 
-  const late = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due && a.due < today).length;
-  const dueToday = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && a.due === today).length;
+  const late = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !isCoaching(a) && a.due && a.due < today).length;
+  const dueToday = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !isCoaching(a) && a.due === today).length;
   const newN = scoped.filter((a) => !isDone(a) && isNew(a)).length;
   const doneN = scoped.filter((a) => isDone(a) && inWeek(doneAt(a))).length;
   const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (owner || pod?.reps.includes(id))) : [];
@@ -441,7 +464,7 @@ export default function AlertsView() {
             )}
             {shown.map((a) => <Row key={a.id} a={a} isNew={isNew(a)} today={today} names={data.names} me={me} keys={keys} busy={busy} act={act} sel={sel} toggle={toggle} openDeal={dealPanel.open} />)}
             {/* Only on Tasks (Luke, Oct 22: the other views aren't task lists). */}
-            {data && tab !== 'done' && view === 'tasks' && <AddTask assignable={data.assignable} me={me} act={act} busy={busy} />}
+            {data && tab !== 'done' && (view === 'tasks' || view === 'dev') && <AddTask key={view} cat={view === 'dev' ? 'dev' : ''} assignable={data.assignable} me={me} act={act} busy={busy} />}
           </div>
           {tasksOnly ? <p className="mt-4 text-[12px] text-zinc-500">Tasks the owners (or you) add here, and the proof of funds reminder before the letter expires — upload the new one in Toolkit › Proof of Funds. Tick one off when it’s done; it stays under Reviewed for 7 days.</p> : (
           <p className="mt-4 text-[12px] text-zinc-500">

@@ -1329,6 +1329,43 @@ Overrides the lead-type / Complete / Completed notes above where they differ.
   up once). Leads / duplicates sort newest first regardless of `due` (their
   `due` is only the day the text came in; `TIMED` in AlertsView).
 
+## Repeating tasks, development goals (Luke, Nov 3)
+
+"repeating tasks … development goals or points of improvement … color coded
+… separate from the red urgent items". Site tasks have two new columns (ALTER
+TABLE on live D1 Nov 3): `cat` — null = To-do, `dev` = Development goal
+(violet ★), `improve` = Point of improvement (teal ↗) (`TASK_CATS`,
+edge/alerts.js; `TASK_CAT` in src/alerts/kinds.js) — and `recur` — weekdays /
+weekly / biweekly / monthly (`RECURS`; "↻ Weekly" chip). Ticking a repeating
+task (by whoever holds it) adds the next one (`nextDue`, never in the past;
+ext_id `rep:<first task id>:<due>`, so re-ticking adds nothing twice);
+unticking takes it back. A repeating task with no date starts today. Who can
+assign: as before (pod leads their reps, owners anyone, reps themselves).
+Coaching items (`isCoaching`) never ring the red dot (`counts`), aren't in
+Due today / Overdue, Upcoming or Home's Today card, and their date is never
+red. Alerts' rail has **Development** (`?view=dev`, its own add form starting
+on Development goal); the Tasks list leaves them out. They show as a
+"<Name>'s Development" card (`src/alerts/DevGoals.jsx`) on My Scorecard and in
+Team Scorecard's rep panel (above Manager Notes), tickable there. No new
+reads (the cards use the Alerts list already loaded).
+
+## Address memory — "seen before" (Luke, Nov 3)
+
+"flag if an address was already shared with us months ago … without
+significant cost". D1 `lead_addrs (k, addr, src, rep, sub, conv, who, at)`
+(`edge/leadAddrs.js`, created by the sync; `k` = each `addrKeys` key) keeps
+every address we've had: spotted leads (first sighting kept), tracker deals
+(the deploy run adds new ones; a deal replaces a lead row) and the
+closed-deals history (closed_map `sheet` rows). Seeded once on first use
+from the existing leads (768 with an address) and closed_map. A new lead with
+an address looks itself up (`priorOf` — a deal, a closed sale, or an earlier
+lead from another conversation) and keeps it in `alerts.prior` (JSON, ALTER
+TABLE on live D1 Nov 3); Alerts shows it as an amber "↺ Sent to us before ·
+Sam · WA · Jul 1, 2026" / "On our deal tracker already · Axel" / "We closed
+this address before" line (`priorText`, src/alerts/kinds.js). No Claude
+cost. Usage: one keyed read + one write per new lead with an address, ~200
+keyed reads per deploy run for the deals (~20k a day).
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
@@ -2124,6 +2161,18 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   (`pofReminders`, ext_id `pof:<expires>:<holder>`, made by the deploy's
   sync-alerts — two small reads a run); a new upload closes the old letter's
   reminders (`closeOldPof`).
+- **Several letters (Luke, Nov 3**: "we have the veritas one and one from
+  Capital fund 1 that is for $2m. I want both"): overrides the one-letter
+  notes above. Letters are rows of `toolkit_files` — the first kept name
+  `pof`, more are `pof:<id>` — with a `label` (added Nov 3 with ALTER TABLE).
+  The page shows a card per letter (name, file, expiry chip, Download / Open;
+  owners and the TC: Replace the PDF, Rename / change date, Remove) and an
+  **Add a Letter** form (name, PDF, expiry). Replacing or removing one never
+  touches the others. API actions `pof` (`slot` = replace that letter, none =
+  a new one), `pofExpires` / `pofLabel` / `pofRemove`; GET
+  `/api/toolkit/pof?slot=`. Each letter has its own expiry reminder (ext_id
+  `pof:<expires>:<holder>` for the first, `pof:<id>~<expires>:<holder>` for
+  the others; `closeOldPof(slot, expires)`).
 - **Title Agencies** (`/toolkit/title`, `?st=` the market): D1
   `title_agencies` (state = full name, or `Other` = "All other states"),
   loaded Oct 22 from Luke's list (18 agencies, 14 states + Other). Market
@@ -2232,6 +2281,39 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   `cash`: market → signer, EMD, IP, COE, title) → Property / Cash Offer / EMD
   / Signer / IP / COE / Title / extra terms; Copy, Email, Text. A draft on
   the device only (localStorage `vpg.cashOffer`).
+- **Offer Templates + Contract Terms (Luke, Nov 3)** — overrides the Cash
+  Offer note above (CashOffer.jsx is gone; `/toolkit/offer` is now **Offer
+  Templates**, `OfferTemplates.jsx`, draft in localStorage `vpg.offer`, the
+  old `vpg.cashOffer` draft is picked up): **Type of deal** first (Cash /
+  Creative · seller finance — the navy switch), property, price; Creative
+  adds down payment, seller carry (blank = price − down), rate, amortization,
+  term / balloon. The shared offer block (`OfferMessage.jsx`, also under both
+  calculators) gained the **agent's first name**, **Listed on the MLS?**
+  (Listed / Off market) and an editable **opening line** (`INTRO` in
+  offer.js — "Hi <first name>, Looking forward to working with you on this
+  one! …", Luke: "always have a short blurb at the start"), and an
+  **Additional Terms** checklist: the terms that apply to the state and
+  listing, each ticked by default (`picked` = "id:1,id:0"), optional ones off,
+  plus the state's "On the <state> contract" notes. The message =
+  opening + the offer in Luke's template (cash: Price, EMD, Signer, IP, COE,
+  Title; creative: Signer, IP, COE, Title, then Price, EMD, Down Payment,
+  Seller Carry, Interest Rate, Amortization, Term/Balloon) + "Additional
+  Terms:" numbered (`offerMessage(kind, i, { terms })`). Calculators save
+  `agent`, `intro`, `listed`, `picked` with the calculation (OFFER in
+  calc.js). **Toolkit › Contract Terms** (`/toolkit/terms`,
+  `ContractTerms.jsx`): Every Contract, If Off Market, By State (MarketChips;
+  each state's terms and a "Check on the <state> contract" box), When Needed;
+  Copy on every term; owners Edit / Remove / + Add a Term (name, goes on —
+  every contract / off market / these states / when needed — states, "still
+  to confirm", wording) and edit each state's notes. Stored in D1 settings
+  `contract_terms` (`contractTerms` / action `terms` in edge/toolkit.js,
+  `checkTerms`, owners only); until an owner saves, the starting set in
+  `src/toolkit/terms.js` (`DEFAULT_TERMS`) — Luke's investor / weekend /
+  off-market / informal-inspection terms (IN, OH, TN, AL, NV, OK, MO, marked
+  to confirm), the assignment term for NC and GA, and state notes from his
+  contract-review skill (AL ¶30 assignment box, NC consent of all parties,
+  GA consent / F255–F259, SC Form 120 / 136, NM addenda, no "and/or
+  Assigns" in AZ / AL / FL / OK). Usage: one settings row per Toolkit load.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All
@@ -3878,7 +3960,20 @@ Under `src/views/`:
       filtered by `?contactId` returned only a few old workflow texts (Axel's
       Trisha Lioy: 5 texts, newest Sep 8, while the conversation had a dozen
       texts Oct 19–21), so Pipeline "no messaging in Nd" and Follow-ups
-      flagged deals that were being worked. CRM_VERSION 6. Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
+      flagged deals that were being worked. CRM_VERSION 6.
+      **Nov 3** (Luke: "jake has a 0 on his notes, but his leads have
+      notes"; checked in GHL: 4 of his 17 open Missouri deals had a note a
+      person wrote — the rest only the workflow's blank "Required Property
+      Info" note, and most were opened by Daniel before Jake took Missouri
+      over): each flagged deal names why — "only the blank Required Property
+      Info note — fill it in", "only automated notes", "no note since this
+      deal opened", "no note" — and a rep who took a sub-account over isn't
+      graded on notes for deals opened before the takeover for
+      `TAKEOVER_GRACE_DAYS` (14). The takeover date = `since` on the
+      sub-account's D1 change (edge/subChanges.js `saveChange` sets it when
+      the rep changes; older changes fall back to the record's date),
+      carried into subaccounts.json by load-private-files and passed to
+      `crmChecks` as `takeoverMs`. CRM_VERSION 7. Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
       why, click the CRM total for the list. Managers and owners set a
