@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
   setKpiTargets(targets?.value ? JSON.parse(targets.value) : null);
   // The roster = every rep with a sub-account in this deploy's data.json.
   // Trainees with their own sub-account stay out until they graduate (Oct 20).
-  const trainees = new Set(data?.trainees || []);
+  const trainees = new Set([...(data?.trainees || []), ...(data?.inactive || [])]); // inactive people aren't graded (Nov 3)
   const reps = [...new Set((data?.pairs || []).map((p) => p.repId))].filter((id) => !trainees.has(id)).map((id) => ({ id }));
   const manual = new Map(editRows.map((e) => [`${e.week}|${e.rep_id}`, e.crm == null ? null : JSON.parse(e.crm)]));
   const manualFor = (w, monday, id) => {

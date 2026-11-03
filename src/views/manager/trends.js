@@ -3,7 +3,7 @@
 // Every frozen / imported week in scorecards.json, plus the week in progress
 // (live) when it isn't frozen yet. Scores use the same scoreWeek as the
 // scorecard, with the managers' CRM grades over the automatic ones.
-import { REPS } from '../../data/config.js';
+import { REPS, isScored } from '../../data/config.js';
 import { scoreWeek, mergeCrm, autoCrm, repSpeed } from '../../../scripts/scorecard-lib.mjs';
 import { metrics, repPairs } from './metrics.js';
 import { reviewFor, currentWeek } from './useScorecards.js';
@@ -21,6 +21,7 @@ export function weekSeries(sc, max = 8) {
       let n = w?.reps?.[r.id] || null;
       let auto = n?.crmAuto || null;
       if (live) {
+        if (!isScored(r.id)) continue; // set Inactive — not graded (Nov 3)
         const m = metrics(repPairs(r.id));
         n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, projected: m.projected, ...repSpeed(repPairs(r.id)) };
         auto = autoCrm(repPairs(r.id), monday);

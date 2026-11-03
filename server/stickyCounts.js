@@ -73,6 +73,15 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
   const mo = monthKey(now);
   const weekReset = !prevState || prevState.weekKey !== wk;
   const monthReset = !prevState || prevState.monthKey !== mo;
+  // Opps counted this week / month (Luke, Nov 3: "it is a count and does not
+  // matter if it moves out of that stage"): {oppId: when} for every opp
+  // counted as opened / an offer / a contract, kept from the earlier of the
+  // week's and the month's start. An opp in a list stays counted whatever
+  // stage it moves to (back to Review, a stage outside the funnel, deleted)
+  // and is never counted twice in one period.
+  const keepIdsFrom = Math.min(weekMs, monthMs);
+  const keepIds = (m) => Object.fromEntries(Object.entries(m || {}).filter(([id, t]) => t >= keepIdsFrom && !excluded.has(id)));
+  const countIn = (m, from) => Object.values(m).filter((t) => t >= from).length;
 
   const newPairs = [];
   const statePairs = {};
@@ -89,9 +98,12 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       const m = (n) => (monthReset ? 0 : n || 0);
       const kept = { ...prevEntry, offersWeek: w(prevEntry.offersWeek), contractsWeek: w(prevEntry.contractsWeek), offersMonth: m(prevEntry.offersMonth), contractsMonth: m(prevEntry.contractsMonth) };
       const cancels = Object.entries(prevEntry.cancelled || {}).map(([id, c]) => ({ id, ...c })).filter((c) => c.at >= keepFromMs).sort((a, b) => a.at - b.at);
+      kept.offerIds = keepIds(prevEntry.offerIds);
+      kept.contractIds = keepIds(prevEntry.contractIds);
+      kept.openedIds = keepIds(prevEntry.openedIds);
       // eslint-disable-next-line no-unused-vars
       const { _oppRanks, _lost, ...clean } = p;
-      newPairs.push({ ...clean, offersWeek: kept.offersWeek, offersMonth: kept.offersMonth, contractsWeek: kept.contractsWeek, contractsMonth: kept.contractsMonth, cancelsWeek: cancels.filter((c) => c.at >= weekMs).length, cancelsMonth: cancels.filter((c) => c.at >= monthMs).length, cancels });
+      newPairs.push({ ...clean, oppsOpenedWeek: Math.max(p.oppsOpenedWeek || 0, countIn(kept.openedIds, weekMs)), oppsOpenedMonth: Math.max(p.oppsOpenedMonth || 0, countIn(kept.openedIds, monthMs)), offersWeek: kept.offersWeek, offersMonth: kept.offersMonth, contractsWeek: kept.contractsWeek, contractsMonth: kept.contractsMonth, cancelsWeek: cancels.filter((c) => c.at >= weekMs).length, cancelsMonth: cancels.filter((c) => c.at >= monthMs).length, cancels });
       statePairs[key] = kept;
       continue;
     }
@@ -109,6 +121,15 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     const bcContractsMonth = p.contractsMonth || 0;
 
     let offersWeek, offersMonth, contractsWeek, contractsMonth;
+    const offerIds = keepIds(prev?.offerIds);
+    const contractIds = keepIds(prev?.contractIds);
+    const openedIds = keepIds(prev?.openedIds);
+    // Note an opp in a list; [new this week, new this month].
+    const mark = (ids, id, t) => {
+      const was = ids[id] || 0;
+      ids[id] = Math.max(was, t);
+      return [t >= weekMs && !(was >= weekMs), t >= monthMs && !(was >= monthMs)];
+    };
 
     if (!prev) {
       // Never seen this pair → seed every counter from the breadcrumb.
@@ -148,8 +169,8 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
         // …and only if it moved after the last run (10 min slack for the
         // pull happening before that run saved its state).
         if (t < sinceLastRun) continue;
-        if (!inOfferBand(before) && inOfferBand(o.r)) { if (t >= weekMs) offerW++; if (t >= monthMs) offerM++; }
-        if (!inContractBand(before) && inContractBand(o.r)) { if (t >= weekMs) contractW++; if (t >= monthMs) contractM++; }
+        if (!inOfferBand(before) && inOfferBand(o.r)) { const [w, m] = mark(offerIds, o.id, t); if (w) offerW++; if (m) offerM++; }
+        if (!inContractBand(before) && inContractBand(o.r)) { const [w, m] = mark(contractIds, o.id, t); if (w) contractW++; if (m) contractM++; }
       }
       offersWeek = weekReset ? bcOffersWeek : Math.max(0, (prev.offersWeek || 0) - undoOffersWeek) + offerW;
       offersMonth = monthReset ? bcOffersMonth : Math.max(0, (prev.offersMonth || 0) - undoOffersMonth) + offerM;
@@ -172,22 +193,42 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     }
     for (const id of Object.keys(manualAdded)) if (!manualContracts.some((mc) => mc.id === id && Date.parse(mc.at) >= monthMs)) delete manualAdded[id];
 
+    // The breadcrumb's opps (at Offer Submitted / Under Contract now, moved
+    // there in the period; created in the period) join the lists too, so a
+    // first run or a new week starts with them.
+    for (const o of curr) {
+      if (o.r === OFFER_RANK && o.t >= keepIdsFrom) offerIds[o.id] = Math.max(offerIds[o.id] || 0, o.t);
+      if (o.r === UC_RANK && o.t >= keepIdsFrom) contractIds[o.id] = Math.max(contractIds[o.id] || 0, o.t);
+      if (o.c >= keepIdsFrom) openedIds[o.id] = o.c;
+    }
+    const oppsOpenedWeek = Math.max(p.oppsOpenedWeek || 0, countIn(openedIds, weekMs));
+    const oppsOpenedMonth = Math.max(p.oppsOpenedMonth || 0, countIn(openedIds, monthMs));
+
     // Floor: never read below the live breadcrumb (e.g. a burst of offers that
     // landed and then left the band between two runs).
     offersWeek = Math.max(offersWeek, bcOffersWeek);
     offersMonth = Math.max(offersMonth, bcOffersMonth);
     contractsWeek = Math.max(contractsWeek, bcContractsWeek);
     contractsMonth = Math.max(contractsMonth, bcContractsMonth);
+    // …nor below the opps already counted in the period.
+    offersWeek = Math.max(offersWeek, countIn(offerIds, weekMs));
+    offersMonth = Math.max(offersMonth, countIn(offerIds, monthMs));
 
     // Ceiling (Oct 21: Sam's WA showed 4 contracts this week — four deals
     // that closed in Aug–Oct, counted again after a short pull wiped the
     // ranks): a period can't hold more offers / contracts than deals that
     // moved stage inside it and now sit in that band or were moved to
     // Lost / Abandoned, plus the hand-entered contracts in it. Fixes a
-    // count that's already wrong on the next run.
+    // count that's already wrong on the next run. Opps already counted in
+    // the period (offerIds) always fit under it, wherever they are now (Nov 3:
+    // an offer moved back out of the band was taken off the count).
     let capContracts = null;
     if (curr.length && curr.every((o) => o.t != null)) {
-      const moved = (from, band) => curr.filter((o) => o.t >= from && (band(o.r) || o.r === BAND_MAX)).length;
+      const moved = (from, band) => {
+        const ids = new Set(curr.filter((o) => o.t >= from && (band(o.r) || o.r === BAND_MAX)).map((o) => o.id));
+        for (const [id, t] of Object.entries(offerIds)) if (t >= from) ids.add(id);
+        return ids.size;
+      };
       const manualIn = (from) => manualContracts.filter((mc) => `${mc.rep}|${mc.mkt}` === key && Date.parse(mc.at) >= from).length;
       offersWeek = Math.min(offersWeek, moved(weekMs, inOfferBand) + manualIn(weekMs));
       offersMonth = Math.min(offersMonth, moved(monthMs, inOfferBand) + manualIn(monthMs));
@@ -245,7 +286,7 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       // dragged into Under Contract by mistake, then abandoned): never a
       // contract, so not a cancel either; the ceiling below then takes the
       // contract back.
-      if (prevStarted?.[l.id] > 0 && at - prevStarted[l.id] < QUICK_DROP_MS) continue;
+      if (prevStarted?.[l.id] > 0 && at - prevStarted[l.id] < QUICK_DROP_MS) { delete contractIds[l.id]; continue; }
       cancelled[l.id] = { at, from: STAGE_OF_RANK[fromRank] || 'contract', addr: l.address || '', value: l.value || 0, ...(prevStarted?.[l.id] > 0 ? { startedAt: prevStarted[l.id] } : {}) };
     }
     // Cancels entered by hand from the GHL check (manual-cancels.json):
@@ -266,20 +307,26 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       // A cancel only leaves room when the contract itself started in the
       // period (Spencer TN, Oct 21: a deal contracted earlier and cancelled
       // this week kept a contract on this week's count).
-      const startedIn = (from) => cancelList.filter((c) => c.at >= from && (c.startedAt || 0) >= from).length;
       // Deals in the band count only when they first entered it in the
       // period (`started`) — a move inside the band (Under Contract → Dispo
       // → Assigned) this week left room for one more (Spencer TN, Oct 21).
-      const enteredIn = (from) => curr.filter((o) => inContractBand(o.r) && o.t >= from && (started[o.id] || 0) >= from).length;
-      contractsWeek = Math.min(contractsWeek, enteredIn(weekMs) + startedIn(weekMs) + capContracts.manualW);
-      contractsMonth = Math.min(contractsMonth, enteredIn(monthMs) + startedIn(monthMs) + capContracts.manualM);
+      // Contracts counted in the period (contractIds) always fit (Nov 3) —
+      // except a lead dropped within a day, taken out of the list above.
+      const room = (from) => {
+        const ids = new Set(cancelList.filter((c) => c.at >= from && (c.startedAt || 0) >= from).map((c) => c.id));
+        for (const o of curr) if (inContractBand(o.r) && o.t >= from && (started[o.id] || 0) >= from) ids.add(o.id);
+        for (const [id, t] of Object.entries(contractIds)) if (t >= from) ids.add(id);
+        return ids.size;
+      };
+      contractsWeek = Math.min(contractsWeek, room(weekMs) + capContracts.manualW);
+      contractsMonth = Math.min(contractsMonth, room(monthMs) + capContracts.manualM);
     }
 
     // Strip the internal per-opp lists — they must never reach the browser.
     // eslint-disable-next-line no-unused-vars
     const { _oppRanks, _lost, ...clean } = p;
-    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
-    statePairs[key] = { at: now.getTime(), ranks: currMap, started, cancelled, manualAdded, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), oppsOpenedWeek, oppsOpenedMonth, offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
+    statePairs[key] = { at: now.getTime(), ranks: currMap, started, cancelled, manualAdded, offerIds, contractIds, openedIds, offersWeek, offersMonth, contractsWeek, contractsMonth };
   }
 
   return {

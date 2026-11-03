@@ -140,9 +140,11 @@ export function aggregatePair({
     const stageChange = ts(o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     // t = when it last moved stage: stickyCounts only counts a crossing in a
     // week / month it actually happened in (Oct 21).
-    if (o.id) oppRanks.push({ id: o.id, r: rank, t: stageChange });
     const statusChange = ts(o.lastStatusChangeAt || o.lastStageChangeAt || o.updatedAt || o.dateUpdated);
     const created = ts(o.createdAt || o.dateAdded);
+    // c = when it was created: opps opened stay counted for the period even
+    // if the opp is later deleted or leaves the pull (Nov 3).
+    if (o.id) oppRanks.push({ id: o.id, r: rank, t: stageChange, c: created });
 
     // Opportunities opened — new opps created in the period (any stage).
     if (created >= wkStart) oppsOpenedWeek++;

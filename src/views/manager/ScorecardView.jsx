@@ -21,7 +21,7 @@ import { CoachTop3, Standards, Examples } from './CrmBits.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
-import { REPS } from '../../data/config.js';
+import { REPS, isScored } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { addDays, rangeLabel } from '../../utils/historyRange.js';
@@ -323,7 +323,8 @@ const LGRID = { gridTemplateColumns: 'minmax(11rem,1.25fr) 10rem repeat(3,minmax
 // biggestLeak) for the reps shown. Live week = this month; a past week = month
 // to date as of that week's Sunday, from history.json (rangeMetrics, plus the
 // contracts history missed, like the Rep page).
-export function LeakCard({ ids, week, isLive, onPickRep }) {
+export function LeakCard({ ids: allIds, week, isLive, onPickRep }) {
+  const ids = isLive ? allIds.filter(isScored) : allIds; // set Inactive — not graded (Nov 3)
   const log = useMonthLog();
   const past = useMemo(() => {
     if (isLive) return null;
@@ -633,6 +634,7 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
   const rowOf = (id) => {
     let n;
     if (frozen) n = frozen.reps?.[id] || null;
+    else if (!isScored(id)) return null; // set Inactive — not graded (Nov 3)
     else {
       const m = metrics(repPairs(id));
       n = { contractsW: m.contractsW, offersW: m.offersW, oppsW: m.oppsW, cancelsW: m.cancelsW, contractsM: m.contractsM, offersM: m.offersM, oppsM: m.oppsM, cancelsM: m.cancelsM, projected: m.projected, ...repSpeed(repPairs(id)) };

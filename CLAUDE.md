@@ -952,6 +952,16 @@ Overrides the Settings notes above where they differ.
   Daniel's end date was set to Oct 26 in D1. People fits the page with no
   sideways scroll (fixed column widths; Started / Ended stacked in one
   Dates column).
+- **Inactive = not graded** (Luke, Nov 3: "when someone is marked inactive
+  they need to be removed from the scorecard grading as well"):
+  load-private-files writes `.cache/inactive-reps.json` (D1 users, status
+  inactive with a rep_id) → data.json `inactive` (build-snapshot) and
+  `__INACTIVE_REPS__` (vite.config.js; `INACTIVE_REPS` / `isScored` in
+  config.js). Off the live week of Team Scorecard (rows, pod totals, team
+  strip), Trends' live point, Where They Leak, the freeze
+  (update-scorecards) and /api/my-scorecard's team average. Weeks already
+  frozen keep them; every other page is unchanged. Takes effect with the
+  next deploy after the status change.
 - **Settings › Team — the one place for people (Luke, later Oct 26)**: "a
   master tab that all info is edited in, then other tabs are there for
   reference … minimal clicks … almost no effort when adding a new member"
@@ -3677,6 +3687,21 @@ contracts are capped at the deals that moved stage inside it (`t`) and now
 sit in that band or in Lost / Abandoned (contracts: deals that first entered the contract band in the period — their `started` time, so a move inside the band, Under Contract → Dispo → Assigned, doesn't leave room — plus contracts that both started and were cancelled in the period — Oct 21: an abandoned lead, or a contract from an earlier week cancelled this week, no longer leaves room), plus hand-entered contracts in it —
 so a count that's already wrong corrects itself on the next run. Checked in
 GHL: Sam had no deal reach Under Contract that week.
+
+**Counted means counted (Luke, Nov 3**: "offers are not holding true if they
+move out of offer submitted … it is a count and does not matter if it moves
+out of that stage"): the Oct 21 ceiling capped a period's offers at the deals
+*still* in the offer band (or Lost / Abandoned), so an offer moved back to
+Review / New Lead, or to a stage outside the funnel, came off the count. Now
+opp-state keeps per pair `offerIds` / `contractIds` / `openedIds` ({oppId:
+when}, from the earlier of the week's and month's start): every opp counted
+as an offer / a contract / opened. Those always fit under the ceilings, the
+offer count never reads below them, and an opp is counted once per period
+(back into the band later = no second count). Opps opened = max(GHL's
+created-this-period count, `openedIds`), so a deleted opp stays counted
+(`_oppRanks` carries `c` = created). A lead dropped within 24 h of Under
+Contract still comes off (removed from `contractIds`). Drops that happened
+before this shipped aren't restored.
 
 If contracts ever appear inflated (e.g. Luke's "58 contracts when it
 should be much less"), the failure mode is usually one of:
