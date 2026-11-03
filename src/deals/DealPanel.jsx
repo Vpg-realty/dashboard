@@ -354,7 +354,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   // …except the few fields a manager may fix (Luke, Oct 18: COE, IP end via
   // its DD days, EMD amount) — `editable` from the API.
   const editable = new Set(s.editable || []);
-  const fro = (k) => ro && !editable.has(k);
+  // A field given through Settings › Access is read only (buyer stays owners' to edit).
+  const fro = (k) => (ro && !editable.has(k)) || (!owner && !!FIELD[k]?.secret);
   // Changes on their way to GHL (functions/api/deals/[id] → scripts/push-ghl).
   const [pushes, setPushes] = useState(null);
   useEffect(() => { if (isNew || !id) return undefined; let on = true; dealHistory(id).then((r) => on && setPushes(r.pushes || [])).catch(() => {}); return () => { on = false; }; }, [id, isNew, base]);
@@ -543,7 +544,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const past = { buyer: pastValues(s.raw, 'buyer'), title: pastValues(s.raw, 'title') };
   // Reps and managers (Luke, Oct 14): Contract, Title, EMD, Due diligence and
   // Dispositions only, without Net loss % (the server strips the rest too).
-  const visible = (f) => (ro ? repSees(f) : owner || !f.secret);
+  // Settings › Access, Phase 3: the server says which fields this person gets.
+  const visible = (f) => (s.fields ? s.fields.includes(f.key) : ro ? repSees(f) : owner || !f.secret);
   const groups = GROUPS.filter(([gid]) => FIELDS.some((f) => f.group === gid && visible(f)));
   const vpg = typeof merged.vpgAssign === 'number' && merged.vpgAssign > 0;
   // Summary tile, frozen at the top (Luke, Oct 19: "the deal status at a

@@ -76,7 +76,7 @@ export async function currentUser(ctx, opts = {}) {
   const u = await whoIs(ctx, opts);
   // Settings › Access (Nov 3): the pages given / taken for this person.
   if (u && ['manager', 'team', 'trainee', 'tc'].includes(u.role)) {
-    try { const a = await accessFor(ctx.env.DB, u); u.grant = a.give; u.take = a.take; u.scope = a.scope; } catch { /* no settings yet */ }
+    try { const a = await accessFor(ctx.env.DB, u); u.grant = a.give; u.take = a.take; u.scope = a.scope; u.fieldSets = a.fields; } catch { /* no settings yet */ }
   }
   return u;
 }
