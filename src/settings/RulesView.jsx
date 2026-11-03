@@ -11,8 +11,10 @@
 // Before saving, shows which deals the change moves.
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, linkProps } from '../shell/router.js';
-import { readSetting, changeRule } from '../utils/dashApi.js';
+import { useLocation, linkProps, setQuery } from '../shell/router.js';
+import { personColor } from '../deals/personColor.js';
+import { readSetting, changeRule, settingsUsers } from '../utils/dashApi.js';
+import { keyName } from './team.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { compute, RULE_STATUSES } from '../deals/math.js';
 import { toTimelines, entryAt, applyChange, TRACKER_START, rulesAt } from '../deals/rules.js';
@@ -35,7 +37,6 @@ const SECTIONS = [
     { key: 'acqRate', label: 'Acquisition manager', hint: 'of the commission base', type: 'pct' },
     { key: 'dispoRate', label: 'Dispo member', hint: 'of the commission base, when a dispo member is on the deal', type: 'pct' },
     { key: 'noCommission', label: 'No commission (owners)', hint: 'Nothing paid when these people are the acq. manager or dispo member.', type: 'names' },
-    { net: true },
     { key: 'dispoAfterAcq', label: 'Dispo paid after the acq. commission', hint: "For these acq. managers the dispo commission is taken from what's left after theirs.", type: 'names' },
   ] },
   { title: 'Manager commission', sub: 'Paid to one manager on the deals of the reps listed — on the acquisition side unless "Paid on" says otherwise.', rules: [
@@ -248,58 +249,216 @@ function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, im
 
 
 // Commission by person (Luke, Oct 16; simplified Oct 19 — site map: "Name |
-// Acq % | Dispo % | Manager / pod lead | TC"): what each person is paid today,
-// one number per cell; a cell's Edit opens the rule it comes from, and the
-// rules and their history are further down the page.
-function ByPerson({ t, today, lists, onEdit }) {
+// Acq % | Dispo % | Manager / pod lead | TC"; Nov 3 — the one place a
+// person's rates are changed: "the commissions tab to be the only place where
+// people can edit commissions … these charts need to be cleaned up … colors").
+// Each person's acq / dispo rate with a coloured tag for how it's paid —
+// company rate (grey), own rate of the commission base (navy) or of net
+// assignment (amber) — and "Edit rates" opens the person's editor in the row.
+const KIND = {
+  company: { label: 'Company rate', cls: 'bg-zinc-100 text-zinc-700 ring-zinc-200' },
+  base: { label: 'Own rate · of base', cls: 'bg-navy-50 text-navy-800 ring-navy-100' },
+  net: { label: 'Own rate · of net', cls: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  none: { label: 'Owner · no commission', cls: 'bg-zinc-50 text-zinc-500 ring-zinc-200' },
+};
+const Tag = ({ kind }) => <span className={`inline-flex items-center rounded-full px-2 py-[1px] text-[11.5px] font-semibold ring-1 ring-inset whitespace-nowrap ${KIND[kind].cls}`}>{KIND[kind].label}</span>;
+const pctOf = (x) => `${Math.round((x || 0) * 10000) / 100}%`;
+const pctTxt = (x) => (x == null ? '' : String(Math.round(x * 10000) / 100));
+const valAt = (t, key, date) => entryAt(t.timelines[key] || [], date)?.value ?? null;
+// Later changes already set for a rule (shown as "→ 35% from Nov 15").
+const upcoming = (t, key, today) => (t.timelines[key] || []).filter((e) => e.from > today);
+
+// How a person is paid on a side on `date`: { kind, rate, key }.
+function acqOf(t, name, date) {
+  const net = valAt(t, `${NET}${name}`, date); const own = valAt(t, `acqOf:${name}`, date);
+  if (net != null) return { kind: 'net', rate: net, key: `${NET}${name}` };
+  if (own != null) return { kind: 'base', rate: own, key: `acqOf:${name}` };
+  return { kind: 'company', rate: valAt(t, 'acqRate', date), key: 'acqRate' };
+}
+function dispoOf(t, name, date) {
+  const own = valAt(t, `dispoOf:${name}`, date);
+  return own != null ? { kind: 'base', rate: own, key: `dispoOf:${name}` } : { kind: 'company', rate: valAt(t, 'dispoRate', date), key: 'dispoRate' };
+}
+
+function Choice({ value, onChange, options }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1 rounded-lg bg-tan-50 p-1 ring-1 ring-tan-200">
+      {options.map(([v, l]) => (
+        <button key={v} type="button" onClick={() => onChange(v)}
+          className={`rounded-md px-2.5 py-1 text-[12.5px] font-semibold ${value === v ? 'bg-navy-700 text-white shadow-sm' : 'text-navy-800 hover:bg-white'}`}>{l}</button>
+      ))}
+    </div>
+  );
+}
+
+// One person's rates (the Team panel's old Commission box, moved here):
+// Acquisitions = company rate, own rate of the commission base, or own rate of
+// net; Dispo = company rate or own rate; from a date. Saving writes only what
+// changes on that date — going back to the company rate (or off net) clears
+// the person's own rule, so they leave the "own rate" list.
+function PersonEditor({ name, t, today, acqSide, dispoSide, impactOf, onSaved, onCancel }) {
+  const a0 = acqOf(t, name, today); const d0 = dispoOf(t, name, today);
+  const [aKind, setAKind] = useState(a0.kind);
+  const [aRate, setARate] = useState(pctTxt(a0.rate));
+  const [dKind, setDKind] = useState(d0.kind);
+  const [dRate, setDRate] = useState(pctTxt(d0.rate));
+  const [from, setFrom] = useState(today);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const company = { acq: valAt(t, 'acqRate', from), dispo: valAt(t, 'dispoRate', from) };
+  const num = (x) => Number(x) / 100;
+  const ok = (x) => x !== '' && Number(x) >= 0 && Number(x) <= 100;
+  // The rule changes this edit makes, on `from`.
+  const changes = [];
+  const want = (key, value) => { if (JSON.stringify(valAt(t, key, from)) !== JSON.stringify(value)) changes.push({ key, from, value }); };
+  if (acqSide) {
+    want(`${NET}${name}`, aKind === 'net' ? num(aRate) : null);
+    want(`acqOf:${name}`, aKind === 'base' ? num(aRate) : null);
+  }
+  if (dispoSide) want(`dispoOf:${name}`, dKind === 'base' ? num(dRate) : null);
+  const valid = (!acqSide || aKind === 'company' || ok(aRate)) && (!dispoSide || dKind === 'company' || ok(dRate)) && /^\d{4}-\d{2}-\d{2}$/.test(from) && from >= t.since;
+  let next = t;
+  for (const c of changes) { const r = applyChange(next, c, null, null); if (r.error) { next = null; break; } next = r; }
+  const impact = valid && next && changes.length ? impactOf(next) : null;
+  const save = async () => {
+    if (!valid || !changes.length) return;
+    if (impact?.closed && !window.confirm(`This changes commissions on ${impact.closed} closed deal${impact.closed === 1 ? '' : 's'} (${signed(impact.closedDelta)} in total). Save anyway?`)) return;
+    setBusy(true); setErr(null);
+    let x = null;
+    try { for (const c of changes) x = await changeRule(c); onSaved(x, changes); } catch (e) { setErr(e.message); if (x) onSaved(x, []); setBusy(false); }
+  };
+  const rateBox = (v, set, label) => (
+    <span className="inline-flex items-center gap-1"><input value={v} onChange={(e) => set(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 30" aria-label={label} className={`${inputCls} !w-20 tabular-nums ${v === '' ? 'ring-1 ring-[#B42318]/40' : ''}`} /><span className="text-zinc-500">%</span></span>
+  );
+  return (
+    <div className="rounded-xl border border-navy-100 bg-navy-50/40 p-4 flex flex-col gap-3 text-[13px]">
+      <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-3">
+        {acqSide && <>
+          <span className="font-semibold text-navy-900">Acquisitions</span>
+          <span className="flex flex-wrap items-center gap-2">
+            <Choice value={aKind} onChange={(k) => { setAKind(k); if (k === 'company') setARate(pctTxt(company.acq)); }} options={[['company', `Company rate (${pctOf(company.acq)})`], ['base', 'Own rate · of base'], ['net', 'Own rate · of net']]} />
+            {aKind !== 'company' && rateBox(aRate, setARate, 'Acquisition %')}
+          </span>
+        </>}
+        {dispoSide && <>
+          <span className="font-semibold text-navy-900">Dispo</span>
+          <span className="flex flex-wrap items-center gap-2">
+            <Choice value={dKind} onChange={(k) => { setDKind(k); if (k === 'company') setDRate(pctTxt(company.dispo)); }} options={[['company', `Company rate (${pctOf(company.dispo)})`], ['base', 'Own rate · of base']]} />
+            {dKind !== 'company' && rateBox(dRate, setDRate, 'Dispo %')}
+          </span>
+        </>}
+        <span className="font-semibold text-navy-900">Takes effect</span>
+        <span className="flex flex-wrap items-center gap-2"><input type="date" value={from} min={t.since} onChange={(e) => setFrom(e.target.value || today)} className={`${inputCls} !w-40`} aria-label="Takes effect on" /><span className="text-zinc-500">deals with a COE from this date — closed deals before it keep what they had</span></span>
+      </div>
+      <div className="text-[12.5px] text-zinc-600">
+        {err ? <span className="text-red-700">{err}</span>
+          : !changes.length ? 'Nothing to change yet.'
+            : impact ? (impact.deals ? `Changes commissions on ${impact.deals} deal${impact.deals === 1 ? '' : 's'}: ${signed(impact.delta)} in total${impact.closed ? `, of which ${impact.closed} already closed: ${signed(impact.closedDelta)}` : ''}.` : 'No deal on file changes with this.') : null}
+        <span className="block text-zinc-400">Commission base = net assignment − TC fee. Company rate = the rate in “Acquisition and Dispo” below.</span>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" onClick={save} disabled={busy || !valid || !changes.length} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{busy ? 'Saving…' : `Save — from ${day(from, false)}`}</button>
+        <button type="button" onClick={onCancel} className="h-9 px-3 rounded-lg border border-zinc-200 bg-white font-medium">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function RateCell({ side, t, today }) {
+  const later = side.key === 'acqRate' || side.key === 'dispoRate' ? [] : upcoming(t, side.key, today);
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className="text-[17px] font-bold tabular-nums text-navy-900 leading-none">{pctOf(side.rate)}</span>
+      <Tag kind={side.kind} />
+      {later.map((e) => <span key={e.from} className="text-[11.5px] font-semibold text-amber-800">→ {e.value == null ? 'company rate' : pctOf(e.value)} from {day(e.from, false)}</span>)}
+    </div>
+  );
+}
+
+// The order (Luke, Nov 3: "start with owners, then tc, then managers, then
+// reps"); anyone not active on Settings › Team goes to Past Team, for
+// reference only.
+const GROUPS = [['owner', 'Owners'], ['tc', 'Transaction Coordinator'], ['manager', 'Managers'], ['rep', 'Reps']];
+function groupOf(p, users, r) {
+  const lc = p.toLowerCase();
+  if ((r.noCommission || []).some((x) => x.toLowerCase() === lc)) return 'owner';
+  const u = (users || []).find((x) => [keyName(x), `${x.name || ''} ${x.last_name || ''}`.trim(), x.name].some((n) => n && n.toLowerCase() === lc));
+  if (u?.role === 'owner') return 'owner';
+  if (p === r.tcName || u?.role === 'tc') return u && u.status === 'inactive' ? 'past' : 'tc';
+  if (!users) return 'rep';
+  if (!u || u.status === 'inactive') return 'past';
+  return u.role === 'manager' ? 'manager' : 'rep';
+}
+
+function ByPerson({ t, today, lists, users, onEdit, person, setPerson, impactOf, onSaved }) {
   const r = rulesAt(t, today);
-  const pct = (x) => `${Math.round((x || 0) * 1000) / 10}%`;
   const none = (r.noCommission || []).map((x) => x.toLowerCase());
   const m = r.manager || {}; const o = r.override || {};
   const mgrReps = (m.reps || []).filter((x) => !x.coeBefore || x.coeBefore > today);
   const acqTeam = lists?.acqTeam || []; const dispo = lists?.dispoMembers || [];
-  const people = [...new Set([...acqTeam, ...dispo, m.name, o.name, r.tcName].filter(Boolean))].sort();
-  const since = (key) => { const e = entryAt(t.timelines[key] || [], today); return e?.from ? sinceText(e.from) : ''; };
-  const Cell = ({ main, sub, k }) => (
-    <button type="button" onClick={() => onEdit(k)} title="Edit this rule" className="group text-left">
-      <span className="block text-[14px] font-semibold tabular-nums text-navy-900 group-hover:underline underline-offset-2">{main}</span>
+  const everyone = [...new Set([...acqTeam, ...dispo, m.name, o.name, r.tcName].filter(Boolean))].sort();
+  const by = Object.fromEntries([...GROUPS.map(([g]) => [g, []]), ['past', []]]);
+  for (const p of everyone) by[groupOf(p, users, r)].push(p);
+  const [showPast, setShowPast] = useState(false);
+  const dash = <span className="text-zinc-300">—</span>;
+  const Lead = ({ main, sub, k }) => (
+    <button type="button" onClick={() => onEdit(k)} title="Change this rule" className="group text-left">
+      <span className="block text-[13.5px] font-semibold tabular-nums text-navy-900 group-hover:underline underline-offset-2">{main}</span>
       {sub && <span className="block text-[11.5px] text-zinc-500">{sub}</span>}
     </button>
   );
-  const dash = <span className="text-zinc-300">—</span>;
+  const row = (p, i, past) => {
+    const owner = none.includes(p.toLowerCase());
+    const isAcq = acqTeam.includes(p); const isDispo = dispo.includes(p);
+    const lead = [];
+    if (p === m.name) lead.push(<Lead key="m" main={`${pctOf(m.rate)} manager`} sub={`on ${m.side === 'both' ? 'deals' : 'acquisitions'} by ${mgrReps.length ? mgrReps.map((x) => x.rep.split(' ')[0]).join(', ') : 'nobody right now'}`} k="manager.rate" />);
+    if (p === o.name) lead.push(<Lead key="o" main={`${pctOf(o.rate)} pod lead`} sub="of net, closed deals by their reps" k="override.rate" />);
+    const open = person === p;
+    const editable = !past && !owner && (isAcq || isDispo);
+    return [
+      <tr key={p} id={`person-${p}`} className={`scroll-mt-24 border-t border-tan-100 align-top ${past ? 'opacity-60' : ''} ${open ? 'bg-navy-50/50' : i % 2 ? 'bg-tan-50/40' : ''}`}>
+        <td className="pl-5 px-3 py-3 whitespace-nowrap">
+          <span className="flex items-center gap-2 text-[13.5px] font-semibold text-navy-800"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: personColor(p) }} />
+            <a {...linkProps(`/settings/people?who=${encodeURIComponent(p)}`)} title="Open them on Team" className="hover:underline underline-offset-2">{p}</a></span>
+        </td>
+        <td className="px-3 py-3">{!isAcq ? dash : owner ? <Tag kind="none" /> : <RateCell side={acqOf(t, p, today)} t={t} today={today} />}</td>
+        <td className="px-3 py-3">{!isDispo ? dash : owner ? <Tag kind="none" /> : <RateCell side={dispoOf(t, p, today)} t={t} today={today} />}</td>
+        <td className="px-3 py-3">{lead.length ? <div className="flex flex-col gap-1.5">{lead}</div> : dash}</td>
+        <td className="px-3 py-3">{p === r.tcName ? <Lead main={`${money(r.tcComm)} / deal`} sub={`fee ${money(r.tcFee)} off each deal`} k="tcComm" /> : dash}</td>
+        <td className="pr-5 px-3 py-3 text-right whitespace-nowrap">
+          {editable && <button type="button" onClick={() => setPerson(open ? null : p)} className={`h-8 px-3 rounded-md text-[13px] font-semibold ${open ? 'text-zinc-500 hover:underline' : 'border border-navy-200 bg-white text-navy-700 hover:bg-navy-50'}`}>{open ? 'Close' : 'Edit rates'}</button>}
+        </td>
+      </tr>,
+      open && editable && (
+        <tr key={`${p}:edit`} className="bg-navy-50/50"><td colSpan={6} className="px-5 pb-4">
+          <PersonEditor name={p} t={t} today={today} acqSide={isAcq} dispoSide={isDispo} impactOf={impactOf} onSaved={onSaved} onCancel={() => setPerson(null)} />
+        </td></tr>
+      ),
+    ];
+  };
   return (
     <div className="overflow-x-auto -mx-5">
       <table className="w-full text-left">
-        <thead className="text-[12px] text-zinc-500 bg-tan-50/70">
-          <tr>{['Name', 'Acq %', 'Dispo %', 'Manager / pod lead', 'TC'].map((h, i) => <th key={h} className={`${i ? '' : 'pl-5'} px-3 py-2 font-medium whitespace-nowrap`}>{h}</th>)}</tr>
+        <thead className="text-[12px] font-semibold text-navy-700 bg-navy-50/70">
+          <tr>{['Person', 'Acquisitions', 'Dispo', 'Manager / Pod Lead', 'TC', ''].map((h, i) => <th key={i} className={`${i ? '' : 'pl-5'} px-3 py-2 whitespace-nowrap`}>{h}</th>)}</tr>
         </thead>
         <tbody>
-          {people.map((p) => {
-            const owner = none.includes(p.toLowerCase());
-            const net = r.acqOfNet?.[p]; const acqOwn = r.acqOf?.[p]; const dspOwn = r.dispoOf?.[p];
-            const acq = !acqTeam.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" />
-              : net != null ? <Cell main={pct(net)} sub={`of net · ${since(`${NET}${p}`)}`} k={`${NET}${p}`} />
-                : acqOwn != null ? <Cell main={pct(acqOwn)} sub={`of commission base · ${since(`acqOf:${p}`)}`} k={`acqOf:${p}`} />
-                  : <Cell main={pct(r.acqRate)} sub={`of commission base · ${since('acqRate')}`} k="acqRate" />;
-            const dsp = !dispo.includes(p) ? dash : owner ? <Cell main="None" sub="owner — no commission" k="noCommission" />
-              : dspOwn != null ? <Cell main={pct(dspOwn)} sub={`of commission base · ${since(`dispoOf:${p}`)}`} k={`dispoOf:${p}`} />
-                : <Cell main={pct(r.dispoRate)} sub={`of commission base · ${since('dispoRate')}`} k="dispoRate" />;
-            const lead = [];
-            if (p === m.name) lead.push(<Cell key="m" main={`${pct(m.rate)} manager`} sub={`on ${m.side === 'both' ? 'deals' : 'acquisitions'} by ${mgrReps.length ? mgrReps.map((x) => x.rep.split(' ')[0]).join(', ') : 'nobody right now'}`} k="manager.rate" />);
-            if (p === o.name) lead.push(<Cell key="o" main={`${pct(o.rate)} pod lead`} sub="of net, closed deals by their reps" k="override.rate" />);
-            return (
-              <tr key={p} className="border-t border-tan-100 align-top">
-                <td className="pl-5 px-3 py-2.5 text-[13.5px] font-semibold text-navy-800 whitespace-nowrap"><a {...linkProps(`/settings/people?who=${encodeURIComponent(p)}`)} title="Open them on Team" className="hover:underline underline-offset-2">{p}</a></td>
-                <td className="px-3 py-2.5">{acq}</td>
-                <td className="px-3 py-2.5">{dsp}</td>
-                <td className="px-3 py-2.5">{lead.length ? <div className="flex flex-col gap-1.5">{lead}</div> : dash}</td>
-                <td className="px-3 py-2.5">{p === r.tcName ? <Cell main={`${money(r.tcComm)} / deal`} sub={`fee ${money(r.tcFee)} off each deal · ${since('tcComm')}`} k="tcComm" /> : dash}</td>
-              </tr>
-            );
-          })}
+          {[...GROUPS.filter(([g]) => by[g].length).map(([g, label]) => [g, label, by[g]]), ...(by.past.length ? [['past', 'Past Team · For Reference', showPast ? by.past : []]] : [])].flatMap(([g, label, list]) => [
+            <tr key={`g:${g}`} className="border-t border-tan-200">
+              <td colSpan={6} className={`pl-5 px-3 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.12em] ${g === 'past' ? 'bg-zinc-50 text-zinc-500' : 'bg-tan-50 text-tan-800'}`}>
+                {g === 'past' ? <button type="button" onClick={() => setShowPast((x) => !x)} className="uppercase tracking-[0.12em] hover:underline">{showPast ? '▾' : '▸'} {label} · {by.past.length}</button> : `${label} · ${list.length}`}
+                {g === 'past' && <span className="ml-2 normal-case tracking-normal font-normal">not active on Team — kept for their past deals, not editable</span>}
+              </td>
+            </tr>,
+            ...list.map((p, i) => row(p, i, g === 'past')),
+          ])}
         </tbody>
       </table>
-      <p className="px-5 pt-3 text-[12px] text-zinc-500">Click a number to change it — you pick the date it takes effect, and closed deals keep the rules they had. A person’s own rate, pod lead and states are set on Settings › Team (click their name). <a href="#rule-history" className="text-navy-700 underline">History ›</a></p>
+      <div className="px-5 pt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-zinc-500">
+        <span className="font-semibold text-navy-800">Key:</span>
+        <Tag kind="company" /> the company rate below <Tag kind="base" /> their own rate, of the commission base <Tag kind="net" /> their own rate, of net assignment
+        <span className="w-full">Edit rates changes a person’s acquisition and dispo rates from a date you pick — set them back to Company rate to take them off their own rate. Manager, pod lead and TC numbers open their rule below. <a href="#rule-history" className="text-navy-700 underline">History ›</a></span>
+      </div>
     </div>
   );
 }
@@ -320,10 +479,17 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
   const [msg, setMsg] = useState(null);
   const [editing, setEditing] = useState(() => query.get('edit'));
   const [open, setOpen] = useState(null);
+  // Who's active on Settings › Team (Who Gets Paid What's order and Past Team).
+  const [users, setUsers] = useState(null);
+  useEffect(() => { settingsUsers().then((x) => setUsers(x.users || [])).catch(() => setUsers(null)); }, []);
+  // The person whose rates are open (?person=, also from Settings › Team).
+  const person = query.get('person') || null;
   const today = laToday();
   useEffect(() => { readSetting('deal-rules').then((x) => { setT(toTimelines(x.value)); setMeta(x); }).catch((e) => setMsg({ error: true, text: e.message })); }, []);
   // Arrived with ?edit= — bring that rule into view once the rules are in.
   const loaded = !!t;
+  // …and with ?person= (Settings › Team's "Set on Commissions") — that row.
+  useEffect(() => { if (loaded && person) setTimeout(() => document.getElementById(`person-${person}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (loaded && editing) setTimeout(() => document.getElementById(`rule-${editing}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80); }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const people = useMemo(() => [...new Set([...(s.lists?.acqTeam || []), ...(s.lists?.dispoMembers || [])])].sort(), [s.lists]);
 
@@ -358,9 +524,6 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
     try { done(await changeRule({ key: def.key, from: e.from, remove: true }), `Removed the ${day(e.from)} change to ${def.label}.`); } catch (er) { setMsg({ error: true, text: er.message }); }
   };
   const row = (def) => <RuleRow key={def.key} def={def} t={t} today={today} editing={editing} setEditing={setEditing} open={open} setOpen={setOpen} people={people} impactOf={impactOf} onSave={onSave} onRemove={onRemove} />;
-  // "Paid on net" is one rule per person; anyone with a rate on file is listed.
-  const netKeys = Object.keys(t.timelines).filter((k) => k.startsWith(NET) && t.timelines[k].some((e) => e.value != null));
-  const pendingNet = editing?.startsWith(NET) && !netKeys.includes(editing) ? editing : null;
   // Every dated change, newest start date first.
   const changes = Object.entries(t.timelines).flatMap(([k, tl]) => tl.slice(1).map((e) => ({ ...e, key: k }))).sort((a, b) => (a.from === b.from ? (a.key < b.key ? -1 : 1) : a.from < b.from ? 1 : -1));
   const byDate = changes.reduce((m, c) => { (m[c.from] ||= []).push(c); return m; }, {});
@@ -374,29 +537,18 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
         </div>
       )}
       {byPerson && (
-        <Section title="Who gets paid what" sub="Each person's rates today. The rules behind them are below, then every change by date.">
-          <ByPerson t={t} today={today} lists={s.lists} onEdit={(key) => {
-            setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
-          }} />
+        <Section title="Who Gets Paid What" sub="Every person's rates today — the one place to change them. The company rates and other rules are below, then every change by date.">
+          <ByPerson t={t} today={today} lists={s.lists} users={users} person={person} setPerson={(p) => setQuery({ person: p })} impactOf={impactOf}
+            onSaved={(x, cs) => { if (x) done(x, cs.length ? `Saved ${person}'s rates — from ${day(cs[0].from)}.` : 'Saved part of the change.'); if (cs.length) setQuery({ person: null }); }}
+            onEdit={(key) => {
+              setEditing(key); setTimeout(() => document.getElementById(`rule-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+            }} />
         </Section>
       )}
       {SECTIONS.filter((sec) => only.includes(sec.title)).map((sec) => (
         <Section key={sec.title} title={sec.title} sub={sec.sub}>
           <div className="-my-3">
             {sec.rules.map((def) => {
-              if (def.net) {
-                return (
-                  <div key="net" className="py-3 border-b border-tan-100">
-                    <div className="text-[13.5px] font-medium text-navy-800">Paid on net assignment instead</div>
-                    <div className="text-[11.5px] text-zinc-400 mb-1">These acq. managers get a share of net assignment instead of the acquisition rate. One rule per person, each with its own start date.</div>
-                    <div className="pl-4 border-l-2 border-tan-200">
-                      {netKeys.map((k) => row(defOf(k)))}
-                      {pendingNet && row(defOf(pendingNet))}
-                      <SearchSelect className="mt-2 w-48" value="" onChange={(v) => v && setEditing(NET + v)} clearable={false} pinned={[{ value: '', label: '+ add a person' }]} options={people.filter((p) => !netKeys.includes(NET + p)).map((p) => ({ value: p, label: p }))} />
-                    </div>
-                  </div>
-                );
-              }
               if (def.optional && !t.timelines[def.key]) return null;
               return row(def);
             })}

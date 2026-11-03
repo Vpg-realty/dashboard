@@ -7,7 +7,6 @@
 // on the board" to link any more: a person's first state creates their rep.
 // Below: Suggestion Box access and what each role sees.
 import SearchSelect from '../deals/SearchSelect.jsx';
-import { ratesOf } from '../deals/rules.js';
 import { useEffect, useState } from 'react';
 import { ALL_REPS, ALL_MARKETS } from '../data/config.js';
 import { useSubs } from './subStore.js';
@@ -18,8 +17,6 @@ import { usePods } from '../shell/pods.js';
 import { Section, inputCls } from './ui.jsx';
 import TeamPanel from './TeamPanel.jsx';
 import { keyName, worksDeals } from './team.js';
-import { toTimelines, rulesAt } from '../deals/rules.js';
-import { laToday } from '../utils/historyRange.js';
 
 const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee', 'tv'];
 const ROLE_HELP = {
@@ -133,13 +130,10 @@ export default function PeopleView() {
   const [error, setError] = useState(null);
   const [lists, setLists] = useState(null);
   const [tvOff, setTvOff] = useState([]);
-  const [rules, setRules] = useState(null);
   const [n, setN] = useState(0);
-  const today = laToday();
   useEffect(() => { settingsUsers().then((r) => setUsers(r.users)).catch((e) => setError(e.message)); }, [n]);
   useEffect(() => { readSetting('deal-lists').then((r) => setLists(r.value || {})).catch(() => setLists({})); }, [n]);
   useEffect(() => { readSetting('board-hidden').then((r) => setTvOff(r.value?.repIds || [])).catch(() => setTvOff([])); }, [n]);
-  useEffect(() => { readSetting('deal-rules').then((x) => setRules(rulesAt(toTimelines(x.value), today))).catch(() => setRules({})); }, [n, today]);
   // ?person=<email> opens their panel, ?person=new the blank one; ?who=<name>
   // (from Commissions) finds them by the name deals know them by.
   const pick = query.get('person');
@@ -158,14 +152,11 @@ export default function PeopleView() {
   const order = ['owner', 'manager', 'team', 'trainee', 'tc', 'tv'];
   const sorted = [...users].sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role) || a.name.localeCompare(b.name));
   const podOf = (u) => pods.find((p) => p.lead === u.rep_id);
-  const none = (rules?.noCommission || []).map((x) => x.toLowerCase());
   const rows = (list) => list.map((u) => {
     const k = keyName(u);
     const states = u.rep_id ? SUBACCOUNTS.filter((s) => s.repId === u.rep_id) : [];
     const lead = u.role === 'trainee' ? (u.trainer ? `${first(repName(u.trainer))} (trainer)` : null) : u.role === 'team' ? lists.reportsTo?.[k] && first(lists.reportsTo[k]) : null;
     const inactive = u.status === 'inactive';
-    const rt = ratesOf(rules, k); const pc = (x) => `${Math.round(x * 10000) / 100}%`;
-    const comm = !worksDeals(u.role) ? (u.role === 'tc' ? 'TC pay' : u.role === 'owner' ? 'None (owner)' : '—') : none.includes(k.toLowerCase()) ? 'None' : rt.acq == null ? '—' : `${pc(rt.acq)}${rt.net ? ' of net' : ''} · ${pc(rt.dispo)} dispo`;
     return (
       <tr key={u.email} onClick={() => open(u.email)} className={`border-t border-tan-100 cursor-pointer hover:bg-tan-50 ${inactive ? 'text-zinc-500' : ''}`}>
         <td className="py-2.5 pl-4 pr-3">
@@ -178,7 +169,6 @@ export default function PeopleView() {
           {states.length ? <span className="flex flex-wrap gap-1">{states.map((s) => <span key={s.locationId} className={`${chip} ${inactive ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-tan-100 text-tan-800'}`}>{code(s.marketId)}{inactive ? ' · hand off' : ''}</span>)}</span>
             : worksDeals(u.role) && !inactive ? <span className={`${chip} bg-amber-50 text-amber-800 ring-1 ring-amber-200`}>No states yet</span> : <span className="text-zinc-300">—</span>}
         </td>
-        <td className="py-2.5 pr-3 whitespace-nowrap">{comm}</td>
         <td className="py-2.5 pr-4">{!states.length ? <span className="text-zinc-300">—</span> : inactive || tvOff.includes(u.rep_id) ? <span className={`${chip} bg-zinc-100 text-zinc-500`}>Off</span> : <span className={`${chip} bg-emerald-50 text-emerald-800`}>On</span>}</td>
       </tr>
     );
@@ -187,7 +177,7 @@ export default function PeopleView() {
     <Section title={`${title} · ${list.length}`} sub={sub}>
       <div className="overflow-x-auto -mx-5">
         <table className="w-full text-left text-[13.5px]">
-          <thead className="text-[12px] text-zinc-500 bg-tan-50/70"><tr>{['Person', 'Role', 'Pod Lead', 'States', 'Commission', 'TV'].map((h, i) => <th key={h} className={`py-2 ${i ? 'pr-3' : 'pl-4 pr-3'} font-medium`}>{h}</th>)}</tr></thead>
+          <thead className="text-[12px] text-zinc-500 bg-tan-50/70"><tr>{['Person', 'Role', 'Pod Lead', 'States', 'TV'].map((h, i) => <th key={h} className={`py-2 ${i ? 'pr-3' : 'pl-4 pr-3'} font-medium`}>{h}</th>)}</tr></thead>
           <tbody>{rows(list)}</tbody>
         </table>
       </div>
@@ -206,7 +196,7 @@ export default function PeopleView() {
           {ROLES.map((r) => <div key={r}><dt className="font-semibold text-navy-700">{ROLE_LABEL[r]}</dt><dd className="text-zinc-600">{ROLE_HELP[r]}</dd></div>)}
         </dl>
       </Section>
-      {panelOpen && <TeamPanel key={person?.email || 'new'} u={person} users={users} leads={leads} lists={lists} tvOff={tvOff} rules={rules} me={me}
+      {panelOpen && <TeamPanel key={person?.email || 'new'} u={person} users={users} leads={leads} lists={lists} tvOff={tvOff} me={me}
         onSaved={() => setN((x) => x + 1)} onRemoved={() => { close(); setN((x) => x + 1); }} onClose={close} />}
     </div>
   );

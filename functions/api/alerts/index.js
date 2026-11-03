@@ -13,7 +13,7 @@
 // edit_log (not seen / chime) and refused while viewing as someone — except
 // an owner ticking alerts off (done / doneMany), saved under the owner's name.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan, counts, countFor, scopeOf, azHM, closeReviewed, MANY_MAX } from '../../../edge/alerts.js';
+import { canUse, load, plan, counts, countFor, scopeOf, azHM, closeReviewed, dupeGroup, MANY_MAX } from '../../../edge/alerts.js';
 import { azDate } from '../../../scripts/scorecard-lib.mjs';
 import { refreshPods } from '../../../edge/pods.js';
 import { addTcTask } from '../../../edge/tcTasks.js';
@@ -58,6 +58,21 @@ export async function onRequestPost(context) {
     for (let i = 0; i < ids.length; i += 90) {
       const part = ids.slice(i, i + 90);
       existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, done_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+    }
+  }
+  // An owner's tick on a duplicate covers every pod's copy (owners see one —
+  // oneDupe in edge/alerts.js).
+  if (user.role === 'owner' && (b?.action === 'done' || b?.action === 'doneMany')) {
+    const list = b.action === 'done' ? (existing ? [existing] : []) : existing;
+    const groups = [...new Set(list.filter((x) => x.kind === 'dupe' && x.ext_id).map(dupeGroup))];
+    if (groups.length) {
+      const have = new Set(list.map((x) => x.id));
+      const more = [];
+      for (const g of groups) more.push(...(await db.prepare("SELECT id, holder, kind, ext_id, sub, contact, done_at FROM alerts WHERE kind = 'dupe' AND ext_id LIKE ?").bind(`${g}|%`).all()).results.filter((x) => !have.has(x.id) && dupeGroup(x) === g));
+      if (more.length) {
+        existing = [...list, ...more];
+        b = { ...b, action: 'doneMany', ids: existing.map((x) => x.id) };
+      }
     }
   }
   const now = new Date().toISOString();

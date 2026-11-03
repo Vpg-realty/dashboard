@@ -451,9 +451,9 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       const k = l.addr ? addrKey(l.addr) : null;
       if (k) byAddr.set(k, [...(byAddr.get(k) || []), l]);
     }
-    for (const [k, ls] of byAddr) groups.push({ key: k, hint: 'duplicate', list: ls });
     const week = new Date(now - 7 * DAY).toISOString();
     const byAgent = new Map();
+    const folded = [];
     for (const l of leadRows) if (l.agent && l.created_at >= week) byAgent.set(l.agent, [...(byAgent.get(l.agent) || []), l]);
     for (const [ph, ls] of byAgent) {
       if (new Set(ls.map((l) => l.holder)).size < 2) continue;
@@ -461,10 +461,24 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       // grouped above is covered there.
       const keys = new Set(ls.map((l) => (l.addr ? addrKey(l.addr) : null)).filter(Boolean));
       if (keys.size > 1 || (keys.size === 1 && ls.every((l) => l.addr))) continue;
-      const cross = ls.some((x) => ls.some((y) => y.holder !== x.holder && similar(x.quote, y.quote)));
       const first = ls.reduce((m, l) => (l.created_at < m ? l.created_at : m), ls[0].created_at).slice(0, 10);
+      // One address in it (Luke, Nov 3: 140 Dana Rd came as four alerts — the
+      // agent's first text had no address, the next did): the texts without
+      // an address join that address's group, and the separate "same agent"
+      // alert made before this is dropped.
+      if (keys.size === 1) {
+        const k = [...keys][0];
+        if (byAddr.has(k)) {
+          byAddr.set(k, [...byAddr.get(k), ...ls.filter((l) => !l.addr)]);
+          folded.push(`dupe:agent:${ph}:${first}|%`);
+          continue;
+        }
+      }
+      const cross = ls.some((x) => ls.some((y) => y.holder !== x.holder && similar(x.quote, y.quote)));
       groups.push({ key: `agent:${ph}:${first}`, hint: cross ? 'duplicate' : 'potential', list: ls });
     }
+    for (const [k, ls] of byAddr) groups.unshift({ key: k, hint: 'duplicate', list: ls });
+    for (const like of folded) await query("DELETE FROM alerts WHERE kind = 'dupe' AND ext_id LIKE ?", [like]);
     const repName = (id) => reps.find((r) => r.id === id)?.name.split(' ')[0] || id;
     // Pods from Settings › People (deal_lists.reportsTo; one row per run).
     const rt = (await rows("SELECT json_extract(value, '$.reportsTo') AS r FROM settings WHERE key = 'deal_lists'"))[0]?.r;
@@ -484,7 +498,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       }
       const tag = (l) => { const p = podOf(l.holder); return p ? `${repName(l.holder)} (${p.title})` : repName(l.holder); };
       const timeline = list.map((l) => `${tag(l)} ${when(l.created_at)}`).join(' → ');
-      const what = list.find((l) => l.addr)?.addr || null;
+      const what = g.list.find((l) => l.addr)?.addr || null;
       const label = g.hint === 'potential' ? 'Potential duplicate' : 'Duplicate lead';
       // Where it happened (Luke, Oct 22: "open to GHL to show message of
       // where this happened"): each rep's lead — rep, pod, market, when, the

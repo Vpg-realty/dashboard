@@ -997,6 +997,25 @@ Overrides the Settings notes above where they differ.
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the
   changes by date (`#rule-history`).
+  **Nov 3 (Luke: "the commissions tab to be the only place where people can
+  edit commissions … these charts need to be cleaned up … colors"; "start
+  with owners, then tc, then managers, then reps … any rep not active on the
+  team … historical information for reference")** — overrides the Team panel
+  / Team list commission notes: Team shows no commission any more (the panel
+  only links to `/settings/commissions?person=<name>`). Who Gets Paid What
+  (`ByPerson` in RulesView.jsx) groups rows Owners → Transaction Coordinator
+  → Managers → Reps (`groupOf`: owners = noCommission or role owner, by D1
+  users matched on `keyName` / full name), and anyone not active on Team
+  folds into **Past Team · For Reference** (greyed, not editable). Each rate
+  shows a coloured tag — Company rate (grey), Own rate · of base (navy), Own
+  rate · of net (amber) — and coming changes. **Edit rates** opens
+  `PersonEditor` in the row: Acquisitions = Company rate / Own rate of base /
+  Own rate of net, Dispo = Company rate / Own rate, a start date and the
+  deals it moves; it writes only what changes (`acqOfNet:` / `acqOf:` /
+  `dispoOf:<name>`, back to Company rate = null), so going off net takes a
+  person off their own rate. The separate "Paid on net assignment instead"
+  list is gone from Acquisition and Dispo (those rules still show in the
+  history by date).
 - **Dropdown lists** come from People / Sub-Accounts / code / past deals:
   GET /api/deals sends `effectiveLists` (edge/deals.js) — the stored
   deal_lists plus active people's rep names (acq. manager / dispo member),
@@ -1227,6 +1246,16 @@ Overrides the Alerts notes above where they differ.
   same agent at different reps within 7 days with no address and different
   messages (`hint` 'duplicate' | 'potential'; ext_id `dupe:agent:<phone>:
   <first date>|<pod>` for agent groups). One per pod as before.
+- **One alert per duplicate** (Luke, Nov 3: 140 Dana Rd came as four
+  alerts — "why do i get all of these for the same address?"): when an
+  agent's texts to several reps point at one address, the texts without an
+  address join that address's group (`folded` in edge/alertsSync.js) and the
+  separate "Potential duplicate" (same agent) alert is deleted. A duplicate is
+  still saved once per pod (each pod lead sees theirs), but owners see one —
+  `oneDupe` (edge/alerts.js) folds the pods' copies into the first ("sent to N
+  pods", everyone's marks), and an owner's tick covers every copy
+  (functions/api/alerts). No new reads beyond one small dupe lookup per owner
+  tick.
 - **Reviewed by, per person**: ticking an alert off (or Complete) clears it
   for you only — D1 `alert_marks (alert_id, who, name, at)` (edge/alerts.sql;
   indexes on who and at) — and the others see "✓ Reviewed by <name> ·

@@ -94,8 +94,40 @@ export async function load(db, user, now = new Date()) {
     chime: seen ? !!seen.chime : chimeDefault(user),
     names,
     assignable: assignable.sort((a, b) => (a.id === scope.me ? -1 : b.id === scope.me ? 1 : a.name.localeCompare(b.name))),
-    alerts: rows.results.map((a) => ({ ...a, marks: byAlert.get(a.id) || [] })),
+    alerts: oneDupe(rows.results.map((a) => ({ ...a, marks: byAlert.get(a.id) || [] })), user.role === 'owner'),
   };
+}
+
+// A duplicate is saved once per pod (each pod lead sees their own), so owners
+// got one per pod for the same address (Luke, Nov 3: "why do i get all of
+// these for the same address?"). Owners see one: the pods' copies folded into
+// the first, with everyone's marks; `siblings` = the other copies, which a
+// tick by an owner covers too (functions/api/alerts).
+export const dupeGroup = (x) => String(x.ext_id || '').split('|')[0];
+export function oneDupe(list, owner) {
+  if (!owner) return list;
+  const groups = new Map();
+  for (const a of list) if (a.kind === 'dupe' && a.ext_id) groups.set(dupeGroup(a), [...(groups.get(dupeGroup(a)) || []), a]);
+  const drop = new Set();
+  const merged = new Map();
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    g.sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+    const [head, ...rest] = g;
+    rest.forEach((x) => drop.add(x.id));
+    const marks = new Map();
+    for (const x of g) for (const m of x.marks) if (!marks.has(m.who)) marks.set(m.who, m);
+    const open = g.some((x) => !x.done_at);
+    merged.set(head.id, {
+      ...head,
+      title: String(head.title).replace(/ — (already received by|also sent to) another pod — /, ` — sent to ${g.length} pods — `),
+      marks: [...marks.values()],
+      done_at: open ? null : head.done_at,
+      done_by: open ? null : head.done_by,
+      siblings: rest.map((x) => x.id),
+    });
+  }
+  return list.filter((a) => !drop.has(a.id)).map((a) => merged.get(a.id) || a);
 }
 
 // Is this alert one that rings this person's bell (the red dot / chime)?
