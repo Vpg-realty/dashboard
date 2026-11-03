@@ -27,7 +27,9 @@ import { endTimeOf, fmtTime, ddEndMs } from '../deals/ddTime.js';
 import { isOpen } from '../deals/math.js';
 import { stageKey } from './stages.js';
 import { useOpps } from '../data/oppsStore.js';
-import { scopeReps } from './scope.js';
+import { scopeLevel } from './scope.js';
+import { podMates } from './access.js';
+import { podsOf } from './pods.js';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { formatCompactCurrency } from '../utils/format.js';
 import { titleCase } from './titleCase.js';
@@ -61,21 +63,25 @@ export default function PipelinePage({ mode = 'deals' }) {
   const isOpps = view === 'opps';
   const opps = useOpps();
   const [q, setQ] = useState('');
-  const canPick = ['owner', 'manager', 'tc'].includes(me?.role);
   const mineId = me?.rep_id || null;
-  // Opportunities and the Calendar (Luke, Oct 16: "reps should only see deals
-  // that apply to them - no team view. pod leads/managers … their deals and
-  // their pods deals … owners see full team"): owners / TC see everyone; a
-  // manager their own, their pod or one of its reps; a rep only their own.
-  const scoped = isOpps || view === 'cal';
-  const teamOpps = me?.role === 'owner' || me?.role === 'tc';
-  // A manager gets "My pod" on every tab and picks only people in their pod
-  // (Luke, Oct 16); Opportunities and the Calendar also leave out Full team.
-  const pod = me?.role === 'manager' ? scopeReps(me) : null;
-  const pickable = pod ? REPS.filter((r) => pod.includes(r.id)) : REPS;
-  // "My pod" = the pod's reps, without the lead — the lead's own deals are
-  // "Mine" (Luke, Oct 18: pod and themselves always separate).
-  const podReps = pod ? pod.filter((id) => id !== me.rep_id) : null;
+  // How far the switch reaches (Settings › Access, Phase 2 — Nov 3): Mine /
+  // My Pod / Everyone per tab. Today's rules by default (Luke, Oct 16: "reps
+  // should only see deals that apply to them - no team view. pod
+  // leads/managers … their deals and their pods deals … owners see full
+  // team"): Contracted Deals everyone; Opportunities and the Calendar a rep's
+  // own, a pod lead's pod, owners / TC everyone.
+  const level = scopeLevel(me, isOpps ? 'opps' : view === 'cal' ? 'calendar' : 'pipeline');
+  const scoped = level !== 'all';
+  const teamOpps = level === 'all';
+  // "My pod" = the pod's reps, without the person — their own deals are
+  // "Mine" (Luke, Oct 18: pod and themselves always separate). For a rep given
+  // My Pod, the pod they're in.
+  const podReps = mineId && level !== 'mine' ? podMates(mineId, podsOf(me)) : [];
+  const pod = podReps.length ? [mineId, ...podReps] : null;
+  // Picking one person: owners / managers / TC across the team when they see
+  // everyone, anyone with My Pod among the pod.
+  const canPick = (teamOpps && ['owner', 'manager', 'tc'].includes(me?.role)) || (!teamOpps && !!pod);
+  const pickable = teamOpps ? REPS : REPS.filter((r) => pod?.includes(r.id));
   // Luke, Oct 14: "Mine" is the default for anyone with a rep (reps and
   // managers); owners and the TC (no rep) open on the full team. The default
   // stays out of the link, the other choice is written (?who=all / ?who=me).
@@ -115,7 +121,7 @@ export default function PipelinePage({ mode = 'deals' }) {
     window.addEventListener('focus', again);
     return () => { clearInterval(t); window.removeEventListener('focus', again); };
   }, [view]);
-  const inScope = (repId) => (rep ? repId === rep.id : podOnly ? podReps.includes(repId) : true);
+  const inScope = (repId) => (rep ? repId === rep.id : podOnly ? podReps.includes(repId) : !scoped);
   // Closed / cancelled in the tracker but still open in GHL: left out.
   const ended = endedByAddr(s);
   const needle = q.trim().toLowerCase();
@@ -123,7 +129,7 @@ export default function PipelinePage({ mode = 'deals' }) {
   const keep = (d, p) => hit(d) && !(d.stage !== 'closed' && ended.has(addrKey(d.address || d.name))) && (inScope(p.repId) || (rep && dispoAddr.has(addrKey(d.address || d.name)))) && (!st || p.marketId === st);
   const ghlAddr = new Set(PAIRS.flatMap((p) => (p.deals || []).map((d) => addrKey(d.address || d.name))));
   const extra = view === 'cal' ? s.deals.filter((t) => isOpen(t) && !addrKeys(t.address).some((k) => ghlAddr.has(k))).map(trackerOnly)
-    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? podReps.includes(x.repId) : true) && (!st || x.marketId === st) && hit(x)) : null;
+    .filter((x) => (rep ? x.repId === rep.id || norm(x.dispoMember) === norm(rep.name) : podOnly ? podReps.includes(x.repId) : !scoped) && (!st || x.marketId === st) && hit(x)) : null;
   // Opportunities need a scope: one person, the pod, or (owners / TC) everyone.
   const oppScope = !!rep || podOnly || (raw === 'all' && teamOpps);
   const calBlocked = view === 'cal' && !oppScope;

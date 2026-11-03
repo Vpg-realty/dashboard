@@ -12,6 +12,7 @@
 // as someone (currentUser makes the role 'none').
 import { tcTaskOf, tickTcTask, removeTcTask } from './tcTasks.js';
 import { getPods } from './pods.js';
+import { podFor, podMates } from '../src/shell/access.js';
 
 export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
 // Kinds that also ring the holder's pod lead and the owners.
@@ -36,14 +37,27 @@ const podOf = (u) => (u?.role === 'manager' && u.rep_id ? getPods().find((p) => 
 export const OWNERS = 'owners';
 export function scopeOf(u) {
   const me = holderOf(u);
-  if (u.role === 'owner') return { me, see: null, leads: null, keys: [me, OWNERS] };
+  if (u.role === 'owner') return { me, see: null, own: null, leads: null, keys: [me, OWNERS], level: 'all' };
   const pod = podOf(u);
-  const see = [me, ...(pod?.reps || [])];
-  return { me, see, leads: see, keys: [me] };
+  // `own` = what they may act on (tick, grade, hand tasks to): their own and,
+  // for a pod lead, the pod's. `see` = what Settings › Access lets them look
+  // at (Phase 2, Nov 3: Mine / My Pod / Everyone) — read only beyond `own`.
+  const own = [me, ...(pod?.reps || [])];
+  const level = u.scope?.alerts || (pod ? 'pod' : 'mine');
+  const see = level === 'all' ? null : level === 'pod' ? [...new Set([...own, ...podMates(u.rep_id, getPods())])] : [me];
+  // The red dot never counts what they can't open.
+  const leads = (see || own).filter((id) => own.includes(id));
+  return { me, see, own, leads, keys: [me], level };
+}
+// The pod switch on the page: a lead's pod, or (My Pod given) the pod they're in.
+function podView(user, scope) {
+  if (scope.level === 'mine' || user.role === 'owner') return null;
+  const p = podOf(user) || podFor(user.rep_id, getPods());
+  return p ? { title: p.title, reps: podOf(user) ? p.reps : podMates(user.rep_id, getPods()) } : null;
 }
 // The alert_marks `who` this person's review is saved under.
 const markWho = (x, user, scope) => (user.role === 'owner' && SHARED.has(x.kind) ? OWNERS : scope.me);
-const inScope = (scope, holder) => !scope.see || scope.see.includes(holder);
+const inScope = (scope, holder) => !scope.own || scope.own.includes(holder);
 
 const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -129,7 +143,9 @@ export async function load(db, user, now = new Date()) {
     me: scope.me,
     mine: scope.keys,
     tasksOnly: tasksOnly(user),
-    pod: podOf(user) ? { title: podOf(user).title, reps: podOf(user).reps } : null,
+    pod: podView(user, scope),
+    level: scope.level,
+    owner: user.role === 'owner' || undefined,
     seenAt: seen?.seen_at || null,
     chime: seen ? !!seen.chime : chimeDefault(user),
     names,

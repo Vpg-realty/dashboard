@@ -321,7 +321,9 @@ export default function AlertsView() {
   const me = data?.me;
   const keys = data?.mine || [me];
   const pod = data?.pod;
-  const owner = data && data.assignable.length > 1 && !pod;
+  const owner = !!data?.owner;
+  // Everyone: owners, or anyone Settings › Access gives it (Phase 2).
+  const everyone = owner || data?.level === 'all';
   // Owners open on Everyone (Luke, Oct 22: Mine only lists what's assigned
   // to them); everyone else on Mine.
   const defWho = owner ? 'all' : 'me';
@@ -369,7 +371,7 @@ export default function AlertsView() {
   const dueToday = scoped.filter((a) => !isDone(a) && a.kind !== 'lead' && a.kind !== 'dupe' && !isCoaching(a) && a.due === today).length;
   const newN = scoped.filter((a) => !isDone(a) && isNew(a)).length;
   const doneN = scoped.filter((a) => isDone(a) && inWeek(doneAt(a))).length;
-  const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (owner || pod?.reps.includes(id))) : [];
+  const people = data ? Object.entries(data.names).filter(([id]) => id !== me && (everyone || pod?.reps.includes(id))) : [];
   const whoName = who === 'me' ? 'Mine' : who === 'pod' ? pod?.title : who === 'all' ? 'Everyone' : data?.names[who] || who;
   const title = `${tab === 'done' ? 'Reviewed · ' : ''}${[...RAIL, ...LATER].find((r) => r.id === view)?.label}`;
   // What "Select all" picks: the ticks shown in this list (not leads).
@@ -389,9 +391,9 @@ export default function AlertsView() {
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{who === 'me' ? 'Your Day' : `${whoName}'s Day`}</h1>
           <p className="mt-1 text-[13.5px] text-white/75">{new Date(`${today}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })} · {tasksOnly ? 'your tasks — added on the site for you, and the proof of funds reminders' : 'tasks from GHL and the site, leads Claude spotted, and check-ins due'}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {(pod || owner) && (
+            {(pod || everyone) && (
               <div className="inline-flex rounded-lg bg-navy-900/60 p-0.5" role="group" aria-label="Whose alerts">
-                {[['me', 'Mine'], ...(pod ? [['pod', pod.title]] : []), ...(owner ? [['all', 'Everyone']] : [])].map(([id, l]) => (
+                {[['me', 'Mine'], ...(pod ? [['pod', pod.title]] : []), ...(everyone ? [['all', 'Everyone']] : [])].map(([id, l]) => (
                   <button key={id} type="button" onClick={() => setQuery({ who: id === defWho ? null : id })} className={`h-7 px-3 rounded-md text-[13px] font-semibold ${who === id ? 'bg-tan-500 text-navy-900 shadow' : 'text-white/80 hover:text-white'}`}>{l}</button>
                 ))}
               </div>

@@ -8,7 +8,7 @@ import { json } from '../../../edge/auth.js';
 import { owner, log, checkRules, checkLists, checkTeamChat, checkDiscordTest, checkSuggestPeople, checkBoardHidden } from '../../../edge/settings.js';
 import { applyChange, toTimelines } from '../../../src/deals/rules.js';
 import { forgetPods } from '../../../edge/pods.js';
-import { forgetAccess } from '../../../edge/access.js';
+import { forgetAccess, readAccess } from '../../../edge/access.js';
 import { checkAccess } from '../../../src/shell/access.js';
 import { applyTargetChange, checkTargets } from '../../../src/data/kpiTargets.js';
 
@@ -20,6 +20,8 @@ export async function onRequestGet(context) {
   const k = KEYS[context.params.key];
   if (!k) return json({ error: 'unknown setting' }, 404);
   const row = await context.env.DB.prepare('SELECT value, updated_at, updated_by FROM settings WHERE key = ?').bind(k[0]).first();
+  // Access: the old Suggestion Box list shows as people given it (Nov 3).
+  if (k[0] === 'access') return json({ value: await readAccess(context.env.DB), updatedAt: row?.updated_at || null, updatedBy: row?.updated_by || null });
   return json({ value: row ? JSON.parse(row.value) : null, updatedAt: row?.updated_at || null, updatedBy: row?.updated_by || null });
 }
 
@@ -40,7 +42,11 @@ export async function onRequestPut(context) {
     .bind(k[0], JSON.stringify(body.value), now, user.name).run();
   await log(db, user, `settings.${k[0]}`, { before: before ? JSON.parse(before.value) : null, after: body.value });
   if (k[0] === 'deal_lists') forgetPods();
-  if (k[0] === 'access') forgetAccess();
+  if (k[0] === 'access') {
+    // Saved Access holds everyone the old Suggestion Box list had — retire it.
+    await db.prepare("DELETE FROM settings WHERE key = 'suggest_people'").run();
+    forgetAccess();
+  }
   return json({ value: body.value, updatedAt: now, updatedBy: user.name });
 }
 

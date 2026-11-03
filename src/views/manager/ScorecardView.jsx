@@ -22,6 +22,7 @@ import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
 import { REPS, isScored } from '../../data/config.js';
+import { scopeReps } from '../../shell/scope.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
 import { addDays, rangeLabel } from '../../utils/historyRange.js';
@@ -644,7 +645,9 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
     const { crm, manual, note } = reviewFor(sc, week, id, draft, auto);
     return { id, n, crm, manual, auto, note, s: scoreWeek(n, crm, wom, week), prev: prevWeek?.reps?.[id]?.s.score ?? null };
   };
-  const gs = groups(pods).map((g) => ({ ...g, rows: g.reps.map(rowOf).filter(Boolean) })).filter((g) => g.rows.length);
+  // Whose rows (Settings › Access, Phase 2): Mine / My Pod / Everyone.
+  const allowed = scopeReps(me, 'scorecards');
+  const gs = groups(pods).map((g) => ({ ...g, rows: g.reps.filter((id) => !allowed || allowed.includes(id)).map(rowOf).filter(Boolean), total: g.total && !allowed })).filter((g) => g.rows.length);
   const allRows = gs.flatMap((g) => g.rows);
   const reviewedBy = reviewedByFor(sc, week, draft);
   const reviewedAt = sc.edits?.weeks?.[week]?.reviewedAt;

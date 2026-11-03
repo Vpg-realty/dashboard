@@ -19,7 +19,7 @@ import TodayCard from './TodayCard.jsx';
 import useGhlDealOpener from '../deals/useGhlDealOpener.jsx';
 import { PanelHead } from './Panel.jsx';
 import { paceChip } from './panelStyle.js';
-import { scopeReps } from './scope.js';
+import { scopeReps, scopeLevel } from './scope.js';
 import { podsOf } from './pods.js';
 import { paceFraction, paceRatio, paceKey, shouldBe } from '../utils/pace.js';
 import { useDeals, addrKey, trackerByAddr, withTrackerDates, endedByAddr } from '../deals/store.js';
@@ -191,7 +191,7 @@ export default function HomeView({ me }) {
   const scope = scopeReps(me);
   // A pod lead (Luke, Oct 16 / Oct 18): everything on Home split into their
   // own (`mine`) and their pod's reps (`podIds`, without the lead).
-  const pod = me?.role === 'manager' && me.rep_id ? podsOf(me).find((x) => x.lead === me.rep_id) : null;
+  const pod = me?.role === 'manager' && me.rep_id && scopeLevel(me, 'home') === 'pod' ? podsOf(me).find((x) => x.lead === me.rep_id) : null;
   const podIds = pod ? pod.reps : null;
   const inScope = (repId) => !scope || scope.includes(repId);
   const pairs = PAIRS.filter((p) => inScope(p.repId));
@@ -233,7 +233,7 @@ export default function HomeView({ me }) {
     { title: `${pod.title} · your reps`, sub: podFirst, list: numbers(metrics(PAIRS.filter((p) => pod.reps.includes(p.repId))), pod.reps.length) },
   ] : [{ title: null, list: stats }];
   const shadowName = me?.shadowing ? repById[me.rep_id]?.name.split(' ')[0] : null;
-  const scopeLabel = shadowName ? `Shadowing ${shadowName} — their numbers and deals` : !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : me?.role === 'manager' ? `You + your pod · ${n} people` : null;
+  const scopeLabel = shadowName ? `Shadowing ${shadowName} — their numbers and deals` : !scope ? 'Everyone' : pod ? `You · ${pod.title} (${pod.reps.length} reps)` : scope && scope.length > 1 ? `You + your pod · ${n} people` : null;
   const showMoney = !isTc;
   const dateLabel = new Date().toLocaleDateString('en-US', { timeZone: 'America/Phoenix', weekday: 'long', month: 'long', day: 'numeric' });
 
