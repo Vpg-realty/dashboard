@@ -1246,6 +1246,16 @@ Overrides the Alerts notes above where they differ.
   same agent at different reps within 7 days with no address and different
   messages (`hint` 'duplicate' | 'potential'; ext_id `dupe:agent:<phone>:
   <first date>|<pod>` for agent groups). One per pod as before.
+- **One alert per duplicate** (Luke, Nov 3: 140 Dana Rd came as four
+  alerts — "why do i get all of these for the same address?"): when an
+  agent's texts to several reps point at one address, the texts without an
+  address join that address's group (`folded` in edge/alertsSync.js) and the
+  separate "Potential duplicate" (same agent) alert is deleted. A duplicate is
+  still saved once per pod (each pod lead sees theirs), but owners see one —
+  `oneDupe` (edge/alerts.js) folds the pods' copies into the first ("sent to N
+  pods", everyone's marks), and an owner's tick covers every copy
+  (functions/api/alerts). No new reads beyond one small dupe lookup per owner
+  tick.
 - **Reviewed by, per person**: ticking an alert off (or Complete) clears it
   for you only — D1 `alert_marks (alert_id, who, name, at)` (edge/alerts.sql;
   indexes on who and at) — and the others see "✓ Reviewed by <name> ·
