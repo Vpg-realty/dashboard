@@ -7,6 +7,7 @@
 // for this app, then look the email up in the D1 `users` table for the role:
 // owner (Luke, Jack), manager (Anthony, Sam), team, tv. Never trust a plain
 // email header — only a verified token.
+import { accessFor, granted, MANAGER_PAGES } from './access.js';
 
 const TEAM = 'https://tiny-base-e88a.cloudflareaccess.com';
 // The "VPG Dashboard" Access application's audience tag.
@@ -71,7 +72,16 @@ export async function verifiedClaims(request) {
 // (`viewAs: true`, `realName`), and every write is refused (role 'none'), so
 // nothing is ever saved under someone else's name. `{ real: true }` ignores
 // it (the people list for the picker).
-export async function currentUser({ request, env }, { real = false } = {}) {
+export async function currentUser(ctx, opts = {}) {
+  const u = await whoIs(ctx, opts);
+  // Settings › Access (Nov 3): the pages given / taken for this person.
+  if (u && ['manager', 'team', 'trainee', 'tc'].includes(u.role)) {
+    try { const a = await accessFor(ctx.env.DB, u); u.grant = a.give; u.take = a.take; } catch { /* no settings yet */ }
+  }
+  return u;
+}
+
+async function whoIs({ request, env }, { real = false } = {}) {
   const me = await signedIn({ request, env });
   const as = request.headers.get('X-View-As');
   if (real || !as || me?.role !== 'owner') return me;
@@ -102,7 +112,9 @@ async function signedIn({ request, env }) {
 export const canGrade = (u) => !!u && (u.role === 'owner' || u.role === 'manager');
 // Manager-level data files: owners, managers, and the build (which reads its
 // own previous files back).
-export const canSeeManagerData = (u) => canGrade(u) || u?.role === 'service';
+// …and anyone given a manager page in Settings › Access (read only — grading
+// stays canGrade).
+export const canSeeManagerData = (u) => canGrade(u) || u?.role === 'service' || granted(u, MANAGER_PAGES);
 
 export const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,

@@ -13,9 +13,9 @@ import ClearX from './ClearX.jsx';
 
 const STAGE = { under_contract: 'Under contract', dispo: 'Dispo', assigned: 'Assigned', closed: 'Closed' };
 
-function items(role, extra) {
+function items(role, extra, acc) {
   const out = [];
-  for (const s of sectionsFor(role, extra)) {
+  for (const s of sectionsFor(role, extra, acc)) {
     if (s.tabs) for (const t of s.tabs) out.push({ kind: 'Page', label: `${s.label} · ${t.label}`, icon: s.icon, to: hrefOf(s, t) });
     else out.push({ kind: 'Page', label: s.label, icon: s.icon, to: hrefOf(s) });
   }
@@ -37,12 +37,12 @@ function items(role, extra) {
   return out;
 }
 
-export default function CommandPalette({ open, onClose, role, extra }) {
+export default function CommandPalette({ open, onClose, role, extra, acc }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const input = useRef(null);
   const extraKey = (extra || []).join(',');
-  const all = useMemo(() => (open ? items(role, extraKey ? extraKey.split(',') : []) : []), [open, role, extraKey]);
+  const all = useMemo(() => (open ? items(role, extraKey ? extraKey.split(',') : [], acc) : []), [open, role, extraKey, acc]);
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const results = (words.length ? all.filter((i) => words.every((w) => `${i.label} ${i.sub || ''} ${i.kind}`.toLowerCase().includes(w))) : all.filter((i) => i.kind === 'Page')).slice(0, 12);
 

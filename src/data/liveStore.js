@@ -16,7 +16,7 @@
 
 import { useEffect, useReducer } from 'react';
 import { REPS, ALL_REPS, MARKETS, TIERS } from './config.js';
-import { loadMe, canGrade, loadMyScorecard } from '../utils/dashApi.js';
+import { loadMe, canSeeTeamData, loadMyScorecard } from '../utils/dashApi.js';
 
 // File is rebuilt upstream every ~2 min; 30s on the client picks up new data fast.
 const POLL_MS = Number(import.meta.env.VITE_POLL_MS || 30_000);
@@ -142,7 +142,7 @@ async function fetchSnapshot() {
     // checks, calls), which the build keeps out of data.json (Oct 14); the
     // server refuses data-mgr.json to everyone else, so it's not even asked.
     const who = await loadMe();
-    if (!canGrade(who) && who?.rep_id) {
+    if (!canSeeTeamData(who) && who?.rep_id) {
       // A rep: the same fields for their own sub-accounts only (Oct 14,
       // "My scorecard"), from /api/my-scorecard.
       try {
@@ -150,7 +150,7 @@ async function fetchSnapshot() {
         data.pairs = data.pairs.map((p) => ({ ...(extra.get(`${p.repId}|${p.marketId}`) || {}), ...p }));
       } catch { /* optional */ }
     }
-    if (canGrade(who)) {
+    if (canSeeTeamData(who)) {
       try {
         const m = await fetch(`${BASE}data-mgr.json?t=${Date.now()}`, { cache: 'no-store' });
         if (m.ok && (m.headers.get('content-type') || '').includes('json')) {

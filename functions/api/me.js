@@ -36,5 +36,7 @@ export async function onRequestGet(context) {
   const pods = user.role && user.role !== 'tv' ? await refreshPods(context.env.DB) : undefined;
   // The Suggestion Box: its roles, plus anyone owners added (Oct 21).
   const suggest = await canSuggestDb(context.env.DB, user);
-  return json({ ...user, teamChat, pods, suggest, ...(training ? { training } : {}) });
+  // Settings › Access (Nov 3): the pages given / taken for this person.
+  const access = { give: user.grant || [], take: user.take || [] };
+  return json({ ...user, teamChat, pods, suggest, access, ...(training ? { training } : {}) });
 }

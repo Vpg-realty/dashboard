@@ -9,7 +9,7 @@
 // POST { week, reps: { [id]: { crm?, note? } } } → { week, data } — merges per
 //      rep and field (fields left out are kept), and signs the week as
 //      reviewed by the person saving.
-import { currentUser, canGrade, json } from '../../edge/auth.js';
+import { currentUser, canGrade, canSeeManagerData, json } from '../../edge/auth.js';
 
 const WEEK = /^\d{4}-\d{2}-\d{2}$/;
 const REP = /^[a-z0-9_]{1,40}$/;
@@ -40,8 +40,12 @@ async function weekDocs(db, week = null) {
 export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
-  if (!canGrade(user)) return json({ error: 'managers and owners only' }, 403);
-  return json({ weeks: await weekDocs(context.env.DB) });
+  // Given a Scorecards page in Settings › Access (Nov 3): the grades, read
+  // only — never the managers' notes.
+  if (!canSeeManagerData(user)) return json({ error: 'managers and owners only' }, 403);
+  const weeks = await weekDocs(context.env.DB);
+  if (!canGrade(user)) for (const w of Object.values(weeks)) for (const r of Object.values(w.reps)) delete r.note;
+  return json({ weeks });
 }
 
 const validCrm = (c) => c === null || (Array.isArray(c) && c.length === 5 && c.every((v) => v === null || v === 0 || v === 1 || v === 2));

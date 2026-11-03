@@ -6,6 +6,7 @@
 // can be edited or removed only by whoever wrote it, or by an owner (Luke,
 // Oct 18). Nothing is written while
 // viewing as someone (currentUser makes the role 'none').
+import { granted } from './access.js';
 export const KINDS = { fix: 'Something is wrong', change: 'Change something', idea: 'New idea' };
 export const STATUSES = { new: 'New', review: 'Under review', approved: 'Approved', done: 'Done', declined: 'Not now' };
 export const ROLES = ['owner', 'manager', 'tc'];
@@ -19,7 +20,8 @@ export async function suggestPeople(db) {
   } catch { return []; }
 }
 // Who may open the Suggestion Box: the roles above, or an extra person.
-export const canSuggestDb = async (db, u) => !!u && (ROLES.includes(u.role) || canSuggest(u, await suggestPeople(db)));
+// Settings › Access (Nov 3): given the Suggestion Box → in; taken away → out.
+export const canSuggestDb = async (db, u) => !!u && !(u.take || []).includes('suggestions') && (ROLES.includes(u.role) || granted(u, ['suggestions']) || canSuggest(u, await suggestPeople(db)));
 
 const ID = /^s[a-f0-9]{12}$/;
 const CID = /^c[a-f0-9]{12}$/;
