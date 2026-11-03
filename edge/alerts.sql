@@ -33,8 +33,13 @@ CREATE TABLE IF NOT EXISTS alerts (
   -- lead type, or for dupes 'duplicate' | 'potential'
   agent TEXT,
   hint TEXT,
-  agent_name TEXT              -- a lead's agent, from the GHL contact (Oct 23; ALTER TABLE on live D1)
+  agent_name TEXT,             -- a lead's agent, from the GHL contact (Oct 23; ALTER TABLE on live D1)
+  prior TEXT                   -- a lead whose address we had before: JSON {src, at, rep, sub, who, addr} (Nov 3; ALTER TABLE on live D1)
 );
+-- Address memory (Nov 3, edge/leadAddrs.js; also created by the sync): every
+-- address we've had, by addrKeys — leads (first sighting), tracker deals and
+-- the closed-deals history.
+CREATE TABLE IF NOT EXISTS lead_addrs (k TEXT PRIMARY KEY, addr TEXT, src TEXT NOT NULL, rep TEXT, sub TEXT, conv TEXT, who TEXT, at TEXT);
 CREATE INDEX IF NOT EXISTS alerts_holder ON alerts (holder, done_at);
 -- Oct 19: the sync and the red-dot poll scanned the whole table every time
 -- and used up D1's free daily reads; these keep both to the open rows.

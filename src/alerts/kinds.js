@@ -39,3 +39,18 @@ export function linkOf(a) {
   if (a.kind === 'ghl') return ghlContactUrl(a.sub, a.contact);
   return null;
 }
+
+// A lead whose address we had before (edge/leadAddrs.js, Nov 3: "flag if an
+// address was already shared with us months ago"): one line saying where.
+const niceDay = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }) : null);
+export function priorText(a) {
+  if (!a.prior) return null;
+  let p;
+  try { p = typeof a.prior === 'string' ? JSON.parse(a.prior) : a.prior; } catch { return null; }
+  if (!p?.src) return null;
+  const when = niceDay(p.at);
+  if (p.src === 'deal') return `On our deal tracker already${p.who ? ` · ${p.who}` : ''}${when ? ` · contract ${when}` : ''}`;
+  if (p.src === 'closed') return `We closed this address before${when ? ` · ${when}` : ''}`;
+  const t = subTag(p.sub);
+  return `Sent to us before${t ? ` · ${t.label}` : ''}${when ? ` · ${when}` : ''}`;
+}

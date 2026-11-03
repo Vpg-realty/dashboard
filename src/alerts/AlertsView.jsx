@@ -19,7 +19,7 @@ import { isOpen } from '../deals/math.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import TimePicker from '../deals/TimePicker.jsx';
 import { REPS } from '../data/config.js';
-import { LEAD_TYPE, HINT_WORD, linkOf, subTag, dupeRefs, refLink } from './kinds.js';
+import { LEAD_TYPE, HINT_WORD, linkOf, subTag, dupeRefs, refLink, priorText } from './kinds.js';
 import { useAlerts, loadAlerts, markSeen, setChime, alertAction } from './store.js';
 import useDealPanel from '../deals/useDealPanel.jsx';
 import BandMark from '../shell/BandMark.jsx';
@@ -137,6 +137,11 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
             {/* The agent (Luke, Oct 23), from the GHL contact. */}
             {a.kind === 'lead' && a.agent_name && <span className="text-[13px] text-zinc-600">· Agent: <b className="font-semibold text-navy-800">{a.agent_name}</b></span>}
           </div>
+        )}
+        {/* We had this address before (Nov 3) — a deal, a closed sale or an
+            earlier lead from another conversation. */}
+        {a.kind === 'lead' && priorText(a) && (
+          <div className="mb-1.5"><span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[12.5px] font-semibold text-amber-900 ring-1 ring-amber-200">↺ {priorText(a)}</span></div>
         )}
         {/* What each reviewer graded it (Luke, Oct 23: "clearly state what a
             reviewer marked the lead as … to everyone who can see the lead"). */}

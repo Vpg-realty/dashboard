@@ -1329,6 +1329,23 @@ Overrides the lead-type / Complete / Completed notes above where they differ.
   up once). Leads / duplicates sort newest first regardless of `due` (their
   `due` is only the day the text came in; `TIMED` in AlertsView).
 
+## Address memory — "seen before" (Luke, Nov 3)
+
+"flag if an address was already shared with us months ago … without
+significant cost". D1 `lead_addrs (k, addr, src, rep, sub, conv, who, at)`
+(`edge/leadAddrs.js`, created by the sync; `k` = each `addrKeys` key) keeps
+every address we've had: spotted leads (first sighting kept), tracker deals
+(the deploy run adds new ones; a deal replaces a lead row) and the
+closed-deals history (closed_map `sheet` rows). Seeded once on first use
+from the existing leads (768 with an address) and closed_map. A new lead with
+an address looks itself up (`priorOf` — a deal, a closed sale, or an earlier
+lead from another conversation) and keeps it in `alerts.prior` (JSON, ALTER
+TABLE on live D1 Nov 3); Alerts shows it as an amber "↺ Sent to us before ·
+Sam · WA · Jul 1, 2026" / "On our deal tracker already · Axel" / "We closed
+this address before" line (`priorText`, src/alerts/kinds.js). No Claude
+cost. Usage: one keyed read + one write per new lead with an address, ~200
+keyed reads per deploy run for the deals (~20k a day).
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
