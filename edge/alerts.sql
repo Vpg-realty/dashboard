@@ -34,7 +34,12 @@ CREATE TABLE IF NOT EXISTS alerts (
   agent TEXT,
   hint TEXT,
   agent_name TEXT,             -- a lead's agent, from the GHL contact (Oct 23; ALTER TABLE on live D1)
-  prior TEXT                   -- a lead whose address we had before: JSON {src, at, rep, sub, who, addr} (Nov 3; ALTER TABLE on live D1)
+  prior TEXT,                  -- a lead whose address we had before: JSON {src, at, rep, sub, who, addr} (Nov 3; ALTER TABLE on live D1)
+  -- tasks (Nov 3; ALTER TABLE on live D1): category (NULL = to-do, dev =
+  -- development goal, improve = point of improvement) and repeat (weekdays /
+  -- weekly / biweekly / monthly — ticking adds the next, ext_id rep:<id>:<due>)
+  cat TEXT,
+  recur TEXT
 );
 -- Address memory (Nov 3, edge/leadAddrs.js; also created by the sync): every
 -- address we've had, by addrKeys — leads (first sighting), tracker deals and

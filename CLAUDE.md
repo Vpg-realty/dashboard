@@ -1329,6 +1329,26 @@ Overrides the lead-type / Complete / Completed notes above where they differ.
   up once). Leads / duplicates sort newest first regardless of `due` (their
   `due` is only the day the text came in; `TIMED` in AlertsView).
 
+## Repeating tasks, development goals (Luke, Nov 3)
+
+"repeating tasks … development goals or points of improvement … color coded
+… separate from the red urgent items". Site tasks have two new columns (ALTER
+TABLE on live D1 Nov 3): `cat` — null = To-do, `dev` = Development goal
+(violet ★), `improve` = Point of improvement (teal ↗) (`TASK_CATS`,
+edge/alerts.js; `TASK_CAT` in src/alerts/kinds.js) — and `recur` — weekdays /
+weekly / biweekly / monthly (`RECURS`; "↻ Weekly" chip). Ticking a repeating
+task (by whoever holds it) adds the next one (`nextDue`, never in the past;
+ext_id `rep:<first task id>:<due>`, so re-ticking adds nothing twice);
+unticking takes it back. A repeating task with no date starts today. Who can
+assign: as before (pod leads their reps, owners anyone, reps themselves).
+Coaching items (`isCoaching`) never ring the red dot (`counts`), aren't in
+Due today / Overdue, Upcoming or Home's Today card, and their date is never
+red. Alerts' rail has **Development** (`?view=dev`, its own add form starting
+on Development goal); the Tasks list leaves them out. They show as a
+"<Name>'s Development" card (`src/alerts/DevGoals.jsx`) on My Scorecard and in
+Team Scorecard's rep panel (above Manager Notes), tickable there. No new
+reads (the cards use the Alerts list already loaded).
+
 ## Address memory — "seen before" (Luke, Nov 3)
 
 "flag if an address was already shared with us months ago … without

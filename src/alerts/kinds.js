@@ -54,3 +54,11 @@ export function priorText(a) {
   const t = subTag(p.sub);
   return `Sent to us before${t ? ` · ${t.label}` : ''}${when ? ` · ${when}` : ''}`;
 }
+
+// Task categories and repeats (Luke, Nov 3; edge/alerts.js TASK_CATS / RECURS).
+export const TASK_CAT = {
+  dev: { label: 'Development goal', chip: 'bg-violet-100 text-violet-800 ring-violet-200', icon: '★', bg: 'bg-violet-100 text-violet-700' },
+  improve: { label: 'Point of improvement', chip: 'bg-teal-100 text-teal-800 ring-teal-200', icon: '↗', bg: 'bg-teal-100 text-teal-700' },
+};
+export const RECUR = { weekdays: 'Every weekday', weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' };
+export const isCoaching = (a) => a?.kind === 'task' && !!TASK_CAT[a.cat];

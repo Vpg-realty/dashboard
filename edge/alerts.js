@@ -49,6 +49,46 @@ const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 const clip = (x, n) => String(x ?? '').trim().slice(0, n);
+
+// Task categories and repeats (Luke, Nov 3: "repeating tasks … development
+// goals or points of improvement … color coded … separate from the red
+// urgent items"). `cat` null = a to-do; dev / improve = coaching items: they
+// sit in Alerts' Development list and on the rep's scorecard, and never ring
+// the red dot. `recur` = how a task comes back: ticking it adds the next one
+// (ext_id rep:<first task id>:<due>), unticking takes that back.
+export const TASK_CATS = ['dev', 'improve'];
+export const RECURS = ['weekdays', 'weekly', 'biweekly', 'monthly'];
+export const isCoaching = (a) => TASK_CATS.includes(a?.cat);
+const addDays = (d, n) => new Date(Date.parse(`${d}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+function step(d, recur) {
+  if (recur === 'weekly') return addDays(d, 7);
+  if (recur === 'biweekly') return addDays(d, 14);
+  if (recur === 'monthly') {
+    const [y, m, day] = d.split('-').map(Number);
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`;
+  }
+  let n = addDays(d, 1);
+  while ([0, 6].includes(new Date(`${n}T12:00:00Z`).getUTCDay())) n = addDays(n, 1);
+  return n;
+}
+// The next date after this one — never in the past (a late tick skips ahead).
+export function nextDue(due, recur, today) {
+  let n = step(due, recur);
+  while (n < today) n = step(n, recur);
+  return n;
+}
+const rootOf = (x) => (String(x.ext_id || '').startsWith('rep:') ? x.ext_id.split(':')[1] : x.id);
+function recurRun(x, done, now) {
+  if (x.kind !== 'task' || !RECURS.includes(x.recur) || !x.due || !!x.done_at === done) return [];
+  const root = rootOf(x);
+  if (!done) return [["DELETE FROM alerts WHERE ext_id LIKE ? AND done_at IS NULL AND due > ?", [`rep:${root}:%`, x.due]]];
+  const next = nextDue(x.due, x.recur, azToday(now));
+  return [[`INSERT INTO alerts (id, ext_id, holder, kind, title, body, due, due_time, created_by, created_at, cat, recur)
+    SELECT ?, ?, holder, 'task', title, body, ?, due_time, created_by, ?, cat, recur FROM alerts WHERE id = ? ON CONFLICT (ext_id) DO NOTHING`,
+  [newId(), `rep:${root}:${next}`, next, now, x.id]]];
+}
+const azToday = (iso) => new Date(Date.parse(iso) - 7 * 3600000).toISOString().slice(0, 10);
 // Completed items stay a week (Luke, Oct 22: "weekly storage under done vs.
 // just 24 hours … good for reps to reference back to"; it was a day).
 const KEEP_DONE_MS = 7 * 86400000;
@@ -148,7 +188,8 @@ export function rings(a, scope) {
 export function counts(alerts, scope, seenAt, today, nowHM = null, mine = null) {
   let unseen = 0, overdue = 0, open = 0, owe = 0, leads = 0, dueNow = 0;
   for (const a of alerts) {
-    if (a.done_at || !rings(a, scope)) continue;
+    // Development goals / points of improvement never ring (Luke, Nov 3).
+    if (a.done_at || !rings(a, scope) || isCoaching(a)) continue;
     // Ticked off by this person (their own mark) — gone from their dot.
     if (mine ? mine.has(a.id) : (a.marks || []).some((m) => scope.keys.includes(m.who))) continue;
     open++;
@@ -173,7 +214,7 @@ const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
 export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
   const [mine, leads, seen, marked] = await Promise.all([
-    db.prepare(`SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE holder = ? AND done_at IS NULL${tasksOnly(user) ? " AND kind = 'task'" : ''}`).bind(scope.me).all(),
+    db.prepare(`SELECT id, holder, kind, due, due_time, created_at, done_at, cat FROM alerts WHERE holder = ? AND done_at IS NULL${tasksOnly(user) ? " AND kind = 'task'" : ''}`).bind(scope.me).all(),
     tasksOnly(user) ? { results: [] } : db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     // What this person has ticked off themself (index alert_marks_who).
@@ -202,7 +243,7 @@ function tick(x, done, user, scope, now) {
   const tcTask = tcTaskOf(x.ext_id);
   if (tcTask) return tickTcTask(tcTask, done, user.name, now);
   if (!personal(x, scope)) {
-    return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now)];
+    return [['UPDATE alerts SET done_by = ?, done_at = ? WHERE id = ?', [done ? user.name : null, done ? now : null, x.id]], ...ghlTick(x, done, user, now), ...recurRun(x, done, now)];
   }
   if (done) return [['INSERT INTO alert_marks (alert_id, who, name, at) VALUES (?, ?, ?, ?) ON CONFLICT (alert_id, who) DO UPDATE SET name = excluded.name, at = excluded.at', [x.id, markWho(x, user, scope), user.name, now]]];
   return unmark(x, scope);
@@ -259,9 +300,15 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     const to = b.to || scope.me;
     if (to !== scope.me && (user.role === 'team' || user.role === 'tc' || !inScope(scope, to))) return { error: 'You can only add tasks for yourself' + (podOf(user) ? ' or your pod' : '') };
     if (!/^[\w:.-]{1,60}$/.test(to)) return { error: 'Pick who it is for' };
+    const cat = b.cat || null;
+    if (cat && !TASK_CATS.includes(cat)) return { error: 'Unknown category' };
+    const recur = b.recur || null;
+    if (recur && !RECURS.includes(recur)) return { error: 'Unknown repeat' };
+    // A repeating task needs a first date — today when none is picked.
+    const due = b.due || (recur ? azToday(now) : null);
     const id = newId();
-    return { id, run: [['INSERT INTO alerts (id, holder, kind, title, body, due, due_time, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, to, 'task', title, clip(b.body, 1000) || null, b.due || null, (b.due && b.dueTime) || null, user.name, now]]] };
+    return { id, run: [['INSERT INTO alerts (id, holder, kind, title, body, due, due_time, created_by, created_at, cat, recur) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, to, 'task', title, clip(b.body, 1000) || null, due, (due && b.dueTime) || null, user.name, now, cat, recur]]] };
   }
   // Tick (or untick) several at once (Luke, Oct 19: "select all"). Spotted
   // leads take a Real / Not a lead answer instead, so they're left out.

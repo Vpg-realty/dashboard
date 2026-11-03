@@ -5,6 +5,7 @@
 // page (any period, points by week, funnel, by state) with only their own
 // numbers — no team rates. The data comes from /api/my-scorecard, which
 // only ever sends their own rows plus the team average.
+import DevGoals from '../../alerts/DevGoals.jsx';
 import { useState } from 'react';
 import { useMe } from '../../utils/dashApi.js';
 import { REPS, ghlConvUrl } from '../../data/config.js';
@@ -278,6 +279,7 @@ export default function MyScorecardView() {
       </section>
 
       <FixList pairs={pairs} monday={monday} crm={crm} manual={manual} m={m} />
+      <DevGoals repId={rep.id} />
       <Trend sc={sc} rep={rep} />
       {/* Look Back (Luke, Oct 22 — the old Full Breakdown tab, folded in):
           any week, month or dates. Opens on this month, so it doesn't repeat
