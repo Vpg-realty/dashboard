@@ -2398,6 +2398,22 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   all 10 closed formula deals since Oct 1 give the same payouts and net
   profit). No server writes and no new reads; scenarios stay on the device
   (localStorage `vpg.commCalc`).
+  **Saved reviews** (Luke, Nov 3: "add a save button"): a bar on top —
+  Review name, Saved Reviews (open one), Save / Save Changes, Save as New,
+  New, Remove. Stored as `calcs` rows with kind `comm` (inputs = the
+  scenarios, cleaned by `cleanScenarios`); API actions `commSave` /
+  `commRemove` (edge/toolkit.js, `canComm` = owner and not viewing as);
+  GET /api/toolkit sends `comm` only to owners (`commReviews`), and `calcs()`
+  leaves kind `comm` out, so they never show in My Calculations. Every owner
+  sees every review. Usage: one small query per Toolkit load by an owner.
+  **What It Takes to Match** (Luke, Nov 3: "how much the lower scenario
+  would have to come up in price OR how much they would have to reduce their
+  commission by in order for us to go with them"): under Side by Side, each
+  scenario below the best net profit gets its gap, the sale price that
+  closes it (`saleToMatch`, a bisection over the same formulas, whole dollars
+  rounded up) and, for its acquisitions and dispo person, the commission
+  (and % of the commission base) that would close it alone — "not enough
+  alone" when even $0 wouldn't (`matchPlan`).
 - **Three top tabs** (Luke, Nov 3: "documents in one, then offer templates
   in another, then calculators … cleaner"): **Documents** (Proof of Funds,
   Title Agencies), **Offers** (Offer Templates, Contract Terms) and

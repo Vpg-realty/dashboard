@@ -76,9 +76,29 @@ async function scope(db, u) {
 const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
 export async function calcs(db, u) {
   const sc = await scope(db, u);
-  const rows = (await db.prepare('SELECT * FROM calcs WHERE deleted = 0 ORDER BY updated_at DESC').all()).results;
+  // Commission reviews (kind 'comm') are owners-only and never in My Calculations.
+  const rows = (await db.prepare("SELECT * FROM calcs WHERE deleted = 0 AND kind != 'comm' ORDER BY updated_at DESC").all()).results;
   return rows.filter((r) => !sc || sc.emails.has(r.by_email) || (r.rep_id && sc.reps.has(r.rep_id)))
     .map((r) => ({ ...r, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email }));
+}
+
+// Saved commission reviews (Toolkit › Commission Calculator, Luke Nov 3:
+// "add a save button"): rows of `calcs` with kind 'comm', owners only — every
+// owner sees every review; nobody else ever receives them.
+export const canComm = (u) => u?.role === 'owner' && !u.viewAs;
+export async function commReviews(db, u) {
+  if (!canComm(u)) return [];
+  const rows = (await db.prepare("SELECT id, title, inputs, by_name, by_email, created_at, updated_at FROM calcs WHERE deleted = 0 AND kind = 'comm' ORDER BY updated_at DESC").all()).results;
+  return rows.map((r) => ({ ...r, scenarios: parse(r.inputs) || [], inputs: undefined, mine: r.by_email === u.email }));
+}
+const SCEN_TEXT = { name: 60, price: 20, sale: 20, fees: 20, closing: 20, acq: 80, dispo: 80 };
+function cleanScenarios(list) {
+  return (Array.isArray(list) ? list : []).slice(0, 6).map((s) => {
+    const out = {};
+    for (const [k, n] of Object.entries(SCEN_TEXT)) out[k] = s?.[k] == null || s[k] === '' ? (k === 'acq' || k === 'dispo' ? null : '') : clip(s[k], n);
+    out.coe = /^\d{4}-\d{2}-\d{2}$/.test(String(s?.coe || '')) ? s.coe : '';
+    return out;
+  });
 }
 
 // The contract terms catalogue (Nov 3; src/toolkit/terms.js): D1 settings
@@ -91,8 +111,8 @@ export async function contractTerms(db) {
 }
 
 export async function load(db, u) {
-  const [pofs, list, mine, terms, docs] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db), docList(db)]);
-  return { pofs, pof: pofs[0] || null, docs, agencies: list, calcs: mine, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), docs: canUploadPof(u), terms: canEditTerms(u) } };
+  const [pofs, list, mine, terms, docs, comm] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db), docList(db), commReviews(db, u)]);
+  return { pofs, pof: pofs[0] || null, docs, agencies: list, calcs: mine, comm, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), docs: canUploadPof(u), terms: canEditTerms(u) } };
 }
 
 // The offer message's text fields are longer than a number.
@@ -222,8 +242,26 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
     return { id, run: [['INSERT INTO calcs (id, kind, title, inputs, summary, opp, rep_id, by_name, by_email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [id, kind, title, JSON.stringify(inputs), summary, opp ? JSON.stringify(opp) : null, u.rep_id || null, u.name, u.email, now, now]]] };
   }
+  if (a === 'commSave') {
+    if (!canComm(u)) return { error: 'Only owners save commission reviews' };
+    const scenarios = cleanScenarios(b.scenarios);
+    if (!scenarios.length) return { error: 'Nothing to save' };
+    const title = clip(b.title, 120) || `Commission review · ${now.slice(0, 10)}`;
+    if (b.id) {
+      if (!CID.test(String(b.id)) || !existing || existing.deleted || existing.kind !== 'comm') return { error: 'That review is gone' };
+      return { id: b.id, run: [['UPDATE calcs SET title = ?, inputs = ?, updated_at = ? WHERE id = ?', [title, JSON.stringify(scenarios), now, b.id]]] };
+    }
+    const id = newId('k');
+    return { id, run: [["INSERT INTO calcs (id, kind, title, inputs, summary, opp, rep_id, by_name, by_email, created_at, updated_at) VALUES (?, 'comm', ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)",
+      [id, title, JSON.stringify(scenarios), u.name, u.email, now, now]]] };
+  }
+  if (a === 'commRemove') {
+    if (!canComm(u)) return { error: 'Only owners remove commission reviews' };
+    if (!CID.test(String(b.id || '')) || !existing || existing.deleted || existing.kind !== 'comm') return { error: 'That review is gone' };
+    return { run: [['UPDATE calcs SET deleted = 1, updated_at = ? WHERE id = ?', [now, b.id]]] };
+  }
   if (a === 'calcRemove') {
-    if (!CID.test(String(b.id || '')) || !existing || existing.deleted) return { error: 'That calculation is gone' };
+    if (!CID.test(String(b.id || '')) || !existing || existing.deleted || existing.kind === 'comm') return { error: 'That calculation is gone' };
     if (u.viewAs || (existing.by_email !== u.email && u.role !== 'owner')) return { error: 'Only whoever saved it (or an owner) can remove it' };
     return { run: [['UPDATE calcs SET deleted = 1, updated_at = ? WHERE id = ?', [now, b.id]]] };
   }

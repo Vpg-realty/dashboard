@@ -32,7 +32,7 @@ export function useToolkit() {
 }
 export async function act(body) {
   const r = await post(body);
-  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], docs: r.docs || [], terms: r.terms, agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
+  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], docs: r.docs || [], terms: r.terms, agencies: r.agencies, calcs: r.calcs, comm: r.comm || [], can: r.can, error: null });
   return r;
 }
 
