@@ -2344,6 +2344,11 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   contract-review skill (AL ¶30 assignment box, NC consent of all parties,
   GA consent / F255–F259, SC Form 120 / 136, NM addenda, no "and/or
   Assigns" in AZ / AL / FL / OK). Usage: one settings row per Toolkit load.
+  **Buyer covers closing costs** (Luke, Nov 3: "for every offer, but mark it
+  as optional … only if we offered it already … leave it unchecked"): an
+  `optional` term (`closing`) — never ticked by itself — with a `hint` ("only
+  include it if we already offered it") shown in amber on the offer's
+  checklist and on Contract Terms (any term can carry a `hint`).
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All
