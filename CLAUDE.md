@@ -2382,7 +2382,10 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   across the board … plug in the purchase price, sale price, and select the
   acq and dispo members, then compare that to another scenario or multiple
   scenarios"): Toolkit › Calculators › Commission Calculator
-  (`/toolkit/commission`, `CommissionCalc.jsx`, tab `roles: ['owner']`).
+  (`/toolkit/commission`, `CommissionCalc.jsx`). Owners only (Luke): tab
+  `roles: ['owner']` keeps it out of everyone else's rail, ⌘K and links, and
+  the page itself shows nothing unless /api/deals says `owner` (also false
+  while viewing as); only owners receive the full commission rules anyway.
   Up to six scenarios side by side (`MAX`): name, purchase price, sale price
   (VPG assignment), acquisitions / dispo person (deal_lists `acqTeam` /
   `dispoMembers`), additional fees, closing costs and a closing date — then

@@ -60,6 +60,9 @@ export default function CommissionCalc() {
 
   if (deals.status === 'loading' || deals.status === 'idle') return <div className="py-6 text-center text-zinc-400">Loading the commission rules…</div>;
   if (deals.status === 'error') return <div className="py-6 text-center text-zinc-500">{deals.error}</div>;
+  // Owners only — the server says who's an owner (`owner` from /api/deals;
+  // false while viewing as someone else), on top of the tab's `roles`.
+  if (!deals.owner) return <div className="py-6 text-center text-zinc-500">The commission calculator is for owners only.</div>;
 
   // Every person paid in any scenario, in part order, for the comparison rows.
   const rows = [];
