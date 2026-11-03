@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { KPI_TARGETS } from '../data/config.js';
 // The board's reps only (Settings › People › On the TV board, src/data/board.js).
-import { REPS_ON_BOARD as REPS, BOARD_PAIRS as PAIRS, boardHeadline as headline, boardHistory as historyEntries } from '../data/board.js';
+import { REPS_ON_BOARD as REPS, BOARD_PAIRS as PAIRS, boardHeadline as headline, boardHistory as historyEntries, boardTrackerMoney } from '../data/board.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
@@ -66,23 +66,27 @@ export default function MasterView() {
   // Money this month (Luke, Oct 8): projected = closed + assigned. Deals
   // before Assigned have no fee yet, so they don't count toward revenue.
   const deals = PAIRS.flatMap((p) => (p.deals || []).map((d) => ({ ...d, repId: p.repId })));
-  const closed = head.revenueMonth;
+  // Since Nov 3 (Luke: the TV's revenue didn't match Finance / Road to
+  // Hawaii) the money comes from the deal tracker's net assignment when the
+  // deploy has published it (data.json `board`); GHL's values otherwise.
+  const tm = boardTrackerMoney();
+  const closed = tm ? tm.closed : head.revenueMonth;
   // Only Assigned deals with a COE this month count (Luke, Oct 8): a deal
   // closing next month, or with no COE set, isn't this month's money.
   const inMonth = (date) => !!date && date.slice(0, 7) === today.slice(0, 7);
   const allAssigned = deals.filter((d) => d.stage === 'assigned');
   const assignedDeals = allAssigned.filter((d) => inMonth(d.coe));
-  const assigned = assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
+  const assigned = tm ? tm.assigned : assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
   const laterDeals = allAssigned.filter((d) => !inMonth(d.coe));
-  const later = laterDeals.reduce((a, d) => a + (d.value || 0), 0);
+  const later = tm ? tm.later : laterDeals.reduce((a, d) => a + (d.value || 0), 0);
   const projected = closed + assigned;
   const goal = KPI_TARGETS.revenuePerRepMonth * N;
   const scale = Math.max(goal, projected) * 1.04;
   const repGoal = KPI_TARGETS.revenuePerRepMonth;
   const perRep = REPS.map((r) => {
     const ps = PAIRS.filter((p) => p.repId === r.id);
-    const c = sum(ps, 'revenueMonth');
-    const a = assignedDeals.filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
+    const c = tm ? (tm.closedByRep.get(r.id) || 0) : sum(ps, 'revenueMonth');
+    const a = tm ? (tm.assignedByRep.get(r.id) || 0) : assignedDeals.filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
     return { r, c, a, t: c + a };
   }).sort((x, y) => y.t - x.t);
   const repMax = Math.max(repGoal * 1.25, ...perRep.map((x) => x.t));
@@ -92,7 +96,9 @@ export default function MasterView() {
   const since = Date.parse(`${monthStart}T00:00:00-07:00`);
   const wins = deals.flatMap((d) => {
     const out = [];
-    if (d.stage === 'closed' && d.stageSince >= since) out.push({ d, at: d.stageSince, kind: 'Closed', icon: '🎉' });
+    // Closed on the site, not yet in GHL: dated by its COE.
+    const closedAt = d.fromTracker ? Date.parse(`${d.coe}T12:00:00-07:00`) : d.stageSince;
+    if (d.stage === 'closed' && closedAt >= since) out.push({ d, at: closedAt, kind: 'Closed', icon: '🎉' });
     if (d.stage === 'assigned' && d.stageSince >= since) out.push({ d, at: d.stageSince, kind: 'Assigned', icon: '🤝' });
     if (d.startedAt >= since) out.push({ d, at: d.startedAt, kind: d.stage === 'under_contract' ? 'Under contract' : 'New deal', icon: '✍️' });
     return out;
@@ -103,13 +109,13 @@ export default function MasterView() {
   const nextKey = mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
   const nextName = new Date(`${nextKey}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
   const nextLined = allAssigned.filter((d) => String(d.coe || '').slice(0, 7) === nextKey);
-  const nextLinedSum = nextLined.reduce((a, d) => a + (d.value || 0), 0);
+  const nextLinedSum = tm ? tm.nextLined : nextLined.reduce((a, d) => a + (d.value || 0), 0);
   const nextWorking = deals.filter((d) => (d.stage === 'under_contract' || d.stage === 'dispo') && String(d.coe || '').slice(0, 7) === nextKey);
   const q = Math.ceil(mm / 3);
   const qMonths = [0, 1, 2].map((i) => `${yy}-${String(q * 3 - 2 + i).padStart(2, '0')}`);
   const past = qMonths.filter((m) => m < today.slice(0, 7)).map((m) => monthTotals(historyEntries(), m).team);
   const qContracts = past.reduce((a, t) => a + (t.contracts || 0), 0) + sum(PAIRS, 'contractsMonth');
-  const qRevenue = past.reduce((a, t) => a + (t.revenue || 0), 0) + closed;
+  const qRevenue = tm ? tm.quarterClosed : past.reduce((a, t) => a + (t.revenue || 0), 0) + closed;
   const qStart = Date.UTC(yy, q * 3 - 3, 1); const qEnd = Date.UTC(yy, q * 3, 1);
   const qFrac = Math.min(1, Math.max(0, (Date.UTC(yy, mm - 1, +today.slice(8, 10)) + 86_400_000 - qStart) / (qEnd - qStart)));
   const qContractGoal = KPI_TARGETS.contractsPerMonth * N * 3;
@@ -143,9 +149,9 @@ export default function MasterView() {
           </span>
         </div>
         <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 mt-3">
-          <Tile label="Closed" value={closed} sub={`${head.dealsClosedMonth} deals`} cls="bg-emerald-700 text-white" />
+          <Tile label="Closed" value={closed} sub={`${tm ? tm.closedN : head.dealsClosedMonth} deals`} cls="bg-emerald-700 text-white" />
           <span className="text-3xl font-black text-zinc-300">+</span>
-          <Tile label="Assigned" value={assigned} sub={`${assignedDeals.length} with COE this month${laterDeals.length ? ` · ${formatCompactCurrency(later)} not this month` : ''}`} cls="text-emerald-900" style={{ background: STRIPE('#a7f3d0', '#d1fae5') }} />
+          <Tile label="Assigned" value={assigned} sub={`${tm ? tm.assignedN : assignedDeals.length} with COE this month${(tm ? tm.laterN : laterDeals.length) ? ` · ${formatCompactCurrency(later)} not this month` : ''}`} cls="text-emerald-900" style={{ background: STRIPE('#a7f3d0', '#d1fae5') }} />
           <span className="text-3xl font-black text-zinc-300">=</span>
           <Tile label="Projected" value={projected} sub={projected >= goal ? 'goal covered 🎯' : `need ${formatCompactCurrency((goal - projected) / left)}/day`} cls={projected >= goal ? 'bg-emerald-50 text-emerald-700 ring-2 ring-emerald-400' : 'bg-amber-50 text-amber-700 ring-2 ring-amber-300'} />
         </div>
@@ -231,7 +237,7 @@ export default function MasterView() {
           </div>
           <div className="flex items-baseline gap-2 mt-0.5 min-w-0">
             <span className="text-[min(2.2rem,4vh)] font-extrabold tabular-nums leading-tight">{formatCompactCurrency(nextLinedSum)}</span>
-            <span className="text-sm text-white/70 truncate">of {formatCompactCurrency(goal)} · {nextLined.length} assigned{nextWorking.length ? ` · ${nextWorking.length} more in contract / dispo` : ''} with a {nextName.slice(0, 3)} COE</span>
+            <span className="text-sm text-white/70 truncate">of {formatCompactCurrency(goal)} · {tm ? tm.nextLinedN : nextLined.length} assigned{nextWorking.length ? ` · ${nextWorking.length} more in contract / dispo` : ''} with a {nextName.slice(0, 3)} COE</span>
           </div>
           <div className="relative h-3 mt-1.5 rounded-full bg-white/15 overflow-hidden">
             <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, Math.min(100, (nextLinedSum / goal) * 100))}%`, background: STRIPE('#38bdf8', '#7dd3fc') }} />

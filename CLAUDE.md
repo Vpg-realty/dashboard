@@ -3329,6 +3329,35 @@ automatic requests that never hand out a zip twice.
   untiered / hand-picked zips, paused / excluded, recent sheet pulls, focus
   cities not set), plus a "When the data looks bad — what to do" table.
 
+## The TV board follows the tracker (Luke, Nov 3)
+
+"where does [the TV] get its info … where is there non matching info … fix
+all of them". Overrides "the TV board still reads GHL only" notes above.
+The board (Team Overview / the TV: Overview, the TV Pipeline, the alert
+strip, celebrations) read only GHL, while Home, Pipeline, the Calendar and
+Finance read the tracker first. Now `scripts/team-goal.mjs` (same run as Road
+to Hawaii; + one read of `deal_ghl` per run) adds data.json **`board`** —
+`boardFeed` in `src/data/boardTracker.js`: one entry per tracker deal the
+board needs (open deals; closed / kept-EMD cancels with a COE in the last 120
+days or still on GHL's board; cancels still on GHL's board) with its address
+keys, stage, COE, IP end, net assignment once earned or assigned with a price,
+and rep (`deal_ghl` location, else acq. manager's name); ~50 entries, ~7 KB;
+carried over by build-snapshot when D1 can't be read. `src/data/board.js`
+lays it over GHL's deals (`applyBoard`, cached per data version and day):
+**dates** = the tracker's COE / IP end; **finished on the site** = a
+cancelled deal leaves the board, a closed one moves to Closed when its COE is
+this month (`fromTracker` — no fireworks until GHL moves it, dated by its COE
+in Wins), else leaves; **stage** = the tracker's; a deal GHL shows Closed
+stays as GHL has it. **Money** (`boardTrackerMoney` → MasterView): Closed /
+Assigned this month, not-this-month, per rep, next month lined up and the
+quarter's revenue = the tracker's net assignment by COE (Finance's outlook
+rule, kept-EMD cancels included) — the same numbers as Finance and Road to
+Hawaii. Reps off the TV board stay out; deals with no known rep count in the
+team totals only. Mock mode / no feed = GHL's numbers as before. Still from
+GHL by design: the sticky counts (opps, offers, contracts, closed counts on
+the Opportunities tab), conversations and agents. Home's revenue card and
+the scorecards' projected $ still use GHL's values (not changed here).
+
 ## Usage & cost — check every time (Luke, Oct 19)
 
 Luke: "keep the usage at top of mind … I need to ensure that I am not

@@ -43,8 +43,10 @@ function takeFreshMoves() {
   for (const p of PAIRS) {
     for (const d of p.deals || []) {
       const deal = { ...d, repId: p.repId, marketId: p.marketId };
+      // Closed on the site but not yet in GHL (boardTracker.js): no fireworks
+      // until GHL moves it too.
       if (d.stage === 'closed') {
-        if (d.stageSince && now - d.stageSince <= FRESH_MS && !seen.has(`${d.id}:closed`)) fresh.push({ ...deal, kind: 'closed', at: d.stageSince });
+        if (!d.fromTracker && d.stageSince && now - d.stageSince <= FRESH_MS && !seen.has(`${d.id}:closed`)) fresh.push({ ...deal, kind: 'closed', at: d.stageSince });
       } else if (START_STAGES.includes(d.stage)) {
         if (d.startedAt && now - d.startedAt <= FRESH_MS && !seen.has(`${d.id}:start`)) fresh.push({ ...deal, kind: 'start', at: d.startedAt });
       }

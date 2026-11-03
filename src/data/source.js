@@ -51,3 +51,7 @@ export const useDataStatus =
   (() => ({ live: false, lastSync: null, error: null, pairCount: src.PAIRS.length }));
 // Road to Hawaii totals (TV goal bar) — null in mock mode, so the bar hides.
 export const useTeamGoal = src.useTeamGoal || (() => null);
+// The TV board's tracker feed (src/data/boardTracker.js) — null in mock mode,
+// so the board shows GHL's numbers.
+export const boardFeed = src.boardFeed || (() => null);
+export const dataVersion = src.dataVersion || (() => 0);
