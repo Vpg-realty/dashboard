@@ -983,6 +983,13 @@ Overrides the Settings notes above where they differ.
   **Sub-Accounts → Connections** (same URL): the technical side only —
   existing rows show their holder read-only ("change on Team →"); a
   brand-new sub-account, location ID or key is still added there.
+  **Moves show at once** (Luke, Nov 3: "i am not able to switch daniel's
+  arizona sub account to sam" — the move was saved four times, but Team kept
+  showing this deploy's baked-in subaccounts.json, so AZ stayed under
+  Daniel until the next build): `src/settings/subStore.js` (`useSubs` /
+  `setSubs`) = this deploy's list with D1 `subaccount_changes` laid on top
+  (GET /api/subaccounts sends `changes`), replaced by the list each save
+  answers with — used by Team's list, the Team panel and Connections.
   `effectiveLists` (edge/deals.js) lists every active Acquisitions / Manager
   from the day they're added (rep name once they have one, else their People
   name), so they're in Commissions and the deal dropdowns at once.

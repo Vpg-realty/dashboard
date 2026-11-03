@@ -8,7 +8,7 @@
 // go through the server's GitHub key (functions/api/subaccounts.js), which
 // sits in its own card above — no separate screen to get stuck on.
 import { useEffect, useMemo, useState } from 'react';
-import { ALL_MARKETS, ALL_REPS, SUBACCOUNTS as SUBS } from '../data/config.js';
+import { useSubs, setSubs } from './subStore.js';
 import { PAIRS, useDataStatus } from '../data/source.js';
 import { classifyPair } from '../utils/pairHealth.js';
 import { pickColor, suggestRepId, suggestMarketCode } from '../utils/autoColor.js';
@@ -237,10 +237,11 @@ export default function SubAccountsView() {
   // After a save the page's own list is this deploy's (subaccounts.json is
   // baked in), so the change shows here after the refresh too.
   const [saved, setSaved] = useState(0);
-  // This deploy's list until a save answers with the new subaccounts.json.
-  const [cfg, setCfg] = useState({ reps: ALL_REPS, markets: ALL_MARKETS, subaccounts: SUBS });
+  // The sub-accounts as they stand now — this deploy's list with the moves
+  // saved on the site since, then whatever a save answers with (subStore.js).
+  const cfg = useSubs();
   const done = (next) => {
-    if (next?.subaccounts) setCfg({ reps: next.reps.map((r) => ({ ...ALL_REPS.find((x) => x.id === r.id), ...r })), markets: next.markets, subaccounts: next.subaccounts });
+    setSubs(next);
     setSaved((n) => n + 1);
   };
   useEffect(() => { githubStatus().then(setInfo).catch(() => setInfo({ connected: false })); }, []);

@@ -18,7 +18,8 @@
 // Save runs the existing calls in order (people, sub-accounts, pod lead,
 // commission, TV) and lists what was saved.
 import { useMemo, useState } from 'react';
-import { ALL_REPS, ALL_MARKETS, SUBACCOUNTS } from '../data/config.js';
+import { ALL_MARKETS } from '../data/config.js';
+import { useSubs, setSubs } from './subStore.js';
 import { pickColor, suggestRepId } from '../utils/autoColor.js';
 import { saveUser, removeUser, writeSetting, changeRule } from '../utils/dashApi.js';
 import { updateSubAccount } from '../utils/subaccountsApi.js';
@@ -29,7 +30,7 @@ import SearchBox from '../shell/SearchBox.jsx';
 import { ratesOf } from '../deals/rules.js';
 import { ROLE_OPTS, keyName } from './team.js';
 
-const repOf = (id) => ALL_REPS.find((r) => r.id === id) || null;
+const repIn = (reps, id) => reps.find((r) => r.id === id) || null;
 const marketName = (id) => ALL_MARKETS.find((m) => m.id === id)?.name || id;
 const first = (n) => String(n || '').trim().split(' ')[0];
 const uiRole = (u) => (u.role === 'trainee' ? 'team' : u.role);
@@ -60,6 +61,9 @@ function Pills({ value, onChange, options, disabled }) {
 // sub-accounts are whose); leads = who can lead a pod [{id, name, title}]; lists = deal_lists;
 // tvOff = rep ids off the board; rules = today's commission rules.
 export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, onSaved, onRemoved, onClose }) {
+  // The sub-accounts as they stand now, moves saved on the site included.
+  const { subaccounts: SUBACCOUNTS, reps } = useSubs();
+  const repOf = (id) => repIn(reps, id);
   const today = laToday();
   const isNew = !u;
   const start = useMemo(() => (u ? {
@@ -133,12 +137,13 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
           if (repOf(id) && !users.some((x) => x.rep_id === id && x.email === person.email)) id = suggestRepId(person.name);
           if (repOf(id) && !users.some((x) => x.rep_id === id && x.email === person.email)) id = `${id}_${Date.now().toString(36).slice(-3)}`;
         }
-        let newRep = repOf(id) ? null : { id, name: `${person.name} ${person.last_name || ''}`.trim(), color: pickColor(id, ALL_REPS.map((r) => r.color)) };
+        let newRep = repOf(id) ? null : { id, name: `${person.name} ${person.last_name || ''}`.trim(), color: pickColor(id, reps.map((r) => r.color)) };
         let moved = 0;
         for (const loc of take) {
           const s = SUBACCOUNTS.find((x) => x.locationId === loc);
           try {
-            await updateSubAccount({ locationId: loc, repId: id, marketId: s.marketId, newLocationId: null, newMarket: null, newRep, pit: null });
+            const r = await updateSubAccount({ locationId: loc, repId: id, marketId: s.marketId, newLocationId: null, newMarket: null, newRep, pit: null });
+            setSubs(r?.config);
             newRep = null; moved++;
             note(true, `${marketName(s.marketId)} handed over (was ${first(repOf(s.repId)?.name || s.repId)})`);
           } catch (e) { note(false, `${marketName(s.marketId)} not moved: ${e.message}`); }
