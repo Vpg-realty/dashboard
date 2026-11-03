@@ -120,7 +120,7 @@ export async function onRequestPatch(context) {
   if (await overCap(db)) return json({ error: 'Claude is paused for the rest of the month (the monthly budget is used up) — ask Luke or Jack.' }, 402);
   const [rawLists, users] = await Promise.all([
     getSetting(db, 'deal_lists', {}),
-    db.prepare("SELECT rep_id, status, name, role FROM users WHERE rep_id IS NOT NULL OR role IN ('team', 'manager')").all().then((r) => r.results),
+    db.prepare("SELECT rep_id, status, name, last_name, role FROM users WHERE rep_id IS NOT NULL OR role IN ('team', 'manager')").all().then((r) => r.results),
   ]);
   const lists = effectiveLists(rawLists || {}, users, roster);
   const deal = rowToDeal(row);

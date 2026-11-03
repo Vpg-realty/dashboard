@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyChanges, KEY as SUB_CHANGES } from '../edge/subChanges.js';
+import { applyChanges, withPeopleNames, KEY as SUB_CHANGES } from '../edge/subChanges.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
@@ -130,6 +130,28 @@ async function main() {
     }
   } catch (err) {
     console.log(`[private-files] sub-account changes not read (${err.message}) — subaccounts.json as committed`);
+  }
+  // Board names follow Settings › Team (Nov 3 — Dale showed as "Uncle" on the
+  // board and in Commissions after his name was changed in Team): every rep
+  // linked to a person with a last name takes "<first> <last>". Best effort.
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT rep_id, name, last_name FROM users WHERE rep_id IS NOT NULL' }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const file = path.join(ROOT, 'subaccounts.json');
+    const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const next = withPeopleNames(cfg, d.result?.[0]?.results || []);
+    const moved = next.reps.filter((x, i) => x.name !== cfg.reps[i]?.name).map((x) => `${x.id} → ${x.name}`);
+    if (moved.length) {
+      fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+      console.log(`[private-files] board names from Settings › Team: ${moved.join(', ')}`);
+    }
+  } catch (err) {
+    console.log(`[private-files] board names not read (${err.message}) — as in subaccounts.json`);
   }
 
   // KPI targets from Settings › KPI Targets (Oct 22), baked into the app by
