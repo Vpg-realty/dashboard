@@ -134,6 +134,7 @@ export default function OfferMessage({ c, kind }) {
                   <span className="text-[13px] font-semibold text-navy-800">{t.title}</span>
                   <span className="ml-2 text-[11.5px] text-tan-700">{t.when === 'states' ? (t.states || []).join(', ') : WHEN[t.when]}</span>
                   {t.confirm && <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-800 ring-1 ring-amber-200">States to confirm</span>}
+                  {t.hint && <span className="block text-[12px] font-semibold text-amber-800">{t.hint}</span>}
                   <span className="block text-[12.5px] text-zinc-600 line-clamp-2" title={t.text}>{t.text}</span>
                 </span>
               </label>

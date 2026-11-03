@@ -13,7 +13,8 @@
 import { ABBR, NAME_OF } from './states.js';
 
 // when: 'always' (every contract), 'offmarket' (the property isn't listed),
-// 'states' (only those states), 'optional' (ticked by hand).
+// 'states' (only those states), 'optional' (ticked by hand, off by default).
+// `hint` = a short note on when to use it, shown with the term.
 export const WHEN = {
   always: 'Every contract',
   offmarket: 'If off market (not listed)',
@@ -38,6 +39,11 @@ export const DEFAULT_TERMS = {
     {
       id: 'informal', when: 'states', states: ['IN', 'OH', 'TN', 'AL', 'NV', 'OK', 'MO'], confirm: true, title: 'Informal inspection',
       text: 'Seller hereby accepts that Buyer may evaluate the Property through an informal inspection process, which may include a drive-by, visual inspection from the exterior or through windows, entry into the Property, and/or evaluation by Buyer’s contractor or representative. Buyer is not required to obtain a professional inspection or provide a written list of defects, repairs, or disapproved items. Buyer may terminate this Agreement during the Inspection/Due Diligence Period if, in Buyer’s judgment, the Property does not meet Buyer’s investment criteria, and such termination shall not require Buyer to identify or document any specific defect or condition.',
+    },
+    {
+      id: 'closing', when: 'optional', title: 'Buyer covers closing costs',
+      hint: 'Optional — only include it if we already offered it.',
+      text: 'Buyer agrees to pay all closing costs associated with this transaction, including those customarily paid by the Seller.',
     },
     {
       id: 'assign', when: 'states', states: ['NC', 'GA'], title: 'Assignment',

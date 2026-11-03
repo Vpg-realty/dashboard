@@ -72,6 +72,7 @@ function TermCard({ t, can, editing, setEditing, save, remove }) {
           {can && <button type="button" onClick={() => setEditing(t.id)} className="text-[12.5px] font-semibold text-navy-700 hover:underline">Edit</button>}
         </span>
       </div>
+      {t.hint && <p className="mt-1 text-[12.5px] font-semibold text-amber-800">{t.hint}</p>}
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-zinc-700 whitespace-pre-line">{t.text}</p>
     </div>
   );
