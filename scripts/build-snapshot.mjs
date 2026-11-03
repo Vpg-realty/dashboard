@@ -219,6 +219,7 @@ try { snapshot.trainees = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'tra
 // Road to Hawaii totals (scripts/team-goal.mjs refreshes them later in the
 // chain); the last deploy's stay if that step can't reach D1.
 if (prev?.goal) snapshot.goal = prev.goal;
+if (prev?.board) snapshot.board = prev.board;
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(snapshot));

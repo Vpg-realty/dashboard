@@ -65,11 +65,14 @@ let lastSync = initial?.generatedAt || null;
 let lastError = null;
 let lastErrors = initial?.errors || [];
 let GOAL = initial?.goal || null;   // Road to Hawaii totals (scripts/team-goal.mjs)
+let BOARD = initial?.board || null; // the TV board's tracker feed (src/data/boardTracker.js)
+let VERSION = 0;                    // bumped whenever the pairs or the feed change
 let lastFailureAt = null;
 let HISTORY = boardEntries(loadHistoryFromStorage() || []);   // array of daily snapshot entries
 const subscribers = new Set();
 
 function replacePairs(newPairs) {
+  VERSION++;
   PAIRS.length = 0;
   for (const p of onBoard(newPairs)) PAIRS.push(p);
 }
@@ -161,8 +164,9 @@ async function fetchSnapshot() {
     lastError = null;
     lastErrors = Array.isArray(data.errors) ? data.errors : [];
     GOAL = data.goal || GOAL;
+    BOARD = data.board || BOARD;
     lastFailureAt = null;
-    saveToStorage({ generatedAt: lastSync, pairs: PAIRS, errors: lastErrors, goal: GOAL });
+    saveToStorage({ generatedAt: lastSync, pairs: PAIRS, errors: lastErrors, goal: GOAL, board: BOARD });
     notify();
   } catch (err) {
     lastError = String(err?.message || err);
@@ -479,6 +483,11 @@ export function useDataUpdates() {
     return () => subscribers.delete(force);
   }, []);
 }
+
+// The TV board's tracker feed (data.json `board`) and a counter that moves
+// whenever the pairs are replaced — src/data/board.js caches on it.
+export const boardFeed = () => BOARD;
+export const dataVersion = () => VERSION;
 
 // The team goal's totals (TV's Road to Hawaii bar), or null before a deploy
 // has added them.

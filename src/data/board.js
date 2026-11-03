@@ -9,14 +9,42 @@
 // here under the same names they had; every other page keeps everyone.
 // Nothing hidden = exactly the full lists.
 import { REPS, KPI_TARGETS, TIERS, MARKETS } from './config.js';
-import { PAIRS as ALL_PAIRS, historyEntries as allHistory } from './source.js';
+import { PAIRS as ALL_PAIRS, historyEntries as allHistory, boardFeed, dataVersion } from './source.js';
+import { applyBoard, boardMoney } from './boardTracker.js';
+import { laToday } from '../utils/historyRange.js';
 
 /* global __BOARD_HIDDEN__ */
 export const BOARD_HIDDEN = new Set(typeof __BOARD_HIDDEN__ !== 'undefined' ? __BOARD_HIDDEN__ : []);
 export const onBoardRep = (repId) => !BOARD_HIDDEN.has(repId);
 export const REPS_ON_BOARD = REPS.filter((r) => onBoardRep(r.id));
 
-const boardPairs = () => (BOARD_HIDDEN.size ? ALL_PAIRS.filter((p) => onBoardRep(p.repId)) : ALL_PAIRS);
+// Since Nov 3 the board's deals also follow the deal tracker (boardTracker.js:
+// its COE / IP end / stage, deals finished on the site left out) — cached per
+// data version and day, since the proxy below reads this on every access.
+let memo = { key: null, list: [] };
+let dayAt = 0; let day = '';
+const today = () => { const t = Date.now(); if (t - dayAt > 60_000) { day = laToday(); dayAt = t; } return day; };
+const boardPairs = () => {
+  const key = `${dataVersion()}|${ALL_PAIRS.length}|${boardFeed()?.at || ''}|${today()}`;
+  if (memo.key !== key) {
+    const mine = BOARD_HIDDEN.size ? ALL_PAIRS.filter((p) => onBoardRep(p.repId)) : [...ALL_PAIRS];
+    memo = { key, list: applyBoard(mine, boardFeed(), today().slice(0, 7)) };
+  }
+  return memo.list;
+};
+
+// The board's money from the tracker (net assignment, like Finance and Road
+// to Hawaii), or null with no feed — MasterView then uses GHL's values.
+export function boardTrackerMoney() {
+  const feed = boardFeed();
+  if (!feed?.deals) return null;
+  const today = laToday();
+  const [y, m] = today.split('-').map(Number);
+  const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const q = Math.ceil(m / 3);
+  const quarter = [0, 1, 2].map((i) => `${y}-${String(q * 3 - 2 + i).padStart(2, '0')}`).filter((x) => x <= today.slice(0, 7));
+  return boardMoney(feed, { month: today.slice(0, 7), nextMonth, quarter, onBoard: onBoardRep });
+}
 // A live view of the pairs that behaves like the PAIRS array (filter, reduce,
 // for … of, length) — the source array is updated in place on every poll.
 export const BOARD_PAIRS = new Proxy([], {

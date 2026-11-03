@@ -1,4 +1,5 @@
-// "Road to Hawaii" totals for the TV (Luke, Oct 21; src/utils/teamGoal.js):
+// "Road to Hawaii" totals for the TV (Luke, Oct 21; src/utils/teamGoal.js)
+// and the board's tracker feed (data.json `board`, Nov 3; boardTracker.js):
 // reads the tracker's deals from D1, computes them like the site does and
 // adds `goal` to public/data.json. Chained after sync-alerts.mjs in `npm run
 // snapshot` (the GHL sync has already moved statuses); never fails the
@@ -10,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compute } from '../src/deals/math.js';
 import { goalTotals } from '../src/utils/teamGoal.js';
+import { boardFeed } from '../src/data/boardTracker.js';
 
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,11 +34,19 @@ async function main() {
   };
   const deals = (await query('SELECT id, data FROM deals WHERE deleted = 0')).map((r) => ({ ...JSON.parse(r.data), id: r.id }));
   const st = Object.fromEntries((await query("SELECT key, value FROM settings WHERE key IN ('deal_rules', 'deal_lists')")).map((r) => [r.key, JSON.parse(r.value)]));
-  const totals = goalTotals(deals.map((d) => compute(d, st.deal_rules, st.deal_lists)));
+  const computed = deals.map((d) => compute(d, st.deal_rules, st.deal_lists));
+  const totals = goalTotals(computed);
   const data = JSON.parse(fs.readFileSync(OUT, 'utf8'));
   data.goal = { ...totals, at: new Date().toISOString() };
+  // The TV board's view of the tracker (Luke, Nov 3: "fix all of them") —
+  // dates, stages and money from the deal tracker, like the rest of the site.
+  // One extra small read (deal_ghl links) per run.
+  const links = Object.fromEntries((await query('SELECT deal_id, location FROM deal_ghl')).map((r) => [r.deal_id, r.location]));
+  let reps = [];
+  try { reps = JSON.parse(fs.readFileSync(path.join(ROOT, 'subaccounts.json'), 'utf8')).reps || []; } catch { reps = []; }
+  data.board = { ...boardFeed(computed, { links, reps, pairs: data.pairs || [] }), at: new Date().toISOString() };
   fs.writeFileSync(OUT, JSON.stringify(data));
-  console.log(`[goal] closed ${totals.closedN} ($${totals.closed}) · assigned ${totals.linedN} ($${totals.lined})`);
+  console.log(`[goal] closed ${totals.closedN} ($${totals.closed}) · assigned ${totals.linedN} ($${totals.lined}) · board ${data.board.deals.length} tracker deals`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
