@@ -39,6 +39,26 @@ export async function pofList(db) {
   return (await db.prepare("SELECT name, label, filename, size, expires, uploaded_by, uploaded_at FROM toolkit_files WHERE name = 'pof' OR name LIKE 'pof:%' ORDER BY uploaded_at").all()).results
     .map((r) => ({ ...r, label: r.label || r.filename.replace(/\.pdf$/i, '') }));
 }
+// State disclosures (Luke, Nov 3: "a general tab for disclosure documents
+// and we can select what state they are for … the offer templates would show
+// the document we have to include"): rows of toolkit_files named 'doc:<id>'
+// with `states` (JSON list of state codes) and a `note` (when to use it).
+// Owners and the TC add, replace, edit and remove them; everyone downloads.
+export const DOC_SLOT = /^doc:[a-f0-9]{12}$/;
+export async function docList(db) {
+  return (await db.prepare("SELECT name, label, filename, size, states, note, uploaded_by, uploaded_at FROM toolkit_files WHERE name LIKE 'doc:%' ORDER BY label").all()).results
+    .map((r) => ({ ...r, states: parse(r.states) || [], label: r.label || r.filename.replace(/\.pdf$/i, '') }));
+}
+const cleanStates = (x) => [...new Set((Array.isArray(x) ? x : []).map((c) => String(c).toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)))].sort();
+// A PDF in base64 → { size } or { error }.
+function pdfCheck(data, what) {
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { error: 'Pick a PDF file' };
+  const size = Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
+  if (size > POF_MAX_BYTES) return { error: `That file is ${(size / 1e6).toFixed(1)} MB — the ${what} needs to be under 1.4 MB (save it as a smaller PDF)` };
+  if (!data.startsWith('JVBERi')) return { error: 'That isn’t a PDF' }; // "%PDF"
+  return { size };
+}
+
 export async function agencies(db) {
   return (await db.prepare('SELECT * FROM title_agencies ORDER BY state, preferred DESC, sort, name').all()).results;
 }
@@ -71,8 +91,8 @@ export async function contractTerms(db) {
 }
 
 export async function load(db, u) {
-  const [pofs, list, mine, terms] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db)]);
-  return { pofs, pof: pofs[0] || null, agencies: list, calcs: mine, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), terms: canEditTerms(u) } };
+  const [pofs, list, mine, terms, docs] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db), docList(db)]);
+  return { pofs, pof: pofs[0] || null, docs, agencies: list, calcs: mine, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), docs: canUploadPof(u), terms: canEditTerms(u) } };
 }
 
 // The offer message's text fields are longer than a number.
@@ -131,6 +151,26 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
     }
     if (!DATE.test(String(b.expires || ''))) return { error: 'Pick the expiry date' };
     return { run: [['UPDATE toolkit_files SET expires = ? WHERE name = ?', [b.expires, slot]], closeOldPof(slot, b.expires, now)] };
+  }
+  if (a === 'doc' || a === 'docEdit' || a === 'docRemove') {
+    if (!canUploadPof(u)) return { error: 'Only owners and the TC change the disclosures' };
+    if (a !== 'doc' || b.slot) {
+      if (!DOC_SLOT.test(String(b.slot || '')) || !existing) return { error: 'That document is gone' };
+    }
+    if (a === 'docRemove') return { run: [['DELETE FROM toolkit_files WHERE name = ?', [b.slot]]] };
+    const label = clip(b.label, 80) || existing?.label || '';
+    const states = cleanStates(b.states ?? parse(existing?.states));
+    const note = clip(b.note ?? existing?.note, 400) || null;
+    if (!label) return { error: 'Give the document a name' };
+    if (!states.length) return { error: 'Pick the state(s) it’s for' };
+    if (a === 'docEdit') return { run: [['UPDATE toolkit_files SET label = ?, states = ?, note = ? WHERE name = ?', [label, JSON.stringify(states), note, b.slot]]] };
+    const data = String(b.data || '');
+    const chk = pdfCheck(data, 'document');
+    if (chk.error) return chk;
+    const slot = b.slot || `doc:${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+    const filename = clip(b.filename, 120).replace(/[^\w .()-]/g, '') || 'Disclosure.pdf';
+    return { id: slot, run: [["INSERT INTO toolkit_files (name, label, filename, mime, size, data, expires, states, note, uploaded_by, uploaded_email, uploaded_at) VALUES (?, ?, ?, 'application/pdf', ?, ?, NULL, ?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET label = excluded.label, filename = excluded.filename, size = excluded.size, data = excluded.data, states = excluded.states, note = excluded.note, uploaded_by = excluded.uploaded_by, uploaded_email = excluded.uploaded_email, uploaded_at = excluded.uploaded_at",
+      [slot, label, filename, chk.size, data, JSON.stringify(states), note, u.name, u.email, now]]] };
   }
   if (a === 'terms') {
     if (!canEditTerms(u)) return { error: 'Owners edit the contract terms' };

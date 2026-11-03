@@ -3,11 +3,12 @@
 // answers with the fresh state.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
+import { ABBR as ABBR_OF } from './states.js';
 
 const BASE = import.meta.env.BASE_URL || '/';
 const post = (body) => call('toolkit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
-let state = { status: 'idle', pof: null, pofs: [], agencies: [], calcs: [], can: {}, error: null };
+let state = { status: 'idle', pof: null, pofs: [], docs: [], agencies: [], calcs: [], can: {}, error: null };
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 
@@ -31,10 +32,17 @@ export function useToolkit() {
 }
 export async function act(body) {
   const r = await post(body);
-  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], terms: r.terms, agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
+  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], docs: r.docs || [], terms: r.terms, agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
   return r;
 }
 
+// A state disclosure (slot doc:<id>) downloads through the same endpoint.
+export const docUrl = (slot, inline = false) => `${BASE}api/toolkit/pof?slot=${encodeURIComponent(slot)}${inline ? '&inline=1' : ''}`;
+// The disclosures for a state ("OK" or "Oklahoma").
+export const docsFor = (docs, st) => {
+  const c = String(st || '').toUpperCase();
+  return (docs || []).filter((d) => (d.states || []).some((x) => x === c || x === (ABBR_OF[String(st || '')] || '')));
+};
 export const pofUrl = (inline, slot = 'pof') => `${BASE}api/toolkit/pof?slot=${encodeURIComponent(slot)}${inline ? '&inline=1' : ''}`;
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {

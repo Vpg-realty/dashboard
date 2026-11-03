@@ -8,7 +8,7 @@ import Panel from '../shell/Panel.jsx';
 import { linkProps } from '../shell/router.js';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { Field } from './CalcFrame.jsx';
-import { useToolkit } from './store.js';
+import { useToolkit, docsFor, docUrl } from './store.js';
 import { US_STATES, NAME_OF } from './states.js';
 import { offerMessage, missingFor, signerFor, coeDefault, coeText, INTRO } from './offer.js';
 import { termsFor, stateNotes, DEFAULT_TERMS, WHEN } from './terms.js';
@@ -95,6 +95,28 @@ export default function OfferMessage({ c, kind }) {
           <span className="text-[11.5px] font-normal text-tan-600">{i.title ? 'Picked' : suggested ? 'The state’s ★ agency (Toolkit › Title Agencies)' : ' '}</span>
         </label>
       </div>
+      {/* The state's required documents (Luke, Nov 3 — Toolkit › Documents ›
+          Disclosures): send them with the offer. */}
+      {docsFor(tk.docs, state).length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60">
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-amber-200">
+            <span className="text-[13px] font-semibold text-amber-900">Required Documents · {state}</span>
+            <a {...linkProps('/toolkit/disclosures')} className="text-[12px] font-semibold text-navy-700 hover:underline">All disclosures →</a>
+          </div>
+          <div className="p-3 flex flex-col gap-2">
+            {docsFor(tk.docs, state).map((d) => (
+              <div key={d.name} className="flex flex-wrap items-start gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-amber-100">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-navy-800">{d.label}</span>
+                  {d.note && <span className="block text-[12.5px] text-zinc-600">{d.note}</span>}
+                </span>
+                <a href={docUrl(d.name)} className="h-8 px-3 rounded-lg grid place-items-center bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800">Download</a>
+                <a href={docUrl(d.name, true)} target="_blank" rel="noreferrer" className="h-8 px-3 rounded-lg grid place-items-center ring-1 ring-tan-300 bg-white text-navy-800 text-[12.5px] font-semibold hover:bg-tan-50">Open ↗</a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* The terms for this state and listing (Luke, Nov 3), from Toolkit ›
           Contract Terms: ticked ones go at the foot of the message. */}
       <div className="rounded-xl border border-tan-200 bg-white">

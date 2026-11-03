@@ -2333,6 +2333,25 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   editable box with Copy / Email (mailto) / Text (sms:). Signer = `SIGNER`,
   plus "and/or Assigns" outside AZ, AL, FL, OK (`MARKETS_NO_ASSIGNS`); the
   market defaults to the linked opportunity's state.
+- **Disclosures** (Luke, Nov 3: "a general tab for disclosure documents …
+  select what state they are for … the offer templates would show the
+  document we have to include and we could download it … similar to the POF
+  option where i can delete and add as we go"): Toolkit › Documents ›
+  Disclosures (`/toolkit/disclosures`, `Disclosures.jsx`). Each document is a
+  `toolkit_files` row `doc:<id>` with `states` (JSON codes) and `note`
+  (columns added Nov 3 with ALTER TABLE), ≤ 1.4 MB PDF; owners and the TC add
+  / replace / edit (name, states, note) / remove (actions `doc` / `docEdit` /
+  `docRemove`, `docList` in edge/toolkit.js); everyone downloads through
+  `/api/toolkit/pof?slot=doc:<id>` (logged `toolkit.doc.download`). The offer
+  block (`OfferMessage.jsx`) shows **Required Documents · <state>** with
+  Download / Open once the market is picked, and Contract Terms lists them as
+  "Required document" in the state's section (`docsFor` in store.js). First
+  one, loaded Nov 3 from Luke's PDF: **Oklahoma Wholesale Disclosure &
+  Cancellation Notice** (59 O.S. § 858-314: VPG's disclosure for the seller to
+  sign + the state's blank cancellation notice). The TC checklist's Open the
+  File has **Oklahoma disclosure signed by the seller** on OK deals only
+  (`okdisclosure`, `only: isOk`, counted from `OK_FROM` 2026-11-04). Usage:
+  one small read per Toolkit load.
 - **Three top tabs** (Luke, Nov 3: "documents in one, then offer templates
   in another, then calculators … cleaner"): **Documents** (Proof of Funds,
   Title Agencies), **Offers** (Offer Templates, Contract Terms) and
