@@ -16,6 +16,7 @@
 //   newRound { state }               owners (approval when a state runs out)
 //   rules    { value }               owners
 // Every write is refused while viewing as someone else (role 'none').
+import { granted, ZIP_PAGES } from '../../../edge/access.js';
 import { currentUser, json } from '../../../edge/auth.js';
 import { log } from '../../../edge/settings.js';
 import * as Z from '../../../edge/zips.js';
@@ -23,6 +24,9 @@ import roster from '../../../subaccounts.json' with { type: 'json' };
 
 const SEES_ALL = ['owner', 'manager', 'tc'];
 const IN_APP = [...SEES_ALL, 'team', 'trainee'];
+// …and, to look (never change), anyone given a Territory page in Settings ›
+// Access (Nov 3).
+const seesAll = (u) => SEES_ALL.includes(u.role) || granted(u, ZIP_PAGES);
 
 // The signed-in person's own zips: a rep's, or an owner's (Z.holderOf).
 async function mine(db, user, now) {
@@ -49,13 +53,13 @@ export async function onRequestGet(context) {
   const rounds = await Z.loadRounds(db);
   const state = new URL(context.request.url).searchParams.get('state');
   if (state) {
-    if (!SEES_ALL.includes(user.role) && !Z.repStates(user.rep_id).includes(state)) return json({ error: 'not your state' }, 403);
+    if (!seesAll(user) && !Z.repStates(user.rep_id).includes(state)) return json({ error: 'not your state' }, 403);
     const zips = await Z.stateZips(db, state);
-    const own = SEES_ALL.includes(user.role);
+    const own = seesAll(user);
     return json({ state, round: Z.roundOf(rounds, state), zips: zips.map((z) => ({ ...z, held_by: own || z.held_by === user.rep_id ? z.held_by : z.held_by ? 'someone' : null })) });
   }
   const base = { me: await mine(db, user, now), rules, ruleText: Z.ruleText(rules), flagReasons: Z.FLAG_REASONS, role: user.role, weekStart: Z.weekStart(now) };
-  if (!SEES_ALL.includes(user.role)) return json(base);
+  if (!seesAll(user)) return json(base);
   const states = await Z.summary(db, rules, rounds);
   const holds = (await db.prepare(`SELECT a.zip, a.state, a.rep_id, a.assigned_at, a.expires_at, a.via, a.by_name, z.county, z.tier
     FROM zip_assignments a JOIN zips z ON z.zip = a.zip WHERE a.released_at IS NULL ORDER BY a.assigned_at DESC`).all()).results;

@@ -56,6 +56,10 @@ export function useMe() {
   return state;
 }
 export const canGrade = (u) => !!u && (u.role === 'owner' || u.role === 'manager');
+// The team's scorecard data (data-mgr.json, scorecards.json): graders, plus
+// anyone given a Scorecards page in Settings › Access (Nov 3) — read only.
+const TEAM_DATA_PAGES = ['team/scorecard', 'team/month', 'team/training'];
+export const canSeeTeamData = (u) => canGrade(u) || (u?.access?.give || []).some((p) => TEAM_DATA_PAGES.includes(p));
 
 // --- scorecard grades / notes ---------------------------------------------------
 export const readScorecardEdits = () => call('scorecard-edits');

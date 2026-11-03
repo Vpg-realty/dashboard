@@ -1055,6 +1055,48 @@ Overrides the Settings notes above where they differ.
   all six CRM items with their grades ("CRM N of 12 points", Speed to lead
   included), and the team average line is purple (dashed) everywhere.
 
+## Settings › Access — who sees what (Luke, Nov 3, Phase 1)
+
+"start coding into the settings who gets to see what … a basic view for
+managers vs. reps vs. owners vs. tc and then add additional things by
+checking them" — from the approved mock-up (Pod Lead its own column, changes
+per person). Settings › Team › **Access** (`/settings/access`,
+`src/settings/AccessView.jsx`).
+- **The rules** = `src/shell/access.js` (shared by the browser and the
+  server): `accessPages()` = every page in sidebar order (a section's tabs,
+  or one row for Calendar, Team Overview, Alerts, Get Zips, Suggestion Box,
+  Finance and Settings; My Training left out); columns `ACCESS_ROLES` = Pod
+  Lead (a manager who leads a pod — `accessRoleOf`, starts from manager's),
+  Manager, Rep, Trainee, TC. Owners always see everything; the TV only ever
+  gets the TV board. `LOCKED` = Finance, Settings, Toolkit › Commission
+  Calculator (owners only, never givable). Stored in D1 settings `access` =
+  `{ roles: { role: { page: bool } }, people: { email: { page: bool } } }` —
+  only what differs from today's rules (`defaultFor` reads sections.js), so
+  a new page starts with its own default; a person's value wins over their
+  role's. `personAccess` → `{ give, take }`; `checkAccess` checks a save
+  (PUT /api/settings/access, owners; `forgetAccess`).
+- **Navigation**: /api/me sends `access`; `sectionsFor(role, extra, acc)` /
+  `resolve` (sections.js) show a given page's tab (and its section) and hide a
+  taken one — sidebar, tabs, ⌘K (`acc` passed by AppShell; trainees still in
+  onboarding get none).
+- **Server** (`edge/access.js`, settings row cached a minute per worker):
+  `currentUser` (edge/auth.js) attaches `grant` / `take`; `granted(u, pages)`
+  lets a given page's data through, read only — Deals pages → `dealViewer`
+  (edge/deals.js: every deal as the TC sees it, read only; managers keep
+  their COE / IP / EMD edits), Deals › TC List → GET /api/tc, Deals › Map →
+  /api/closed-map, Territory pages → the zips summary (`seesAll`), Scorecards
+  pages → the manager files (`canSeeManagerData`) and /api/scorecard-edits
+  GET without notes (`canSeeTeamData` in dashApi loads them), Suggestion Box
+  → `canSuggestDb` (taken away → refused too). Taking a page away hides it
+  and its links; data other pages of theirs share stays as it is. Buyer
+  names, commissions, money, editing, grading and notes stay with the roles
+  that had them. Phase 2: whose data (Mine / Pod / Everyone); Phase 3:
+  fields. Usage: ≤ 1 settings row read a minute per worker.
+- **Alerts' Mine** (same day, Luke: for pod leads "when they switch from mine
+  to my pod … it doesn't change what they see"): Mine is only what's held by
+  you — it used to add the pod's leads and duplicates (owners: everyone's),
+  so Mine and My Pod looked alike. The pod's are under My Pod.
+
 ## Training (Luke, Oct 19)
 
 A standard program for every new hire (from "Valley Property Group Training

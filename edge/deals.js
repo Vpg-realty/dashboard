@@ -9,6 +9,7 @@
 //             not in the public repo
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
+import { granted, DEAL_PAGES } from './access.js';
 import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen, compute } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
@@ -23,8 +24,11 @@ import roster from '../subaccounts.json' with { type: 'json' };
 // every secret field).
 export const canEditDeals = (u) => u?.role === 'owner' || u?.role === 'tc';
 // Trainees read like a rep (Luke, Oct 19: Home and Pipeline from shadow week).
-export const isRepView = (u) => ((u?.role === 'team' || u?.role === 'manager') && !!u.rep_id) || u?.role === 'trainee';
-export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u);
+// Given a Deals page in Settings › Access (Nov 3): every deal as the TC sees
+// it (no buyer, commissions or profit), read only — not just the open ones.
+export const dealViewer = (u) => !canEditDeals(u) && granted(u, DEAL_PAGES);
+export const isRepView = (u) => !dealViewer(u) && (((u?.role === 'team' || u?.role === 'manager') && !!u.rep_id) || u?.role === 'trainee');
+export const canSeeDeals = (u) => canEditDeals(u) || isRepView(u) || dealViewer(u);
 export const isOwner = (u) => u?.role === 'owner';
 // Managers fix a deal's COE, IP end (its DD days) and EMD amount (Luke, Oct
 // 18: "if the ip or coe or em amount is incorrect, they should be allowed to

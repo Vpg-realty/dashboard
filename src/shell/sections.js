@@ -9,6 +9,8 @@
 // The server enforces data access separately (functions/_middleware.js,
 // functions/api/*); hiding a section here is about navigation, not security.
 
+import { pageOf } from './access.js';
+
 const PEOPLE = ['owner', 'manager', 'tc', 'team'];
 
 // Labels are Title Case (Luke, Oct 14) — they're the tab titles and the
@@ -181,6 +183,7 @@ export const SECTIONS = [
     id: 'settings', label: 'Settings', icon: 'settings', roles: ['owner'], bottom: 'admin', rail: true,
     tabs: [
       { id: 'people', label: 'Team', view: 'settings-people', scroll: true, group: 'Team', sub: 'Everyone, and everything about them', title: 'The team', blurb: 'Everyone who can sign in — role, pod lead, states, commission and TV board, all set in one place. Click a person to change anything; + Add a Team Member for someone new.' },
+      { id: 'access', label: 'Access', view: 'settings-access', scroll: true, group: 'Team', sub: 'Who sees what', title: 'Access', blurb: 'Who sees which pages. Tick a box to give a role a page; give or take away pages for one person below. Starts exactly as the site works today — the server follows the same list.' },
       { id: 'training', label: 'Training Program', view: 'settings-training', scroll: true, group: 'Team', sub: 'Steps, videos, tests', title: 'The training program', blurb: 'Every new hire works through these steps in order. Changes apply to trainees who haven’t reached that step yet.' },
       { id: 'targets', label: 'KPI Targets', view: 'settings-targets', scroll: true, group: 'Team', sub: 'Opps, offers, contracts, revenue', title: 'KPI targets', blurb: 'The per-rep targets the board, the TV and the scorecards are graded on. Each change has a start date, so earlier weeks keep their scores.' },
       // Oct 19 (Luke's site map): Pods and TC Pay folded into Commissions (who
@@ -199,9 +202,22 @@ export const SECTIONS = [
 // without `roles` is open to everyone who sees the section).
 // `extra` = section ids granted to this person on top of their role (the
 // Suggestion Box for people owners add, /api/me `suggest`).
+// `acc` = this person's { give, take } pages from Settings › Access (Nov 3;
+// /api/me `access`, src/shell/access.js): a given page shows its tab (and
+// its section) though their role wouldn't, a taken one hides it.
 export const extraFor = (me) => (me?.suggest ? ['suggestions'] : []);
-export const sectionsFor = (role, extra = []) => SECTIONS.filter((s) => s.roles.includes(role) || extra.includes(s.id))
-  .map((s) => (s.tabs ? { ...s, tabs: s.tabs.filter((t) => !t.roles || t.roles.includes(role)) } : s));
+export const accessOf = (me) => me?.access || null;
+export const sectionsFor = (role, extra = [], acc = null) => {
+  const give = new Set(acc?.give || []);
+  const take = new Set(acc?.take || []);
+  const show = (s, t) => {
+    const page = pageOf(s.id, t?.id);
+    if (take.has(page)) return false;
+    return give.has(page) || ((s.roles.includes(role) || extra.includes(s.id)) && (!t?.roles || t.roles.includes(role)));
+  };
+  return SECTIONS.map((s) => (s.tabs ? { ...s, tabs: s.tabs.filter((t) => show(s, t)) } : show(s) ? s : null))
+    .filter((s) => s && (!s.tabs || s.tabs.length));
+};
 
 // '/board/pipeline' → { section, tab } for this role, falling back to the
 // section's first tab, then to Home, so an old or forbidden link never
@@ -243,11 +259,11 @@ const MOVED = {
   'team/my-breakdown': { section: 'team', tab: 'mine' },
 };
 
-export function resolve(path, role, extra = []) {
+export function resolve(path, role, extra = [], acc = null) {
   let [sid, tid] = path.replace(/^\/+/, '').split('/');
   const one = MOVED[`${sid}/${tid}`];
   if (one) { sid = one.section; tid = one.tab; } else if (MOVED[sid]?.tabs) { tid = MOVED[sid].tabs[tid] || tid; sid = MOVED[sid].section; }
-  const allowed = sectionsFor(role, extra);
+  const allowed = sectionsFor(role, extra, acc);
   const section = allowed.find((s) => s.id === sid) || allowed[0] || SECTIONS[0];
   const tab = section.tabs ? section.tabs.find((t) => t.id === tid) || section.tabs[0] : null;
   return { section, tab };

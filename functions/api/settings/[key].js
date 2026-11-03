@@ -8,9 +8,11 @@ import { json } from '../../../edge/auth.js';
 import { owner, log, checkRules, checkLists, checkTeamChat, checkDiscordTest, checkSuggestPeople, checkBoardHidden } from '../../../edge/settings.js';
 import { applyChange, toTimelines } from '../../../src/deals/rules.js';
 import { forgetPods } from '../../../edge/pods.js';
+import { forgetAccess } from '../../../edge/access.js';
+import { checkAccess } from '../../../src/shell/access.js';
 import { applyTargetChange, checkTargets } from '../../../src/data/kpiTargets.js';
 
-const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'], 'kpi-targets': ['kpi_targets', checkTargets], 'board-hidden': ['board_hidden', checkBoardHidden] };
+const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'], 'kpi-targets': ['kpi_targets', checkTargets], 'board-hidden': ['board_hidden', checkBoardHidden], access: ['access', checkAccess] };
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);
@@ -38,6 +40,7 @@ export async function onRequestPut(context) {
     .bind(k[0], JSON.stringify(body.value), now, user.name).run();
   await log(db, user, `settings.${k[0]}`, { before: before ? JSON.parse(before.value) : null, after: body.value });
   if (k[0] === 'deal_lists') forgetPods();
+  if (k[0] === 'access') forgetAccess();
   return json({ value: body.value, updatedAt: now, updatedBy: user.name });
 }
 

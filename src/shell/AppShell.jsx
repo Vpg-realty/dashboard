@@ -36,12 +36,13 @@ import CelebrationBanner from '../components/CelebrationBanner.jsx';
 import BoardFrame from '../components/BoardFrame.jsx';
 import SubAccountsView from '../settings/SubAccountsView.jsx';
 import { useDataStatus, refreshNow } from '../data/source.js';
-import { sectionsFor, resolve, hrefOf, navRole, extraFor } from './sections.js';
+import { sectionsFor, resolve, hrefOf, navRole, extraFor, accessOf } from './sections.js';
 import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import Welcome from './Welcome.jsx';
 import PeopleView from '../settings/PeopleView.jsx';
+import AccessView from '../settings/AccessView.jsx';
 import RulesView from '../settings/RulesView.jsx';
 import { ViewAsBanner, ViewAsButton } from './ViewAs.jsx';
 import Icon from './icons.jsx';
@@ -72,7 +73,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
-  'settings-people': PeopleView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView,
+  'settings-people': PeopleView, 'settings-access': AccessView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView,
   'tk-pof': ProofOfFunds, 'tk-docs': Disclosures, 'tk-offer': OfferTemplates, 'tk-terms': ContractTerms, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs, 'tk-comm': CommissionCalc,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
@@ -132,8 +133,11 @@ export default function AppShell({ me }) {
   const { path, query } = useLocation();
   const role = navRole(me);
   const extra = extraFor(me);
-  const { section, tab } = resolve(path, role, extra);
-  const sections = sectionsFor(role, extra);
+  // Settings › Access (Nov 3): pages given / taken for this person; a trainee
+  // still in onboarding sees only My Training.
+  const acc = role === 'trainee-early' ? null : accessOf(me);
+  const { section, tab } = resolve(path, role, extra, acc);
+  const sections = sectionsFor(role, extra, acc);
   const [palette, setPalette] = useState(false);
   const [collapsed, setCollapsed] = useStoredFlag('vpg.sidebarCollapsed', false);
   const [refreshing, setRefreshing] = useState(false);
@@ -320,7 +324,7 @@ export default function AppShell({ me }) {
       </nav>
 
       <CelebrationBanner />
-      <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} extra={extra} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} extra={extra} acc={acc} />
       {!me.viewAs && <Welcome me={me} />}
       {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id === 'zips' || tab?.id === 'holds' || tab?.id === 'health' ? 'zips' : 'territory'} />}
     </div>

@@ -346,8 +346,11 @@ export default function AlertsView() {
     if (who === 'all') return all;
     if (who === 'pod' && pod) return all.filter((a) => pod.reps.includes(a.holder));
     if (who !== 'me') return all.filter((a) => a.holder === who);
-    return all.filter((a) => a.holder === me || (SHARED.has(a.kind) && (owner || pod?.reps.includes(a.holder))));
-  }, [data, who, me, pod, owner]);
+    // Mine = only what's yours (Luke, Nov 3: for pod leads "when they switch
+    // from mine to my pod … it doesn't change what they see" — Mine also
+    // pulled in the pod's leads and duplicates). The pod's are under My Pod.
+    return all.filter((a) => a.holder === me);
+  }, [data, who, me, pod]);
   const inTab = (a) => (tab === 'done' ? isDone(a) && inWeek(doneAt(a)) : !isDone(a));
   const count = (id) => scoped.filter((a) => inTab(a) && PICK[id](a, today, tab === 'done')).length;
   const isNew = (a) => seenBefore !== undefined && (!seenBefore || a.created_at > seenBefore);

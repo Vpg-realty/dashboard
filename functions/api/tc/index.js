@@ -12,6 +12,7 @@
 //   → the same as GET
 import { currentUser, json } from '../../../edge/auth.js';
 import { canEditDeals } from '../../../edge/deals.js';
+import { granted } from '../../../edge/access.js';
 import { holderOf } from '../../../edge/alerts.js';
 import { addTcTask, tickTcTask, removeTcTask } from '../../../edge/tcTasks.js';
 import { okItem, ISSUE_KINDS, issueLabel } from '../../../src/deals/tcList.js';
@@ -49,7 +50,8 @@ async function issueHolders(db, deal) {
 export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
-  if (!canEditDeals(user)) return json({ error: 'owners and the TC only' }, 403);
+  // …or read only for anyone given Deals › TC List in Settings › Access (Nov 3).
+  if (!canEditDeals(user) && !granted(user, ['deals/tc'])) return json({ error: 'owners and the TC only' }, 403);
   return json(await state(context.env.DB));
 }
 

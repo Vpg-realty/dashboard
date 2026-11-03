@@ -5,7 +5,7 @@
 // functions/api/scorecard-edits.js — managers and owners only). Loaded once
 // and shared; `saveDraft` sends a week's changes.
 import { useEffect, useState } from 'react';
-import { readScorecardEdits, saveScorecardWeek, loadMe, canGrade, loadMyScorecard } from '../../utils/dashApi.js';
+import { readScorecardEdits, saveScorecardWeek, loadMe, canSeeTeamData, loadMyScorecard } from '../../utils/dashApi.js';
 import { azDate, weekInfo, mergeCrm } from '../../../scripts/scorecard-lib.mjs';
 
 const URL = `${import.meta.env.BASE_URL || '/'}scorecards.json`;
@@ -18,7 +18,7 @@ async function load() {
   // A rep (Oct 14, "My scorecard"): only their own rows, their CRM grades (no
   // notes) and the team average per week, from /api/my-scorecard.
   const who = await loadMe();
-  if (!canGrade(who) && who?.rep_id) {
+  if (!canSeeTeamData(who) && who?.rep_id) {
     const r = await loadMyScorecard().catch(() => null);
     cache = { weeks: r?.weeks || {}, edits: r?.edits || { weeks: {} }, editsError: 'forbidden', liveTeamAvg: r?.live?.teamAvg ?? null, self: r?.repId || who.rep_id, loaded: true };
     emit();
