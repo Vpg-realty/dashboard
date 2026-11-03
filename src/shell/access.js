@@ -100,7 +100,7 @@ export function checkAccess(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return 'Bad access list';
   const pages = new Set(accessPages().map((p) => p.id));
   const okMap = (m) => m && typeof m === 'object' && !Array.isArray(m) && Object.entries(m).every(([k, b]) => pages.has(k) && !LOCKED.has(k) && typeof b === 'boolean');
-  const bad = checkScope(v.scope);
+  const bad = checkScope(v.scope) || checkFields(v.fields);
   if (bad) return bad;
   for (const [role, m] of Object.entries(v.roles || {})) {
     if (!ROLE_IDS.includes(role)) return `Unknown role ${role}`;
@@ -189,4 +189,62 @@ export function foldSuggest(access, emails) {
   const out = { ...(access || {}), people: { ...(access?.people || {}) } };
   for (const e of list) if (typeof out.people[e]?.suggestions !== 'boolean') out.people[e] = { ...(out.people[e] || {}), suggestions: true };
   return out;
+}
+
+// ── Phase 3: deal fields (Luke, Nov 3) ────────────────────────────────────
+// Which parts of a tracker deal a role (or one person) receives from the
+// server — read only. Stored as `fields: { roles: { <role>: { <set>: bool } },
+// people: { <email>: {…} } }`, only what differs. Commissions, profit and
+// payouts are owners only and can't be given (the rates never leave the
+// server). Keys must match src/deals/math.js FIELDS.
+export const FIELD_SETS = [
+  { id: 'buyer', label: 'Buyer name', note: 'who bought the assignment', keys: ['buyer'] },
+  { id: 'gross', label: 'Gross assignment', note: 'assignment price − contracted price', keys: ['grossAssign'] },
+  { id: 'money', label: 'Fees, Net & Wires', note: 'additional fees, closing costs, TC fee, net assignment, net loss %, wires, EMD return', keys: ['addlFees', 'closingCosts', 'tcFee', 'netAssign', 'emdReturn', 'wireExpected', 'wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy', 'netLoss'] },
+  { id: 'notes', label: 'Notes', note: 'the deal’s notes box', keys: ['notes'] },
+];
+const SET_IDS = FIELD_SETS.map((x) => x.id);
+export const FIELD_SET_OF = Object.fromEntries(FIELD_SETS.flatMap((x) => x.keys.map((k) => [k, x.id])));
+// Today's rules: reps, trainees and managers see the gross only (Luke, Oct
+// 14); the TC everything but the buyer (Luke, Oct 14: "Jack and myself").
+const FIELD_DEFAULT = {
+  team: { gross: true }, trainee: { gross: true }, manager: { gross: true }, podlead: { gross: true },
+  tc: { gross: true, money: true, notes: true },
+};
+export const fieldDefault = (role, set) => (role === 'owner' ? true : !!FIELD_DEFAULT[role]?.[set]);
+export function roleField(access, role, set) {
+  if (role === 'owner') return true;
+  const v = access?.fields?.roles?.[role]?.[set];
+  return typeof v === 'boolean' ? v : fieldDefault(role, set);
+}
+// { give, take } field sets for this person, against their base role's rules.
+export function personFields(access, user, pods) {
+  const role = accessRoleOf(user, pods);
+  if (!user || role === 'owner' || !ROLE_IDS.includes(role)) return { give: [], take: [] };
+  const mine = access?.fields?.people?.[String(user.email || '').toLowerCase()] || {};
+  const give = [];
+  const take = [];
+  for (const set of SET_IDS) {
+    const code = fieldDefault(baseOf(role), set);
+    const v = typeof mine[set] === 'boolean' ? mine[set] : roleField(access, role, set);
+    if (v && !code) give.push(set);
+    if (!v && code) take.push(set);
+  }
+  return { give, take };
+}
+function checkFields(s) {
+  if (s == null) return null;
+  if (typeof s !== 'object' || Array.isArray(s)) return 'Bad deal fields';
+  const okMap = (m) => m && typeof m === 'object' && !Array.isArray(m) && Object.entries(m).every(([k, v]) => SET_IDS.includes(k) && typeof v === 'boolean');
+  for (const [role, m] of Object.entries(s.roles || {})) {
+    if (!ROLE_IDS.includes(role)) return `Unknown role ${role}`;
+    if (!okMap(m)) return `A deal field for ${role} isn’t one that can be changed`;
+  }
+  const people = Object.entries(s.people || {});
+  if (people.length > 200) return 'Too many people';
+  for (const [email, m] of people) {
+    if (!/^[^@\s]+@[^@\s]+$/.test(email) || email !== email.toLowerCase()) return 'A person’s email is wrong';
+    if (!okMap(m)) return `A deal field for ${email} isn’t one that can be changed`;
+  }
+  return null;
 }

@@ -2,7 +2,7 @@
 // POST /api/deals { fields } → { deal } — a new deal (address required).
 import { currentUser, json } from '../../../edge/auth.js';
 import { zillowUrl, addrKeys } from '../../../src/deals/math.js';
-import { canSeeDeals, canEditDeals, canManagerEdit, MANAGER_KEYS, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes, effectiveLists } from '../../../edge/deals.js';
+import { canSeeDeals, canEditDeals, canManagerEdit, MANAGER_KEYS, canSeeDeal, getSetting, rowToDeal, shape, rulesFor, applyEdit, dataOf, ghlLinks, cancelTimes, effectiveLists, fieldKeys } from '../../../edge/deals.js';
 import roster from '../../../subaccounts.json' with { type: 'json' };
 
 export async function onRequestGet(context) {
@@ -27,6 +27,8 @@ export async function onRequestGet(context) {
     rules: rulesFor(rules, user),
     owner: user.role === 'owner',
     readOnly: !canEditDeals(user),
+    // The deal fields this person receives (Settings › Access, Phase 3).
+    fields: fieldKeys(user),
     // Managers may still change these few fields (Luke, Oct 18).
     editable: canManagerEdit(user) ? MANAGER_KEYS : null,
     sync: await getSetting(db, 'ghl_sync', null),

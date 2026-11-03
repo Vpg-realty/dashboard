@@ -10,6 +10,7 @@
 // Owners see and edit everything. The TC (Aiza) sees and edits everything
 // except the commission and profit columns, which the server strips.
 import { granted, DEAL_PAGES } from './access.js';
+import { FIELD_SET_OF } from '../src/shell/access.js';
 import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, repSees, isBlank, booksOpen, isOpen, compute } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
@@ -173,8 +174,31 @@ export async function cancelTimes(db) {
 // What this person may receive.
 export function shape(deal, user) {
   if (isOwner(user)) return deal;
-  return isRepView(user) ? { ...forRep(deal), mine: isMine(user, deal) } : forTc(deal);
+  const d = isRepView(user) ? { ...forRep(deal), mine: isMine(user, deal) } : forTc(deal);
+  // Settings › Access, Phase 3 (Nov 3): field sets given / taken for this
+  // person — read only. Commissions and profit never (not in FIELD_SETS).
+  const fs = user?.fieldSets;
+  if (fs && (fs.give.length || fs.take.length)) {
+    for (const f of FIELDS) {
+      const set = FIELD_SET_OF[f.key];
+      if (!set) continue;
+      if (fs.give.includes(set)) { if (f.key in deal) d[f.key] = deal[f.key]; if (deal.fixed && f.key in deal.fixed) d.fixed[f.key] = deal.fixed[f.key]; }
+      if (fs.take.includes(set)) { delete d[f.key]; if (d.fixed) delete d.fixed[f.key]; }
+    }
+  }
+  return d;
 }
+// Does this person receive this field (the same rule as shape)?
+export function seesField(user, f) {
+  if (!f) return false;
+  if (isOwner(user)) return true;
+  const set = FIELD_SET_OF[f.key];
+  if (set && user?.fieldSets?.take?.includes(set)) return false;
+  if (set && user?.fieldSets?.give?.includes(set)) return true;
+  return isRepView(user) ? repSees(f) : !f.secret;
+}
+// The field keys this person receives, for the browser (null = everything).
+export const fieldKeys = (user) => (isOwner(user) ? null : FIELDS.filter((f) => seesField(user, f)).map((f) => f.key));
 
 // The rules the browser needs: all of them for owners; for the TC only the
 // TC fee (which feeds net assignment / wire expected), never commission rates.
@@ -199,6 +223,7 @@ export function applyEdit(deal, body, user) {
     if (!f || f.calc || f.type === 'ghl') return { error: `${k} can't be set` };
     if (f.fin) return { error: `${f.label} is set by Finance when the payout is marked paid` };
     if (f.secret && !owner) return { error: `${f.label} is owners only` };
+    if (!seesField(user, f)) return { error: `${f.label} isn’t one you can see` };
     const c = clean(k, v);
     if (c.error) return c;
     if ((next[k] ?? null) !== c.value) { changes.push([k, next[k] ?? null, c.value]); if (c.value === null) delete next[k]; else next[k] = c.value; }
@@ -207,6 +232,7 @@ export function applyEdit(deal, body, user) {
     const f = FIELD[k];
     if (!f || !f.calc) return { error: `${k} isn't a calculated field` };
     if (f.secret && !owner) return { error: `${f.label} is owners only` };
+    if (!seesField(user, f)) return { error: `${f.label} isn’t one you can see` };
     if (v === undefined) continue;
     const had = k in next.fixed;
     if (v === 'formula') { // back to the formula
@@ -247,6 +273,13 @@ export function dataOf(deal) {
 
 export const SECRET_LOG = (field) => SECRET_KEYS.includes(field.replace(/^fixed\./, ''));
 // History entries a rep may see (fields of the sections they see).
+// A history entry this person may see (Phase 3: follows seesField).
+export const LOG_FOR = (user, field) => {
+  if (isOwner(user)) return true;
+  if (field.startsWith('*')) return !isRepView(user) || field !== '*file';
+  const f = FIELD[field.replace(/^fixed\./, '')];
+  return f ? seesField(user, f) : !isRepView(user);
+};
 export const REP_LOG = (field) => { if (field.startsWith('*')) return true; const f = FIELD[field.replace(/^fixed\./, '')]; return !!f && repSees(f); };
 export const ALL_KEYS = FIELDS.map((f) => f.key);
 

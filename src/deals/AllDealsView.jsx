@@ -178,7 +178,7 @@ export default function AllDealsView() {
   const keys = overview ? OVERVIEW : LAYOUT.filter(([g]) => g === 'deal' || !groups.length || groups.includes(g)).flatMap(([, , k]) => k);
   // One Stage column (Oct 22): the read-only GHL stage mirror isn't its own
   // column any more — a Stage that differs from GHL shows a "GHL: …" hint.
-  const cols = keys.filter((k) => k !== 'ghlStage').map((k) => F[k]).filter((f) => s.owner || !f.secret);
+  const cols = keys.filter((k) => k !== 'ghlStage').map((k) => F[k]).filter((f) => (s.fields ? s.fields.includes(f.key) : s.owner || !f.secret));
 
   const ghl = useMemo(() => ghlDeals(), [s.deals]); // eslint-disable-line react-hooks/exhaustive-deps
   const withNeed = useMemo(() => s.deals.map((d) => ({ ...d, _need: missingKeys(d, who, today) })), [s.deals, who, today]);
@@ -266,7 +266,7 @@ export default function AllDealsView() {
   const sortBy = (k) => setQuery({ sort: sort === k ? `-${k}` : sort === `-${k}` && custom ? null : k });
   const sortLabel = (() => { const k = sort.replace(/^-/, ''); return k === 'address' ? 'Address' : F[k]?.label || k; })();
   const csv = () => downloadCsv(`vpg-deals-${period.key.replace(/[^\w-]+/g, '_')}.csv`,
-    FIELDS.filter((f) => s.owner || !f.secret).map((f) => ({ label: f.label, get: (d) => (f.key === 'status' ? statusLabel(d.status) : d[f.key]) })), rows);
+    FIELDS.filter((f) => (s.fields ? s.fields.includes(f.key) : s.owner || !f.secret)).map((f) => ({ label: f.label, get: (d) => (f.key === 'status' ? statusLabel(d.status) : d[f.key]) })), rows);
   const needCount = withNeed.filter((d) => d._need.length && inPeriod(d[by], period)).length;
 
   // Band row: consecutive columns of one group share a band; the sheet's

@@ -1090,7 +1090,7 @@ per person). Settings › Team › **Access** (`/settings/access`,
   → `canSuggestDb` (taken away → refused too). Taking a page away hides it
   and its links; data other pages of theirs share stays as it is. Buyer
   names, commissions, money, editing, grading and notes stay with the roles
-  that had them. Phase 2: whose data — below; Phase 3: fields. Usage: ≤ 1 settings row read a minute per worker.
+  that had them. Phase 2: whose data, Phase 3: deal fields — below. Usage: ≤ 1 settings row read a minute per worker.
 - **Alerts' Mine** (same day, Luke: for pod leads "when they switch from mine
   to my pod … it doesn't change what they see"): Mine is only what's held by
   you — it used to add the pod's leads and duplicates (owners: everyone's),
@@ -1129,6 +1129,27 @@ shows. No new D1 reads (same settings row).
   `suggestions: true` (`foldSuggest`), so the grid shows them as Given; the
   first Save in Access deletes `suggest_people`. The Team page's card now just
   links to Access.
+
+## Settings › Access, Phase 3 — deal fields (Luke, Nov 3)
+
+The **Deal Fields** grid (AccessView.jsx, under Whose Data) and a Deal
+Fields part in each person's changes: which parts of a tracker deal a role or
+person receives — `FIELD_SETS` in src/shell/access.js: **Buyer name**
+(`buyer`), **Gross assignment** (`grossAssign`), **Fees, Net & Wires** (the
+money group but gross + Net loss %), **Notes**. Defaults = today (reps,
+trainees, managers: gross only; the TC: gross, money, notes; nobody but
+owners the buyer). **Commissions, profit and payouts stay owners only** and
+can't be given (shown locked) — the rates never leave the server, so the
+browser couldn't compute them anyway. Stored as `access.fields = { roles,
+people }` (only differences); `personFields` → currentUser's `fieldSets`
+({ give, take } vs the base role). Server: `shape` (edge/deals.js) starts from
+forRep / forTc and adds / removes the sets; `seesField` is the one test —
+`applyEdit` refuses a field the person doesn't receive, the deal history
+filter is `LOG_FOR`, GET /api/deals sends `fields` (the keys they get, null
+for owners), which the deal panel (`visible`) and All Deals (columns, CSV)
+follow. Given fields are read only (the buyer stays owners' to edit; `fro` in
+DealPanel). Not covered: the Claude file review still strips the buyer for
+the TC. No new reads.
 
 ## Training (Luke, Oct 19)
 
