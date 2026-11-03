@@ -2406,6 +2406,14 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   GET /api/toolkit sends `comm` only to owners (`commReviews`), and `calcs()`
   leaves kind `comm` out, so they never show in My Calculations. Every owner
   sees every review. Usage: one small query per Toolkit load by an owner.
+  **What It Takes to Match** (Luke, Nov 3: "how much the lower scenario
+  would have to come up in price OR how much they would have to reduce their
+  commission by in order for us to go with them"): under Side by Side, each
+  scenario below the best net profit gets its gap, the sale price that
+  closes it (`saleToMatch`, a bisection over the same formulas, whole dollars
+  rounded up) and, for its acquisitions and dispo person, the commission
+  (and % of the commission base) that would close it alone — "not enough
+  alone" when even $0 wouldn't (`matchPlan`).
 - **Three top tabs** (Luke, Nov 3: "documents in one, then offer templates
   in another, then calculators … cleaner"): **Documents** (Proof of Funds,
   Title Agencies), **Offers** (Offer Templates, Contract Terms) and

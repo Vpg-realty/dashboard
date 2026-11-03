@@ -42,6 +42,40 @@ function run(s, rules, lists) {
   return { d, parts, total, ready: num(s.price) > 0 && num(s.sale) > 0 };
 }
 
+// What a lower scenario needs to match the best one's net profit (Luke, Nov 3:
+// "how much the lower scenario would have to come up in price OR how much
+// they would have to reduce their commission by in order for us to go with
+// them"): the sale price that gets its net profit there (bisection over the
+// same formulas — net profit only rises with the price), and for its acq /
+// dispo person the commission (and share of the commission base) that would
+// close the gap on its own.
+function saleToMatch(s, target, rules, lists) {
+  let lo = num(s.sale), hi = Math.max(lo * 2, lo + 1e6);
+  if (run({ ...s, sale: hi }, rules, lists).d.netProfit < target) return null;
+  for (let i = 0; i < 60 && hi - lo > 0.005; i++) {
+    const mid = (lo + hi) / 2;
+    if (run({ ...s, sale: mid }, rules, lists).d.netProfit >= target) hi = mid; else lo = mid;
+  }
+  return Math.ceil(hi - 0.0001); // whole dollars, rounded up so it's always enough
+}
+function matchPlan(list, results, rules, lists) {
+  const ready = results.map((r, i) => ({ r, i })).filter((x) => x.r.ready);
+  if (ready.length < 2) return null;
+  const best = ready.reduce((a, b) => (b.r.d.netProfit > a.r.d.netProfit ? b : a));
+  const target = best.r.d.netProfit;
+  const rows = ready.filter((x) => x.i !== best.i && x.r.d.netProfit < target - 0.005).map(({ r, i }) => {
+    const gap = target - r.d.netProfit;
+    const sale = saleToMatch(list[i], target, rules, lists);
+    const base = num(r.d.commBase);
+    const people = r.parts.filter((p) => p.part === 'acq' || p.part === 'dispo').map((p) => {
+      const to = p.amount - gap;
+      return { part: p.part, who: p.who, from: p.amount, to, fromPct: base ? p.amount / base : null, toPct: base && to > 0 ? to / base : 0, enough: to >= 0 };
+    });
+    return { i, name: list[i].name, gap, sale, saleUp: sale != null ? sale - num(list[i].sale) : null, people };
+  });
+  return { best: list[best.i].name, target, rows };
+}
+
 function Delta({ v, base }) {
   if (base == null || v == null) return null;
   const diff = Math.round((v - base) * 100) / 100;
@@ -176,6 +210,44 @@ export default function CommissionCalc() {
           <Line cols={cols} label="Profit margin (of net)" pick={(r) => (num(r.d.netAssign) ? r.d.netProfit / r.d.netAssign : null)} results={results} base={base} pct />
         </div>
       </Panel>
+      {(() => {
+        const m = matchPlan(list, results, rules || {}, lists || {});
+        if (!m) return null;
+        const pct = (x) => (x == null ? '—' : `${(x * 100).toFixed(1)}%`);
+        return (
+          <Panel title="What It Takes to Match" sub={`${m.best} makes VPG the most: ${money(m.target)} net profit`} bodyClass="divide-y divide-tan-100">
+            {!m.rows.length && <div className="px-5 py-4 text-[13.5px] text-zinc-600">Every scenario makes VPG the same — nothing to close.</div>}
+            {m.rows.map((x) => (
+              <div key={x.i} className="px-5 py-4 flex flex-col gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <span className="text-[15px] font-semibold text-navy-800">{x.name}</span>
+                  <span className="text-[13px] text-rose-700 font-semibold">{money(x.gap)} less net profit</span>
+                  <span className="text-[12.5px] text-zinc-500">— either of these makes it even:</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border border-tan-200 bg-tan-50/50 px-4 py-3">
+                    <div className="text-[12px] font-bold uppercase tracking-wide text-tan-700">Raise the sale price</div>
+                    {x.sale != null
+                      ? <div className="mt-1 text-[14px] text-navy-800">to <b>{money(x.sale)}</b> <span className="text-zinc-600">(+{money(x.saleUp)})</span></div>
+                      : <div className="mt-1 text-[14px] text-zinc-600">No sale price gets there.</div>}
+                  </div>
+                  <div className="rounded-lg border border-tan-200 bg-tan-50/50 px-4 py-3">
+                    <div className="text-[12px] font-bold uppercase tracking-wide text-tan-700">Or cut one commission</div>
+                    {!x.people.length && <div className="mt-1 text-[14px] text-zinc-600">No acquisitions or dispo commission to cut.</div>}
+                    {x.people.map((p) => (
+                      <div key={p.part} className="mt-1 text-[14px] text-navy-800">
+                        {PART[p.part]} · <b>{p.who}</b>: {p.enough
+                          ? <>from {money(p.from)} ({pct(p.fromPct)}) to <b>{money(p.to)}</b> ({pct(p.toPct)} of the commission base)</>
+                          : <span className="text-rose-700">not enough alone — even $0 leaves {money(-p.to)} short</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Panel>
+        );
+      })()}
       <p className="text-[12.5px] text-zinc-500">Each scenario is figured as a closed deal with the deal tracker’s formulas and the rates in Settings › Commissions on its closing date — own rates, the manager, the pod override (from who the acquisitions person reports to), the TC fee and TC commission included. Only owners see this page. Saved reviews are kept for every owner; unsaved work stays on this device.</p>
     </div>
   );
