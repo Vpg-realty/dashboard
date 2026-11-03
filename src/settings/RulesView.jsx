@@ -146,14 +146,34 @@ function ValueInput({ def, value, onChange, people }) {
 
 const defaultValue = (def) => ({ pct: 0.5, money: 0, names: [], statuses: [], reps: [], person: '', date: null, status: 'COMPLETE', side: 'acq' })[def.type] ?? null;
 
-function Editor({ def, t, today, current, people, impactOf, onSave, onCancel }) {
+// The company-rate safeguard (Luke, Nov 3: a new company rate moved every rep
+// on it, when only new people were meant to get it): changing acqRate /
+// dispoRate asks whether the people on the company rate today keep their
+// rate — "Keep" gives each of them an own rate (acqOf: / dispoOf:<name>) at
+// the old number from the same date, saved before the company change.
+const COMPANY = { acqRate: { team: 'acqTeam', own: 'acqOf:', side: 'acquisitions' }, dispoRate: { team: 'dispoMembers', own: 'dispoOf:', side: 'dispo' } };
+function onCompanyRate(t, key, lists, from) {
+  const c = COMPANY[key];
+  if (!c) return [];
+  const none = (valAt(t, 'noCommission', from) || []).map((x) => String(x).toLowerCase());
+  return [...new Set(lists?.[c.team] || [])].filter((name) => !none.includes(String(name).toLowerCase())
+    && (key === 'acqRate' ? acqOf(t, name, from) : dispoOf(t, name, from)).kind === 'company').sort();
+}
+
+function Editor({ def, t, today, current, people, lists, impactOf, onSave, onCancel }) {
   const [value, setValue] = useState(() => structuredClone(current ?? defaultValue(def)));
   const [from, setFrom] = useState(today < t.since ? t.since : today);
   const [stop, setStop] = useState(false);
+  const [keep, setKeep] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const change = { key: def.key, from, value: stop ? null : value };
-  const next = applyChange(t, change, null, null);
+  const oldRate = valAt(t, def.key, from);
+  const onCompany = COMPANY[def.key] && value !== oldRate ? onCompanyRate(t, def.key, lists, from) : [];
+  const keeps = keep && oldRate != null ? onCompany.map((name) => ({ key: `${COMPANY[def.key].own}${name}`, from, value: oldRate })) : [];
+  const all = [...keeps, change];
+  let next = t;
+  for (const c of all) { next = applyChange(next, c, null, null); if (next.error) break; }
   const impact = next.error ? null : impactOf(next);
   const tl = t.timelines[def.key] || [];
   const later = tl.find((e) => e.from > from);
@@ -162,7 +182,7 @@ function Editor({ def, t, today, current, people, impactOf, onSave, onCancel }) 
     if (next.error) { setErr(next.error); return; }
     if (impact?.closed && !window.confirm(`This changes commissions on ${impact.closed} closed deal${impact.closed === 1 ? '' : 's'} (${signed(impact.closedDelta)} in total). Save anyway?`)) return;
     setBusy(true); setErr(null);
-    try { await onSave(change); } catch (e) { setErr(e.message); setBusy(false); }
+    try { await onSave(all); } catch (e) { setErr(e.message); setBusy(false); }
   };
   return (
     <div className="mt-3 rounded-lg border border-navy-100 bg-navy-50/40 p-4 flex flex-col gap-4">
@@ -177,6 +197,16 @@ function Editor({ def, t, today, current, people, impactOf, onSave, onCancel }) 
           <label className="flex items-center gap-1.5 text-[13px] mt-6"><input type="checkbox" checked={stop} onChange={(e) => setStop(e.target.checked)} />Stop paying on net</label>
         )}
       </div>
+      {onCompany.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 flex flex-col gap-2">
+          <div className="text-[13px] text-amber-900"><b>{onCompany.length} {onCompany.length === 1 ? 'person is' : 'people are'} on the company {COMPANY[def.key].side} rate ({pctOf(oldRate)}):</b> {onCompany.join(', ')}.</div>
+          <Choice value={keep ? 'keep' : 'move'} onChange={(v) => setKeep(v === 'keep')}
+            options={[['keep', `Keep them on ${pctOf(oldRate)} (recommended)`], ['move', 'Everyone moves to the new rate']]} />
+          <div className="text-[12px] text-amber-900/80">{keep
+            ? `Each of them gets their own rate of ${pctOf(oldRate)} from ${day(from)}. Only people added after this get the new company rate.`
+            : `All of them move to the new rate for deals with a COE from ${day(from)}.`}</div>
+        </div>
+      )}
       <div className="text-[12.5px] text-zinc-600 flex flex-col gap-0.5">
         {onDay && <span>This replaces the change already set for {day(from)} ({show(def.type, onDay.value)}).</span>}
         {later && <span className="text-amber-800">A later change on {day(later.from)} ({show(def.type, later.value)}) still takes over from that date.</span>}
@@ -219,7 +249,7 @@ function History({ def, tl, today, onRemove }) {
   );
 }
 
-function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, impactOf, onSave, onRemove }) {
+function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, lists, impactOf, onSave, onRemove }) {
   const tl = t.timelines[def.key] || [];
   const cur = entryAt(tl, today);
   const coming = tl.filter((e) => e.from > today);
@@ -241,7 +271,7 @@ function RuleRow({ def, t, today, editing, setEditing, open, setOpen, people, im
           {def.type !== 'json' && <button type="button" onClick={() => setEditing(editing === def.key ? null : def.key)} className="h-8 px-3 rounded-md border border-navy-200 bg-white text-[13px] font-medium text-navy-700 hover:bg-navy-50">Edit</button>}
         </div>
       </div>
-      {editing === def.key && <Editor def={def} t={t} today={today} current={cur?.value ?? null} people={people} impactOf={impactOf} onSave={onSave} onCancel={() => setEditing(null)} />}
+      {editing === def.key && <Editor def={def} t={t} today={today} current={cur?.value ?? null} people={people} lists={lists} impactOf={impactOf} onSave={onSave} onCancel={() => setEditing(null)} />}
       {isOpen && <History def={def} tl={tl} today={today} onRemove={(e) => onRemove(def, e)} />}
     </div>
   );
@@ -512,10 +542,16 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
 
   if (!t) return <div className="py-16 text-center text-zinc-400">{msg?.text || 'Loading…'}</div>;
   const done = (x, text) => { setT(toTimelines(x.value)); setMeta(x); setMsg({ text }); loadDeals(); };
-  const onSave = async (change) => {
-    const x = await changeRule(change);
+  // One change, or several (the company-rate safeguard's own rates first,
+  // then the company change).
+  const onSave = async (changes) => {
+    const list = Array.isArray(changes) ? changes : [changes];
+    const change = list[list.length - 1];
+    let x = null;
+    for (const c of list) x = await changeRule(c);
     setEditing(null);
-    done(x, `Saved — ${defOf(change.key).label} ${change.from === t.since ? 'changed for every deal' : `changes for deals with a COE from ${day(change.from)}`}.`);
+    const kept = list.length - 1;
+    done(x, `Saved — ${defOf(change.key).label} ${change.from === t.since ? 'changed for every deal' : `changes for deals with a COE from ${day(change.from)}`}${kept ? `; ${kept} ${kept === 1 ? 'person keeps' : 'people keep'} their rate` : ''}.`);
   };
   const onRemove = async (def, e) => {
     const next = applyChange(t, { key: def.key, from: e.from, remove: true });
@@ -523,7 +559,7 @@ export default function RulesView({ only = ALL, byPerson = true, changesList = t
     if (!window.confirm(`Take back the change to ${def.label} on ${day(e.from)}?${im?.deals ? ` It moves commissions on ${im.deals} deal${im.deals === 1 ? '' : 's'} (${signed(im.delta)}${im.closed ? `, ${im.closed} closed` : ''}).` : ''}`)) return;
     try { done(await changeRule({ key: def.key, from: e.from, remove: true }), `Removed the ${day(e.from)} change to ${def.label}.`); } catch (er) { setMsg({ error: true, text: er.message }); }
   };
-  const row = (def) => <RuleRow key={def.key} def={def} t={t} today={today} editing={editing} setEditing={setEditing} open={open} setOpen={setOpen} people={people} impactOf={impactOf} onSave={onSave} onRemove={onRemove} />;
+  const row = (def) => <RuleRow key={def.key} def={def} t={t} today={today} editing={editing} setEditing={setEditing} open={open} setOpen={setOpen} people={people} lists={s.lists} impactOf={impactOf} onSave={onSave} onRemove={onRemove} />;
   // Every dated change, newest start date first.
   const changes = Object.entries(t.timelines).flatMap(([k, tl]) => tl.slice(1).map((e) => ({ ...e, key: k }))).sort((a, b) => (a.from === b.from ? (a.key < b.key ? -1 : 1) : a.from < b.from ? 1 : -1));
   const byDate = changes.reduce((m, c) => { (m[c.from] ||= []).push(c); return m; }, {});
