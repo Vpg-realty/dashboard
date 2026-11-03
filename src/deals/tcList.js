@@ -30,6 +30,11 @@ export const TC_START = '2026-10-15';
 export const DESK_FROM = '2026-10-27';
 // Steps added on Oct 27 (Luke's second pass) count from that day.
 export const NEW_FROM = '2026-10-28';
+// Oklahoma (Luke, Nov 3): 59 O.S. § 858-314 needs the signed wholesale
+// disclosure and the cancellation notice with every contract
+// (Toolkit › Documents › Disclosures). Counted from the day it was added.
+export const OK_FROM = '2026-11-04';
+const isOk = (d) => ['OK', 'OKLAHOMA'].includes(up(d.state));
 // A double close: VPG signs as the seller, so a notary is booked (Oct 27).
 const isDouble = (d) => up(d.dealType) === 'DOUBLE CLOSE';
 // Closed deals from this COE on stay on the list until their last steps are done.
@@ -62,6 +67,8 @@ export const CHECKLIST = [
     items: [
       { id: 'docs', label: 'Signed contract received', due: (d) => day(d.accepted),
         how: (d) => `Every page signed and initialed, addenda included. Missing something? Ask ${first(d.acq) || 'the acq rep'}.` },
+      { id: 'okdisclosure', label: 'Oklahoma disclosure signed by the seller', since: OK_FROM, due: (d) => day(d.accepted), only: isOk,
+        how: () => 'The seller signed our Disclosure of Assignment & Marketing Rights and got the blank Notice of Cancellation (Toolkit › Documents › Disclosures). Without it the contract is invalid.' },
       { id: 'review', label: 'Contract matches the deal sheet', since: DESK_FROM, due: (d) => day(d.accepted),
         how: () => 'Price, EMD amount and due date, IP length and end time, COE, title company, assignment allowed. Fix the sheet if anything differs.' },
       { id: 'title', label: 'Escrow opened with title', due: (d) => day(d.accepted), auto: (d) => !isBlank(d.escrow), why: () => 'done — escrow # on the deal',

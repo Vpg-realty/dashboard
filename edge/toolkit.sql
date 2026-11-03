@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS toolkit_files (
   size INTEGER NOT NULL,
   data TEXT NOT NULL,
   expires TEXT,                -- YYYY-MM-DD
+  states TEXT,                 -- disclosures (doc:<id>, Nov 3; ALTER TABLE on live D1): JSON list of state codes
+  note TEXT,                   -- disclosures: when to use it
   uploaded_by TEXT NOT NULL,
   uploaded_email TEXT NOT NULL,
   uploaded_at TEXT NOT NULL

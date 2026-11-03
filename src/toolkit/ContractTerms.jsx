@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
 import MarketChips from '../shell/MarketChips.jsx';
-import { useToolkit, act } from './store.js';
+import { useToolkit, act, docsFor, docUrl } from './store.js';
 import { DEFAULT_TERMS, WHEN, stateName } from './terms.js';
 import { ABBR } from './states.js';
 
@@ -111,7 +111,7 @@ export default function ContractTerms() {
   const [st, setSt] = useState('');
   const [err, setErr] = useState(null);
   const terms = store.terms || [];
-  const stateCodes = useMemo(() => [...new Set([...(store.terms || []).filter((t) => t.when === 'states').flatMap((t) => t.states || []), ...Object.keys(store.states || {})])].sort(), [store]);
+  const stateCodes = useMemo(() => [...new Set([...(store.terms || []).filter((t) => t.when === 'states').flatMap((t) => t.states || []), ...Object.keys(store.states || {}), ...(s.docs || []).flatMap((d) => d.states)])].sort(), [store, s.docs]);
 
   async function saveAll(next) {
     setErr(null);
@@ -136,6 +136,13 @@ export default function ContractTerms() {
           <div key={code} className="flex flex-col gap-2.5">
             <div className="text-[15px] font-semibold text-navy-800">{stateName(code)}</div>
             {group('states').filter((t) => (t.states || []).includes(code)).map(card)}
+            {docsFor(s.docs, code).map((d) => (
+              <div key={d.name} className="flex flex-wrap items-center gap-3 rounded-xl border border-tan-200 bg-white px-4 py-3">
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Required document</span>
+                <span className="min-w-0 flex-1 text-[14px] font-semibold text-navy-800">{d.label}{d.note && <span className="block text-[12.5px] font-normal text-zinc-600">{d.note}</span>}</span>
+                <a href={docUrl(d.name)} className="h-8 px-3 rounded-lg grid place-items-center bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800">Download</a>
+              </div>
+            ))}
             <StateNotes code={code} notes={store.states?.[code] || []} can={can} onSave={saveNotes} />
           </div>
         ))}
