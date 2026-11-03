@@ -3,6 +3,7 @@
 // POST /api/toolkit { action: 'pof', slot?, label, filename, data (base64 PDF), expires }  owners / TC —
 //                     a new letter, or with slot replaces that one (the others stay)
 //                   { action: 'pofExpires' | 'pofLabel' | 'pofRemove', slot, expires? | label? }
+//                   { action: 'terms', terms, states }                         owners — the contract terms catalogue
 //                   { action: 'agency', id?, state, name, contact?, email?, phone?, address?, notes? }
 //                   { action: 'agencyRemove', id } | { action: 'prefer', id }  owners, managers, TC
 //                   { action: 'calcSave', id?, kind, title?, inputs, opp? }    anyone, their own
@@ -36,7 +37,7 @@ export async function onRequestPost(context) {
   const now = new Date().toISOString();
   const p = plan(b, user, now, letter || existing);
   if (p.error) return json({ error: p.error }, 400);
-  const detail = a.startsWith('pof') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name };
+  const detail = a === 'terms' ? { terms: (b.terms || []).length, states: Object.keys(b.states || {}).length } : a.startsWith('pof') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name };
   await db.batch([
     ...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)),
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `toolkit.${a}`, JSON.stringify(detail)),

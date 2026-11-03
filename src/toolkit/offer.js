@@ -1,6 +1,6 @@
 // The offer message a rep texts or emails to the agent once the numbers are
 // final (Luke, Oct 22: "create a message with our terms laid out cleanly to
-// text or email to an agent"). Two templates, Luke's wording: the creative
+// text or email to an agent"). Luke's templates: the creative
 // offer (seller finance) and the standard offer (multifamily). The signer
 // adds "and/or Assigns" outside AZ, AL, FL and OK.
 import { seller, num, MARKETS_NO_ASSIGNS } from './calc.js';
@@ -30,14 +30,36 @@ export function coeDefault(now = Date.now()) {
 }
 // What's missing before the message is ready to send.
 export function missingFor(kind, i) {
-  const need = [['state', 'Market'], ['emd', 'EMD'], ['ipDays', 'Inspection period'], ['title', 'Title company']];
+  const need = [['agent', 'Agent’s first name'], ['state', 'Market'], ['emd', 'EMD'], ['ipDays', 'Inspection period'], ['title', 'Title company']];
   if (kind === 'seller') need.push(['price', 'Price'], ['rate', 'Interest rate']);
-  else if (kind === 'cash') { need.unshift(['address', 'Property']); need.push(['price', 'Price']); }
+  else if (kind === 'cash' || kind === 'creative') { need.splice(1, 0, ['address', 'Property']); need.push(['price', 'Price']); }
   else need.push(['price', 'Price']);
+  if (kind === 'creative') need.push(['down', 'Down payment'], ['rate', 'Interest rate'], ['amort', 'Amortization'], ['balloon', 'Term / balloon']);
   return need.filter(([k]) => !String(i[k] ?? '').trim()).map(([, l]) => l);
 }
 
-export function offerMessage(kind, i) {
+// Every offer opens with a short, friendly line (Luke, Nov 3: "it should
+// always have a short blurb at the start to be nice and lead us into the
+// offer"). Editable on the page; {first} = the agent's first name.
+export const INTRO = 'Looking forward to working with you on this one! All info below per our conversation. Let me know if you have any questions or need anything else from my end.';
+export function opening(i) {
+  const first = String(i.agent || '').trim();
+  const line = String(i.intro || '').trim() || INTRO;
+  return [`Hi ${first || 'there'},`, '', line, ''];
+}
+// The additional terms that go with the offer (src/toolkit/terms.js).
+export function termsBlock(terms) {
+  if (!terms?.length) return [];
+  return ['', 'Additional Terms:', ...terms.flatMap((t, n) => [`${n + 1}. ${t.text}`, ''])].slice(0, -1);
+}
+
+// The whole message: the opening, the offer in Luke's template, then the
+// additional terms.
+export function offerMessage(kind, i, { terms = [] } = {}) {
+  return [...opening(i), offerBody(kind, i), ...termsBlock(terms)].join('\n');
+}
+
+function offerBody(kind, i) {
   const signer = `Signer: ${signerFor(i.state)}`;
   const close = [`Inspection Period: ${days(i.ipDays)}`, `COE: ${coeText(i.coe)}`, `Title Company: ${String(i.title || '').trim()}`];
   if (kind === 'seller') {
@@ -57,9 +79,26 @@ export function offerMessage(kind, i) {
   // The cash offer template (Luke, Oct 23: "a simple offer template for cash
   // offers") = the standard offer with the property on top and any extra
   // terms at the foot.
+  const property = String(i.address || '').trim() ? [`Property: ${String(i.address).trim()}`, ''] : [];
+  const extra = String(i.terms || '').trim();
   if (kind === 'cash') {
-    const extra = String(i.terms || '').trim();
-    return [`Property: ${String(i.address || '').trim()}`, '', `Cash Offer: ${$(i.price)}`, `EMD: ${$(i.emd)}`, signer, ...close, ...(extra ? ['', extra] : [])].join('\n');
+    return [...property, `Price: ${$(i.price)}`, `EMD: ${$(i.emd)}`, signer, ...close, ...(extra ? ['', extra] : [])].join('\n');
+  }
+  // The creative offer from Toolkit › Offer Templates (Luke's template, Nov 3):
+  // the seller carry is what he types, else price − down payment.
+  if (kind === 'creative') {
+    const carry = num(i.carry) || (num(i.price) && num(i.price) - num(i.down) > 0 ? num(i.price) - num(i.down) : 0);
+    return [
+      ...property, signer, ...close, '',
+      `Price: ${$(i.price)}`,
+      `EMD: ${$(i.emd)}`,
+      `Down Payment: ${$(i.down)}`,
+      `Seller Carry: ${carry ? $(carry) : '$'}`,
+      `Interest Rate: ${num(i.rate) ? `${num(i.rate)}%` : ''}`,
+      `Amortization: ${years(i.amort)}`,
+      `Term/Balloon: ${num(i.balloon) ? years(i.balloon) : String(i.balloon || '').trim() || 'None'}`,
+      ...(extra ? ['', extra] : []),
+    ].join('\n');
   }
   return [`Price: ${$(i.price)}`, `EMD: ${$(i.emd)}`, signer, ...close].join('\n');
 }

@@ -2244,6 +2244,39 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   `cash`: market → signer, EMD, IP, COE, title) → Property / Cash Offer / EMD
   / Signer / IP / COE / Title / extra terms; Copy, Email, Text. A draft on
   the device only (localStorage `vpg.cashOffer`).
+- **Offer Templates + Contract Terms (Luke, Nov 3)** — overrides the Cash
+  Offer note above (CashOffer.jsx is gone; `/toolkit/offer` is now **Offer
+  Templates**, `OfferTemplates.jsx`, draft in localStorage `vpg.offer`, the
+  old `vpg.cashOffer` draft is picked up): **Type of deal** first (Cash /
+  Creative · seller finance — the navy switch), property, price; Creative
+  adds down payment, seller carry (blank = price − down), rate, amortization,
+  term / balloon. The shared offer block (`OfferMessage.jsx`, also under both
+  calculators) gained the **agent's first name**, **Listed on the MLS?**
+  (Listed / Off market) and an editable **opening line** (`INTRO` in
+  offer.js — "Hi <first name>, Looking forward to working with you on this
+  one! …", Luke: "always have a short blurb at the start"), and an
+  **Additional Terms** checklist: the terms that apply to the state and
+  listing, each ticked by default (`picked` = "id:1,id:0"), optional ones off,
+  plus the state's "On the <state> contract" notes. The message =
+  opening + the offer in Luke's template (cash: Price, EMD, Signer, IP, COE,
+  Title; creative: Signer, IP, COE, Title, then Price, EMD, Down Payment,
+  Seller Carry, Interest Rate, Amortization, Term/Balloon) + "Additional
+  Terms:" numbered (`offerMessage(kind, i, { terms })`). Calculators save
+  `agent`, `intro`, `listed`, `picked` with the calculation (OFFER in
+  calc.js). **Toolkit › Contract Terms** (`/toolkit/terms`,
+  `ContractTerms.jsx`): Every Contract, If Off Market, By State (MarketChips;
+  each state's terms and a "Check on the <state> contract" box), When Needed;
+  Copy on every term; owners Edit / Remove / + Add a Term (name, goes on —
+  every contract / off market / these states / when needed — states, "still
+  to confirm", wording) and edit each state's notes. Stored in D1 settings
+  `contract_terms` (`contractTerms` / action `terms` in edge/toolkit.js,
+  `checkTerms`, owners only); until an owner saves, the starting set in
+  `src/toolkit/terms.js` (`DEFAULT_TERMS`) — Luke's investor / weekend /
+  off-market / informal-inspection terms (IN, OH, TN, AL, NV, OK, MO, marked
+  to confirm), the assignment term for NC and GA, and state notes from his
+  contract-review skill (AL ¶30 assignment box, NC consent of all parties,
+  GA consent / F255–F259, SC Form 120 / 136, NM addenda, no "and/or
+  Assigns" in AZ / AL / FL / OK). Usage: one settings row per Toolkit load.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All

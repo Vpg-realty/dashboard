@@ -31,7 +31,7 @@ export function useToolkit() {
 }
 export async function act(body) {
   const r = await post(body);
-  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
+  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], terms: r.terms, agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
   return r;
 }
 

@@ -14,6 +14,7 @@
 // Nothing is written while viewing as someone (currentUser makes the role 'none').
 import { KINDS, summaryOf, SELLER_DEFAULTS, MF_DEFAULTS } from '../src/toolkit/calc.js';
 import { refreshPods } from './pods.js';
+import { DEFAULT_TERMS, checkTerms } from '../src/toolkit/terms.js';
 
 export const ROLES = ['owner', 'manager', 'tc', 'team', 'trainee'];
 export const canUse = (u) => !!u && ROLES.includes(u.role);
@@ -60,13 +61,22 @@ export async function calcs(db, u) {
     .map((r) => ({ ...r, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email }));
 }
 
+// The contract terms catalogue (Nov 3; src/toolkit/terms.js): D1 settings
+// `contract_terms` once an owner has edited it, else the starting set.
+export const canEditTerms = (u) => u?.role === 'owner' && !u.viewAs;
+export async function contractTerms(db) {
+  const row = await db.prepare("SELECT value, updated_at, updated_by FROM settings WHERE key = 'contract_terms'").first();
+  try { if (row) return { ...JSON.parse(row.value), updatedAt: row.updated_at, updatedBy: row.updated_by }; } catch { /* fall back */ }
+  return { ...DEFAULT_TERMS, updatedAt: null, updatedBy: null };
+}
+
 export async function load(db, u) {
-  const [pofs, list, mine] = await Promise.all([pofList(db), agencies(db), calcs(db, u)]);
-  return { pofs, pof: pofs[0] || null, agencies: list, calcs: mine, can: { agencies: canEditAgencies(u), pof: canUploadPof(u) } };
+  const [pofs, list, mine, terms] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db)]);
+  return { pofs, pof: pofs[0] || null, agencies: list, calcs: mine, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), terms: canEditTerms(u) } };
 }
 
 // The offer message's text fields are longer than a number.
-const LONG = { title: 300, coe: 60, state: 40, review: 8000 };
+const LONG = { title: 300, coe: 60, state: 40, review: 8000, intro: 600, agent: 40, picked: 400 };
 // Keep only the fields a calculator has (and its units for multifamily).
 function cleanInputs(kind, inp) {
   const base = kind === 'seller' ? SELLER_DEFAULTS : MF_DEFAULTS;
@@ -121,6 +131,14 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
     }
     if (!DATE.test(String(b.expires || ''))) return { error: 'Pick the expiry date' };
     return { run: [['UPDATE toolkit_files SET expires = ? WHERE name = ?', [b.expires, slot]], closeOldPof(slot, b.expires, now)] };
+  }
+  if (a === 'terms') {
+    if (!canEditTerms(u)) return { error: 'Owners edit the contract terms' };
+    const v = { terms: (b.terms || []).map((t) => ({ id: clip(t?.id, 40), when: t?.when, title: clip(t?.title, 80), text: String(t?.text ?? '').trim().slice(0, 3000), ...(t?.when === 'states' ? { states: [...new Set((t.states || []).map((x) => String(x).toUpperCase()))] } : {}), ...(t?.confirm ? { confirm: true } : {}) })),
+      states: Object.fromEntries(Object.entries(b.states || {}).map(([k, n]) => [String(k).toUpperCase(), (Array.isArray(n) ? n : []).map((x) => String(x).trim()).filter(Boolean)]).filter(([, n]) => n.length)) };
+    const bad = checkTerms(v);
+    if (bad) return { error: bad };
+    return { run: [["INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('contract_terms', ?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by", [JSON.stringify(v), now, u.name]]] };
   }
   if (a === 'agency' || a === 'agencyRemove' || a === 'prefer') {
     if (!canEditAgencies(u)) return { error: 'Owners, managers and the TC edit this list' };

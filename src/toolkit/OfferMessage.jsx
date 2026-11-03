@@ -5,11 +5,18 @@
 // the state's ★ agency (else "All other states").
 import { useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
+import { linkProps } from '../shell/router.js';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { Field } from './CalcFrame.jsx';
 import { useToolkit } from './store.js';
 import { US_STATES, NAME_OF } from './states.js';
-import { offerMessage, missingFor, signerFor, coeDefault, coeText } from './offer.js';
+import { offerMessage, missingFor, signerFor, coeDefault, coeText, INTRO } from './offer.js';
+import { termsFor, stateNotes, DEFAULT_TERMS, WHEN } from './terms.js';
+
+// Which terms are switched on: `picked` = "id:1,id:0,…" (Nov 3). A term that
+// applies is on unless switched off; an optional one only when switched on.
+const readPicked = (v) => Object.fromEntries(String(v || '').split(',').filter(Boolean).map((x) => { const [k, on] = x.split(':'); return [k, on === '1']; }));
+const writePicked = (m) => Object.entries(m).map(([k, on]) => `${k}:${on ? 1 : 0}`).join(',');
 
 const agencyLine = (a) => [a.name, [a.contact, a.email, a.phone].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
 
@@ -27,6 +34,15 @@ export default function OfferMessage({ c, kind }) {
   const title = i.title || suggested;
   const coe = i.coe || coeDefault();
   const filled = { ...i, state, title, coe };
+  // The contract terms for this state and listing (Toolkit › Contract Terms).
+  const store = tk.terms || DEFAULT_TERMS;
+  const on = readPicked(i.picked);
+  const applies = termsFor(store, { state, listed: i.listed });
+  const optional = (store.terms || []).filter((t) => t.when === 'optional');
+  const chosen = [...applies.filter((t) => on[t.id] !== false), ...optional.filter((t) => on[t.id])];
+  const notes = stateNotes(store, state);
+  const flip = (id, v) => c.setInput('picked', writePicked({ ...on, [id]: v }));
+  const [showIntro, setShowIntro] = useState(false);
   const [msg, setMsg] = useState(null);
   const [copied, setCopied] = useState(false);
   const missing = missingFor(kind, filled);
@@ -34,13 +50,33 @@ export default function OfferMessage({ c, kind }) {
     if (!i.state && state) c.setInput('state', state);
     if (!i.title && title) c.setInput('title', title);
     if (!i.coe) c.setInput('coe', coe);
-    setMsg(offerMessage(kind, filled));
+    setMsg(offerMessage(kind, filled, { terms: chosen }));
     setCopied(false);
   };
-  const subject = `Offer — ${c.form.opp?.label || c.form.title || 'property'}`;
+  const subject = `Offer — ${i.address || c.form.opp?.label || c.form.title || 'property'}`;
   const ro = !c.canEdit;
   return (
-    <Panel title={kind === 'seller' ? 'Creative Offer — Message to the Agent' : kind === 'cash' ? 'Cash Offer — Message to the Agent' : 'Offer — Message to the Agent'} sub="Fill in the terms, then create the message" bodyClass="p-5 flex flex-col gap-4">
+    <Panel title={kind === 'seller' || kind === 'creative' ? 'Creative Offer — Message to the Agent' : kind === 'cash' ? 'Cash Offer — Message to the Agent' : 'Offer — Message to the Agent'} sub="Fill in the terms, then create the message" bodyClass="p-5 flex flex-col gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)] gap-4 items-start">
+        <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Agent’s first name
+          <input value={i.agent || ''} readOnly={ro} onChange={(e) => c.setInput('agent', e.target.value)} placeholder="e.g. Sarah" className="h-10 rounded-lg border border-zinc-200 px-2.5 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-navy-100" />
+          <span className="text-[11.5px] font-normal text-tan-600">“Hi Sarah,” opens the message</span>
+        </label>
+        <div className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Listed on the MLS?
+          <div className="flex h-10 rounded-lg border border-zinc-200 bg-white p-1 gap-1">
+            {[['yes', 'Listed'], ['no', 'Off market']].map(([v, t]) => (
+              <button key={v} type="button" disabled={ro} onClick={() => c.setInput('listed', i.listed === v ? '' : v)} className={`flex-1 rounded-md text-[13px] font-semibold ${i.listed === v ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-tan-50'}`}>{t}</button>
+            ))}
+          </div>
+          <span className="text-[11.5px] font-normal text-tan-600">Off market adds the no-marketing term</span>
+        </div>
+        <div className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Opening line
+          {showIntro || i.intro
+            ? <textarea value={i.intro ?? ''} readOnly={ro} onChange={(e) => c.setInput('intro', e.target.value)} placeholder={INTRO} rows={2} className="rounded-lg border border-zinc-200 px-2.5 py-2 text-[13.5px] font-normal outline-none focus:ring-2 focus:ring-navy-100" />
+            : <button type="button" disabled={ro} onClick={() => setShowIntro(true)} className="min-h-10 rounded-lg border border-dashed border-tan-300 bg-tan-50/60 px-2.5 py-2 text-left text-[13px] font-normal text-zinc-600 hover:bg-tan-50">“{INTRO}” <span className="text-navy-700 font-semibold">Edit</span></button>}
+          <span className="text-[11.5px] font-normal text-tan-600">After “Hi {i.agent || '<first name>'},” — always friendly, leads into the offer</span>
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 items-start">
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Market
           <SearchSelect value={state || null} onChange={(v) => c.setInput('state', v || '')} options={US_STATES.map((s) => ({ value: s, label: s }))} placeholder="Pick the state" disabled={ro} />
@@ -58,6 +94,36 @@ export default function OfferMessage({ c, kind }) {
             placeholder={options.length ? 'Pick an agency' : 'No agencies on file'} />
           <span className="text-[11.5px] font-normal text-tan-600">{i.title ? 'Picked' : suggested ? 'The state’s ★ agency (Toolkit › Title Agencies)' : ' '}</span>
         </label>
+      </div>
+      {/* The terms for this state and listing (Luke, Nov 3), from Toolkit ›
+          Contract Terms: ticked ones go at the foot of the message. */}
+      <div className="rounded-xl border border-tan-200 bg-white">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-tan-100">
+          <span className="text-[13px] font-semibold text-navy-800">Additional Terms{state ? ` · ${state}` : ''}{i.listed === 'no' ? ' · off market' : ''}</span>
+          <a {...linkProps('/toolkit/terms')} className="text-[12px] font-semibold text-navy-700 hover:underline">All contract terms →</a>
+        </div>
+        <div className="p-3 flex flex-col gap-1.5">
+          {[...applies, ...optional].map((t) => {
+            const checked = t.when === 'optional' ? !!on[t.id] : on[t.id] !== false;
+            return (
+              <label key={t.id} className={`flex items-start gap-2.5 rounded-lg px-2 py-1.5 ${checked ? 'bg-tan-50/70' : ''}`}>
+                <input type="checkbox" checked={checked} disabled={ro} onChange={(e) => flip(t.id, e.target.checked)} className="mt-1 accent-navy-700" />
+                <span className="min-w-0">
+                  <span className="text-[13px] font-semibold text-navy-800">{t.title}</span>
+                  <span className="ml-2 text-[11.5px] text-tan-700">{t.when === 'states' ? (t.states || []).join(', ') : WHEN[t.when]}</span>
+                  {t.confirm && <span className="ml-2 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-800 ring-1 ring-amber-200">States to confirm</span>}
+                  <span className="block text-[12.5px] text-zinc-600 line-clamp-2" title={t.text}>{t.text}</span>
+                </span>
+              </label>
+            );
+          })}
+          {notes.length > 0 && (
+            <div className="mt-1 rounded-lg bg-amber-50/70 ring-1 ring-amber-200 px-3 py-2">
+              <div className="text-[12px] font-bold uppercase tracking-wide text-amber-800">On the {state} contract</div>
+              <ul className="mt-1 list-disc pl-5 text-[12.5px] text-amber-900">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={make} className="h-10 px-4 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800">{msg ? 'Update Message' : 'Create Message / Email'}</button>
