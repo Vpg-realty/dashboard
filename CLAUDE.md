@@ -1016,6 +1016,15 @@ Overrides the Settings notes above where they differ.
   person off their own rate. The separate "Paid on net assignment instead"
   list is gone from Acquisition and Dispo (those rules still show in the
   history by date).
+- **Company-rate safeguard** (Luke, Nov 3 — a new company acq / dispo rate
+  from Nov 2 moved every existing rep, when only new people like Jake were
+  meant to get it): editing `acqRate` / `dispoRate` lists who is on the
+  company rate on that date (the acquisition / dispo list, minus owners in
+  `noCommission` and anyone with an own rate — `onCompanyRate` in
+  RulesView.jsx) and asks **Keep them on N% (recommended)** / Everyone moves
+  to the new rate. Keep saves an own rate (`acqOf:` / `dispoOf:<name>`) at the
+  old number from the same date for each of them, then the company change;
+  the impact line and the closed-deals check include those.
 - **Dropdown lists** come from People / Sub-Accounts / code / past deals:
   GET /api/deals sends `effectiveLists` (edge/deals.js) — the stored
   deal_lists plus active people's rep names (acq. manager / dispo member),
