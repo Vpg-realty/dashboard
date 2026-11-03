@@ -142,6 +142,11 @@
       "id": "danni_brown",
       "name": "Danni Brown",
       "color": "#0f8fa8"
+    },
+    {
+      "id": "uncle",
+      "name": "Uncle",
+      "color": "#65a30d"
     }
   ],
   "subaccounts": [
@@ -309,6 +314,11 @@
       "repId": "prince_pharrams",
       "marketId": "CO",
       "locationId": "D66W4ghjCS4bkJ6aus6f"
+    },
+    {
+      "repId": "uncle",
+      "marketId": "AZ",
+      "locationId": "woaNEvsgXFk9tMwPPNmd"
     }
   ]
 }
