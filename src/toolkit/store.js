@@ -7,7 +7,7 @@ import { call } from '../utils/dashApi.js';
 const BASE = import.meta.env.BASE_URL || '/';
 const post = (body) => call('toolkit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
-let state = { status: 'idle', pof: null, agencies: [], calcs: [], can: {}, error: null };
+let state = { status: 'idle', pof: null, pofs: [], agencies: [], calcs: [], can: {}, error: null };
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 
@@ -31,11 +31,11 @@ export function useToolkit() {
 }
 export async function act(body) {
   const r = await post(body);
-  emit({ status: 'ready', pof: r.pof, agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
+  emit({ status: 'ready', pof: r.pof, pofs: r.pofs || [], agencies: r.agencies, calcs: r.calcs, can: r.can, error: null });
   return r;
 }
 
-export const pofUrl = (inline) => `${BASE}api/toolkit/pof${inline ? '?inline=1' : ''}`;
+export const pofUrl = (inline, slot = 'pof') => `${BASE}api/toolkit/pof?slot=${encodeURIComponent(slot)}${inline ? '&inline=1' : ''}`;
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();

@@ -2124,6 +2124,18 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   (`pofReminders`, ext_id `pof:<expires>:<holder>`, made by the deploy's
   sync-alerts — two small reads a run); a new upload closes the old letter's
   reminders (`closeOldPof`).
+- **Several letters (Luke, Nov 3**: "we have the veritas one and one from
+  Capital fund 1 that is for $2m. I want both"): overrides the one-letter
+  notes above. Letters are rows of `toolkit_files` — the first kept name
+  `pof`, more are `pof:<id>` — with a `label` (added Nov 3 with ALTER TABLE).
+  The page shows a card per letter (name, file, expiry chip, Download / Open;
+  owners and the TC: Replace the PDF, Rename / change date, Remove) and an
+  **Add a Letter** form (name, PDF, expiry). Replacing or removing one never
+  touches the others. API actions `pof` (`slot` = replace that letter, none =
+  a new one), `pofExpires` / `pofLabel` / `pofRemove`; GET
+  `/api/toolkit/pof?slot=`. Each letter has its own expiry reminder (ext_id
+  `pof:<expires>:<holder>` for the first, `pof:<id>~<expires>:<holder>` for
+  the others; `closeOldPof(slot, expires)`).
 - **Title Agencies** (`/toolkit/title`, `?st=` the market): D1
   `title_agencies` (state = full name, or `Other` = "All other states"),
   loaded Oct 22 from Luke's list (18 agencies, 14 states + Other). Market
@@ -3878,7 +3890,20 @@ Under `src/views/`:
       filtered by `?contactId` returned only a few old workflow texts (Axel's
       Trisha Lioy: 5 texts, newest Sep 8, while the conversation had a dozen
       texts Oct 19–21), so Pipeline "no messaging in Nd" and Follow-ups
-      flagged deals that were being worked. CRM_VERSION 6. Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
+      flagged deals that were being worked. CRM_VERSION 6.
+      **Nov 3** (Luke: "jake has a 0 on his notes, but his leads have
+      notes"; checked in GHL: 4 of his 17 open Missouri deals had a note a
+      person wrote — the rest only the workflow's blank "Required Property
+      Info" note, and most were opened by Daniel before Jake took Missouri
+      over): each flagged deal names why — "only the blank Required Property
+      Info note — fill it in", "only automated notes", "no note since this
+      deal opened", "no note" — and a rep who took a sub-account over isn't
+      graded on notes for deals opened before the takeover for
+      `TAKEOVER_GRACE_DAYS` (14). The takeover date = `since` on the
+      sub-account's D1 change (edge/subChanges.js `saveChange` sets it when
+      the rep changes; older changes fall back to the record's date),
+      carried into subaccounts.json by load-private-files and passed to
+      `crmChecks` as `takeoverMs`. CRM_VERSION 7. Grades per rep in `autoCrm` (scorecard-lib): 2 = all OK,
       1 = 60%+, 0 = below, nothing to check = 2. A manager's grade wins
       (`mergeCrm`); chips graded automatically show a small "A", hover for
       why, click the CRM total for the list. Managers and owners set a

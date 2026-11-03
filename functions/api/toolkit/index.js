@@ -1,7 +1,8 @@
 // The Toolkit (edge/toolkit.js).
 // GET  /api/toolkit → { pof, agencies, calcs, can }
-// POST /api/toolkit { action: 'pof', filename, data (base64 PDF), expires }  owners — replaces the letter
-//                   { action: 'pofExpires', expires }                         owners
+// POST /api/toolkit { action: 'pof', slot?, label, filename, data (base64 PDF), expires }  owners / TC —
+//                     a new letter, or with slot replaces that one (the others stay)
+//                   { action: 'pofExpires' | 'pofLabel' | 'pofRemove', slot, expires? | label? }
 //                   { action: 'agency', id?, state, name, contact?, email?, phone?, address?, notes? }
 //                   { action: 'agencyRemove', id } | { action: 'prefer', id }  owners, managers, TC
 //                   { action: 'calcSave', id?, kind, title?, inputs, opp? }    anyone, their own
@@ -30,10 +31,12 @@ export async function onRequestPost(context) {
   const existing = !id ? null
     : ['agency', 'agencyRemove', 'prefer'].includes(a) ? await db.prepare('SELECT * FROM title_agencies WHERE id = ?').bind(id).first()
     : ['calcSave', 'calcRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
+  const slot = ['pof', 'pofExpires', 'pofLabel', 'pofRemove'].includes(a) ? String(b?.slot || (a === 'pof' ? '' : 'pof')) : '';
+  const letter = slot ? await db.prepare('SELECT name, label FROM toolkit_files WHERE name = ?').bind(slot).first() : null;
   const now = new Date().toISOString();
-  const p = plan(b, user, now, existing);
+  const p = plan(b, user, now, letter || existing);
   if (p.error) return json({ error: p.error }, 400);
-  const detail = a === 'pof' ? { filename: b.filename, expires: b.expires } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name };
+  const detail = a.startsWith('pof') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name };
   await db.batch([
     ...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)),
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `toolkit.${a}`, JSON.stringify(detail)),

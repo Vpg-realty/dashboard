@@ -1,10 +1,12 @@
 -- Toolkit (Luke, Oct 22): documents and calculators for everyone.
 -- functions/api/toolkit, logic in edge/toolkit.js.
 
--- The current proof of funds letter (one row, name 'pof'). Uploading a new
--- one replaces the row — the old file is gone. data = base64 of the PDF.
+-- Proof of funds letters: the first is row 'pof', more are 'pof:<id>'
+-- (Nov 3); `label` = its name (added Nov 3 with ALTER TABLE). Replacing a
+-- letter replaces its row only. data = base64 of the PDF.
 CREATE TABLE IF NOT EXISTS toolkit_files (
   name TEXT PRIMARY KEY,
+  label TEXT,
   filename TEXT NOT NULL,
   mime TEXT NOT NULL,
   size INTEGER NOT NULL,

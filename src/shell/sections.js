@@ -105,7 +105,7 @@ export const SECTIONS = [
     // (src/toolkit; data in D1, functions/api/toolkit).
     id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
     tabs: [
-      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The current letter', title: 'Proof of funds', blurb: 'The letter to send with offers. Always download it from here — it’s replaced whenever a new one comes in.' },
+      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The letters to send with offers', title: 'Proof of funds', blurb: 'The letters to send with offers — pick the one that fits the deal. Always download them from here; each is replaced whenever a new one comes in.' },
       { id: 'offer', label: 'Cash Offer', view: 'tk-offer', scroll: true, group: 'Documents', sub: 'Offer template to text or email', title: 'Cash offer template', blurb: 'Fill in the property and the terms, create the message, then copy it, email it or text it to the agent.' },
       { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
       { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },

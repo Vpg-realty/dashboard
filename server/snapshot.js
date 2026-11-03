@@ -100,7 +100,7 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
   const sevenDaysAgo = startOfDayMs(6);  // covers the 7-day daily trend chart
 
   const pairs = await Promise.all(
-    SUBACCOUNTS.map(async ({ repId, marketId, locationId }) => {
+    SUBACCOUNTS.map(async ({ repId, marketId, locationId, since }) => {
       if (!locationId) return emptyPair(repId, marketId);
       const token = tokens[locationId];
       if (!token) {
@@ -204,6 +204,7 @@ export async function buildSnapshot({ tokens, prevPairs = [] }) {
               messages: msgs.error ? null : msgs,
               now: Date.now(),
               weekStartMs: wkStart,
+              takeoverMs: since ? Date.parse(`${since}T00:00:00-07:00`) : 0,
             });
             pair.crm.notesOk = oppPull.notes;
             if (!oppPull.notes) { pair.crm.notes = null; pair.crm.notesError = oppPull.notesError; }

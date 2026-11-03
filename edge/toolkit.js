@@ -2,8 +2,10 @@
 // people can go to get a proof of funds letter … title agency information,
 // a calculator … save it … link it to a specific opportunity"). Logic for
 // functions/api/toolkit; tables in edge/toolkit.sql.
-// - Proof of funds: one letter at a time; owners upload a new one (with its
-//   expiry date), which replaces and deletes the old; everyone downloads it.
+// - Proof of funds: several letters side by side (Luke, Nov 3: "the veritas
+//   one and one from Capital fund 1 … I want both"), each with its own name
+//   and expiry date; replacing one leaves the others alone; everyone
+//   downloads them.
 // - Title agencies by market: everyone reads; owners, managers and the TC
 //   add, edit, remove and star the preferred one per state.
 // - Saved calculations: each person saves their own; owners see everyone's,
@@ -29,8 +31,12 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const AID = /^a[a-f0-9]{12}$/;
 const CID = /^k[a-f0-9]{12}$/;
 
-export async function pofMeta(db) {
-  return db.prepare("SELECT filename, size, expires, uploaded_by, uploaded_at FROM toolkit_files WHERE name = 'pof'").first();
+// Letters are rows of toolkit_files: the first one kept its name 'pof',
+// later ones are 'pof:<id>'. `label` = the name shown ("Veritas").
+export const POF_SLOT = /^pof(:[a-f0-9]{12})?$/;
+export async function pofList(db) {
+  return (await db.prepare("SELECT name, label, filename, size, expires, uploaded_by, uploaded_at FROM toolkit_files WHERE name = 'pof' OR name LIKE 'pof:%' ORDER BY uploaded_at").all()).results
+    .map((r) => ({ ...r, label: r.label || r.filename.replace(/\.pdf$/i, '') }));
 }
 export async function agencies(db) {
   return (await db.prepare('SELECT * FROM title_agencies ORDER BY state, preferred DESC, sort, name').all()).results;
@@ -55,8 +61,8 @@ export async function calcs(db, u) {
 }
 
 export async function load(db, u) {
-  const [pof, list, mine] = await Promise.all([pofMeta(db), agencies(db), calcs(db, u)]);
-  return { pof: pof || null, agencies: list, calcs: mine, can: { agencies: canEditAgencies(u), pof: canUploadPof(u) } };
+  const [pofs, list, mine] = await Promise.all([pofList(db), agencies(db), calcs(db, u)]);
+  return { pofs, pof: pofs[0] || null, agencies: list, calcs: mine, can: { agencies: canEditAgencies(u), pof: canUploadPof(u) } };
 }
 
 // The offer message's text fields are longer than a number.
@@ -88,21 +94,33 @@ function cleanOpp(o) {
 export function plan(b, u, now = new Date().toISOString(), existing = null) {
   const a = b?.action;
   if (a === 'pof') {
-    if (!canUploadPof(u)) return { error: 'Only owners and the TC replace the letter' };
+    if (!canUploadPof(u)) return { error: 'Only owners and the TC upload letters' };
     const data = String(b.data || '');
     if (!/^[A-Za-z0-9+/=]+$/.test(data)) return { error: 'Pick a PDF file' };
     const size = Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
     if (size > POF_MAX_BYTES) return { error: `That file is ${(size / 1e6).toFixed(1)} MB — the letter needs to be under 1.4 MB (save it as a smaller PDF)` };
     if (!data.startsWith('JVBERi')) return { error: 'That isn’t a PDF' }; // "%PDF"
     if (!DATE.test(String(b.expires || ''))) return { error: 'When does this letter expire?' };
+    // A slot = replace that letter; none = a new letter next to the others.
+    if (b.slot && (!POF_SLOT.test(String(b.slot)) || !existing)) return { error: 'That letter is gone' };
+    const slot = b.slot || `pof:${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const filename = clip(b.filename, 120).replace(/[^\w .()-]/g, '') || 'Proof of Funds.pdf';
-    return { run: [["INSERT INTO toolkit_files (name, filename, mime, size, data, expires, uploaded_by, uploaded_email, uploaded_at) VALUES ('pof', ?, 'application/pdf', ?, ?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET filename = excluded.filename, mime = excluded.mime, size = excluded.size, data = excluded.data, expires = excluded.expires, uploaded_by = excluded.uploaded_by, uploaded_email = excluded.uploaded_email, uploaded_at = excluded.uploaded_at",
-      [filename, size, data, b.expires, u.name, u.email, now]], closeOldPof(b.expires, now)] };
+    const label = clip(b.label, 60) || existing?.label || filename.replace(/\.pdf$/i, '');
+    return { id: slot, run: [["INSERT INTO toolkit_files (name, label, filename, mime, size, data, expires, uploaded_by, uploaded_email, uploaded_at) VALUES (?, ?, ?, 'application/pdf', ?, ?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET label = excluded.label, filename = excluded.filename, mime = excluded.mime, size = excluded.size, data = excluded.data, expires = excluded.expires, uploaded_by = excluded.uploaded_by, uploaded_email = excluded.uploaded_email, uploaded_at = excluded.uploaded_at",
+      [slot, label, filename, size, data, b.expires, u.name, u.email, now]], closeOldPof(slot, b.expires, now)] };
   }
-  if (a === 'pofExpires') {
-    if (!canUploadPof(u)) return { error: 'Only owners and the TC change the letter' };
+  if (a === 'pofExpires' || a === 'pofLabel' || a === 'pofRemove') {
+    if (!canUploadPof(u)) return { error: 'Only owners and the TC change the letters' };
+    const slot = String(b.slot || 'pof');
+    if (!POF_SLOT.test(slot) || !existing) return { error: 'That letter is gone' };
+    if (a === 'pofRemove') return { run: [['DELETE FROM toolkit_files WHERE name = ?', [slot]], closeOldPof(slot, null, now)] };
+    if (a === 'pofLabel') {
+      const label = clip(b.label, 60);
+      if (!label) return { error: 'Give the letter a name' };
+      return { run: [['UPDATE toolkit_files SET label = ? WHERE name = ?', [label, slot]]] };
+    }
     if (!DATE.test(String(b.expires || ''))) return { error: 'Pick the expiry date' };
-    return { run: [["UPDATE toolkit_files SET expires = ? WHERE name = 'pof'", [b.expires]], closeOldPof(b.expires, now)] };
+    return { run: [['UPDATE toolkit_files SET expires = ? WHERE name = ?', [b.expires, slot]], closeOldPof(slot, b.expires, now)] };
   }
   if (a === 'agency' || a === 'agencyRemove' || a === 'prefer') {
     if (!canEditAgencies(u)) return { error: 'Owners, managers and the TC edit this list' };
@@ -160,16 +178,25 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
 export const POF_WARN_DAYS = 5;
 const DAY = 86400000;
 export const azToday = (now = Date.now()) => new Date(now - 7 * 3600000).toISOString().slice(0, 10);
-export function pofReminders(expires, owners, now = Date.now()) {
+// One reminder per letter and person: ext_id pof:<expires>:<holder> for the
+// first letter ('pof', as before), pof:<id>~<expires>:<holder> for the others.
+const remKey = (slot, expires, h) => (slot === 'pof' ? `pof:${expires}:${h}` : `pof:${slot.slice(4)}~${expires}:${h}`);
+export function pofReminders(expires, owners, now = Date.now(), slot = 'pof', label = '') {
   if (!DATE.test(String(expires || ''))) return [];
   const warnFrom = new Date(Date.parse(`${expires}T00:00:00Z`) - POF_WARN_DAYS * DAY).toISOString().slice(0, 10);
   if (azToday(now) < warnFrom) return [];
   const at = new Date(now).toISOString();
   const nice = new Date(`${expires}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  const name = label ? `${label} proof of funds letter` : 'Proof of funds letter';
   return owners.map((h) => ({
     sql: 'INSERT INTO alerts (id, ext_id, holder, kind, title, body, due, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ext_id) DO NOTHING',
-    args: [newId('a'), `pof:${expires}:${h}`, h, 'task', `Proof of funds letter expires ${nice} — upload a new one`, 'Toolkit › Proof of Funds: upload the new letter and its expiry date. It replaces the old one for everyone.', expires, 'Toolkit', at],
+    args: [newId('a'), remKey(slot, expires, h), h, 'task', `${name} expires ${nice} — upload a new one`, `Toolkit › Proof of Funds: replace the ${label || 'letter'} with the new one and its expiry date. The other letters stay as they are.`, expires, 'Toolkit', at],
   }));
 }
-// Close the reminders of letters other than `expires` (after an upload).
-export const closeOldPof = (expires, now = new Date().toISOString()) => ["UPDATE alerts SET done_at = ?, done_by = 'Toolkit (new letter uploaded)' WHERE ext_id LIKE 'pof:%' AND ext_id NOT LIKE ? AND done_at IS NULL", [now, `pof:${expires}:%`]];
+// Close a letter's reminders for any other expiry date (after a new upload or
+// date) — or all of them (expires null: the letter was removed).
+export function closeOldPof(slot, expires, now = new Date().toISOString()) {
+  const keep = expires ? remKey(slot, expires, '') : '\u0000';
+  if (slot === 'pof') return ["UPDATE alerts SET done_at = ?, done_by = 'Toolkit (letter replaced)' WHERE ext_id LIKE 'pof:%' AND ext_id NOT LIKE 'pof:%~%' AND ext_id NOT LIKE ? AND done_at IS NULL", [now, `${keep}%`]];
+  return ["UPDATE alerts SET done_at = ?, done_by = 'Toolkit (letter replaced)' WHERE ext_id LIKE ? AND ext_id NOT LIKE ? AND done_at IS NULL", [now, `pof:${slot.slice(4)}~%`, `${keep}%`]];
+}
