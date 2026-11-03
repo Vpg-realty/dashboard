@@ -10,6 +10,7 @@
 //                   { action: 'agencyRemove', id } | { action: 'prefer', id }  owners, managers, TC
 //                   { action: 'calcSave', id?, kind, title?, inputs, opp? }    anyone, their own
 //                   { action: 'calcRemove', id }                              author or owner
+//                   { action: 'commSave', id?, title?, scenarios } / { action: 'commRemove', id }   owners only
 //   → the same as GET (+ id for a new agency / calculation)
 // Writes are logged in edit_log (never the file itself) and refused while viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
@@ -33,7 +34,7 @@ export async function onRequestPost(context) {
   const id = String(b?.id || '');
   const existing = !id ? null
     : ['agency', 'agencyRemove', 'prefer'].includes(a) ? await db.prepare('SELECT * FROM title_agencies WHERE id = ?').bind(id).first()
-    : ['calcSave', 'calcRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
+    : ['calcSave', 'calcRemove', 'commSave', 'commRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
   const slot = ['pof', 'pofExpires', 'pofLabel', 'pofRemove'].includes(a) ? String(b?.slot || (a === 'pof' ? '' : 'pof'))
     : ['doc', 'docEdit', 'docRemove'].includes(a) ? String(b?.slot || '') : '';
   const letter = slot ? await db.prepare('SELECT name, label, states, note FROM toolkit_files WHERE name = ?').bind(slot).first() : null;
