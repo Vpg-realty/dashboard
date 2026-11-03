@@ -18,11 +18,14 @@ try { traineeReps = JSON.parse(fs.readFileSync('.cache/trainee-reps.json', 'utf8
 // Reps left off the TV board (Settings › People › On the TV board, Oct 22).
 let boardHidden = []
 try { boardHidden = JSON.parse(fs.readFileSync('.cache/board-hidden.json', 'utf8')) } catch { /* everyone shows */ }
+// People set Inactive (Settings › Team) — not graded on the scorecard (Nov 3).
+let inactiveReps = []
+try { inactiveReps = JSON.parse(fs.readFileSync('.cache/inactive-reps.json', 'utf8')) } catch { /* none */ }
 let kpiTimelines = null
 try { kpiTimelines = JSON.parse(fs.readFileSync('.cache/kpi-targets.json', 'utf8')) } catch { /* defaults */ }
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base,
-  define: { __TRAINEE_REPS__: JSON.stringify(traineeReps), __KPI_TIMELINES__: JSON.stringify(kpiTimelines), __BOARD_HIDDEN__: JSON.stringify(boardHidden) },
+  define: { __TRAINEE_REPS__: JSON.stringify(traineeReps), __KPI_TIMELINES__: JSON.stringify(kpiTimelines), __BOARD_HIDDEN__: JSON.stringify(boardHidden), __INACTIVE_REPS__: JSON.stringify(inactiveReps) },
 })

@@ -83,7 +83,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'scorecard-seed.json'), 'utf8'));
   const prev = await loadDeployed();
   // Trainees with a sub-account aren't scored until they graduate (Oct 20).
-  const trainees = new Set(data.trainees || []);
+  // Trainees and people set Inactive aren't graded (Oct 20 / Nov 3).
+  const trainees = new Set([...(data.trainees || []), ...(data.inactive || [])]);
   const next = updateScorecards({ prev, seed, data, reps: config.reps.filter((r) => !trainees.has(r.id)) });
   fs.writeFileSync(OUT, JSON.stringify(next));
   console.log(`[scorecards] ${prev ? 'updated' : 'started'} — weeks on file: ${Object.keys(next.weeks).sort().join(', ')}`);

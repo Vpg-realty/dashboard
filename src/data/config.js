@@ -47,6 +47,13 @@ export const ALL_REPS = config.reps.map((rep) => ({
 /* global __TRAINEE_REPS__ */
 const TRAINEE_REPS = new Set(typeof __TRAINEE_REPS__ !== 'undefined' ? __TRAINEE_REPS__ : []);
 export const REPS = ALL_REPS.filter((r) => !TRAINEE_REPS.has(r.id));
+// People set Inactive in Settings › Team aren't graded on the scorecard (Luke,
+// Nov 3): off the live week's rows, pod totals, team average and the freeze;
+// weeks already frozen keep them. Baked in by vite.config.js (__INACTIVE_REPS__,
+// from D1 users via load-private-files).
+/* global __INACTIVE_REPS__ */
+export const INACTIVE_REPS = new Set(typeof __INACTIVE_REPS__ !== 'undefined' ? __INACTIVE_REPS__ : []);
+export const isScored = (repId) => !INACTIVE_REPS.has(repId);
 
 // Team targets scale with the roster: per-rep KPI × number of reps (people, not
 // sub-accounts). Every team target — opps opened, offers, contracts, deals

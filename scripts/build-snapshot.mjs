@@ -215,6 +215,7 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
 // Trainees with their own sub-account (scripts/load-private-files.mjs): the
 // scorecard freeze and /api/my-scorecard leave them out (Luke, Oct 20).
 try { snapshot.trainees = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'trainee-reps.json'), 'utf8')); } catch { snapshot.trainees = []; }
+try { snapshot.inactive = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'inactive-reps.json'), 'utf8')); } catch { snapshot.inactive = []; }
 
 // Road to Hawaii totals (scripts/team-goal.mjs refreshes them later in the
 // chain); the last deploy's stay if that step can't reach D1.

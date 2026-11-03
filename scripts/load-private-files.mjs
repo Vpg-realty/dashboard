@@ -99,7 +99,15 @@ async function main() {
         body: JSON.stringify({ sql: "SELECT rep_id FROM users WHERE status = 'inactive' AND rep_id IS NOT NULL" }),
       });
       const d2 = await r2.json();
-      if (r2.ok && d2.success) ids = [...new Set([...ids, ...(d2.result?.[0]?.results || []).map((x) => x.rep_id).filter(Boolean)])];
+      if (r2.ok && d2.success) {
+        const inactive = (d2.result?.[0]?.results || []).map((x) => x.rep_id).filter(Boolean);
+        ids = [...new Set([...ids, ...inactive])];
+        // …and off the scorecard (Luke, Nov 3): build-snapshot copies it to
+        // data.json `inactive`, vite.config.js bakes __INACTIVE_REPS__.
+        fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
+        fs.writeFileSync(path.join(ROOT, '.cache', 'inactive-reps.json'), JSON.stringify(inactive));
+        console.log(`[private-files] inactive reps (off the scorecard): ${inactive.length}`);
+      }
     } catch { /* the setting alone */ }
     fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
     fs.writeFileSync(path.join(ROOT, '.cache', 'board-hidden.json'), JSON.stringify(ids));
