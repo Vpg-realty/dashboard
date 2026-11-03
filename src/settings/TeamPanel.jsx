@@ -21,13 +21,12 @@ import { useMemo, useState } from 'react';
 import { ALL_MARKETS } from '../data/config.js';
 import { useSubs, setSubs } from './subStore.js';
 import { pickColor, suggestRepId } from '../utils/autoColor.js';
-import { saveUser, removeUser, writeSetting, changeRule } from '../utils/dashApi.js';
+import { saveUser, removeUser, writeSetting } from '../utils/dashApi.js';
 import { updateSubAccount } from '../utils/subaccountsApi.js';
 import { laToday } from '../utils/historyRange.js';
 import { linkProps } from '../shell/router.js';
 import { inputCls } from './ui.jsx';
 import SearchBox from '../shell/SearchBox.jsx';
-import { ratesOf } from '../deals/rules.js';
 import { ROLE_OPTS, keyName } from './team.js';
 
 const repIn = (reps, id) => reps.find((r) => r.id === id) || null;
@@ -59,8 +58,8 @@ function Pills({ value, onChange, options, disabled }) {
 
 // u = the person (null = a new one); users = everyone (to tell whose
 // sub-accounts are whose); leads = who can lead a pod [{id, name, title}]; lists = deal_lists;
-// tvOff = rep ids off the board; rules = today's commission rules.
-export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, onSaved, onRemoved, onClose }) {
+// tvOff = rep ids off the board. (Commission is set on Settings › Commissions.)
+export default function TeamPanel({ u, users, leads, lists, tvOff, me, onSaved, onRemoved, onClose }) {
   // The sub-accounts as they stand now, moves saved on the site included.
   const { subaccounts: SUBACCOUNTS, reps } = useSubs();
   const repOf = (id) => repIn(reps, id);
@@ -79,15 +78,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
   const lead0 = u?.role === 'trainee' ? (u.trainer ? leadNameOf(u.trainer) : '') : (lists?.reportsTo?.[key] || '');
   const [lead, setLead] = useState(lead0);
   const [take, setTake] = useState(() => new Set());
-  // What they're paid today: their own rates, else the company's (prefilled so
-  // an untouched Save changes nothing); a new person starts blank.
-  const r0 = ratesOf(rules, key);
-  const pctTxt = (x) => (x == null ? '' : String(Math.round(x * 10000) / 100));
-  const [acq, setAcq] = useState(isNew ? '' : pctTxt(r0.acq));
-  const [onNet, setOnNet] = useState(r0.net);
-  const [dispo, setDispo] = useState(isNew ? '' : pctTxt(r0.dispo));
   const [q, setQ] = useState('');
-  const [from, setFrom] = useState(today);
   const tv0 = !(u?.rep_id && tvOff.includes(u.rep_id));
   const [tv, setTv] = useState(tv0);
   const [busy, setBusy] = useState(false);
@@ -106,10 +97,8 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
   const statuses = d.role === 'team' ? [['active', 'Active'], ['training', 'Training'], ['inactive', 'Inactive']] : d.role === 'owner' ? [['active', 'Active']] : [['active', 'Active'], ['inactive', 'Inactive']];
   const leadOpts = [...leads.filter((l) => l.name !== key).map((l) => [l.name, first(l.name), l.title]), ['', 'No pod']];
   const needLead = d.status === 'training' && !lead;
-  const pctOk = (x) => x !== '' && Number(x) >= 0 && Number(x) <= 100;
-  const rateOk = !sales || d.status === 'inactive' || (pctOk(acq) && pctOk(dispo) && /^\d{4}-\d{2}-\d{2}$/.test(from));
   const shown = others.filter((s) => !q.trim() || `${marketName(s.marketId)} ${s.marketId} ${s.who}`.toLowerCase().includes(q.trim().toLowerCase()));
-  const ok = d.name.trim() && /@/.test(d.email) && !needLead && rateOk && !self;
+  const ok = d.name.trim() && /@/.test(d.email) && !needLead && !self;
 
   const save = async () => {
     if (!ok || busy) return;
@@ -158,22 +147,6 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
         const next = { ...lists, reportsTo: { ...(lists?.reportsTo || {}) } };
         if (lead) next.reportsTo[k] = lead; else delete next.reportsTo[k];
         try { await writeSetting('deal-lists', next); note(true, lead ? `Reports to ${first(lead)}` : 'No pod lead'); } catch (e) { note(false, `Pod lead not saved: ${e.message}`); }
-      }
-      // Commission: write only what changed, from the date picked. Moving acq
-      // between "of the commission base" and "of net" clears the other one.
-      if (sales && d.status !== 'inactive') {
-        const was = ratesOf(rules, k);
-        const a = Number(acq) / 100; const dd = Number(dispo) / 100;
-        const same = (x, y) => x != null && y != null && Math.abs(x - y) < 1e-9;
-        const ch = [];
-        if (onNet !== was.net || !same(a, was.acq) || was.acqOwn == null) {
-          ch.push({ key: `${onNet ? 'acqOfNet' : 'acqOf'}:${k}`, value: a });
-          if (onNet !== was.net && was.acqOwn != null) ch.push({ key: `${onNet ? 'acqOf' : 'acqOfNet'}:${k}`, value: null });
-        }
-        if (!same(dd, was.dispo) || was.dispoOwn == null) ch.push({ key: `dispoOf:${k}`, value: dd });
-        let okAll = true;
-        for (const c of ch) { try { await changeRule({ ...c, from }); } catch (e) { okAll = false; note(false, `Commission not saved: ${e.message}`); break; } }
-        if (ch.length && okAll) note(true, `Commission: ${acq}% acq ${onNet ? 'of net' : 'of the commission base'} · ${dispo}% dispo, from ${from}`);
       }
       // TV board.
       if (repId && d.status !== 'inactive' && tv === tvOff.includes(repId)) {
@@ -248,23 +221,11 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, rules, me, on
             </Part>
           )}
           {sales && (
-            <Part title="Commission" note="when they’re the acq. manager">
-              {d.status === 'inactive' ? <span className="text-[13px] text-zinc-500">{pctTxt(r0.acq)}% acq · {pctTxt(r0.dispo)}% dispo — kept for their past deals.</span> : <>
-                <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-2 text-[13px]">
-                  <span className="font-semibold text-navy-900">Acquisitions</span>
-                  <span className="flex flex-wrap items-center gap-2">
-                    <input value={acq} onChange={(e) => setAcq(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 30" className={`${inputCls} !w-20 ${acq === '' ? 'ring-1 ring-[#B42318]/40' : ''}`} aria-label="Acquisition %" />%
-                    <Pills value={onNet} onChange={setOnNet} options={[[false, 'of the commission base'], [true, 'of net']]} />
-                  </span>
-                  <span className="font-semibold text-navy-900">Dispo</span>
-                  <span className="flex items-center gap-2">
-                    <input value={dispo} onChange={(e) => setDispo(e.target.value.replace(/[^\d.]/g, ''))} placeholder="e.g. 20" className={`${inputCls} !w-20 ${dispo === '' ? 'ring-1 ring-[#B42318]/40' : ''}`} aria-label="Dispo %" />% <span className="text-zinc-500">of the commission base</span>
-                  </span>
-                  <span className="font-semibold text-navy-900">Takes effect</span>
-                  <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} !w-40`} aria-label="Takes effect on" />
-                </div>
-                <span className="text-[12px] text-zinc-500">Commission base = net assignment − TC fee. Closed deals keep the rates they had.</span>
-              </>}
+            <Part title="Commission">
+              {/* Commission is set on Settings › Commissions only (Luke, Nov 3:
+                  "the commissions tab to be the only place where people can
+                  edit commissions"). New people start on the company rates. */}
+              <a {...linkProps(`/settings/commissions?person=${encodeURIComponent(key)}`)} className="text-[13px] text-navy-700 underline self-start">{isNew ? 'They start on the company rates — change them on Commissions →' : `Set ${first(d.name) || 'their'}’s rates on Commissions →`}</a>
             </Part>
           )}
           {sales && d.status !== 'inactive' && (
