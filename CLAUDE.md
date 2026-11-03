@@ -2333,6 +2333,11 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   editable box with Copy / Email (mailto) / Text (sms:). Signer = `SIGNER`,
   plus "and/or Assigns" outside AZ, AL, FL, OK (`MARKETS_NO_ASSIGNS`); the
   market defaults to the linked opportunity's state.
+- **Three top tabs** (Luke, Nov 3: "documents in one, then offer templates
+  in another, then calculators … cleaner"): **Documents** (Proof of Funds,
+  Title Agencies), **Offers** (Offer Templates, Contract Terms) and
+  **Calculators** (Seller Finance, Multifamily, My Calculations) — the
+  `group` of each tab in sections.js; links stay the same.
 - Usage: a Toolkit page load reads the letter's details, the agencies (~20
   rows) and the saved calculations (all rows, filtered by person) — a few
   hundred loads a day is well under 1M reads a month.
