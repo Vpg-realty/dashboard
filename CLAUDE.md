@@ -486,7 +486,7 @@ style, the second mockup). `src/App.jsx` only picks the experience:
   (logic `edge/suggestions.js`), writes in `edit_log`, none while viewing as.
   **Extra people** (Luke, Oct 21: Danni): owners add anyone else in
   Settings › People › Suggestion Box Access — D1 settings `suggest_people`
-  `{emails}` (`checkSuggestPeople`); `canSuggestDb` (edge/suggestions.js)
+  `{emails}` (`checkSuggestPeople`; since Nov 3 folded into Settings › Access, see Phase 2); `canSuggestDb` (edge/suggestions.js)
   lets them use the API, /api/me sends `suggest`, and `extraFor(me)` in
   sections.js adds the section to their sidebar / ⌘K. One settings row read
   per /api/me and per suggestions call — a few hundred reads a day.
@@ -1090,12 +1090,45 @@ per person). Settings › Team › **Access** (`/settings/access`,
   → `canSuggestDb` (taken away → refused too). Taking a page away hides it
   and its links; data other pages of theirs share stays as it is. Buyer
   names, commissions, money, editing, grading and notes stay with the roles
-  that had them. Phase 2: whose data (Mine / Pod / Everyone); Phase 3:
-  fields. Usage: ≤ 1 settings row read a minute per worker.
+  that had them. Phase 2: whose data — below; Phase 3: fields. Usage: ≤ 1 settings row read a minute per worker.
 - **Alerts' Mine** (same day, Luke: for pod leads "when they switch from mine
   to my pod … it doesn't change what they see"): Mine is only what's held by
   you — it used to add the pod's leads and duplicates (owners: everyone's),
   so Mine and My Pod looked alike. The pod's are under My Pod.
+
+## Settings › Access, Phase 2 — whose data (Luke, Nov 3)
+
+The **Whose Data** grid under Pages by Role (`AccessView.jsx`), and a Whose
+Data part in each person's changes: for each area — Home, Pipeline ·
+Contracted Deals, Pipeline · Opportunities, Calendar, Alerts, Team Scorecard
+(`SCOPE_AREAS` in src/shell/access.js) — a role or a person sees **Mine**,
+**My Pod** (the pod they lead, else the one they're in — `podFor` /
+`podMates`) or **Everyone** (`SCOPE_LEVELS`). Stored in the same settings row
+as `access.scope = { roles: { role: { area: level } }, people: { email: {…} } }`,
+only what differs; the defaults (`SCOPE_DEFAULT`) are today's rules — Contracted
+Deals everyone; Opportunities / Calendar / Alerts / Home a rep's own, a pod
+lead's pod, the TC everyone (Alerts: her own tasks); Team Scorecard everyone
+who has the page. `personScope` → currentUser's `scope` → /api/me
+`access.scope`; the browser reads it through `scopeLevel(me, area)` /
+`scopeReps(me, area)` (src/shell/scope.js) — Home (and Welcome, the
+calculators' opportunity picker), PipelinePage (the Viewing switch: Full team
+only at Everyone, My pod / the person picker inside the pod at My Pod),
+ScorecardView's rows. **Alerts is enforced on the server** (`scopeOf` in
+edge/alerts.js): `see` follows the level, `own` (their own + a lead's pod) is
+still all they can tick, grade or hand tasks to, and the red dot only counts
+what they can open. Pipeline, Calendar, Home and the scorecard read files
+every signed-in teammate already loads, so there the level sets what the page
+shows. No new D1 reads (same settings row).
+- **Frozen header** (Luke, same day: "when i scroll down on the access chart
+  … freeze the top"): both grids scroll inside their card
+  (`max-h-[calc(100vh-14rem)]`) with the role row `sticky top-0`.
+- **Suggestion Box = Access only** (Luke: "suggestion box is not on for reps,
+  but when i go to their accounts they can still see it" — seven reps were on
+  the old Settings › Team "Suggestion Box Access" list, D1 `suggest_people`):
+  `readAccess` (edge/access.js) folds that list into `access.people` as
+  `suggestions: true` (`foldSuggest`), so the grid shows them as Given; the
+  first Save in Access deletes `suggest_people`. The Team page's card now just
+  links to Access.
 
 ## Training (Luke, Oct 19)
 

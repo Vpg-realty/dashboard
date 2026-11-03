@@ -6,13 +6,12 @@
 // (TeamPanel.jsx) where all of it is edited with one Save. There's no "rep
 // on the board" to link any more: a person's first state creates their rep.
 // Below: Suggestion Box access and what each role sees.
-import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useState } from 'react';
 import { ALL_REPS, ALL_MARKETS } from '../data/config.js';
 import { useSubs } from './subStore.js';
 import { settingsUsers, useMe, readSetting, writeSetting } from '../utils/dashApi.js';
 import { ROLE_LABEL } from '../shell/sections.js';
-import { useLocation, setQuery } from '../shell/router.js';
+import { useLocation, setQuery, navigate } from '../shell/router.js';
 import { usePods } from '../shell/pods.js';
 import { Section, inputCls } from './ui.jsx';
 import TeamPanel from './TeamPanel.jsx';
@@ -78,38 +77,12 @@ function DiscordTest() {
   );
 }
 
-// The Suggestion Box is owners, managers and the TC; owners can add anyone
-// else here (Luke, Oct 21: Danni). D1 settings `suggest_people`.
-const SUGGEST_ROLES = ['owner', 'manager', 'tc'];
-function SuggestAccess({ users }) {
-  const [emails, setEmails] = useState(null);
-  const [pick, setPick] = useState('');
-  const [msg, setMsg] = useState(null);
-  useEffect(() => { readSetting('suggest-people').then((r) => setEmails(r.value?.emails || [])).catch(() => setEmails([])); }, []);
-  if (!emails) return null;
-  const save = async (next, text) => {
-    setMsg(null);
-    try { await writeSetting('suggest-people', { emails: next }); setEmails(next); setMsg({ ok: true, text }); } catch (e) { setMsg({ ok: false, text: e.message }); }
-  };
-  const nameOf = (e) => users.find((u) => u.email.toLowerCase() === e)?.name || e;
-  const others = users.filter((u) => !SUGGEST_ROLES.includes(u.role) && u.role !== 'tv' && u.status !== 'inactive' && !emails.includes(u.email.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+// Who gets the Suggestion Box moved to Settings › Access (Nov 3) — the one
+// place for who sees what.
+function SuggestAccess() {
   return (
-    <Section title="Suggestion Box Access" sub="Owners, managers and the TC always have the Suggestion Box. Add anyone else here; it shows in their sidebar on their next page load.">
-      <div className="flex flex-wrap items-center gap-2">
-        {emails.length === 0 && <span className="text-[13px] text-zinc-500">Nobody added yet.</span>}
-        {emails.map((e) => (
-          <span key={e} className="inline-flex items-center gap-1.5 rounded-full border border-tan-300 bg-tan-50 pl-3 pr-1 py-0.5 text-[13px] text-navy-800">
-            {nameOf(e)}
-            <button onClick={() => save(emails.filter((x) => x !== e), `${nameOf(e)} removed.`)} aria-label={`Remove ${nameOf(e)}`} className="grid place-items-center w-5 h-5 rounded-full hover:bg-tan-200 text-zinc-500">×</button>
-          </span>
-        ))}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <SearchSelect className="w-64" value={pick || ''} onChange={(v) => setPick(v || '')} clearable={false} pinned={[{ value: '', label: 'Add a person…' }]} options={others.map((u) => ({ value: u.email.toLowerCase(), label: u.name }))} />
-        <button disabled={!pick} onClick={() => { const n = nameOf(pick); save([...emails, pick], `${n} can use the Suggestion Box now.`); setPick(''); }} className="h-9 px-4 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-40">Add</button>
-      </div>
-      {msg && <div className={`mt-2 text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</div>}
+    <Section title="Suggestion Box Access" sub="Who sees the Suggestion Box is set in Settings › Access now, with every other page.">
+      <a href="/settings/access" onClick={(e) => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); navigate('/settings/access'); }} className="text-[14px] font-semibold text-navy-700 hover:underline">Open Access →</a>
     </Section>
   );
 }
@@ -190,7 +163,7 @@ export default function PeopleView() {
       </div>
       {table('The Team', sorted.filter((u) => u.status !== 'inactive'), null)}
       {sorted.some((u) => u.status === 'inactive') && table('Inactive', sorted.filter((u) => u.status === 'inactive'), 'Can’t sign in; their history stays. Any state still in their name is flagged to hand off — open the person taking it over and tick it.')}
-      <SuggestAccess users={users} />
+      <SuggestAccess />
       <Section title="What each role sees">
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-[13.5px]">
           {ROLES.map((r) => <div key={r}><dt className="font-semibold text-navy-700">{ROLE_LABEL[r]}</dt><dd className="text-zinc-600">{ROLE_HELP[r]}</dd></div>)}

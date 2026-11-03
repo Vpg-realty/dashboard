@@ -100,6 +100,8 @@ export function checkAccess(v) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return 'Bad access list';
   const pages = new Set(accessPages().map((p) => p.id));
   const okMap = (m) => m && typeof m === 'object' && !Array.isArray(m) && Object.entries(m).every(([k, b]) => pages.has(k) && !LOCKED.has(k) && typeof b === 'boolean');
+  const bad = checkScope(v.scope);
+  if (bad) return bad;
   for (const [role, m] of Object.entries(v.roles || {})) {
     if (!ROLE_IDS.includes(role)) return `Unknown role ${role}`;
     if (!okMap(m)) return `A page for ${role} isn’t one that can be changed`;
@@ -111,4 +113,80 @@ export function checkAccess(v) {
     if (!okMap(m)) return `A page for ${email} isn’t one that can be changed`;
   }
   return null;
+}
+
+// ── Phase 2: whose data (Luke, Nov 3) ─────────────────────────────────────
+// For each area, how far a role (or one person) sees: their own deals and
+// numbers, their pod's, or everyone's. Stored in the same settings row as
+// `scope: { roles: { <role>: { <area>: level } }, people: { <email>: {…} } }`,
+// again only what differs from today. Owners always see everyone.
+export const SCOPE_LEVELS = [
+  { id: 'mine', label: 'Mine' },
+  { id: 'pod', label: 'My Pod' },
+  { id: 'all', label: 'Everyone' },
+];
+const LEVEL_IDS = SCOPE_LEVELS.map((l) => l.id);
+export const SCOPE_AREAS = [
+  { id: 'home', label: 'Home', note: 'the numbers, pipeline and deals on Home' },
+  { id: 'pipeline', label: 'Pipeline · Contracted Deals', note: 'how far the Viewing switch reaches' },
+  { id: 'opps', label: 'Pipeline · Opportunities', note: 'how far the Viewing switch reaches' },
+  { id: 'calendar', label: 'Calendar', note: 'how far the Viewing switch reaches' },
+  { id: 'alerts', label: 'Alerts', note: 'whose alerts they can look at (ticking stays with their own and their pod’s)' },
+  { id: 'scorecards', label: 'Team Scorecard', note: 'whose rows show, for anyone who has the page' },
+];
+const AREA_IDS = SCOPE_AREAS.map((a) => a.id);
+// Today's rules, per grid column. "My Pod" for a rep = the pod they're in.
+const SCOPE_DEFAULT = {
+  team: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
+  trainee: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
+  manager: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
+  podlead: { home: 'pod', pipeline: 'all', opps: 'pod', calendar: 'pod', alerts: 'pod', scorecards: 'all' },
+  tc: { home: 'all', pipeline: 'all', opps: 'all', calendar: 'all', alerts: 'mine', scorecards: 'all' },
+};
+export const scopeDefault = (role, area) => (role === 'owner' ? 'all' : SCOPE_DEFAULT[role]?.[area] || 'mine');
+export function roleScope(access, role, area) {
+  if (role === 'owner') return 'all';
+  const v = access?.scope?.roles?.[role]?.[area];
+  return LEVEL_IDS.includes(v) ? v : scopeDefault(role, area);
+}
+// { <area>: level } for this person: their own value, else their column's.
+export function personScope(access, user, pods) {
+  const role = accessRoleOf(user, pods);
+  if (!user || role === 'owner' || !ROLE_IDS.includes(role)) return Object.fromEntries(AREA_IDS.map((a) => [a, user?.role === 'owner' ? 'all' : 'mine']));
+  const mine = access?.scope?.people?.[String(user.email || '').toLowerCase()] || {};
+  return Object.fromEntries(AREA_IDS.map((a) => [a, LEVEL_IDS.includes(mine[a]) ? mine[a] : roleScope(access, role, a)]));
+}
+// The pod a rep leads, else the one they're in.
+export const podFor = (repId, pods) => (repId ? (pods || []).find((p) => p.lead === repId) || (pods || []).find((p) => (p.reps || []).includes(repId)) || null : null);
+// Everyone in that pod but the person (a lead's pod = their reps).
+export const podMates = (repId, pods) => {
+  const p = podFor(repId, pods);
+  return p ? [p.lead, ...(p.reps || [])].filter((id) => id && id !== repId) : [];
+};
+function checkScope(s) {
+  if (s == null) return null;
+  if (typeof s !== 'object' || Array.isArray(s)) return 'Bad data scope';
+  const okMap = (m) => m && typeof m === 'object' && !Array.isArray(m) && Object.entries(m).every(([k, v]) => AREA_IDS.includes(k) && LEVEL_IDS.includes(v));
+  for (const [role, m] of Object.entries(s.roles || {})) {
+    if (!ROLE_IDS.includes(role)) return `Unknown role ${role}`;
+    if (!okMap(m)) return `A data setting for ${role} isn’t one that can be changed`;
+  }
+  const people = Object.entries(s.people || {});
+  if (people.length > 200) return 'Too many people';
+  for (const [email, m] of people) {
+    if (!/^[^@\s]+@[^@\s]+$/.test(email) || email !== email.toLowerCase()) return 'A person’s email is wrong';
+    if (!okMap(m)) return `A data setting for ${email} isn’t one that can be changed`;
+  }
+  return null;
+}
+
+// The old Suggestion Box list (settings `suggest_people`, Settings › Team
+// until Nov 3) read as per-person "Give", so Access is the one place: the
+// grid shows them, and saving Access retires the old list.
+export function foldSuggest(access, emails) {
+  const list = (emails || []).map((e) => String(e).toLowerCase()).filter(Boolean);
+  if (!list.length) return access;
+  const out = { ...(access || {}), people: { ...(access?.people || {}) } };
+  for (const e of list) if (typeof out.people[e]?.suggestions !== 'boolean') out.people[e] = { ...(out.people[e] || {}), suggestions: true };
+  return out;
 }

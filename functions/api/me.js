@@ -37,6 +37,6 @@ export async function onRequestGet(context) {
   // The Suggestion Box: its roles, plus anyone owners added (Oct 21).
   const suggest = await canSuggestDb(context.env.DB, user);
   // Settings › Access (Nov 3): the pages given / taken for this person.
-  const access = { give: user.grant || [], take: user.take || [] };
+  const access = { give: user.grant || [], take: user.take || [], scope: user.scope || null };
   return json({ ...user, teamChat, pods, suggest, access, ...(training ? { training } : {}) });
 }

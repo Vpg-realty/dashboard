@@ -5,7 +5,7 @@
 // the data endpoints use `granted` to let a given page's data through —
 // read-only; editing, grading and money stay with the roles that had them.
 import { refreshPods } from './pods.js';
-import { personAccess } from '../src/shell/access.js';
+import { personAccess, personScope, foldSuggest } from '../src/shell/access.js';
 
 const TTL = 60_000;
 let cache = { v: null, at: 0 };
@@ -13,18 +13,25 @@ let cache = { v: null, at: 0 };
 export async function loadAccess(db) {
   if (Date.now() - cache.at < TTL) return cache.v;
   try {
-    const row = await db.prepare("SELECT value FROM settings WHERE key = 'access'").first();
-    cache = { v: row ? JSON.parse(row.value) : null, at: Date.now() };
+    cache = { v: await readAccess(db), at: Date.now() };
   } catch { cache = { v: cache.v, at: Date.now() }; }
   return cache.v;
+}
+// The stored row with the old Suggestion Box list folded in (one read).
+export async function readAccess(db) {
+  const rows = (await db.prepare("SELECT key, value FROM settings WHERE key IN ('access', 'suggest_people')").all()).results;
+  const get = (k) => { const r = rows.find((x) => x.key === k); return r ? JSON.parse(r.value) : null; };
+  const v = foldSuggest(get('access'), get('suggest_people')?.emails);
+  return v && Object.keys(v).length ? v : null;
 }
 export const forgetAccess = () => { cache = { ...cache, at: 0 }; };
 
 // { give, take } for this person (nothing for owners, the TV, the build).
+// Phase 2: `scope` = { <area>: 'mine' | 'pod' | 'all' } — whose data.
 export async function accessFor(db, user) {
-  if (!user || !['manager', 'team', 'trainee', 'tc'].includes(user.role)) return { give: [], take: [] };
+  if (!user || !['manager', 'team', 'trainee', 'tc'].includes(user.role)) return { give: [], take: [], scope: personScope(null, user, []) };
   const [access, pods] = await Promise.all([loadAccess(db), refreshPods(db)]);
-  return personAccess(access, user, pods);
+  return { ...personAccess(access, user, pods), scope: personScope(access, user, pods) };
 }
 
 // Has this person been given any of these pages (beyond their role)?
