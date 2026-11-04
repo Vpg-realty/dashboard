@@ -1512,6 +1512,28 @@ this address before" line (`priorText`, src/alerts/kinds.js). No Claude
 cost. Usage: one keyed read + one write per new lead with an address, ~200
 keyed reads per deploy run for the deals (~20k a day).
 
+## Agent follow-up report (Luke, Nov 4)
+
+One-off: do agents in nurture (the 90-day message) or agents who replied only
+once / twice and went into a follow-up campaign ever turn into leads or closed
+deals? `server/agentReport.js` (definitions at the top: agent / nurture /
+follow-up tags, a reply = a round of their texts or calls until we answer,
+auto-replies / tapbacks / STOP left out, replies counted up to the first
+opportunity; contracted = Under Contract or later or "agent - contracted
+deal"; closed = Closed stage / won or "closed deal"), run by
+`scripts/agent-report.mjs` in `npm run snapshot` (~3 minutes per deploy, a
+few sub-accounts at a time; stops once all are in D1 settings `agent_report`
+for `REPORT_VERSION` — bump it to run again). Read only on GHL.
+Also (Luke, same day: "is it worth having so many messages go out"): agents
+still in an automation (nurture / engaged tag on, not do-not-automate, not
+DNC) by replies ever (0 / 1-2 / 3+) with messages sent to them; parked and
+DNC agents; tiers; outreach campaigns; time to first reply; how fast a
+person answered each reply and whether a lead followed in 30 days; reply
+rate by Arizona hour and weekday; automated texts by wording (sent, reply in
+3 days, STOP, lead in 14 days, top 40). Stored one row per sub-account
+(`agent_report:<location>`, D1 caps a statement at 100 KB) plus
+`agent_report` (progress) and `agent_report_total`.
+
 ## GHL backup (Luke, Nov 4)
 
 "a stored backup of every ghl sub account … weekly with daily contacts.
