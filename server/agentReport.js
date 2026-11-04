@@ -24,7 +24,7 @@
 //   closed       an opportunity in a Closed stage (or won), or "closed deal"
 import { isAutoReply, isGhlStop } from './messaging.js';
 
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2;
 const DAY = 86400_000;
 const AGENT_TAG = /^(agent\b|acquisitions - agent|workflow completed - agent)/;
 const NURTURE_NOW = 'agent - nurture';
@@ -49,8 +49,27 @@ export function replyRounds(msgs) {
   return out;
 }
 
-const empty = () => ({ agents: 0, leads: 0, contracted: 0, closed: 0, closedValue: 0 });
-const add = (s, a) => { s.agents++; if (a.lead) s.leads++; if (a.contracted) s.contracted++; if (a.closed) { s.closed++; s.closedValue += a.closedValue; } };
+const empty = () => ({ agents: 0, leads: 0, contracted: 0, closed: 0, closedValue: 0, sent: 0 });
+const add = (s, a) => { s.agents++; s.sent += a.sent || 0; if (a.lead) s.leads++; if (a.contracted) s.contracted++; if (a.closed) { s.closed++; s.closedValue += a.closedValue; } };
+const AUTO = /workflow|bulk|campaign|automation|trigger|drip|api|integration|zapier/i;
+const isManual = (m) => m.direction === 'outbound' && !!m.userId && !AUTO.test(m.source || '');
+const isCall = (m) => /CALL/i.test(m.messageType || '');
+const AZ = 7 * 3600_000;
+const STOPISH = /\b(remove me|stop (texting|messaging|contacting)|take me off|do not (text|contact)|don'?t (text|contact))\b/i;
+const realReply = (m) => m.direction === 'inbound' && (isCall(m) || !m.body || !(isAutoReply(m.body) || isGhlStop(m.body) || isTapback(m.body)));
+const isStop = (m) => m.direction === 'inbound' && !isCall(m) && (isGhlStop(m.body) || STOPISH.test(m.body || ''));
+const ACTIVE_BUCKETS = ['0', '1-2', '3+'];
+const activeOf = (n) => (n === 0 ? '0' : n <= 2 ? '1-2' : '3+');
+const DELAY = [['same day', DAY], ['2-7 days', 7 * DAY], ['8-30 days', 30 * DAY], ['31-90 days', 90 * DAY], ['90+ days', Infinity]];
+const SPEED = [['under 15 min', 15 * 60_000], ['15-60 min', 3600_000], ['1-4 hours', 4 * 3600_000], ['4-24 hours', DAY], ['over a day', Infinity]];
+const delayOf = (ms, table) => table.find(([, max]) => ms <= max)[0];
+const CAMPAIGNS = [[/mls 1m\+/, '1M+ outreach'], [/cash offer/, 'Cash offer outreach'], [/creative/, 'Creative outreach'], [/^agent outreach mls$/, 'MLS outreach (original)']];
+
+function templateKey(body, c) {
+  let t = String(body || '').toLowerCase();
+  for (const n of [c.firstName, c.lastName]) if (n && n.length > 1) t = t.split(String(n).toLowerCase()).join('{name}');
+  return t.replace(/https?:\/\/\S+/g, '{link}').replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().slice(0, 110);
+}
 
 export function analyzeLocation({ contacts, opps, pipelines, messages, label }) {
   const stageName = {};
@@ -70,13 +89,28 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
     oppsOf.get(cid).push(o);
   }
 
+  const groups = (keys) => Object.fromEntries(keys.map((b) => [b, empty()]));
   const out = {
     label, agents: 0,
     nurture: { now: empty(), past: empty(), ever: empty(), wokeUp: 0, neverReplied: 0 },
-    followUp: Object.fromEntries(BUCKETS.map((b) => [b, empty()])),
-    notFollowUp: Object.fromEntries(BUCKETS.map((b) => [b, empty()])),
+    followUp: groups(BUCKETS),
+    notFollowUp: groups(BUCKETS),
+    // Still being messaged by an automation (nurture / engaged tag on, not
+    // do-not-automate, not DNC), by how many times they've ever replied.
+    active: { nurture: groups(ACTIVE_BUCKETS), engaged: groups(ACTIVE_BUCKETS), any: groups(ACTIVE_BUCKETS) },
+    parked: empty(), // internal - do not automate
+    dnc: empty(),
+    tiers: groups(['tier 1', 'tier 2', 'tier 3', 'tier 4', 'no tier']),
+    campaigns: groups([...CAMPAIGNS.map(([, n]) => n), 'none']),
+    firstReply: groups([...DELAY.map(([n]) => n), 'never']),
+    speed: Object.fromEntries(SPEED.map(([n]) => [n, { rounds: 0, leads: 0 }])),
+    hours: Object.fromEntries(Array.from({ length: 24 }, (_, h) => [h, { sent: 0, replied: 0 }])),
+    days: Object.fromEntries(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => [d, { sent: 0, replied: 0 }])),
+    sent: { auto: 0, manual: 0, calls: 0 },
+    templates: {},
     examples: [],
   };
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   for (const c of contacts) {
     const tags = (c.tags || []).map((t) => String(t).toLowerCase());
     if (!tags.some((t) => AGENT_TAG.test(t))) continue;
@@ -84,19 +118,23 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
     const nurtureNow = tags.includes(NURTURE_NOW);
     const nurturePast = tags.some((t) => NURTURE_PAST.test(t));
     const engaged = tags.some((t) => ENGAGED.test(t));
+    const engagedNow = tags.includes('agent - engaged') || tags.includes('agent engaged - email preferred');
+    const parked = tags.includes('internal - do not automate');
+    const dnc = tags.includes('agent - dnc') || c.dnd === true;
     const follow = nurtureNow || nurturePast || engaged;
     const os = oppsOf.get(c.id) || [];
     const stages = os.map((o) => (o.status === 'won' ? 'closed' : stageName[o.pipelineStageId] || '').toLowerCase());
     const firstLead = os.length ? Math.min(...os.map((o) => Date.parse(o.createdAt || o.dateAdded) || Infinity)) : null;
     const closedOpps = os.filter((o, i) => /closed/.test(stages[i]) && o.status !== 'lost' && o.status !== 'abandoned');
+    const msgs = byContact.get(c.id) || [];
     const a = {
       lead: os.length > 0,
       contracted: tags.includes('agent - contracted deal') || stages.some((s) => /under contract|dispo|assigned|closed/.test(s)),
       closed: closedOpps.length > 0 || tags.includes('closed deal'),
       closedValue: closedOpps.reduce((t, o) => t + (Number(o.monetaryValue) || 0), 0),
+      sent: msgs.filter((m) => m.direction === 'outbound').length,
     };
     if (a.closed) a.contracted = true;
-    const msgs = byContact.get(c.id) || [];
     const rounds = replyRounds(msgs);
     const before = firstLead && Number.isFinite(firstLead) ? rounds.filter((t) => t < firstLead + DAY) : rounds;
     const n = before.length;
@@ -115,6 +153,60 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
         if (quietFrom && firstLead - quietFrom >= 60 * DAY) out.nurture.wokeUp++;
       }
     }
+    if (dnc) add(out.dnc, a);
+    else if (parked) add(out.parked, a);
+    else if (nurtureNow || engagedNow) {
+      const b = activeOf(rounds.length);
+      if (nurtureNow) add(out.active.nurture[b], a);
+      if (engagedNow) add(out.active.engaged[b], a);
+      add(out.active.any[b], a);
+    }
+    const tier = ['tier 1', 'tier 2', 'tier 3', 'tier 4'].find((t) => tags.includes(t)) || 'no tier';
+    add(out.tiers[tier], a);
+    const camp = CAMPAIGNS.filter(([re]) => tags.some((t) => re.test(t))).map(([, nm]) => nm);
+    for (const nm of camp.length ? camp : ['none']) add(out.campaigns[nm], a);
+    const firstOut = msgs.find((m) => m.direction === 'outbound');
+    if (firstOut) add(out.firstReply[rounds.length ? delayOf(Math.max(0, rounds[0] - Date.parse(firstOut.dateAdded)), DELAY) : 'never'], a);
+
+    // How fast a person on our side answered each reply, and whether a lead
+    // followed within 30 days.
+    for (const r of rounds) {
+      const next = msgs.find((m) => Date.parse(m.dateAdded) > r && isManual(m));
+      const k = next ? delayOf(Date.parse(next.dateAdded) - r, SPEED) : 'over a day';
+      out.speed[k].rounds++;
+      if (a.lead && firstLead >= r - DAY && firstLead - r <= 30 * DAY) out.speed[k].leads++;
+    }
+    // Every message we start (not the 2nd part of a burst): when it went,
+    // whether they wrote back within a day; automated texts by wording.
+    let prevOut = 0;
+    msgs.forEach((m, i) => {
+      if (m.direction !== 'outbound') return;
+      const at = Date.parse(m.dateAdded);
+      if (isCall(m)) out.sent.calls++; else if (isManual(m)) out.sent.manual++; else out.sent.auto++;
+      const starts = at - prevOut > 30 * 60_000;
+      prevOut = at;
+      if (!starts) return;
+      let reply = null; let stop = false;
+      for (let j = i + 1; j < msgs.length; j++) {
+        const x = msgs[j]; const t = Date.parse(x.dateAdded);
+        if (t - at > 3 * DAY) break;
+        if (isStop(x)) { stop = true; break; }
+        if (realReply(x)) { reply = t; break; }
+      }
+      const h = new Date(at - AZ);
+      const day = reply != null && reply - at <= DAY;
+      out.hours[h.getUTCHours()].sent++; if (day) out.hours[h.getUTCHours()].replied++;
+      out.days[DOW[h.getUTCDay()]].sent++; if (day) out.days[DOW[h.getUTCDay()]].replied++;
+      if (!isCall(m) && !isManual(m) && m.body) {
+        const k = templateKey(m.body, c);
+        const tp = (out.templates[k] ||= { sent: 0, replied: 0, stop: 0, leads: 0 });
+        tp.sent++;
+        if (reply != null) tp.replied++;
+        if (stop) tp.stop++;
+        if (a.lead && firstLead >= at && firstLead - at <= 14 * DAY) tp.leads++;
+      }
+    });
+
     if (a.lead && ((nurtureNow || nurturePast) || (follow && n <= 2)) && out.examples.length < 60) {
       out.examples.push({
         name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.contactName || c.id,
@@ -126,18 +218,28 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
       });
     }
   }
+  out.templates = topTemplates(out.templates, 40);
   return out;
+}
+
+const topTemplates = (t, n) => Object.fromEntries(Object.entries(t).filter(([, v]) => v.sent >= 20).sort((a, b) => b[1].sent - a[1].sent).slice(0, n));
+
+// Adds every number of `src` into `dst` (same shape, keys created as needed).
+function merge(dst, src) {
+  for (const [k, v] of Object.entries(src)) {
+    if (typeof v === 'number') dst[k] = (dst[k] || 0) + v;
+    else if (v && typeof v === 'object' && !Array.isArray(v)) merge((dst[k] ||= {}), v);
+  }
+  return dst;
 }
 
 // All sub-accounts added up.
 export function totalOf(locs) {
-  const t = { agents: 0, nurture: { now: empty(), past: empty(), ever: empty(), wokeUp: 0, neverReplied: 0 }, followUp: Object.fromEntries(BUCKETS.map((b) => [b, empty()])), notFollowUp: Object.fromEntries(BUCKETS.map((b) => [b, empty()])) };
-  const sum = (x, y) => { for (const k of Object.keys(x)) x[k] += y[k] || 0; };
+  const t = {};
   for (const l of locs) {
-    t.agents += l.agents;
-    for (const k of ['now', 'past', 'ever']) sum(t.nurture[k], l.nurture[k]);
-    t.nurture.wokeUp += l.nurture.wokeUp; t.nurture.neverReplied += l.nurture.neverReplied;
-    for (const b of BUCKETS) { sum(t.followUp[b], l.followUp[b]); sum(t.notFollowUp[b], l.notFollowUp[b]); }
+    const { label, examples, contacts, opps, messages, ...rest } = l; // eslint-disable-line no-unused-vars
+    merge(t, rest);
   }
+  if (t.templates) t.templates = topTemplates(t.templates, 60);
   return t;
 }

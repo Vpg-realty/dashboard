@@ -24,7 +24,7 @@ async function contactsOf(loc, pit) {
   for (let i = 0; i < 1000; i++) {
     const d = await ghlFetch('/contacts/search', pit, { method: 'POST', body: { locationId: loc, pageLimit: 100, sort: [{ field: 'dateAdded', direction: 'asc' }], ...(after ? { searchAfter: after } : {}) } });
     const page = d?.contacts || [];
-    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName })));
+    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName, dnd: c.dnd })));
     after = page[page.length - 1]?.searchAfter;
     if (page.length < 100 || !after) break;
   }
@@ -44,7 +44,7 @@ async function messagesOf(loc, pit) {
   const out = []; let cursor;
   for (let i = 0; i < 600; i++) {
     const d = await ghlFetch('/conversations/messages/export', pit, { params: { locationId: loc, startDate: '2015-01-01T00:00:00.000Z', endDate: new Date().toISOString(), limit: 1000, sortBy: 'createdAt', sortOrder: 'asc', ...(cursor ? { cursor } : {}) } });
-    out.push(...(d?.messages || []).map((m) => ({ contactId: m.contactId, direction: m.direction, dateAdded: m.dateAdded, body: m.body, messageType: m.messageType })));
+    out.push(...(d?.messages || []).map((m) => ({ contactId: m.contactId, direction: m.direction, dateAdded: m.dateAdded, body: m.body, messageType: m.messageType, source: m.source, userId: m.userId })));
     cursor = d?.nextCursor;
     if (!cursor || !d?.messages?.length) break;
   }
@@ -65,7 +65,7 @@ async function main() {
     return d.result[0].results;
   };
   let st = JSON.parse((await d1("SELECT value FROM settings WHERE key = 'agent_report'"))[0]?.value || '{}');
-  if (st.version !== REPORT_VERSION) st = { version: REPORT_VERSION, started: new Date().toISOString(), locs: {}, errors: {} };
+  if (st.version !== REPORT_VERSION) st = { version: REPORT_VERSION, started: new Date().toISOString(), done: [], errors: {} };
   if (st.finished) return;
   const pits = tokensFrom(secrets, process.env.GHL_TOKENS);
   const locs = Object.keys(pits).sort();
@@ -73,26 +73,32 @@ async function main() {
   try { subs = JSON.parse(fs.readFileSync(path.join(ROOT, 'subaccounts.json'), 'utf8')); } catch { subs = {}; }
   const repName = Object.fromEntries((subs.reps || []).map((r) => [r.id, r.name]));
   const labels = Object.fromEntries((subs.subaccounts || []).map((s) => [s.locationId, `${repName[s.repId] || s.repId} · ${s.marketId}`]));
-  const save = () => d1("INSERT INTO settings (key, value, updated_at, updated_by) VALUES ('agent_report', ?, ?, 'Agent report') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [JSON.stringify(st), new Date().toISOString()]);
+  // One small row per sub-account (agent_report:<location>) and this index —
+  // D1 caps a statement at 100 KB.
+  const put = (key, v) => d1("INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, 'Agent report') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [key, JSON.stringify(v), new Date().toISOString()]);
+  const save = () => put('agent_report', st);
   for (const loc of locs) {
-    if (st.locs[loc] || (st.errors[loc]?.tries || 0) >= 3) continue;
+    if (st.done.includes(loc) || (st.errors[loc]?.tries || 0) >= 3) continue;
     if (Date.now() - T0 > BUDGET_MS - 60_000) break;
     try {
       const pit = pits[loc];
       const [contacts, opps, pipelines] = await Promise.all([contactsOf(loc, pit), oppsOf(loc, pit), ghlFetch('/opportunities/pipelines', pit, { params: { locationId: loc } }).then((d) => d?.pipelines || [])]);
       const messages = await messagesOf(loc, pit);
-      st.locs[loc] = { ...analyzeLocation({ contacts, opps, pipelines, messages, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
+      const r = { ...analyzeLocation({ contacts, opps, pipelines, messages, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
+      await put(`agent_report:${loc}`, r);
+      st.done.push(loc);
       delete st.errors[loc];
-      log(`${labels[loc] || loc}: ${st.locs[loc].agents} agents, ${messages.length} messages`);
+      log(`${labels[loc] || loc}: ${r.agents} agents, ${messages.length} messages`);
     } catch (err) {
       st.errors[loc] = { msg: String(err.message).slice(0, 200), tries: (st.errors[loc]?.tries || 0) + 1 };
       log(`${loc}: ${err.message}`);
     }
     await save();
   }
-  if (locs.every((l) => st.locs[l] || (st.errors[l]?.tries || 0) >= 3)) {
+  if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+    const rows = await d1("SELECT value FROM settings WHERE key LIKE 'agent_report:%'");
+    await put('agent_report_total', totalOf(rows.map((r) => JSON.parse(r.value))));
     st.finished = new Date().toISOString();
-    st.total = totalOf(Object.values(st.locs));
     await save();
     log('finished');
   }
