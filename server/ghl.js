@@ -4,7 +4,7 @@
 const GHL_BASE = 'https://services.leadconnectorhq.com';
 const GHL_VERSION = '2021-07-28';
 
-async function ghlFetch(path, token, { params, body, method = 'GET', retries = 2 } = {}) {
+export async function ghlFetch(path, token, { params, body, method = 'GET', retries = 2 } = {}) {
   const url = new URL(GHL_BASE + path);
   if (params) for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
