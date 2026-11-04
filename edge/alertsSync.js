@@ -158,7 +158,12 @@ Set bank_hud true when the property is bank-owned / REO / a HUD home (it is stil
 
 Some items show an EARLIER LEAD this same agent already sent this same rep. Set same_as_earlier true when the new text is about that same property (a follow-up, more details, a price), false when it is clearly a different property, null when you can't tell. Without an earlier lead, null.
 
-DO NOT CONTACT (Luke, Nov 4): set dnc true when the person's last text asks us to stop contacting them or is hostile / aggressive — "don't text me again", "take me off your list", "how did you get my number", "leave me alone", threats, insults, profanity at the rep. A plain "no thanks", "not interested", "no deals right now" or "sold" is NOT dnc. When dnc is true, set lead false (stopping us wins over a lead), and put in dnc_reason at most 10 words on why (no names or numbers); otherwise dnc_reason null.
+DO NOT CONTACT (Luke, Nov 4 — "flag anyone and anything that could represent someone saying to not message them again … they would not be worth our time or the headache"): set dnc true when the person's last text could reasonably mean they don't want to hear from us again. When in doubt, flag it. That includes:
+- asking us to stop, in any words — "don't text me again", "take me off your list", "lose my number", "stop sending me these", "how did you get my number", "leave me alone";
+- being insulted or offended by an offer, or brushing us off to someone else — "go find someone else to accept offers like that", "don't waste my time with offers like that", "don't ever send me something like that again", "that's insulting", "try someone else", "not working with you guys";
+- any hostile or aggressive text — threats, insults, sarcasm or profanity aimed at the rep or VPG, "you people are a joke", "scammers".
+NOT dnc: a polite or neutral decline of one offer or property with no irritation and no push-off — "no thanks", "not interested in this one", "seller won't go that low", "no deals right now", "sold", "pending" — or a counter-offer.
+When dnc is true, set lead false (stopping us wins over a lead), and put in dnc_reason at most 10 words on why (no names or numbers); otherwise dnc_reason null.
 
 Return one verdict per item. For a lead: kind "address" (an address was sent) or "coming" (a deal is promised), the address as written (or null), and a summary of at most 12 words with no names or phone numbers.`;
 

@@ -1615,8 +1615,13 @@ does not trigger the dnc automation … alert … the rep assigned to the deal,
 the manager of that pod, and owners … only … if the dnc tag is not applied";
 the tag is **"agent - dnc"**, and "confirm if any dnc channels are checked";
 a stop message wins over a lead. No new Claude calls: the lead judge
-(`LEAD_SYSTEM` / `LEAD_SCHEMA`, edge/alertsSync.js) also answers `dnc` (asks
-us to stop, or hostile — "no thanks" / "sold" aren't) and `dnc_reason`; a
+(`LEAD_SYSTEM` / `LEAD_SCHEMA`, edge/alertsSync.js) also answers `dnc` and `dnc_reason`
+(widened later Nov 4 — Luke: "flag anyone and anything that could represent
+someone saying to not message them again": asking us to stop in any words,
+being insulted by an offer or pushing us off to someone else — "go find
+someone else to accept offers like that" — and any hostile / sarcastic text;
+when in doubt, flag; only a polite or neutral decline of one offer, "sold",
+"no deals right now" or a counter isn't); a
 dnc text is never a lead. Only GHL's own keywords sent alone (STOP,
 UNSUBSCRIBE, CANCEL, END, QUIT — `isGhlStop`, server/messaging.js) stay out
 of the judge; "remove me" / "stop texting me" now reach it. On a dnc text the
