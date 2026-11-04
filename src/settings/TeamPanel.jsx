@@ -237,6 +237,13 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, offTeam = [],
               <a {...linkProps(`/settings/commissions?person=${encodeURIComponent(key)}`)} className="text-[13px] text-navy-700 underline self-start">{isNew ? 'They start on the company rates — change them on Commissions →' : `Set ${first(d.name) || 'their'}’s rates on Commissions →`}</a>
             </Part>
           )}
+          {!isNew && d.status !== 'inactive' && !['owner', 'tv'].includes(u?.role) && (
+            <Part title="Development Plan" note="owners only">
+              {/* Luke, Nov 4: owners start a plan; the person (and their pod
+                  lead) then get the Development Plan tab. */}
+              <a {...linkProps(`/team/plan?new=${encodeURIComponent(u.email)}`)} className="text-[13px] text-navy-700 underline self-start">Start or open {first(d.name) || 'their'}’s development plan →</a>
+            </Part>
+          )}
           {sales && d.status !== 'inactive' && (
             <Part title="TV Board" note="the office TV and Team Overview">
               {u?.rep_id || take.size ? <Pills value={tv} onChange={setTv} options={[[true, 'Show on the TV'], [false, 'Leave off']]} />

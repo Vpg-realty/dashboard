@@ -6,6 +6,7 @@ import { currentUser, json } from '../../edge/auth.js';
 import { loadProgram, statusOf } from '../../edge/training.js';
 import { refreshPods } from '../../edge/pods.js';
 import { canSuggestDb } from '../../edge/suggestions.js';
+import { hasPlanPage } from '../../edge/devPlans.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -38,5 +39,9 @@ export async function onRequestGet(context) {
   const suggest = await canSuggestDb(context.env.DB, user);
   // Settings › Access (Nov 3): the pages given / taken for this person.
   const access = { give: user.grant || [], take: user.take || [], scope: user.scope || null };
+  // Development plans (Nov 4): the tab opens for someone with an active plan
+  // and for a pod lead with one in their pod (owners have it by role). One
+  // small read of the active plans.
+  if (user.role !== 'owner' && await hasPlanPage(context.env.DB, user)) access.give = [...access.give, 'team/plan'];
   return json({ ...user, teamChat, pods, suggest, access, ...(training ? { training } : {}) });
 }
