@@ -17,7 +17,10 @@ import { PANEL_HEAD } from '../shell/panelStyle.js';
 const round = (n) => Math.round(Number(n) * 100) / 100;
 
 // part = null → pick which commission (an "Add a payout" on a part that's 0).
-export default function PayoutEditor({ dealId, part: start, onClose, lockedParts = [] }) {
+// onOther(dealId): "Other payment" isn't a commission — it hands over to the
+// Other Payments form with this deal filled in (Luke, Nov 4: picking it here
+// failed with "undefined can't be set"). Without onOther it isn't offered.
+export default function PayoutEditor({ dealId, part: start, onClose, lockedParts = [], onOther }) {
   const s = useDeals();
   const raw = s.deals.find((d) => d.id === dealId);
   const [part, setPart] = useState(start);
@@ -44,6 +47,7 @@ export default function PayoutEditor({ dealId, part: start, onClose, lockedParts
   if (!raw) return null;
 
   const pick = (p) => {
+    if (p === 'extra') { if (onOther) onOther(dealId); return; }
     setPart(p);
     const c = parts.find((x) => x.part === p);
     setWho(c?.who || null);
@@ -72,7 +76,7 @@ export default function PayoutEditor({ dealId, part: start, onClose, lockedParts
         <div className="p-5 grid gap-3 text-[13.5px]">
           <label className="grid gap-1"><span className={lbl}>Commission</span>
             <SearchSelect value={part} onChange={(v) => v && pick(v)} clearable={false} sort={false} disabled={!!start}
-              options={Object.entries(PARTS).filter(([k]) => !lockedParts.includes(k) || k === start).map(([k, v]) => ({ value: k, label: v }))} placeholder="Pick one" />
+              options={Object.entries(PARTS).filter(([k]) => (k !== 'extra' || onOther) && (!lockedParts.includes(k) || k === start)).map(([k, v]) => ({ value: k, label: v }))} placeholder="Pick one" />
           </label>
           {part && <>
             <label className="grid gap-1"><span className={lbl}>Paid to {cur?.rule && <span className="text-zinc-400">· the rules say {cur.rule}</span>}</span>

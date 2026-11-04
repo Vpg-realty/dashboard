@@ -196,13 +196,13 @@ function TcMonths({ months, run, pay, busy, onOpen, today }) {
 // she received an additional 1% … a general payment with a note as to what it
 // was and why"). Adding it is the approval; it can be changed or removed
 // until money goes out on it.
-function ExtraDialog({ line, payees, deals, onClose }) {
+function ExtraDialog({ line, deal, payees, deals, onClose }) {
   const [who, setWho] = useState(line?.who || '');
   // Someone not in the tracker (Luke, Oct 30): type the name in.
   const [typing, setTyping] = useState(!!line?.who && !payees.includes(line.who));
   const [amount, setAmount] = useState(line ? String(line.amount) : '');
   const [note, setNote] = useState(line?.note || '');
-  const [dealId, setDealId] = useState(line?.dealId || null);
+  const [dealId, setDealId] = useState(line?.dealId || deal || null);
   const [on, setOn] = useState(line?.coe || laToday());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -476,8 +476,8 @@ export default function PayoutsView({ embedded = false }) {
           {comingRows.length ? <LineTable rows={comingRows} coming onOpen={open} run={run} busy={busy} /> : <div className="px-5 py-8 text-center text-zinc-500">No assigned deals with a price yet.</div>}
         </section>
       )}
-      {editing && <PayoutEditor dealId={editing.id} part={editing.part} lockedParts={editing.have || []} onClose={() => setEditing(null)} />}
-      {extra && <ExtraDialog line={extra.line} payees={f.payees} deals={f.deals} onClose={() => setExtra(null)} />}
+      {editing && <PayoutEditor dealId={editing.id} part={editing.part} lockedParts={editing.have || []} onClose={() => setEditing(null)} onOther={(id) => { setEditing(null); setExtra({ deal: id }); }} />}
+      {extra && <ExtraDialog line={extra.line} deal={extra.deal} payees={f.payees} deals={f.deals} onClose={() => setExtra(null)} />}
       {paying && <PayDialog lines={paying.lines} title={paying.title} onClose={() => setPaying(null)} onDone={() => setPaying(null)} />}
       {panel}
     </div>

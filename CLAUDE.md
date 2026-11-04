@@ -3355,7 +3355,11 @@ the approval records who).
   Deals "Other payments" column follow); The Money's breakdown lists each
   one. A payment with no deal never touches any deal. It never changes the
   deal's Commission paid. "Paid to" can be anyone in the tracker or a name
-  typed in ("✎ Someone else"). Paid lists every payment
+  typed in ("✎ Someone else"). **From a deal card** (Luke, Nov 4: picking "Other
+  payment" in a deal's "+ Add a Payout" failed with "undefined can't be
+  set" — the payout editor only saves commissions): that choice opens the
+  Other Payments form with the deal filled in (PayoutEditor `onOther`); the
+  deal panel's payout editor doesn't offer it. Paid lists every payment
   (a part is its own row); Statements count parts as paid and list other
   payments by their date. Usage: two tiny tables read per Finance load.
 - **Lines** (`src/finance/lines.js`, shared by the pages and the server):
