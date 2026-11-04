@@ -14,9 +14,10 @@ import { tcTaskOf, tickTcTask, removeTcTask } from './tcTasks.js';
 import { getPods } from './pods.js';
 import { podFor, podMates } from '../src/shell/access.js';
 
-export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead' };
+export const KINDS = { task: 'Task', ghl: 'GHL task', checkin: '30-day check-in', lead: 'Lead spotted', deal: 'Deal deadline', dupe: 'Duplicate lead', dnc: 'Do not contact' };
 // Kinds that also ring the holder's pod lead and the owners.
-const SHARED = new Set(['lead', 'deal', 'dupe']);
+// dnc (Nov 4): rings the rep, their pod lead and the owners, like a lead.
+const SHARED = new Set(['lead', 'deal', 'dupe', 'dnc']);
 // The TC sees tasks only — the ones added on the site (Luke, Oct 28: "it
 // would only be tasks … created on the site such as POF letter updates,
 // property needs, follow ups with title"): no leads, duplicates, GHL tasks
@@ -231,7 +232,7 @@ export async function countFor(db, user, today, nowHM = azHM()) {
   const scope = scopeOf(user);
   const [mine, leads, seen, marked] = await Promise.all([
     db.prepare(`SELECT id, holder, kind, due, due_time, created_at, done_at, cat FROM alerts WHERE holder = ? AND done_at IS NULL${tasksOnly(user) ? " AND kind = 'task'" : ''}`).bind(scope.me).all(),
-    tasksOnly(user) ? { results: [] } : db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe') AND done_at IS NULL").all(),
+    tasksOnly(user) ? { results: [] } : db.prepare("SELECT id, holder, kind, due, due_time, created_at, done_at FROM alerts WHERE kind IN ('lead', 'deal', 'dupe', 'dnc') AND done_at IS NULL").all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     // What this person has ticked off themself (index alert_marks_who).
     db.prepare(`SELECT alert_id FROM alert_marks WHERE who IN (${scope.keys.map(() => '?').join(', ')})`).bind(...scope.keys).all(),

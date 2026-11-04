@@ -33,8 +33,11 @@ const KIND = {
   deal: { label: 'Deal deadline', tag: 'bg-red-100 text-[#B42318]', icon: '!', bg: 'bg-red-100 text-[#B42318]' },
   // Luke, Oct 19: the same address sent to more than one rep.
   dupe: { label: 'Duplicate lead', tag: 'bg-orange-100 text-orange-800', icon: '⇄', bg: 'bg-orange-100 text-orange-700' },
+  // Luke, Nov 4: a text asking us to stop, or a hostile one, with no DNC
+  // tag / DND in GHL yet.
+  dnc: { label: 'Do not contact', tag: 'bg-red-100 text-[#B42318]', icon: '⛔', bg: 'bg-red-100 text-[#B42318]' },
 };
-const SHARED = new Set(['lead', 'deal', 'dupe']);
+const SHARED = new Set(['lead', 'deal', 'dupe', 'dnc']);
 // Lead types (Luke, Oct 22): Hot / Warm / Cold / Wholesale / Not a lead.
 // Each person grades a lead themself — that's their review; the latest grade
 // colours the row for everyone. Ungraded leads stay purple.
@@ -44,6 +47,7 @@ const TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
 const RAIL = [
   { id: 'leads', label: 'Leads Spotted', sub: 'Claude read agents’ texts' },
   { id: 'dupes', label: 'Duplicate Leads', sub: 'Same lead sent to more than one rep' },
+  { id: 'dnc', label: 'Do Not Contact', sub: 'Asked us to stop · tag them DNC' },
   { id: 'tasks', label: 'Tasks', sub: 'From GHL and the site' },
   { id: 'checkins', label: 'Check-ins', sub: 'Abandoned 30+ days' },
   // Development goals and points of improvement (Luke, Nov 3) — kept apart
@@ -59,6 +63,7 @@ const LATER = [
 const PICK = {
   leads: (a) => a.kind === 'lead',
   dupes: (a) => a.kind === 'dupe',
+  dnc: (a) => a.kind === 'dnc',
   tasks: (a) => (a.kind === 'task' && !isCoaching(a)) || a.kind === 'ghl' || a.kind === 'deal',
   dev: (a) => isCoaching(a),
   checkins: (a) => a.kind === 'checkin',
@@ -111,7 +116,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
   const cat = isCoaching(a) ? TASK_CAT[a.cat] : null;
   const k = a.kind === 'dupe' && a.hint === 'potential' ? { ...KIND.dupe, label: 'Potential duplicate' } : cat ? { label: cat.label, tag: cat.chip, icon: cat.icon, bg: cat.bg } : KIND[a.kind] || KIND.task;
   const url = linkOf(a);
-  const whose = a.holder !== me && a.kind !== 'lead' && a.kind !== 'dupe' ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
+  const whose = a.holder !== me && a.kind !== 'lead' && a.kind !== 'dupe' && a.kind !== 'dnc' ? names[a.holder] || REPS.find((r) => r.id === a.holder)?.name || a.holder : null;
   // Done for this person: their own review (an owner's: the owners'), or
   // closed for everyone.
   const mine = (a.marks || []).find((m) => keys.includes(m.who));
@@ -123,7 +128,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
   const refs = dupeRefs(a);
   // The rep and sub-account it came from, as a box next to the address
   // ("Sam · WA", Luke, later Oct 22); a duplicate shows one per rep.
-  const tags = a.kind === 'lead' ? [subTag(a.sub)].filter(Boolean)
+  const tags = a.kind === 'lead' || a.kind === 'dnc' ? [subTag(a.sub)].filter(Boolean)
     : a.kind === 'dupe' ? refs.map((r) => subTag(r.sub)).filter(Boolean) : [];
   return (
     <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${type ? `border-l-4 ${type.row}` : ''} ${isNew && !done && !type ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-75' : ''}`}>
@@ -137,6 +142,14 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
       <span className={`w-[30px] h-[30px] rounded-lg grid place-items-center text-[15px] ${k.bg}`} aria-hidden="true">{k.icon}</span>
       <div className="min-w-0">
         {/* The address first (Luke, Oct 22), or that none was given. */}
+        {/* Do not contact (Nov 4): who it came from and the rep's box. */}
+        {a.kind === 'dnc' && (
+          <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {tags.map((t, i) => <SubTag key={i} t={t} />)}
+            <span className="text-[13.5px] font-bold text-navy-900">{a.agent_name || 'Contact'}</span>
+            <span className="text-[13px] text-zinc-600">· texted {ago(a.created_at)}</span>
+          </div>
+        )}
         {(a.kind === 'lead' || a.kind === 'dupe') && (
           <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             {tags.map((t, i) => <SubTag key={i} t={t} arrow={i > 0} />)}
@@ -420,7 +433,7 @@ export default function AlertsView() {
       <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-5">
         <nav aria-label="Alert lists" className="lg:sticky lg:top-2 self-start flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
           <div className="hidden lg:block px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Inbox</div>
-          {RAIL.filter((r) => !tasksOnly || r.id === 'tasks').map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={tasksOnly ? 'Added on the site' : r.sub} n={count(r.id)} red={r.id === 'leads'} onClick={() => setQuery({ view: r.id === homeView ? null : r.id, type: null })} />)}
+          {RAIL.filter((r) => !tasksOnly || r.id === 'tasks').map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={tasksOnly ? 'Added on the site' : r.sub} n={count(r.id)} red={r.id === 'leads' || r.id === 'dnc'} onClick={() => setQuery({ view: r.id === homeView ? null : r.id, type: null })} />)}
           <div className="hidden lg:block px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Later</div>
           {LATER.map((r) => <RailButton key={r.id} on={view === r.id} label={r.label} sub={r.sub} n={count(r.id)} onClick={() => setQuery({ view: r.id, type: null })} />)}
         </nav>

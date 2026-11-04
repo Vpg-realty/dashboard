@@ -32,7 +32,7 @@ export const refLink = (r) => ghlConvUrl(r.sub, r.conv) || ghlContactUrl(r.sub, 
 
 export function linkOf(a) {
   if (a.kind === 'dupe') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
-  if (a.kind === 'lead') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
+  if (a.kind === 'lead' || a.kind === 'dnc') return ghlConvUrl(a.sub, a.conv) || ghlContactUrl(a.sub, a.contact);
   // Check-ins open the agent's conversation (the contact page), not the
   // opportunity (Luke, Oct 22).
   if (a.kind === 'checkin') return ghlContactUrl(a.sub, a.contact) || ghlOppUrl(a.sub, a.opp);
