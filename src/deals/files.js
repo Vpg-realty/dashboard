@@ -2,7 +2,7 @@
 // deal … a 'claude review' section where it can give all the key information
 // we need and propose information to fill in when ready"). Shared by the deal
 // panel's Files tab (DealFiles.jsx) and the server (edge/dealFiles.js).
-import { FIELD } from './math.js';
+import { FIELD, addrKeys, isBlank } from './math.js';
 
 // What a file is — picked on upload (guessed from its name), changed in the
 // list, and filled in by Claude when it reads one still marked by the guess.
@@ -44,15 +44,47 @@ export const readable = (f) => f.mime === PDF || (IMAGE_TYPES.includes(f.mime) &
 
 // The fields Claude may propose — what a document can say. Never the stage
 // (set from GHL and its own pop-ups), the people, the calculated columns or
-// Finance's.
+// Finance's — nor what the team types in by hand (Luke, Nov 4: "the contract
+// will always say vpg pays em, but we are entering when it is paid and paid by
+// who, not who is responsible for it"): listing (on / off market), EMD paid
+// by and EMD sent on.
 export const PROPOSE_KEYS = [
-  'address', 'accepted', 'coe', 'price', 'dealType', 'listing', 'state',
+  'address', 'accepted', 'coe', 'price', 'dealType', 'state',
   'title', 'escrow',
-  'emd', 'buyerEmd', 'optionFee', 'cfar', 'emdSent', 'emdPaidBy',
+  'emd', 'buyerEmd', 'optionFee', 'cfar',
   'ddDays', 'ddEndTime', 'ddEndTz',
   'buyer', 'vpgAssign', 'finalAssign',
   'addlFees', 'closingCosts', 'wireReceived', 'wireDate',
 ];
+// The tracker already says it (Luke, Nov 4: "if the title company is close or
+// matches what we have, dont propose an update. if the same info is there then
+// keep it as is"): numbers to the cent, dates / choices exactly, the address
+// by house number + street, and names (title, buyer, escrow #) when one's
+// words are all in the other or most of them match — "Fidelity National Title
+// · Jane Doe jane@x.com" = "Fidelity National Title Agency".
+const FILLER = new Set(['title', 'titles', 'company', 'co', 'agency', 'escrow', 'escrows', 'llc', 'inc', 'corp', 'corporation', 'ltd', 'the', 'of', 'and', 'services', 'service', 'group', 'insurance', 'national', 'file', 'no', 'number']);
+const words = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9@.\s]/g, ' ').split(/\s+/).filter((w) => w && !FILLER.has(w) && !w.includes('@'));
+export function alreadyHas(key, proposed, current) {
+  if (isBlank(current)) return false;
+  if (typeof proposed === 'number' && typeof current === 'number') return Math.abs(proposed - current) < 0.005;
+  const a = String(proposed ?? '').trim().toLowerCase();
+  const b = String(current ?? '').trim().toLowerCase();
+  if (a === b) return true;
+  if (key === 'address') {
+    const ka = addrKeys(a);
+    return ka.length > 0 && addrKeys(b).some((k) => ka.includes(k));
+  }
+  if (key === 'title' || key === 'buyer' || key === 'escrow') {
+    const wa = words(a).slice(0, 6);
+    const wb = words(b).slice(0, 6);
+    if (!wa.length || !wb.length) return false;
+    const [short, long] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+    const hit = short.filter((w) => long.includes(w)).length;
+    return hit === short.length || hit / short.length >= 0.6;
+  }
+  return false;
+}
+
 export const proposable = (key, owner) => PROPOSE_KEYS.includes(key) && (owner || !FIELD[key]?.secret);
 
 export const fileSize = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);

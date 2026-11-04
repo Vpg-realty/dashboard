@@ -18,7 +18,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { MODEL, costOf } from './chat.js';
 import { FIELD, isBlank, stageOf } from '../src/deals/math.js';
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
-import { KIND_KEYS, KIND_LABEL, PROPOSE_KEYS, PDF, readable } from '../src/deals/files.js';
+import { KIND_KEYS, KIND_LABEL, PROPOSE_KEYS, PDF, readable, alreadyHas } from '../src/deals/files.js';
 import { clean, isOwner, isRepView } from './deals.js';
 
 // What reps and managers may open (Luke, Oct 27: "dont allow reps to upload,
@@ -266,9 +266,9 @@ const REVIEW_SYSTEM = (lists) => `${ABOUT}
 You review a deal's whole file for VPG's owners and transaction coordinator. You get the deal as the tracker has it now, its stage, today's date, and what was read from each file (with its id and when it was added). Write:
 - headline: one line on where the file stands (e.g. "Contract, addendum and EMD receipt on file — no assignment yet").
 - keyInfo: up to 14 items { label, value, file, secret } — what the team needs at a glance, from the documents (the latest addendum wins): purchase price, acceptance date, closing date, inspection period and when it ends, EMD amount / due date / who holds it, title company and file number, assignment price / fee, the buyer's EMD, special terms or contingencies, the seller. file = the id of the file it comes from ('' when it's from several). secret = true when it names or identifies the end buyer / assignee.
-- issues: up to 8 { level, text, secret } — red: needs action or contradicts (the tracker says X but the latest document says Y; an unsigned contract; a document for a different address; a deadline already passed); amber: worth checking.
+- issues: up to 8 { level, text, secret } — red: needs action or contradicts (the tracker says X but the latest document says Y; an unsigned contract; a document for a different address; a deadline already passed); amber: worth checking. Never raise who paid the earnest money, when it was sent or on / off market as an issue — the contract names who is responsible, the team records who actually paid.
 - missing: documents expected by this stage that aren't in the files — Under Contract: purchase contract, then the EMD receipt; Dispo Active: the same; Assigned: also the assignment contract and the buyer's EMD receipt; Closed: also the settlement statement and the wire confirmation. Short names; empty when nothing is missing.
-- proposals: tracker fields to fill in or correct, { key, value, file, why } — only when a document states the value AND the tracker is blank or different. The latest addendum wins over the contract. why = 14 words or fewer. Formats and fields:
+- proposals: tracker fields to fill in or correct, { key, value, file, why } — only when a document states the value AND the tracker is blank or really different. When the tracker already has the same thing in other words (the same title company, perhaps without the officer or with a slightly different name; the same address written differently), propose nothing — keep what the team typed. Who paid the earnest money, when it was sent and whether the property was listed are entered by hand and are never proposed. The latest addendum wins over the contract. why = 14 words or fewer. Formats and fields:
 ${fieldGuide(lists)}
 Plain words, short. Never name the end buyer / assignee outside a buyer proposal or an item marked secret.`;
 
@@ -309,7 +309,7 @@ export async function reviewDeal(env, deal, files, lists, today) {
   const proposals = [];
   for (const p of out.proposals || []) {
     const value = toValue(p.key, p.value, lists);
-    if (value == null || seen.has(p.key) || sameValue(value, deal[p.key])) continue;
+    if (value == null || seen.has(p.key) || sameValue(value, deal[p.key]) || alreadyHas(p.key, value, deal[p.key])) continue;
     seen.add(p.key);
     proposals.push({ key: p.key, value, from: deal[p.key] ?? null, file: fileOf(p.file), why: clip(p.why, 140), secret: !!FIELD[p.key].secret });
   }

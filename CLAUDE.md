@@ -2330,6 +2330,15 @@ no readings.
   **Fill In** puts the ticked ones into the deal as unsaved edits (Details tab,
   "✦ Claude" on each field, a banner) — nothing is saved until Save, so the
   normal checks, history and GHL pushes apply.
+- **Manual fields and matches stay as they are** (Luke, Nov 4: "the
+  contract will always say vpg pays em, but we are entering when it is paid
+  and paid by who … if the title company is close or matches what we have,
+  dont propose an update"): listing (on / off market), EMD paid by and EMD
+  sent on left `PROPOSE_KEYS` and Claude is told not to raise them as issues;
+  `alreadyHas` (src/deals/files.js, used by reviewDeal and the panel, so older
+  reviews follow too) drops a proposal the tracker already has in other words
+  — the same address by `addrKeys`, a title company / buyer / escrow # whose
+  words (minus title / company / agency / LLC …, emails) all or mostly match.
 - **Claude reads only the files picked** (Luke, Oct 27: "a read button next
   to each document that we can select so that not everything is reviewed"):
   an upload is stored, not read. Each unread PDF / photo has **✦ Read ·
