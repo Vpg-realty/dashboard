@@ -89,6 +89,7 @@ html, body, #root {
 }
 
 /* Welcome splash (src/shell/Welcome.jsx): the V mark sweeps in, text rises. */
+@keyframes ipPop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vpg-sweep-a { from { transform: translateY(-40%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vpg-sweep-b { from { transform: translateX(35%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vpg-rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }

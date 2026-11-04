@@ -42,6 +42,7 @@ import { useLocation, navigate, linkProps } from './router.js';
 import HomeView from './HomeView.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import Welcome from './Welcome.jsx';
+import IpPopups from './IpPopups.jsx';
 import PeopleView from '../settings/PeopleView.jsx';
 import AccessView from '../settings/AccessView.jsx';
 import RulesView from '../settings/RulesView.jsx';
@@ -327,6 +328,8 @@ export default function AppShell({ me }) {
       <CelebrationBanner />
       <CommandPalette open={palette} onClose={() => setPalette(false)} role={role} extra={extra} acc={acc} />
       {!me.viewAs && <Welcome me={me} />}
+      {/* IP ends today — pop-ups top right (Luke, Nov 4). */}
+      <IpPopups me={me.viewAs ? { ...me, email: `viewas:${me.email}` } : me} />
       {(section.id === 'territory' || section.id === 'zips') && <AskClaude page={section.id === 'zips' || tab?.id === 'holds' || tab?.id === 'health' ? 'zips' : 'territory'} />}
     </div>
   );
