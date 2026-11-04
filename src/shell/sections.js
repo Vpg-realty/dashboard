@@ -140,6 +140,9 @@ export const SECTIONS = [
       // while they (or, for a pod lead, someone in their pod) have an active
       // plan — /api/me adds 'team/plan' to access.give (edge/devPlans.js).
       { id: 'plan', label: 'Development Plan', view: 'dev-plan', scroll: true, roles: ['owner'] },
+      // Google reviews (Luke, Nov 4): $20 a review to the rep it names, 5 a
+      // month — owners only (it makes payments); src/reviews/.
+      { id: 'reviews', label: 'Reviews', view: 'reviews', scroll: true, roles: ['owner'] },
     ],
   },
   {

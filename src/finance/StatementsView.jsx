@@ -4,7 +4,7 @@
 // a new window) and CSV.
 import { useMemo } from 'react';
 import { useFinance } from './store.js';
-import { METHODS, lineAmount, partLabel, sum, isExtra } from './lines.js';
+import { METHODS, lineAmount, partLabel, sum, isExtra, isBonus, BONUS_KIND } from './lines.js';
 import { StatusPill, MoneyTile, FinanceHead } from './ui.jsx';
 import { Loading } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, downloadCsv } from '../deals/format.js';
@@ -25,8 +25,8 @@ const statusText = (l) => (l.status === 'paid' ? 'Paid' : l.paidSoFar > 0 ? 'Par
 // What was paid on a line so far (all of it once paid).
 const paidOf = (l) => (l.status === 'paid' ? lineAmount(l) : l.paidSoFar || 0);
 // Other payments read by what they were for.
-const what = (l) => (isExtra(l) ? (l.address ? `${l.note} · ${l.address}` : l.note) : l.address);
-const forText = (l) => (isExtra(l) ? 'Other payment' : partLabel(l.part));
+const what = (l) => (isExtra(l) ? (l.address ? `${l.note} · ${l.address}` : l.note) : isBonus(l) ? l.note : l.address);
+const forText = (l) => (isExtra(l) ? 'Other payment' : isBonus(l) ? BONUS_KIND[l.kind] || 'Bonus' : partLabel(l.part));
 
 function printStatement({ who, period, rows, totals }) {
   const w = window.open('', '_blank');
@@ -91,7 +91,7 @@ export default function StatementsView() {
               <tbody>
                 {rows.map((l, i) => (
                   <tr key={l.key} className="border-t border-[#E5E9F0]" style={i % 2 ? { background: '#F8FAFC' } : undefined}>
-                    <td className="pl-5 px-2.5 py-2 min-w-[260px]">{isExtra(l) ? <span className="text-navy-800">{l.note}{l.dealId && <> · <button type="button" onClick={() => open(l.dealId)} className="font-semibold hover:underline underline-offset-2">{l.address}</button></>}</span>
+                    <td className="pl-5 px-2.5 py-2 min-w-[260px]">{isBonus(l) ? <span className="text-navy-800">{l.note}</span> : isExtra(l) ? <span className="text-navy-800">{l.note}{l.dealId && <> · <button type="button" onClick={() => open(l.dealId)} className="font-semibold hover:underline underline-offset-2">{l.address}</button></>}</span>
                       : <button type="button" onClick={() => open(l.dealId)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{l.address}</button>}</td>
                     <td className="px-2.5 py-2 whitespace-nowrap">{shortDate(l.coe)}</td>
                     <td className="px-2.5 py-2">{forText(l)}</td>

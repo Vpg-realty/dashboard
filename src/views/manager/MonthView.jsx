@@ -12,9 +12,12 @@ import { laToday, shortDate } from '../../utils/historyRange.js';
 import ManagerFrame from './ManagerFrame.jsx';
 import { paceClsFrac } from './metrics.js';
 import { Tile as SiteTile } from '../../shell/Tile.jsx';
+import { useMe } from '../../utils/dashApi.js';
+import AwardsToFinance from './AwardsToFinance.jsx';
+import { monthAwards } from './awards.js';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
-  repColor, firstName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts, addedContracts,
+  repColor, firstName, repName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts, addedContracts,
 } from './monthReview.js';
 
 const money = (v) => (Math.abs(v) >= 100000 ? `$${Math.round(v / 1000)}K` : formatCompactCurrency(v));
@@ -79,6 +82,8 @@ export default function MonthView() {
   const thisMonth = today.slice(0, 7);
   const mo = pick || (months.some((m) => m.value === thisMonth) ? thisMonth : months[0]?.value || thisMonth);
   const [tab, setTab] = useState('contracts');
+  const me = useMe();
+  const owner = me?.role === 'owner' && !me.viewAs;
 
   const cur = monthTotals(entries, mo);
   const pm = prevMonth(mo);
@@ -120,13 +125,16 @@ export default function MonthView() {
   const cancelNote = `vs ${cur.team.contracts} contracts signed`;
   const pmNote = prev.empty ? `no ${pmLabel} on file` : `${pmLabel} not recorded`;
 
-  const firstContract = ev.contracts[0] || null;
+  // The two cash prizes go to people who count toward the team (Nov 4 —
+  // the same rule as the team totals; Dale isn't on the team).
+  const firstContract = ev.contracts.find((e) => onTeam(e.rep)) || null;
   const biggest = ev.closings.reduce((a, e) => (!a || e.value > a.value ? e : a), null);
 
   const rows = Object.entries(cur.byRep)
     .map(([id, r]) => ({ id, ...r }))
     .sort((a, b) => b.contracts - a.contracts || b.revenue - a.revenue || b.closed - a.closed);
-  const lead = { contracts: leaders(cur.byRep, 'contracts'), closed: leaders(cur.byRep, 'closed'), revenue: leaders(cur.byRep, 'revenue'), offers: leaders(cur.byRep, 'offers'), opps: leaders(cur.byRep, 'opps') };
+  const teamByRep = Object.fromEntries(Object.entries(cur.byRep).filter(([id]) => onTeam(id)));
+  const lead = { contracts: leaders(teamByRep, 'contracts'), closed: leaders(cur.byRep, 'closed'), revenue: leaders(cur.byRep, 'revenue'), offers: leaders(cur.byRep, 'offers'), opps: leaders(cur.byRep, 'opps') };
   const isLead = (k, id) => lead[k]?.ids.includes(id);
 
   const coverage = [
@@ -156,6 +164,7 @@ export default function MonthView() {
           <Tile label="Opps opened" v={cur.team.opps} prev={pv('opps')} target={tt.opps} frac={frac} sub={pmLabel} note={pmNote} na={na('opps')} />
         </div>
 
+        <div className="grid gap-2">
         <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr_1fr] gap-3">
           <Award icon="🥇" title="First contract of the month" prize={50} note={firstContract && !covered && !firstContract.manual ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
             {firstContract ? (
@@ -177,6 +186,9 @@ export default function MonthView() {
               </div>
             ) : <NotTracked state={logState} since={since} />}
           </Award>
+        </div>
+        {owner && <AwardsToFinance month={mo} label={monthLabel(`${mo}-01`)} isCurrent={isCurrent}
+          awards={monthAwards({ first: firstContract, most: na('contracts') ? null : lead.contracts, label: monthLabel(`${mo}-01`), nameOf: repName })} />}
         </div>
 
         <div className="grid grid-cols-[1.35fr_1fr] gap-3 min-h-0">
