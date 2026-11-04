@@ -103,3 +103,7 @@ export const chatAsk = (page, question) => call('chat', jsonBody('POST', { page,
 export const chatSetCap = (cap) => call('chat', jsonBody('PATCH', { cap }));
 export const chatRemember = (text) => call('chat/memory', jsonBody('POST', { text }));
 export const chatForget = (id) => call(`chat/memory?id=${id}`, { method: 'DELETE' });
+
+// GHL backup (Settings › Backups, owners — functions/api/backups).
+export const loadBackups = () => call('backups');
+export const backupUrl = (key) => `${BASE}api/backups?key=${encodeURIComponent(key)}`;

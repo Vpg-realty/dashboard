@@ -1512,6 +1512,50 @@ this address before" line (`priorText`, src/alerts/kinds.js). No Claude
 cost. Usage: one keyed read + one write per new lead with an address, ~200
 keyed reads per deploy run for the deals (~20k a day).
 
+## GHL backup (Luke, Nov 4)
+
+"a stored backup of every ghl sub account … weekly with daily contacts.
+message history is all of it, and owners only". Every sub-account the site
+has a PIT for (`tokensFrom` — the Dispo / blank / other agency sub-accounts
+without a key aren't in it). Rules and file names: `server/backup.js`;
+runner: `scripts/backup-ghl.mjs`, chained last in `npm run snapshot`, ~2½
+minutes of work per deploy (`BACKUP_BUDGET_MS`), resuming next run, never
+fails the deploy. Files in the site's R2 bucket (FILES, vpg-deal-files) under
+`backups/`, uploaded through `PUT /api/backups` with the build's Access
+service token (role 'service' — no R2 keys needed; the deploy that ships a
+change to the endpoint uploads it after the snapshot, so the script skips
+until it answers):
+- **Contacts every Arizona day** — `backups/contacts/<day>/<loc>.csv.gz` (a
+  column per custom field, by name) + `.json.gz`; kept 14 days.
+- **Weekly copy** (from each Monday) — `backups/weekly/<monday>/<loc>.json.gz`:
+  location, users, pipelines, opportunities with notes, custom fields
+  (contact + opportunity), custom values, tags, calendars, phone numbers,
+  tasks, forms, surveys, trigger links, the workflow list; a part GHL refuses
+  is listed (`counts.missing`), the rest saved. Kept 8 weeks + the first of
+  each month for 12 months (`pruneKeys`, run once a day by the script).
+- **All message history** — `backups/messages/<loc>/<YYYY-MM>-texts.json.gz`
+  (every non-email message: SMS, calls, other channels) and `-email`, from
+  the export (`/conversations/messages/export`, cursor lives 2 min, so a
+  month is read in one go); each finished month once, from the sub-account's
+  first message; the current month is re-saved weekly. Never deleted.
+- **Not in it**: automation builds (GHL answers
+  WORKFLOW_API_NOT_ENABLED_FOR_LOCATION for workflow definitions — Luke to
+  ask GHL support; the list of names / status / version is saved), contact
+  notes, appointments, recordings / attachments (links only).
+- Progress in D1 settings `ghl_backup` (day / week done lists, counts,
+  per-location history month, errors `"<loc>|<what>"`, labels).
+- **Settings › Connections › Backups** (`/settings/backups`,
+  `BackupsView.jsx`, owners): status tiles, Needs a Look, By Sub-Account
+  (latest contacts CSV / JSON, weekly JSON, message months), Earlier Copies.
+  `GET /api/backups` (owners, never while viewing as) lists the files and
+  status; `?key=` streams a file gzipped with Content-Encoding, so the browser
+  saves the plain .csv / .json. `?list=` / PUT / DELETE are the build's only
+  (DELETE never removes messages).
+- Size (Nov 4): Axel AZ ≈ 4.6k contacts, 43.8k texts + calls since Jan 2025 ≈
+  4 MB gzipped; all sub-accounts well under the 10 GB included. Usage: one
+  settings row read + a write per finished step; an R2 list per Backups page
+  load; GHL ~1.5k reads a day for contacts, a few thousand once for history.
+
 ## Do Not Contact alerts (Luke, Nov 4)
 
 "if someone sends an aggressive message or a dnc-warrantable message that
