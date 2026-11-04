@@ -1512,6 +1512,31 @@ this address before" line (`priorText`, src/alerts/kinds.js). No Claude
 cost. Usage: one keyed read + one write per new lead with an address, ~200
 keyed reads per deploy run for the deals (~20k a day).
 
+## Do Not Contact alerts (Luke, Nov 4)
+
+"if someone sends an aggressive message or a dnc-warrantable message that
+does not trigger the dnc automation … alert … the rep assigned to the deal,
+the manager of that pod, and owners … only … if the dnc tag is not applied";
+the tag is **"agent - dnc"**, and "confirm if any dnc channels are checked";
+a stop message wins over a lead. No new Claude calls: the lead judge
+(`LEAD_SYSTEM` / `LEAD_SCHEMA`, edge/alertsSync.js) also answers `dnc` (asks
+us to stop, or hostile — "no thanks" / "sold" aren't) and `dnc_reason`; a
+dnc text is never a lead. Only GHL's own keywords sent alone (STOP,
+UNSUBSCRIBE, CANCEL, END, QUIT — `isGhlStop`, server/messaging.js) stay out
+of the judge; "remove me" / "stop texting me" now reach it. On a dnc text the
+contact is read once (`contactDnc` / `dncState`: the tag, `dnd` or any
+`dndSettings` channel active / permanent); tag + a DND channel = handled, no
+alert. Otherwise kind **`dnc`** (ext_id `dnc:<message id>`, holder = the
+sub-account's rep, in `SHARED` — rings their pod lead and the owners like a
+lead; tick = reviewed per person), title "Asked not to be contacted — …",
+body = what's still missing ("the tag isn't on the contact; no DND channel is
+checked", "DND on: SMS"), the text quoted, Open in GHL to the conversation.
+Alerts' rail **Do Not Contact** (`?view=dnc`, red count). The deploy's sync
+re-reads open dnc alerts' contacts (≤ 40 a run) and closes them "Tagged DNC
+in GHL" once the tag and a DND channel are on, else refreshes what's
+missing. Cost: a few output tokens on calls already made; one GHL contact
+read per flagged text and per open dnc alert per deploy; D1 a few rows.
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,

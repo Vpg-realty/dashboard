@@ -68,6 +68,11 @@ export const AUTOMATED_SOURCE = /workflow|bulk|campaign|automation|trigger|drip|
 export const isManualOutbound = (m) => m.direction === 'outbound' && !!m.userId && !AUTOMATED_SOURCE.test(m.source || '');
 const isRep = isManualOutbound;
 const isStop = (body) => /^\s*(stop|stop all|unsubscribe|remove me|quit|cancel|end)\b/i.test(body || '');
+// Only GHL's own opt-out keywords sent on their own (STOP, UNSUBSCRIBE …) —
+// GHL's DND automation handles those. Everything else, "remove me" or "stop
+// texting me" included, goes to Claude, which flags do-not-contact texts
+// (Luke, Nov 4).
+const isGhlStop = (body) => /^\s*(stop|stop ?all|unsubscribe|cancel|end|quit)\s*[.!]*\s*$/i.test(body || '');
 // Agent texts that don't call for an answer.
 const isAck = (body) => /^\s*(ok(ay)?|k|thanks?( you)?|thx|ty|👍|sounds good|will do|you too|np|no problem|great|perfect|got it|cool)(?:[\s!.]|\p{Extended_Pictographic}|\ufe0f)*$/iu.test(body || '');
 // Auto-replies and phone reactions — never need an answer (Luke, Oct 12:
@@ -123,7 +128,7 @@ export function analyzeMessaging({ messages, calls = [], marketId, weekStartMs, 
           let s0 = i;
           while (s0 > 0 && list[s0 - 1].direction === 'inbound') s0--;
           const body = list.slice(s0, i + 1).map((x) => String(x.body || '').trim()).filter(Boolean).join('\n').slice(0, 600);
-          if (body && !isAck(body) && !isStop(body) && !isAutoReply(body)) {
+          if (body && !isAck(body) && !isGhlStop(body) && !isAutoReply(body)) {
             inbound.push({
               // phone = the agent's number (last 10 digits) — the same agent
               // across sub-accounts, for repeat / duplicate leads (Oct 22).

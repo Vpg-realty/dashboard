@@ -73,6 +73,29 @@ export async function contactName(token, contactId) {
 }
 const clip = (x, n) => (x == null ? null : String(x).trim().slice(0, n) || null);
 
+// Do-not-contact check (Luke, Nov 4): the contact's tags and DND switches.
+// Handled = the "agent - dnc" tag AND at least one DND channel checked
+// (dnd on, or any channel active / permanent). null when GHL can't be read.
+export const DNC_TAG = 'agent - dnc';
+export async function contactDnc(token, contactId) {
+  if (!token || !contactId) return null;
+  try {
+    const r = await fetch(`${GHL}/contacts/${encodeURIComponent(contactId)}`, { headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28', Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const c = (await r.json())?.contact || {};
+    return dncState(c);
+  } catch { return null; }
+}
+export function dncState(c) {
+  const tag = (c.tags || []).some((t) => String(t).trim().toLowerCase() === DNC_TAG);
+  const channels = Object.entries(c.dndSettings || {}).filter(([, v]) => ['active', 'permanent'].includes(String(v?.status || '').toLowerCase())).map(([k]) => k);
+  const dnd = !!c.dnd || channels.length > 0;
+  const name = c.contactName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '';
+  return { tag, dnd, channels: c.dnd && !channels.length ? ['All'] : channels, name: String(name).trim().slice(0, 80) || null };
+}
+// What's still missing, for the alert's text.
+export const dncMissing = (s) => [!s.tag ? `the "${DNC_TAG}" tag isn't on the contact` : null, !s.dnd ? 'no DND channel is checked' : null].filter(Boolean);
+
 // --- GHL tasks --------------------------------------------------------------
 
 // A GHL task → the alert's fields (the API's shape varies a little).
@@ -135,6 +158,8 @@ Set bank_hud true when the property is bank-owned / REO / a HUD home (it is stil
 
 Some items show an EARLIER LEAD this same agent already sent this same rep. Set same_as_earlier true when the new text is about that same property (a follow-up, more details, a price), false when it is clearly a different property, null when you can't tell. Without an earlier lead, null.
 
+DO NOT CONTACT (Luke, Nov 4): set dnc true when the person's last text asks us to stop contacting them or is hostile / aggressive — "don't text me again", "take me off your list", "how did you get my number", "leave me alone", threats, insults, profanity at the rep. A plain "no thanks", "not interested", "no deals right now" or "sold" is NOT dnc. When dnc is true, set lead false (stopping us wins over a lead), and put in dnc_reason at most 10 words on why (no names or numbers); otherwise dnc_reason null.
+
 Return one verdict per item. For a lead: kind "address" (an address was sent) or "coming" (a deal is promised), the address as written (or null), and a summary of at most 12 words with no names or phone numbers.`;
 
 const LEAD_SCHEMA = {
@@ -153,8 +178,10 @@ const LEAD_SCHEMA = {
           type: { anyOf: [{ type: 'string', enum: ['hot', 'warm', 'cold', 'wholesale', 'not'] }, { type: 'null' }] },
           bank_hud: { type: 'boolean' },
           same_as_earlier: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
+          dnc: { type: 'boolean' },
+          dnc_reason: { anyOf: [{ type: 'string' }, { type: 'null' }] },
         },
-        required: ['id', 'lead', 'kind', 'address', 'summary', 'type', 'bank_hud', 'same_as_earlier'],
+        required: ['id', 'lead', 'kind', 'address', 'summary', 'type', 'bank_hud', 'same_as_earlier', 'dnc', 'dnc_reason'],
         additionalProperties: false,
       },
     },
@@ -406,6 +433,19 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
         if (!v) continue;
         judged[m.id] = now;
         status.judged++;
+        // Do not contact (Luke, Nov 4) — wins over a lead. Only when GHL's
+        // contact isn't already handled (the tag and a DND channel).
+        if (v.dnc) {
+          const st = await contactDnc(tokens?.[m.sub.locationId], m.contact);
+          if (st && st.tag && st.dnd) { status.dncHandled = (status.dncHandled || 0) + 1; continue; }
+          const miss = st ? dncMissing(st) : ['GHL couldn’t be read — check the tag and DND by hand'];
+          const at = new Date(m.at).toISOString();
+          const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, agent, created_by, created_at, agent_name) VALUES (?, ?, ?, 'dnc', ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?)
+            ON CONFLICT (ext_id) DO NOTHING`,
+          [newId(), `dnc:${m.id}`, m.sub.repId, clip(`Asked not to be contacted — ${v.dnc_reason || 'hostile text'}`, 200), clip(`To do: ${miss.join('; ')}.${st?.channels?.length ? ` DND on: ${st.channels.join(', ')}.` : ''}`, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), m.phone || null, at, m.who || st?.name || null]);
+          if (r[0]?.meta?.changes) status.dnc = (status.dnc || 0) + 1;
+          continue;
+        }
         if (!v.lead) continue;
         if (isRepeat(v, m, m.earlier)) { status.repeats = (status.repeats || 0) + 1; continue; }
         const addr = v.kind === 'address' && v.address ? clip(v.address, 160) : null;
@@ -446,6 +486,17 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       await query('UPDATE alerts SET agent_name = ? WHERE id = ?', [n || '', a.id]);
     }
     if (noName.length) status.names = noName.length;
+    // Open do-not-contact alerts close by themselves once the contact has
+    // the tag and a DND channel in GHL (one contact read each, ≤ 40 a run);
+    // the text under them follows what's still missing.
+    const openDnc = await rows("SELECT id, sub, contact, body FROM alerts WHERE kind = 'dnc' AND done_at IS NULL AND contact IS NOT NULL LIMIT 40");
+    for (const a of openDnc) {
+      const st = await contactDnc(tokens[locOf[a.sub]], a.contact);
+      if (!st) continue;
+      if (st.tag && st.dnd) { await query("UPDATE alerts SET done_by = 'Tagged DNC in GHL', done_at = ? WHERE id = ?", [iso, a.id]); status.dncClosed = (status.dncClosed || 0) + 1; continue; }
+      const body = clip(`To do: ${dncMissing(st).join('; ')}.${st.channels.length ? ` DND on: ${st.channels.join(', ')}.` : ''}`, 300);
+      if (body !== a.body) await query('UPDATE alerts SET body = ? WHERE id = ?', [body, a.id]);
+    }
   }
 
   // Duplicates (Luke, Oct 19, reworked Oct 22) — two labels, one alert per
