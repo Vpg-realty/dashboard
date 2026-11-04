@@ -3,7 +3,7 @@
 // holds its month-to-date counts (the same sticky numbers the TV showed).
 // The deal-level events (when each contract was signed, which ones were
 // cancelled, closings) come from month-log.json (server/monthLog.js).
-import { REPS, KPI_TARGETS as T } from '../../data/config.js';
+import { REPS, TEAM_REPS, KPI_TARGETS as T, onTeam } from '../../data/config.js';
 import { monthLabel, monthStart, monthEnd, shortDate, laToday } from '../../utils/historyRange.js';
 
 export const repName = (id) => REPS.find((r) => r.id === id)?.name || id.charAt(0).toUpperCase() + id.slice(1);
@@ -79,7 +79,8 @@ export function monthTotals(entries, mo, upTo = 31) {
     for (const [k, f] of Object.entries(FIELDS)) r[k] += Number(p[f]) || 0;
   }
   const team = zero();
-  for (const r of Object.values(byRep)) for (const k of Object.keys(FIELDS)) team[k] += r[k];
+  // Team totals leave out reps who don't count toward the team (Nov 4).
+  for (const [id, r] of Object.entries(byRep)) if (onTeam(id)) for (const k of Object.keys(FIELDS)) team[k] += r[k];
   const untracked = new Set(legacy ? Object.keys(FIELDS).filter((k) => !LEGACY_HAS.has(k)) : []);
   if (mo < CANCELS_FROM.slice(0, 7)) untracked.add('cancels');
   // First day the opp/offer/contract counts were kept this month (Sept 14
@@ -94,7 +95,7 @@ export const prevMonth = (mo) => {
 };
 
 // Month targets for the team: per-rep monthly targets × reps.
-export const teamTargets = (n = REPS.length) => ({
+export const teamTargets = (n = TEAM_REPS.length) => ({
   opps: T.oppsOpenedPerWeek * 4 * n, offers: T.offersPerWeek * 4 * n, contracts: T.contractsPerMonth * n,
   closed: T.dealsClosedPerMonth * n, revenue: T.revenuePerRepMonth * n,
 });

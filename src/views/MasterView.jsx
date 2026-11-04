@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { KPI_TARGETS } from '../data/config.js';
+import { KPI_TARGETS, countsForTeam } from '../data/config.js';
 // The board's reps only (Settings › People › On the TV board, src/data/board.js).
-import { REPS_ON_BOARD as REPS, BOARD_PAIRS as PAIRS, boardHeadline as headline, boardHistory as historyEntries, boardTrackerMoney } from '../data/board.js';
+import { REPS_ON_BOARD as REPS, BOARD_TEAM_REPS, BOARD_PAIRS as PAIRS, boardHeadline as headline, boardHistory as historyEntries, boardTrackerMoney } from '../data/board.js';
 import { formatCompactCurrency, formatNumber, kpiStatus } from '../utils/format.js';
 import { paceFraction } from '../utils/pace.js';
 import { laToday, teamConvosByDay } from '../utils/historyRange.js';
@@ -24,8 +24,9 @@ import { monthTotals } from './manager/monthReview.js';
 //      there, and the quarter so far — contracts and revenue vs the quarter
 //      goal with a pace tick.
 
-const N = REPS.length;
-const sum = (pairs, k) => pairs.reduce((a, p) => a + (p[k] || 0), 0);
+// Team totals and goals: only reps who count toward the team (Nov 4).
+const N = BOARD_TEAM_REPS.length;
+const sum = (pairs, k) => pairs.reduce((a, p) => a + (countsForTeam(p.repId) ? p[k] || 0 : 0), 0);
 
 function azParts() {
   const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', hour12: false, day: 'numeric', month: 'numeric', year: 'numeric' })
@@ -75,9 +76,9 @@ export default function MasterView() {
   // closing next month, or with no COE set, isn't this month's money.
   const inMonth = (date) => !!date && date.slice(0, 7) === today.slice(0, 7);
   const allAssigned = deals.filter((d) => d.stage === 'assigned');
-  const assignedDeals = allAssigned.filter((d) => inMonth(d.coe));
+  const assignedDeals = allAssigned.filter((d) => inMonth(d.coe) && countsForTeam(d.repId));
   const assigned = tm ? tm.assigned : assignedDeals.reduce((a, d) => a + (d.value || 0), 0);
-  const laterDeals = allAssigned.filter((d) => !inMonth(d.coe));
+  const laterDeals = allAssigned.filter((d) => !inMonth(d.coe) && countsForTeam(d.repId));
   const later = tm ? tm.later : laterDeals.reduce((a, d) => a + (d.value || 0), 0);
   const projected = closed + assigned;
   const goal = KPI_TARGETS.revenuePerRepMonth * N;
@@ -86,7 +87,7 @@ export default function MasterView() {
   const perRep = REPS.map((r) => {
     const ps = PAIRS.filter((p) => p.repId === r.id);
     const c = tm ? (tm.closedByRep.get(r.id) || 0) : sum(ps, 'revenueMonth');
-    const a = tm ? (tm.assignedByRep.get(r.id) || 0) : assignedDeals.filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
+    const a = tm ? (tm.assignedByRep.get(r.id) || 0) : allAssigned.filter((d) => inMonth(d.coe)).filter((d) => d.repId === r.id).reduce((x, d) => x + (d.value || 0), 0);
     return { r, c, a, t: c + a };
   }).sort((x, y) => y.t - x.t);
   const repMax = Math.max(repGoal * 1.25, ...perRep.map((x) => x.t));
@@ -108,9 +109,9 @@ export default function MasterView() {
   const [yy, mm] = today.split('-').map(Number);
   const nextKey = mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
   const nextName = new Date(`${nextKey}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
-  const nextLined = allAssigned.filter((d) => String(d.coe || '').slice(0, 7) === nextKey);
+  const nextLined = allAssigned.filter((d) => String(d.coe || '').slice(0, 7) === nextKey && countsForTeam(d.repId));
   const nextLinedSum = tm ? tm.nextLined : nextLined.reduce((a, d) => a + (d.value || 0), 0);
-  const nextWorking = deals.filter((d) => (d.stage === 'under_contract' || d.stage === 'dispo') && String(d.coe || '').slice(0, 7) === nextKey);
+  const nextWorking = deals.filter((d) => countsForTeam(d.repId) && (d.stage === 'under_contract' || d.stage === 'dispo') && String(d.coe || '').slice(0, 7) === nextKey);
   const q = Math.ceil(mm / 3);
   const qMonths = [0, 1, 2].map((i) => `${yy}-${String(q * 3 - 2 + i).padStart(2, '0')}`);
   const past = qMonths.filter((m) => m < today.slice(0, 7)).map((m) => monthTotals(historyEntries(), m).team);

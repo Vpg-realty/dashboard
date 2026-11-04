@@ -54,19 +54,34 @@ export const REPS = ALL_REPS.filter((r) => !TRAINEE_REPS.has(r.id));
 /* global __INACTIVE_REPS__ */
 export const INACTIVE_REPS = new Set(typeof __INACTIVE_REPS__ !== 'undefined' ? __INACTIVE_REPS__ : []);
 export const isScored = (repId) => !INACTIVE_REPS.has(repId);
+// Who counts toward the team's totals (Luke, Nov 4: "dale is not a member of
+// the team, but pays us to use our systems … you are saying there are 11 reps
+// … there are really just 9"): Settings › Team › "Team totals" per person —
+// D1 settings `team_excluded` {repIds}, baked in by vite.config.js
+// (__TEAM_EXCLUDED__, from load-private-files). Inactive people never count.
+// They keep their own row on the scorecard and their own numbers everywhere;
+// they're left out of every team total and every team target (× TEAM_REPS).
+/* global __TEAM_EXCLUDED__ */
+export const TEAM_EXCLUDED = new Set(typeof __TEAM_EXCLUDED__ !== 'undefined' ? __TEAM_EXCLUDED__ : []);
+export const countsForTeam = (repId) => !INACTIVE_REPS.has(repId) && !TEAM_EXCLUDED.has(repId);
+export const TEAM_REPS = REPS.filter((r) => countsForTeam(r.id));
+// For past periods (history): only the switch — someone set inactive since
+// still counted while they were on the team.
+export const onTeam = (repId) => !TEAM_EXCLUDED.has(repId);
 
-// Team targets scale with the roster: per-rep KPI × number of reps (people, not
+// Team targets scale with the roster: per-rep KPI × number of reps who count
+// toward the team (TEAM_REPS — people, not
 // sub-accounts). Every team target — opps opened, offers, contracts, deals
 // closed, and the Master revenue goal — updates automatically each time someone
 // is added to or removed from the team (Luke, July 16). With N reps: opps opened
 // N×10/wk, offers N×5/wk · N×20/mo, contracts N×1/wk · N×4/mo, closed N×2/mo,
 // revenue N×$25k/mo.
 export const TEAM_TARGETS = {
-  oppsOpenedPerWeek: KPI_TARGETS.oppsOpenedPerWeek * REPS.length,
-  offersPerWeek: KPI_TARGETS.offersPerWeek * REPS.length,
-  contractsPerMonth: KPI_TARGETS.contractsPerMonth * REPS.length,
-  dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth * REPS.length,
-  revenuePerMonth: KPI_TARGETS.revenuePerRepMonth * REPS.length,
+  oppsOpenedPerWeek: KPI_TARGETS.oppsOpenedPerWeek * TEAM_REPS.length,
+  offersPerWeek: KPI_TARGETS.offersPerWeek * TEAM_REPS.length,
+  contractsPerMonth: KPI_TARGETS.contractsPerMonth * TEAM_REPS.length,
+  dealsClosedPerMonth: KPI_TARGETS.dealsClosedPerMonth * TEAM_REPS.length,
+  revenuePerMonth: KPI_TARGETS.revenuePerRepMonth * TEAM_REPS.length,
 };
 
 // Full sub-account roster exposed for the Sub-Accounts panel + health

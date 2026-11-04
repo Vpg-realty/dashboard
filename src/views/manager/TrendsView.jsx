@@ -11,7 +11,7 @@ import Panel from '../../components/Panel.jsx';
 import { REPS } from '../../data/config.js';
 import { usePods } from '../../shell/pods.js';
 import { scoreTone } from './metrics.js';
-import { weekSeries, avgOf } from './trends.js';
+import { weekSeries, avgOf, teamScore } from './trends.js';
 import { Tile } from '../../shell/Tile.jsx';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
@@ -36,7 +36,7 @@ export default function TrendsView({ sc, groups, onPickRep }) {
   const [focus, setFocus] = useState(null);   // rep id shown on the chart, or null = team
   const weeks = weekSeries(sc, 8);
   const score = (w, id) => w?.reps[id]?.s.score ?? null;
-  const teamOf = (w) => (w ? avgOf(Object.values(w.reps).map((r) => r.s.score)) : null);
+  const teamOf = teamScore;
   const podOf = (w, p) => avgOf(p.reps.map((id) => score(w, id)).filter((v) => v != null));
   // Like the Conversations tab, compare finished weeks only: the week in
   // progress is shown as "so far" and never in a change.

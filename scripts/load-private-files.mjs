@@ -116,6 +116,26 @@ async function main() {
     console.log(`[private-files] TV board list not read (${err.message}) — everyone shows`);
   }
 
+  // Reps who don't count toward the team's totals (Settings › Team › Team
+  // totals, Nov 4), baked in by vite.config.js and copied to data.json.
+  // Best effort: no file = everyone counts.
+  try {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ sql: "SELECT value FROM settings WHERE key = 'team_excluded'" }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(`D1 answered ${r.status}`);
+    const row = d.result?.[0]?.results?.[0];
+    const ids = row?.value ? (JSON.parse(row.value).repIds || []) : [];
+    fs.mkdirSync(path.join(ROOT, '.cache'), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, '.cache', 'team-excluded.json'), JSON.stringify(ids));
+    console.log(`[private-files] reps not in the team totals: ${ids.length}`);
+  } catch (err) {
+    console.log(`[private-files] team totals list not read (${err.message}) — everyone counts`);
+  }
+
   // Sub-account moves saved on the site (Settings › Sub-Accounts, Oct 26 —
   // edge/subChanges.js): applied to subaccounts.json on disk before anything
   // reads it (snapshot, app build, functions bundle). Best effort: a failed

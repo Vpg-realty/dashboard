@@ -12,7 +12,7 @@ import { forgetAccess, readAccess } from '../../../edge/access.js';
 import { checkAccess } from '../../../src/shell/access.js';
 import { applyTargetChange, checkTargets } from '../../../src/data/kpiTargets.js';
 
-const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'], 'kpi-targets': ['kpi_targets', checkTargets], 'board-hidden': ['board_hidden', checkBoardHidden], access: ['access', checkAccess] };
+const KEYS = { 'deal-rules': ['deal_rules', checkRules], 'deal-lists': ['deal_lists', checkLists], 'team-chat': ['team_chat', checkTeamChat], 'suggest-people': ['suggest_people', checkSuggestPeople], 'discord-test': ['discord_test', checkDiscordTest], 'discord-test-result': ['discord_test_result', () => 'read only'], 'kpi-targets': ['kpi_targets', checkTargets], 'board-hidden': ['board_hidden', checkBoardHidden], 'team-excluded': ['team_excluded', checkBoardHidden], access: ['access', checkAccess] };
 
 export async function onRequestGet(context) {
   const { res } = await owner(context);

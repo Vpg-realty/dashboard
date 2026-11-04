@@ -1003,6 +1003,26 @@ Overrides the Settings notes above where they differ.
   `effectiveLists` (edge/deals.js) lists every active Acquisitions / Manager
   from the day they're added (rep name once they have one, else their People
   name), so they're in Commissions and the deal dropdowns at once.
+- **Team totals** (Luke, Nov 4: "dale is not a member of the team, but pays
+  us to use our systems and allows us to sell the deals … you are saying
+  there are 11 reps … there are really just 9"): a **Team Totals** switch per
+  person in the Team panel (Counts toward the team / Not on the team) and a
+  Team Totals column on the Team list. D1 settings `team_excluded` {repIds}
+  (PUT /api/settings/team-excluded, `checkBoardHidden`);
+  scripts/load-private-files.mjs writes `.cache/team-excluded.json`,
+  vite.config.js bakes `__TEAM_EXCLUDED__`, build-snapshot copies it to
+  data.json `teamExcluded` — so it shows with the next deploy (~15 min).
+  config.js: `countsForTeam(id)` (not inactive and not excluded),
+  `TEAM_REPS` (× every team target: `TEAM_TARGETS`, `BOARD_TEAM_TARGETS` via
+  `BOARD_TEAM_REPS`, Home's Everyone goal, Month in Review's `teamTargets`),
+  `onTeam(id)` (the switch only — past months keep people since set
+  inactive). Left out of every team total: Home's Everyone numbers and
+  revenue (`trackerMonthMoney(null)` = the team), the TV board's headline,
+  Overview's month cards / money / quarter, the Opportunities boxes, Team
+  Scorecard's team strip, Trends' team line (`teamScore`), Month in Review's
+  team row, /api/my-scorecard's team average. Their own numbers stay
+  everywhere (their scorecard row, their deals, Finance, Road to Hawaii — the
+  company's money). Separate from the TV switch (Dale is off both).
 - **Commissions**: "Who gets paid what" — Name | Acq % | Dispo % | Manager /
   pod lead | TC, one number per cell (click = edit that rule, with its start
   date), then every rule (acq / dispo, manager, pod override, TC) and the
@@ -1546,6 +1566,11 @@ differ.
   rep, the blank fields as chips. The old big / slim cards, MiniFacts and the
   EMD chip row are gone; folds per device `vpg.active.folds3` (only the GHL
   list starts folded).
+- **No We Make / What's Next columns** (Luke, Nov 4: "what happens and
+  what's next tell the same story … remove what's next as well as we make …
+  i can click the deal and it'll tell me the fee"): a row is date · mark ·
+  property · rep · what happens · the quick button. The section money tags
+  and the band's sentence stay.
 - **At the foot** (owners / TC): "N deals don't match GHL" (stage / COE / IP
   end via `ghlMismatches` against this hour's `ghlDeals()`, no extra read) →
   Deals › GHL Sync Review, and "N deals in GHL aren't on the sheet" → opens

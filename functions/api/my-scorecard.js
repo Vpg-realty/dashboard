@@ -40,6 +40,9 @@ export async function onRequestGet(context) {
   // Trainees with their own sub-account stay out until they graduate (Oct 20).
   const trainees = new Set([...(data?.trainees || []), ...(data?.inactive || [])]); // inactive people aren't graded (Nov 3)
   const reps = [...new Set((data?.pairs || []).map((p) => p.repId))].filter((id) => !trainees.has(id)).map((id) => ({ id }));
+  // The team average leaves out reps who don't count toward the team (Nov 4).
+  const offTeam = new Set(data?.teamExcluded || []);
+  const teamReps = reps.filter((r) => !offTeam.has(r.id));
   const manual = new Map(editRows.map((e) => [`${e.week}|${e.rep_id}`, e.crm == null ? null : JSON.parse(e.crm)]));
   const manualFor = (w, monday, id) => {
     const k = `${monday}|${id}`;
@@ -49,7 +52,7 @@ export async function onRequestGet(context) {
   // Frozen / imported weeks: this rep's row + the team average.
   const weeks = {};
   for (const [monday, w] of Object.entries(sc?.weeks || {})) {
-    const scores = reps.filter((r) => w.reps?.[r.id]).map((r) => {
+    const scores = teamReps.filter((r) => w.reps?.[r.id]).map((r) => {
       const n = w.reps[r.id];
       return scoreWeek(n, mergeCrm(manualFor(w, monday, r.id), n.crmAuto), w.weekOfMonth, monday).score;
     });
@@ -69,7 +72,7 @@ export async function onRequestGet(context) {
     const extra = new Map((mgr?.pairs || []).map((p) => [`${p.repId}|${p.marketId}`, p]));
     const full = { pairs: (data.pairs || []).map((p) => ({ ...(extra.get(`${p.repId}|${p.marketId}`) || {}), ...p })) };
     const nums = freezeNumbers(full, reps, azDate().slice(0, 7), info.monday);
-    const scores = reps.filter((r) => full.pairs.some((p) => p.repId === r.id))
+    const scores = teamReps.filter((r) => full.pairs.some((p) => p.repId === r.id))
       .map((r) => scoreWeek(nums[r.id], mergeCrm(manualFor(null, info.monday, r.id), nums[r.id].crmAuto), info.weekOfMonth, info.monday).score);
     live = { monday: info.monday, teamAvg: avg(scores) };
   }

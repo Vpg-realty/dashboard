@@ -7,7 +7,7 @@ import { SCORE_PARTS as ALL_PARTS, scoreTone } from './metrics.js';
 
 const SCORE_PARTS = ALL_PARTS.filter((p) => p.weight > 0);
 import LineChart from './LineChart.jsx';
-import { weekSeries, avgOf } from './trends.js';
+import { weekSeries, avgOf, teamScore } from './trends.js';
 
 // Points a part earned in a week, of what it could earn that week (weights
 // changed the week of Oct 12; speed has none before, ungraded CRM none yet).
@@ -22,7 +22,7 @@ const cellCls = (share) => (share == null ? 'bg-zinc-50 text-zinc-300' : share >
 export default function RepProgress({ sc, rep, pointsOnly }) {
   const weeks = weekSeries(sc, 8);
   const mine = weeks.map((w) => w.reps[rep.id]?.s.score ?? null);
-  const team = weeks.map((w) => w.teamAvg ?? avgOf(Object.values(w.reps).map((r) => r.s.score)));
+  const team = weeks.map((w) => w.teamAvg ?? teamScore(w));
   const lastI = weeks.length - 1;
   const now = mine[lastI];
   const prev = mine[lastI - 1];

@@ -3,7 +3,7 @@
 // Every frozen / imported week in scorecards.json, plus the week in progress
 // (live) when it isn't frozen yet. Scores use the same scoreWeek as the
 // scorecard, with the managers' CRM grades over the automatic ones.
-import { REPS, isScored } from '../../data/config.js';
+import { REPS, isScored, onTeam } from '../../data/config.js';
 import { scoreWeek, mergeCrm, autoCrm, repSpeed } from '../../../scripts/scorecard-lib.mjs';
 import { metrics, repPairs } from './metrics.js';
 import { reviewFor, currentWeek } from './useScorecards.js';
@@ -36,6 +36,9 @@ export function weekSeries(sc, max = 8) {
   });
 }
 
+// The team's average score for a week: reps who count toward the team only
+// (Settings › Team › Team totals, Nov 4).
+export const teamScore = (w) => (w ? avgOf(Object.entries(w.reps).filter(([id]) => onTeam(id)).map(([, r]) => r.s.score)) : null);
 export const avgOf = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 // CRM as a share of its points, on a scale of `of` (10 for five items, 12
 // once speed is the sixth — pass the row's scoreWeek crmGrades).

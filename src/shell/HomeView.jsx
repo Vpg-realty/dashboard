@@ -8,7 +8,7 @@
 // width, bigger numbers with pace badges, and a right-hand column of cards —
 // revenue this month, the pipeline by stage, the deal tracker (owners / TC),
 // wins — plus a weekly leaderboard for owners and managers.
-import { REPS, MARKETS } from '../data/config.js';
+import { REPS, MARKETS, TEAM_REPS, countsForTeam } from '../data/config.js';
 import { PAIRS } from '../data/source.js';
 import { trackerMonthMoney } from '../data/board.js';
 import { laToday, daysInclusive } from '../utils/historyRange.js';
@@ -221,12 +221,14 @@ export default function HomeView({ me }) {
     ...teamDeals.filter((d) => d.stage === 'closed' && d.stageSince >= monday).map((d) => ({ ...d, what: 'Closed', icon: '🎉', at: d.stageSince })),
   ].sort((a, b) => b.at - a.at);
 
-  const m = metrics(pairs);
+  // Everyone = the team: reps who don't count toward the team's totals
+  // (Settings › Team, Nov 4) are left out of the totals and the goal.
+  const m = metrics(scope ? pairs : pairs.filter((p) => countsForTeam(p.repId)));
   // Revenue from the deal tracker (Luke, Nov 3) — net assignment, closed and
   // assigned by COE, the same numbers as Team Overview, Finance and Road to
   // Hawaii; GHL's opportunity values only when the tracker feed is missing.
   const money = (reps, ps) => trackerMonthMoney(reps) || metrics(ps);
-  const n = scope ? scope.length : REPS.length;
+  const n = scope ? scope.length : TEAM_REPS.length;
   const isTc = me?.role === 'tc';
   // The same four tiles in the same order for every role, the TC included
   // (Luke, Oct 19): opps, offers and contracts this week, closed this month.

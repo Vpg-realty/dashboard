@@ -216,6 +216,9 @@ console.log(`[snapshot] sticky ${prevOppState ? 'accrued from prior state' : 'se
 // scorecard freeze and /api/my-scorecard leave them out (Luke, Oct 20).
 try { snapshot.trainees = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'trainee-reps.json'), 'utf8')); } catch { snapshot.trainees = []; }
 try { snapshot.inactive = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'inactive-reps.json'), 'utf8')); } catch { snapshot.inactive = []; }
+// Reps who don't count toward the team's totals (Settings › Team, Nov 4) —
+// /api/my-scorecard leaves them out of the team average.
+try { snapshot.teamExcluded = JSON.parse(fs.readFileSync(path.join(THREADS_DIR, 'team-excluded.json'), 'utf8')); } catch { snapshot.teamExcluded = []; }
 
 // Road to Hawaii totals (scripts/team-goal.mjs refreshes them later in the
 // chain); the last deploy's stay if that step can't reach D1.
