@@ -6,8 +6,8 @@ import { call } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { buildLines, upcoming, payByDeal } from './lines.js';
 
-let state = { status: 'idle', rows: [], payments: [], extras: [], error: null };
-const got = (r) => ({ rows: r.rows || [], payments: r.payments || [], extras: r.extras || [] });
+let state = { status: 'idle', rows: [], payments: [], extras: [], bonuses: [], error: null };
+const got = (r) => ({ rows: r.rows || [], payments: r.payments || [], extras: r.extras || [], bonuses: r.bonuses || [] });
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 

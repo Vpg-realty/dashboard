@@ -15,7 +15,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
 
 const IN_KEYS = new Set(IN_TABS.map(([k]) => k));
-const OUT_SUB = { deals: 'Approve, then mark paid', tc: "The TC's bonus, a month at a time", paid: 'Payout history', coming: 'Open assigned deals' };
+const OUT_SUB = { deals: 'Approve, then mark paid', tc: "The TC's bonus, a month at a time", bonuses: 'Contest awards and reviews', paid: 'Payout history', coming: 'Open assigned deals' };
 const IN_SUB = { waiting: 'Wires not in yet', in: 'Wires that came in', emd: "VPG's EMD — returned or not?", all: 'Every deal at or past COE' };
 
 export default function MoneyView() {

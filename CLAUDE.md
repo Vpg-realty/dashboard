@@ -1564,6 +1564,51 @@ rate by Arizona hour and weekday; automated texts by wording (sent, reply in
 (`agent_report:<location>`, D1 caps a statement at 100 KB) plus
 `agent_report` (progress) and `agent_report_total`.
 
+## Bonuses: contest awards and Google reviews (Luke, Nov 4)
+
+"add two payments for the winning tiles … first contract of the month and
+most contracts … a payment i approve at the end of the month in finance";
+reviews: "assign them to an individual who got the review … $20 per review,
+up to 5 reviews per month … a new payment to approve and then be marked as
+paid"; Google only, a tie for most contracts splits the $100, a review naming
+two reps pays each $20.
+- **Bonus lines** (`isBonus`, part `bonus`, src/finance/lines.js): D1
+  `fin_bonuses (id, kind first | most | review, month, rep_id, who, amount,
+  note, ref UNIQUE, on_day, …)` made by `ensure` (edge/finance.js). `ref` =
+  `award:<month>:<kind>:<rep>` / `review:<reviewId>:<rep>`, so nothing is paid
+  twice. They go Owed → Approved → Paid like commissions (same fin_payouts /
+  fin_payments, part payments too), never touch a deal, show on Statements
+  and Paid. `bonusStatements` keeps a month's rows in line with what's wanted
+  and refuses to take back one already approved or paid.
+- **Finance › Money In & Out › Bonuses** (`BonusesView.jsx`, rail entry
+  `?tab=bonuses`): one card per month, Approve all / Mark all paid…, per-line
+  Approve / Unapprove / Mark paid / Undo, Remove (awards still waiting).
+- **Month in Review** (`AwardsToFinance.jsx`, owners only): under the award
+  cards a "💵 Award payments" strip — once the month is over, **Send to
+  Finance** adds $50 first contract + $100 most contracts (split on a tie,
+  `monthAwards` in views/manager/awards.js; POST /api/finance `bonusAwards`);
+  then each award's status, "Update Finance" if the winners changed, "Open in
+  Finance →". The prize cards (and the leaderboard crown) count only people on
+  the team (`onTeam` — Dale can't win them).
+- **Scorecards › Reviews** (`/team/reviews`, `src/reviews/ReviewsView.jsx`;
+  owners only, in `LOCKED`): GHL's API has no reviews, so an owner pastes the
+  month's Google reviews; Claude (`readPaste`, edge/reviews.js — effort low,
+  structured output, ~1–3¢ a paste, counts toward `chat_cap`, thread
+  `reviews`) splits them and picks the reps each names (active reps from
+  subaccounts.json). D1 `reviews (id = hash of author + text, month, author,
+  rating, posted_on, text, reps, claude, why, …)` made on first use; a review
+  already on file is skipped. Relative dates ("2 weeks ago") go under the
+  month picked; an actual date in another month wins. Each review row: who
+  it's for (× / + Add), Claude's pick and why, and per person "$20 · To
+  approve / Approved / Paid" or "over the cap · not paid" (`reviewPays`,
+  src/reviews/rules.js: REVIEW_PAY 20, REVIEW_CAP 5, by posted date). Every
+  change re-syncs that month's review bonuses (`syncAfter`); taking someone off
+  a review whose payment is approved or paid is refused. API
+  `functions/api/reviews` (GET ?month=, POST paste / add / edit / remove).
+- Usage: a Reviews load reads the month's reviews (a few dozen rows) + users;
+  a save also reads Finance's tables once. A Google Business Profile
+  connection (automatic pull) needs Google's API approval — not built.
+
 ## GHL backup (Luke, Nov 4)
 
 "a stored backup of every ghl sub account … weekly with daily contacts.

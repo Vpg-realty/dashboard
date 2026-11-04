@@ -13,7 +13,7 @@
 // edited) is flagged `changed` and needs approving again.
 import { payouts, isAssigned, isOpen, keptMoney } from '../deals/math.js';
 
-export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC', extra: 'Other payment' };
+export const PARTS = { acq: 'Acquisition', dispo: 'Dispo', manager: 'Manager', override: 'Override', tc: 'TC', extra: 'Other payment', bonus: 'Bonus' };
 export const METHODS = { ACH: 'ACH', CHECK: 'Check', WIRE: 'Wire', ZELLE: 'Zelle', OTHER: 'Other' };
 export const STATUS_LABEL = { owed: 'To approve', approved: 'To pay', paid: 'Paid' };
 
@@ -63,6 +63,12 @@ export const lineKey = (dealId, part) => `${dealId}:${part}`;
 // own id (deal_id = the extra id). It may name a deal (shown on the deal) but
 // never changes the deal's numbers or its Commission paid.
 export const isExtra = (l) => l.part === 'extra';
+// Bonuses (Luke, Nov 4): the Month in Review contest awards (first contract
+// of the month, most contracts) and $20 Google reviews — D1 `fin_bonuses`
+// (edge/finance.js), one line each with part 'bonus'. Unlike other payments
+// they wait for an owner's approval, then are marked paid; never on a deal.
+export const isBonus = (l) => l.part === 'bonus';
+export const BONUS_KIND = { first: 'First contract of the month', most: 'Most contracts', review: 'Google review' };
 const cents2 = (n) => Math.round(Number(n) * 100) / 100;
 // Payments toward a line (Luke, Oct 30: "my zelle is capped at 5k per day …
 // pay him partially, … the remainder tomorrow"): D1 `fin_payments`, one row
@@ -83,7 +89,7 @@ function withPayments(line, r, pays) {
 
 // deals: computed (math.js compute); rows: fin_payouts rows; extras:
 // fin_extras rows; payments: fin_payments rows.
-export function buildLines(deals, rules, rows = [], { extras = [], payments = [] } = {}) {
+export function buildLines(deals, rules, rows = [], { extras = [], payments = [], bonuses = [] } = {}) {
   const byKey = new Map(rows.map((r) => [lineKey(r.deal_id, r.part), r]));
   const paysBy = new Map();
   for (const p of payments) { const k = lineKey(p.deal_id, p.part); paysBy.set(k, [...(paysBy.get(k) || []), p]); }
@@ -137,12 +143,24 @@ export function buildLines(deals, rules, rows = [], { extras = [], payments = []
       approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
     }, r, paysBy.get(key)));
   }
+  for (const b of bonuses) {
+    const key = lineKey(b.id, 'bonus');
+    seen.add(key);
+    const r = byKey.get(key);
+    const amount = cents(b.amount);
+    const base = { key, rowDeal: b.id, bonusId: b.id, ref: b.ref, kind: b.kind, month: b.month, repId: b.rep_id, dealId: null, address: b.note, coe: b.on_day, part: 'bonus', who: b.who, amount, note: b.note, createdBy: b.created_by };
+    out.push(withPayments(!r ? { ...base, status: 'owed' } : {
+      ...base, status: r.status, due: cents(r.amount),
+      changed: r.status === 'approved' && (Math.abs(cents(r.amount) - amount) >= 0.01 || (!!r.who && r.who !== b.who)),
+      approvedBy: r.approved_by, approvedAt: r.approved_at, paidOn: r.paid_on, method: r.method, ref: r.ref, paidBy: r.paid_by,
+    }, r, paysBy.get(key)));
+  }
   // A row whose line is gone (the deal reopened, or its commission is now 0):
   // a payment stays on record; an approval shows as changed so it can be undone.
   const dealById = new Map(deals.map((d) => [d.id, d]));
   for (const r of rows) {
     const key = lineKey(r.deal_id, r.part);
-    if (seen.has(key) || r.part === 'extra') continue;
+    if (seen.has(key) || r.part === 'extra' || r.part === 'bonus') continue;
     const d = dealById.get(r.deal_id);
     out.push(withPayments({
       key, rowDeal: r.deal_id, dealId: r.deal_id, address: d?.address || '(deleted deal)', coe: d?.coe || null, part: r.part, who: r.who, amount: 0,
@@ -167,6 +185,7 @@ export function payByDeal(lines) {
   const out = new Map();
   for (const l of lines) {
     if (l.gone || !(l.amount > 0 || l.status !== 'owed')) continue;
+    if (isBonus(l)) continue;
     // Other payments naming the deal are listed under its commissions.
     if (isExtra(l)) {
       if (!l.dealId) continue;

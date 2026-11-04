@@ -17,10 +17,11 @@
 import { PAYOUT_TABS } from './tabs.js';
 import { useMemo, useState } from 'react';
 import { useFinance, act } from './store.js';
-import { METHODS, lineAmount, partLabel, sum, isTcLine, isExtra, tcMonths, TC_MONTHLY_FROM, leftOf, sumLeft, paymentsOf } from './lines.js';
+import { METHODS, lineAmount, partLabel, sum, isTcLine, isExtra, isBonus, BONUS_KIND, tcMonths, TC_MONTHLY_FROM, leftOf, sumLeft, paymentsOf } from './lines.js';
 import { StatusPill, Trail, MoneyTile, FinanceHead } from './ui.jsx';
 import CompanyOutlook from './CompanyOutlook.jsx';
 import PayoutEditor from './PayoutEditor.jsx';
+import BonusesView from './BonusesView.jsx';
 import { Loading, Search, StatusChip } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, primaryCls, selectCls } from '../deals/format.js';
 import { Person } from '../deals/people.jsx';
@@ -308,7 +309,7 @@ function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
                 <td className="pl-4 px-2.5 py-2 whitespace-nowrap">{shortDate(p.paidOn, { year: true }) || '—'}</td>
                 <td className="px-2.5 py-2 min-w-[220px]">{l.dealId ? <button type="button" onClick={() => onOpen(l.dealId)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{l.address}</button> : <span className="text-zinc-500">—</span>}</td>
                 <td className="px-2.5 py-2 whitespace-nowrap"><Person name={l.who} full /></td>
-                <td className="px-2.5 py-2 text-zinc-700">{isExtra(l) ? <span title={l.note}>Other · {l.note}</span> : partLabel(l.part)}{isTcLine(l) ? <span className="text-zinc-400"> · monthly</span> : ''}{partly && <span className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">{p.final ? 'paid off' : 'part'}</span>}</td>
+                <td className="px-2.5 py-2 text-zinc-700">{isExtra(l) ? <span title={l.note}>Other · {l.note}</span> : isBonus(l) ? <span title={l.note}>{BONUS_KIND[l.kind] || 'Bonus'}</span> : partLabel(l.part)}{isTcLine(l) ? <span className="text-zinc-400"> · monthly</span> : ''}{partly && <span className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">{p.final ? 'paid off' : 'part'}</span>}</td>
                 <td className="px-2.5 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(p.amount)}</td>
                 <td className="px-2.5 py-2 text-[12.5px] text-zinc-500 whitespace-nowrap">{METHODS[p.method] || p.method}{p.ref ? ` · ${p.ref}` : ''}{p.by ? ` · ${p.by}` : ''}</td>
                 <td className="px-2.5 py-2 text-right">
@@ -378,7 +379,7 @@ export default function PayoutsView({ embedded = false }) {
   const deals = useMemo(() => {
     const by = new Map();
     for (const l of f.lines) {
-      if (isTcLine(l) || isExtra(l) || l.gone) continue;
+      if (isTcLine(l) || isExtra(l) || isBonus(l) || l.gone) continue;
       by.set(l.dealId, [...(by.get(l.dealId) || []), l]);
     }
     return [...by.values()]
@@ -397,6 +398,8 @@ export default function PayoutsView({ embedded = false }) {
   const readyAmt = sumLeft(nonTc.filter((l) => l.status === 'approved' && !l.changed));
   const others = f.lines.filter((l) => isExtra(l) && l.status !== 'paid' && match(l)).sort((a, b) => String(a.coe).localeCompare(String(b.coe)));
   const tcDue = months.filter((m) => m.status !== 'paid');
+  const bonuses = f.lines.filter((l) => isBonus(l) && match(l));
+  const bonusDue = bonuses.filter((l) => l.status !== 'paid' || l.changed);
   const payments = paymentsOf(f.lines);
   const paidRows = payments.filter((p) => match(p.line));
   const paidThisMonth = payments.filter((p) => String(p.paidOn || '').startsWith(today.slice(0, 7)));
@@ -428,7 +431,7 @@ export default function PayoutsView({ embedded = false }) {
       {!embedded && <CompanyOutlook deals={f.deals} rules={f.rules} />}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MoneyTile label="To approve" accent="amber" value={money(owedAmt)} sub={n(deals.filter((d) => d.toApprove).length, 'deal')} tone={owedAmt ? 'text-[#B54708]' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
-        <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={`${n(deals.filter((d) => !d.toApprove).length, 'deal')}${others.length ? ` · ${n(others.length, 'other')}` : ''}`} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
+        <MoneyTile label="Approved · to pay" accent="sky" value={money(readyAmt)} sub={`${n(deals.filter((d) => !d.toApprove).length, 'deal')}${others.length ? ` · ${n(others.length, 'other')}` : ''}${bonusDue.length ? ` · ${n(bonusDue.length, 'bonus', 'bonuses')}` : ''}`} tone={readyAmt ? 'text-sky-800' : 'text-zinc-300'} active={tab === 'deals'} onClick={() => setTab('deals')} />
         <MoneyTile label="TC monthly" accent="violet" value={money(sumLeft(tcDue.flatMap((m) => m.lines.filter((l) => l.status !== 'paid'))))} sub={tcDue.length ? `${tcDue.map((m) => monthName(m.month).split(' ')[0]).join(', ')} not paid yet` : 'all months paid'} tone="text-violet-800" active={tab === 'tc'} onClick={() => setTab('tc')} />
         <MoneyTile label="Paid this month" accent="green" value={money(paidThisMonth.reduce((t, p) => t + p.amount, 0))} sub={n(paidThisMonth.length, 'payment')} tone="text-[#15803D]" active={tab === 'paid'} onClick={() => setTab('paid')} />
         <MoneyTile label="Coming due" accent="tan" value={money(sum(f.coming))} sub="open assigned deals · paid at closing" active={tab === 'coming'} onClick={() => setTab('coming')} />
@@ -464,6 +467,10 @@ export default function PayoutsView({ embedded = false }) {
           <TcMonths months={months} run={run} pay={pay} busy={busy} onOpen={open} today={today} />
         </section>
       )}
+      {tab === 'bonuses' && <BonusesView lines={bonuses} run={run} pay={pay} busy={busy} undoPart={undoPart} onRemove={async (l) => {
+        setBusy(true); setErr(null);
+        try { await act({ action: 'bonusRemove', id: l.bonusId }); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+      }} />}
       {tab === 'paid' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
           <PanelHead title="Paid" sub="every payment made here, newest first — a part payment is its own row (ones marked paid in the tracker aren't listed)" />

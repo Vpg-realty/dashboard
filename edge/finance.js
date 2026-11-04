@@ -7,11 +7,11 @@
 // history as Finance) — undoing a payment sets it back to No. Each paid part
 // also fills the deal's "<part> paid on" date (Oct 19), cleared on undo.
 import { compute } from '../src/deals/math.js';
-import { buildLines, lineKey, METHODS, isTcLine, isExtra, PART_PAID_ON } from '../src/finance/lines.js';
+import { buildLines, lineKey, METHODS, isTcLine, isExtra, isBonus, PART_PAID_ON, BONUS_KIND } from '../src/finance/lines.js';
 import { rowToDeal, getSetting, cancelTimes } from './deals.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-export const ACTIONS = ['approve', 'unapprove', 'pay', 'unpay', 'unpart', 'extraAdd', 'extraEdit', 'extraRemove'];
+export const ACTIONS = ['approve', 'unapprove', 'pay', 'unpay', 'unpart', 'extraAdd', 'extraEdit', 'extraRemove', 'bonusAwards', 'bonusRemove'];
 const cents = (n) => Math.round(Number(n) * 100) / 100;
 
 // fin_payments / fin_extras (Oct 30) are made on first use, once per worker.
@@ -21,6 +21,10 @@ export async function ensure(db) {
   await db.batch([
     db.prepare('CREATE TABLE IF NOT EXISTS fin_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, deal_id TEXT NOT NULL, part TEXT NOT NULL, amount REAL NOT NULL, paid_on TEXT NOT NULL, method TEXT NOT NULL, ref TEXT, paid_by TEXT, paid_at TEXT NOT NULL, final INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS fin_extras (id TEXT PRIMARY KEY, who TEXT NOT NULL, amount REAL NOT NULL, note TEXT NOT NULL, deal_id TEXT, on_day TEXT NOT NULL, created_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)'),
+    // Bonuses (Nov 4): contest awards and Google reviews — `ref` says what
+    // each one is for (award:<month>:<first|most>:<rep>, review:<id>:<rep>),
+    // so the same award or review is never paid twice.
+    db.prepare('CREATE TABLE IF NOT EXISTS fin_bonuses (id TEXT PRIMARY KEY, kind TEXT NOT NULL, month TEXT NOT NULL, rep_id TEXT, who TEXT NOT NULL, amount REAL NOT NULL, note TEXT NOT NULL, ref TEXT NOT NULL UNIQUE, on_day TEXT NOT NULL, created_by TEXT, created_at TEXT NOT NULL)'),
   ]);
   made = true;
 }
@@ -28,12 +32,13 @@ export async function ensure(db) {
 // What the pages need: { rows, payments, extras } (extras with `on` = on_day).
 export async function loadRows(db) {
   await ensure(db);
-  const [rows, payments, extras] = await Promise.all([
+  const [rows, payments, extras, bonuses] = await Promise.all([
     db.prepare('SELECT * FROM fin_payouts').all(),
     db.prepare('SELECT * FROM fin_payments').all(),
     db.prepare('SELECT * FROM fin_extras').all(),
+    db.prepare('SELECT * FROM fin_bonuses').all(),
   ]);
-  return { rows: rows.results, payments: payments.results, extras: extras.results.map((x) => ({ ...x, on: x.on_day })) };
+  return { rows: rows.results, payments: payments.results, extras: extras.results.map((x) => ({ ...x, on: x.on_day })), bonuses: bonuses.results };
 }
 
 export async function loadAll(db) {
@@ -107,6 +112,75 @@ function planExtra(all, body, user, now) {
   ] };
 }
 
+// --- Bonuses (Luke, Nov 4) ---------------------------------------------------
+const MONTH = /^\d{4}-\d{2}$/;
+const azMonth = (now) => new Date(Date.parse(now) - 7 * 3600e3).toISOString().slice(0, 7);
+const lastDay = (mo) => { const [y, m] = mo.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
+export const bonusId = () => `b${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+const lineOf = (all, b) => all.lines.find((l) => l.bonusId === b.id);
+const moneyGone = (l) => l && (l.status !== 'owed' || l.paidSoFar > 0);
+
+// Bring one month's bonus rows of a kind in line with what's wanted:
+// want = [{ ref, kind, repId, who, amount, note }]. A row no longer wanted is
+// removed while it's still waiting for approval; an approved or paid one
+// can't be taken back here (→ error naming it). A wanted row that changed
+// is updated (an approval then reads "Changed — approve again").
+export function bonusStatements(all, month, kinds, want, user, now) {
+  const have = all.bonuses.filter((b) => b.month === month && kinds.includes(b.kind));
+  const wantBy = new Map(want.map((w) => [w.ref, w]));
+  const st = [];
+  for (const b of have) {
+    if (wantBy.has(b.ref)) continue;
+    if (moneyGone(lineOf(all, b))) return { error: `${b.who}'s ${BONUS_KIND[b.kind] || 'bonus'} payment is already approved or paid — unapprove it in Finance first` };
+    st.push(['DELETE FROM fin_bonuses WHERE id = ?', [b.id]], ['DELETE FROM fin_payouts WHERE deal_id = ? AND part = ?', [b.id, 'bonus']]);
+  }
+  for (const w of want) {
+    const b = have.find((x) => x.ref === w.ref);
+    const amount = cents(w.amount);
+    if (!b) {
+      st.push(['INSERT INTO fin_bonuses (id, kind, month, rep_id, who, amount, note, ref, on_day, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [bonusId(), w.kind, month, w.repId || null, w.who, amount, w.note, w.ref, w.on || lastDay(month), user.name, now]]);
+    } else if (Math.abs(Number(b.amount) - amount) >= 0.005 || b.who !== w.who || b.note !== w.note) {
+      st.push(['UPDATE fin_bonuses SET who = ?, amount = ?, note = ? WHERE id = ?', [w.who, amount, w.note, b.id]]);
+    }
+  }
+  return { statements: st };
+}
+
+// bonusAwards { month, awards: [{ kind: first | most, repId, who, amount, note }] }
+// — the Month in Review contest awards of a finished month (owners; the page
+// works out the winners from the month's numbers). bonusRemove { id } — a
+// bonus still waiting for approval.
+function planBonus(all, body, user, now) {
+  if (body.action === 'bonusRemove') {
+    const b = all.bonuses.find((x) => x.id === String(body.id || ''));
+    if (!b) return { error: 'no such bonus' };
+    if (moneyGone(lineOf(all, b))) return { error: 'it is approved or paid — undo that first' };
+    if (b.kind === 'review') return { error: 'take the person off the review on Scorecards › Reviews instead' };
+    return { action: 'bonusRemove', lines: [lineKey(b.id, 'bonus')], detail: { who: b.who, amount: b.amount, note: b.note }, statements: [
+      ['DELETE FROM fin_bonuses WHERE id = ?', [b.id]], ['DELETE FROM fin_payouts WHERE deal_id = ? AND part = ?', [b.id, 'bonus']],
+    ] };
+  }
+  const month = String(body.month || '');
+  if (!MONTH.test(month)) return { error: 'pick the month' };
+  if (month >= azMonth(now)) return { error: 'the awards go to Finance once the month is over' };
+  const awards = Array.isArray(body.awards) ? body.awards : [];
+  if (awards.length > 20) return { error: 'too many awards' };
+  const want = [];
+  for (const a of awards) {
+    if (!['first', 'most'].includes(a?.kind)) return { error: 'unknown award' };
+    const repId = String(a.repId || '').slice(0, 40);
+    const who = String(a.who || '').trim().slice(0, 60);
+    const amount = cents(a.amount);
+    if (!repId || !who) return { error: 'each award needs its winner' };
+    if (!(amount > 0) || amount > 10000) return { error: 'each award needs its amount' };
+    want.push({ ref: `award:${month}:${a.kind}:${repId}`, kind: a.kind, repId, who, amount, note: String(a.note || `${BONUS_KIND[a.kind]} · ${month}`).slice(0, 200) });
+  }
+  const r = bonusStatements(all, month, ['first', 'most'], want, user, now);
+  if (r.error) return r;
+  return { action: 'bonusAwards', lines: [], detail: { month, awards: want.map((w) => `${w.who} ${w.amount}`) }, statements: r.statements };
+}
+
 // body = { action, keys: ["<dealId>:<part>"], paidOn?, method?, ref?,
 // amount? (pay, one line: less than what's left = a partial payment),
 // payment? (unpart: the fin_payments id) } — or an other-payment action.
@@ -115,6 +189,7 @@ export function plan(all, body, user, now = new Date().toISOString()) {
   const action = body?.action;
   if (!ACTIONS.includes(action)) return { error: 'unknown action' };
   if (action.startsWith('extra')) return planExtra(all, body, user, now);
+  if (action.startsWith('bonus')) return planBonus(all, body, user, now);
   const keys = [...new Set(Array.isArray(body.keys) ? body.keys.map(String) : [])];
   if (!keys.length || keys.length > 500) return { error: 'pick at least one line' };
   const byKey = new Map(all.lines.map((l) => [l.key, l]));
@@ -207,7 +282,7 @@ export function plan(all, body, user, now = new Date().toISOString()) {
   }
   // "Commission paid" on the deal follows its acq / dispo / manager /
   // override lines — the TC is paid monthly, on its own (lines.js isTcLine).
-  const touched = [...new Set(picked.filter((l) => !isTcLine(l) && !isExtra(l)).map((l) => l.dealId))];
+  const touched = [...new Set(picked.filter((l) => !isTcLine(l) && !isExtra(l) && !isBonus(l)).map((l) => l.dealId))];
   const pickedKeys = new Set(keys);
   for (const id of touched) {
     const deal = all.deals.find((d) => d.id === id);

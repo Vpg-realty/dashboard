@@ -20,6 +20,7 @@ import SettingsFrame from '../settings/Frame.jsx';
 import CancelReasonsView from '../settings/CancelReasonsView.jsx';
 import BackupsView from '../settings/BackupsView.jsx';
 import DevPlanView from '../devplan/DevPlanView.jsx';
+import ReviewsView from '../reviews/ReviewsView.jsx';
 import TargetsView from '../settings/TargetsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
 import TcListView from '../deals/TcListView.jsx';
@@ -77,7 +78,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
-  'settings-people': PeopleView, 'settings-access': AccessView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView, 'settings-backups': BackupsView, 'dev-plan': DevPlanView,
+  'settings-people': PeopleView, 'settings-access': AccessView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView, 'settings-backups': BackupsView, 'dev-plan': DevPlanView, reviews: ReviewsView,
   'tk-pof': ProofOfFunds, 'tk-docs': Disclosures, 'tk-offer': OfferTemplates, 'tk-terms': ContractTerms, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs, 'tk-comm': CommissionCalc,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
