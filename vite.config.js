@@ -21,11 +21,14 @@ try { boardHidden = JSON.parse(fs.readFileSync('.cache/board-hidden.json', 'utf8
 // People set Inactive (Settings › Team) — not graded on the scorecard (Nov 3).
 let inactiveReps = []
 try { inactiveReps = JSON.parse(fs.readFileSync('.cache/inactive-reps.json', 'utf8')) } catch { /* none */ }
+// Reps who don't count toward the team's totals (Settings › Team, Nov 4).
+let teamExcluded = []
+try { teamExcluded = JSON.parse(fs.readFileSync('.cache/team-excluded.json', 'utf8')) } catch { /* everyone counts */ }
 let kpiTimelines = null
 try { kpiTimelines = JSON.parse(fs.readFileSync('.cache/kpi-targets.json', 'utf8')) } catch { /* defaults */ }
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base,
-  define: { __TRAINEE_REPS__: JSON.stringify(traineeReps), __KPI_TIMELINES__: JSON.stringify(kpiTimelines), __BOARD_HIDDEN__: JSON.stringify(boardHidden), __INACTIVE_REPS__: JSON.stringify(inactiveReps) },
+  define: { __TRAINEE_REPS__: JSON.stringify(traineeReps), __KPI_TIMELINES__: JSON.stringify(kpiTimelines), __BOARD_HIDDEN__: JSON.stringify(boardHidden), __INACTIVE_REPS__: JSON.stringify(inactiveReps), __TEAM_EXCLUDED__: JSON.stringify(teamExcluded) },
 })

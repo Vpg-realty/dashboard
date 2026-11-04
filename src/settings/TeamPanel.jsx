@@ -15,6 +15,7 @@
 //               (Luke, Oct 26); deal_rules `acqOf:<name>` / `acqOfNet:<name>`
 //               (acq on net) and `dispoOf:<name>`
 //   TV Board    show / leave off (settings board_hidden)
+//   Team Totals counts / doesn't (settings team_excluded, Nov 4)
 // Save runs the existing calls in order (people, sub-accounts, pod lead,
 // commission, TV) and lists what was saved.
 import { useMemo, useState } from 'react';
@@ -58,8 +59,9 @@ function Pills({ value, onChange, options, disabled }) {
 
 // u = the person (null = a new one); users = everyone (to tell whose
 // sub-accounts are whose); leads = who can lead a pod [{id, name, title}]; lists = deal_lists;
-// tvOff = rep ids off the board. (Commission is set on Settings › Commissions.)
-export default function TeamPanel({ u, users, leads, lists, tvOff, me, onSaved, onRemoved, onClose }) {
+// tvOff = rep ids off the board; offTeam = rep ids not in the team totals.
+// (Commission is set on Settings › Commissions.)
+export default function TeamPanel({ u, users, leads, lists, tvOff, offTeam = [], me, onSaved, onRemoved, onClose }) {
   // The sub-accounts as they stand now, moves saved on the site included.
   const { subaccounts: SUBACCOUNTS, reps } = useSubs();
   const repOf = (id) => repIn(reps, id);
@@ -81,6 +83,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, me, onSaved, 
   const [q, setQ] = useState('');
   const tv0 = !(u?.rep_id && tvOff.includes(u.rep_id));
   const [tv, setTv] = useState(tv0);
+  const [counts, setCounts] = useState(!(u?.rep_id && offTeam.includes(u.rep_id)));
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState(null);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -152,6 +155,12 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, me, onSaved, 
       if (repId && d.status !== 'inactive' && tv === tvOff.includes(repId)) {
         const next = tv ? tvOff.filter((x) => x !== repId) : [...new Set([...tvOff, repId])];
         try { await writeSetting('board-hidden', { repIds: next }); note(true, tv ? 'Shown on the TV board' : 'Left off the TV board'); } catch (e) { note(false, `TV board not saved: ${e.message}`); }
+      }
+      // Team totals (Luke, Nov 4: Dale "is not a member of the team, but pays
+      // us to use our systems").
+      if (repId && counts === offTeam.includes(repId)) {
+        const next = counts ? offTeam.filter((x) => x !== repId) : [...new Set([...offTeam, repId])];
+        try { await writeSetting('team-excluded', { repIds: next }); note(true, counts ? 'Counts toward the team totals' : 'Left out of the team totals'); } catch (e) { note(false, `Team totals not saved: ${e.message}`); }
       }
       setLog(out);
       onSaved();
@@ -234,10 +243,16 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, me, onSaved, 
                 : <span className="text-[13px] text-zinc-500">They go on the TV with their first state.</span>}
             </Part>
           )}
+          {sales && d.status !== 'inactive' && (u?.rep_id || take.size > 0) && (
+            <Part title="Team Totals" note="team numbers and targets on Home, Team Overview, Scorecards">
+              <Pills value={counts} onChange={setCounts} options={[[true, 'Counts toward the team'], [false, 'Not on the team']]} />
+              {!counts && <span className="text-[12.5px] text-zinc-500">Their own numbers still show (their scorecard row, their deals); they're left out of every team total, and the team targets count one rep fewer.</span>}
+            </Part>
+          )}
           {log && (
             <div className="mx-5 my-3 rounded-lg border border-tan-200 bg-tan-50 px-3 py-2 text-[13px]">
               {log.map((x, i) => <div key={i} className={x.good ? 'text-emerald-700' : 'text-red-700'}>{x.good ? '✓' : '✕'} {x.text}</div>)}
-              {log.every((x) => x.good) && <div className="mt-1 text-zinc-500">States and the TV board update on the board with the next refresh (about 15 minutes).</div>}
+              {log.every((x) => x.good) && <div className="mt-1 text-zinc-500">States, the TV board and the team totals update with the next refresh (about 15 minutes).</div>}
             </div>
           )}
         </div>

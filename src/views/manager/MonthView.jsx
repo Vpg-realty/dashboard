@@ -4,7 +4,7 @@
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useState } from 'react';
 import useMonthLog from './useMonthLog.js';
-import { REPS } from '../../data/config.js';
+import { TEAM_REPS, onTeam } from '../../data/config.js';
 import { historyEntries } from '../../data/source.js';
 import { formatCompactCurrency } from '../../utils/format.js';
 import { paceFraction } from '../../utils/pace.js';
@@ -87,7 +87,7 @@ export default function MonthView() {
   const day = +today.slice(8, 10);
   const prev = monthTotals(entries, pm, isCurrent ? day : 31);
   const frac = isCurrent ? paceFraction('month') : 1;
-  const repsInMonth = Math.max(1, Object.keys(cur.byRep).length || REPS.length);
+  const repsInMonth = Math.max(1, Object.keys(cur.byRep).filter(onTeam).length || TEAM_REPS.length);
   const tt = teamTargets(repsInMonth);
   const ev = monthEvents(log, mo);
   const covered = logCovers(log, mo);

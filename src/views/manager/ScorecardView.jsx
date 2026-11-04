@@ -21,7 +21,7 @@ import { CoachTop3, Standards, Examples } from './CrmBits.jsx';
 import SearchSelect from '../../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import RepView from './RepView.jsx';
-import { REPS, isScored } from '../../data/config.js';
+import { REPS, isScored, onTeam } from '../../data/config.js';
 import { scopeReps } from '../../shell/scope.js';
 import { historyEntries } from '../../data/source.js';
 import { paceFraction } from '../../utils/pace.js';
@@ -36,7 +36,7 @@ import { T, metrics, teamMetrics, repPairs, scoreTone, paceTone, scoreParts, mos
 import { usePods } from '../../shell/pods.js';
 import { leadsOf, CRM_ITEMS, scoreWeek, ratingOf, autoCrm, repSpeed, weightsFor, MESSAGING_SPEED_TARGET, speedGrade, SPEED_GRADE_ONE, speedInCrm } from '../../../scripts/scorecard-lib.mjs';
 import { useScorecards, currentWeek, reviewFor, reviewedByFor, saveDraft } from './useScorecards.js';
-import { weekSeries, avgOf, crmTenths } from './trends.js';
+import { weekSeries, avgOf, crmTenths, teamScore } from './trends.js';
 import TrendsView from './TrendsView.jsx';
 import { titleCase } from '../../shell/titleCase.js';
 import BandMark from '../../shell/BandMark.jsx';
@@ -704,19 +704,21 @@ export default function ScorecardView({ trendsView = false, onPickRep } = {}) {
   const subtitle = isLive ? '· live, freezes Sun 11:59 PM' : frozen?.source === 'sheet' ? '· imported from the sheet' : `· frozen ${frozen?.frozenAt ? new Date(frozen.frozenAt).toLocaleString('en-US', { timeZone: 'America/Phoenix', weekday: 'short', hour: 'numeric', minute: '2-digit' }) : ''}`;
   const weekLabel = frozen?.label || (week === cur.monday ? cur.weekOfLabel : week);
 
-  // Team strip: every rep, whatever the filter.
-  const N = allRows.length;
-  const tsum = (key) => allRows.reduce((a, r) => a + (r.n[key] || 0), 0);
-  const teamAvg = avgOf(allRows.map((r) => r.s.score));
+  // Team strip: every rep who counts toward the team (Settings › Team ›
+  // Team totals, Nov 4), whatever the filter.
+  const teamRows = allRows.filter((r) => onTeam(r.id));
+  const N = teamRows.length;
+  const tsum = (key) => teamRows.reduce((a, r) => a + (r.n[key] || 0), 0);
+  const teamAvg = avgOf(teamRows.map((r) => r.s.score));
   const team = teamAvg == null ? null : Math.round(teamAvg);
-  const prevAvg = prevWeek ? avgOf(Object.values(prevWeek.reps).map((r) => r.s.score)) : null;
-  const behind = allRows.filter((r) => r.s.score < 75).length;
-  const spTotal = allRows.some((r) => r.n.speedTotal != null) ? tsum('speedTotal') : null;
+  const prevAvg = prevWeek ? teamScore(prevWeek) : null;
+  const behind = teamRows.filter((r) => r.s.score < 75).length;
+  const spTotal = teamRows.some((r) => r.n.speedTotal != null) ? tsum('speedTotal') : null;
   const stats = [
     ['Contracts', `${tsum('contractsW')} of ${T.contractsPerWeek * N}`, 'this week'],
     ['Offers', `${tsum('offersW')} of ${T.offersPerWeek * N}`, 'this week'],
     ['Opps', `${tsum('oppsW')} of ${T.oppsOpenedPerWeek * N}`, 'this week'],
-    ['Projected $', k(tsum('projected')), `month to date · pace ${k(allRows.reduce((a, r) => a + r.s.projectedPace, 0))}`],
+    ['Projected $', k(tsum('projected')), `month to date · pace ${k(teamRows.reduce((a, r) => a + r.s.projectedPace, 0))}`],
     [`Answered ≤ 15 min`, spTotal == null ? '—' : spTotal ? `${Math.round((tsum('speedOk') / spTotal) * 100)}%` : 'no texts', spTotal == null ? 'not checked yet' : `${tsum('speedOk')} of ${spTotal} · target ${Math.round(SPEED_T * 100)}%`],
   ];
   const chipCls = (on) => `rounded-full px-4 py-2 text-[15px] font-semibold border transition-colors ${on ? 'bg-navy-700 border-navy-700 text-white' : 'bg-white border-[#d9cfbd] text-navy-700 hover:bg-tan-50'}`;

@@ -3,7 +3,7 @@ import KpiCard from '../components/KpiCard.jsx';
 import { KPI_TARGETS } from '../data/config.js';
 import { getPair, getPairsForRep } from '../data/source.js';
 // The board's reps only (src/data/board.js).
-import { REPS_ON_BOARD as REPS, BOARD_TEAM_TARGETS as TEAM_TARGETS, boardHeadline as headline } from '../data/board.js';
+import { REPS_ON_BOARD as REPS, BOARD_TEAM_REPS as TEAM, BOARD_TEAM_TARGETS as TEAM_TARGETS, boardHeadline as headline } from '../data/board.js';
 import { marketShade } from '../utils/marketShade.js';
 
 // Layout: four columns, fits one TV viewport (Luke, Oct 7).
@@ -14,9 +14,9 @@ import { marketShade } from '../utils/marketShade.js';
 //   at 9 reps. Every per-rep number is still on the Advanced tab.
 export default function OpportunitiesView() {
   const head = headline();
-  const totalAbandoned = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
-  const totalLost = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.lost ?? 0)).reduce((a, b) => a + b, 0);
-  const totalOppsOpened = REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.oppsOpenedWeek ?? 0)).reduce((a, b) => a + b, 0);
+  const totalAbandoned = TEAM.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.abandoned ?? 0)).reduce((a, b) => a + b, 0);
+  const totalLost = TEAM.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.lost ?? 0)).reduce((a, b) => a + b, 0);
+  const totalOppsOpened = TEAM.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.oppsOpenedWeek ?? 0)).reduce((a, b) => a + b, 0);
 
   return (
     // Flex column: the KPI row is content-sized, the leaderboards take all
@@ -29,19 +29,19 @@ export default function OpportunitiesView() {
           pace="week" label="Opps Opened (week)"
           actual={totalOppsOpened}
           target={TEAM_TARGETS.oppsOpenedPerWeek}
-          sublabel={`${KPI_TARGETS.oppsOpenedPerWeek}/wk per rep × ${REPS.length} reps`}
+          sublabel={`${KPI_TARGETS.oppsOpenedPerWeek}/wk per rep × ${TEAM.length} reps`}
         />
         <KpiCard
           pace="week" label="Offers Submitted (week)"
           actual={head.offersWeek}
           target={TEAM_TARGETS.offersPerWeek}
-          sublabel={`${KPI_TARGETS.offersPerWeek}/wk per rep × ${REPS.length} reps`}
+          sublabel={`${KPI_TARGETS.offersPerWeek}/wk per rep × ${TEAM.length} reps`}
         />
         {/* Weekly (Luke, Oct 8): the month total lives on Overview. */}
         <KpiCard
           pace="week" label="Contracts (week)"
-          actual={REPS.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.contractsWeek ?? 0)).reduce((a, b) => a + b, 0)}
-          target={KPI_TARGETS.contractsPerWeek * REPS.length}
+          actual={TEAM.flatMap((r) => r.markets.map((m) => getPair(r.id, m)?.contractsWeek ?? 0)).reduce((a, b) => a + b, 0)}
+          target={KPI_TARGETS.contractsPerWeek * TEAM.length}
           sublabel={`${KPI_TARGETS.contractsPerWeek}/wk per rep · ${totalAbandoned} aban this mo`}
         />
         <KpiCard
