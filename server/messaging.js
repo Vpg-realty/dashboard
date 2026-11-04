@@ -72,13 +72,13 @@ const isStop = (body) => /^\s*(stop|stop all|unsubscribe|remove me|quit|cancel|e
 // GHL's DND automation handles those. Everything else, "remove me" or "stop
 // texting me" included, goes to Claude, which flags do-not-contact texts
 // (Luke, Nov 4).
-const isGhlStop = (body) => /^\s*(stop|stop ?all|unsubscribe|cancel|end|quit)\s*[.!]*\s*$/i.test(body || '');
+export const isGhlStop = (body) => /^\s*(stop|stop ?all|unsubscribe|cancel|end|quit)\s*[.!]*\s*$/i.test(body || '');
 // Agent texts that don't call for an answer.
 const isAck = (body) => /^\s*(ok(ay)?|k|thanks?( you)?|thx|ty|👍|sounds good|will do|you too|np|no problem|great|perfect|got it|cool)(?:[\s!.]|\p{Extended_Pictographic}|\ufe0f)*$/iu.test(body || '');
 // Auto-replies and phone reactions — never need an answer (Luke, Oct 12:
 // "skip auto replies only"). Out-of-office / away messages, "I'm driving"
 // texts, and iPhone tapbacks ('Liked "…"').
-const isAutoReply = (body) => /out of (the )?office|auto(matic|mated)?[- ]?(reply|response)|this is an automated|i('| a)?m (currently )?(away|out of town|on vacation|unavailable|driving)|away from (my )?(desk|phone|the office)|limited access to (my )?(phone|email)|will (respond|reply|get back to you) (as soon as|when) (i('| a)?m|possible)|do not disturb|^\s*(liked|loved|laughed at|emphasized|disliked|questioned|reacted [^ ]+ to) ["“'‘]/i.test(body || '');
+export const isAutoReply = (body) => /out of (the )?office|auto(matic|mated)?[- ]?(reply|response)|this is an automated|i('| a)?m (currently )?(away|out of town|on vacation|unavailable|driving)|away from (my )?(desk|phone|the office)|limited access to (my )?(phone|email)|will (respond|reply|get back to you) (as soon as|when) (i('| a)?m|possible)|do not disturb|^\s*(liked|loved|laughed at|emphasized|disliked|questioned|reacted [^ ]+ to) ["“'‘]/i.test(body || '');
 // A call that connected, either way (Luke, Oct 12: a call counts as an answer).
 const isConnectedCall = (m) => m && m.messageType === 'TYPE_CALL' && (m.meta?.call?.status === 'completed' || m.status === 'completed');
 
