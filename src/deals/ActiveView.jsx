@@ -103,7 +103,7 @@ function Section({ id, title, note, count, money: m, folds, children }) {
 // like option b, but i still like the act now, this week, on track and
 // missing info sections"): date · IP end or closing mark · property · rep ·
 // what happens · what we make · what's next.
-const ROW_GRID = 'grid gap-x-4 gap-y-1 items-center md:grid-cols-[172px_12px_minmax(0,2fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,0.8fr)_minmax(0,2.6fr)]';
+const ROW_GRID = 'grid gap-x-4 gap-y-1 items-center md:grid-cols-[172px_12px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,3fr)_128px]';
 const HEAD_CLS = `${ROW_GRID} hidden md:grid px-5 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 bg-tan-50/70`;
 // What the quick buttons do (they only open the deal on that field — nothing
 // changes until it's saved there).
@@ -114,7 +114,6 @@ const ACTION_TIP = {
   'Fill in': 'Opens the deal on the field to fill in',
 };
 const ghostBtn = 'h-[30px] px-3 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center whitespace-nowrap ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50';
-const NEXT_TONE = { red: 'text-[#9f1239] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-zinc-600', blue: 'text-zinc-600' };
 const monthName = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
 // "Street" / "City, ST 00000" from one address line.
 const splitAddr = (a) => { const i = String(a || '').indexOf(','); return i > 0 ? [a.slice(0, i), a.slice(i + 1).trim()] : [a || 'No address', '']; };
@@ -198,8 +197,6 @@ export default function ActiveView() {
     const u = d.u;
     const asg = assigned(d);
     const [street, city] = splitAddr(d.address);
-    const m = makes(d);
-    const next = u.todo || (asg ? 'On track' : 'Line up a buyer');
     return (
       <div key={d.id} className={`${ROW_GRID} px-5 py-3 text-[14px]`}>
         {keyDate(d)}
@@ -209,16 +206,16 @@ export default function ActiveView() {
           <span className="block text-[12px] text-zinc-500">{city ? `${city} · ` : ''}{assigned(d) ? 'Assigned' : stageOf(d) === 'UNDER_CONTRACT' ? 'Under Contract' : 'Dispo Active'}{d._stale ? ' · ' : ''}{d._stale && <StaleTag />}</span>
         </span>
         <span><RepTag {...(dealTag(d) || {})} /></span>
+        {/* What happens only (Luke, Nov 4: "what happens and what's next tell
+            the same story … remove what's next as well as we make" — the
+            fee and the full next step are in the deal panel). The quick
+            button stays at the right. */}
         <span className="text-zinc-700">{u.head}</span>
-        <span className={`md:text-right font-bold tabular-nums ${m != null ? 'text-[#15803d]' : 'text-zinc-300'}`}>{m != null ? money(m) : asg ? 'price needed' : '—'}</span>
-        <span className="flex items-center gap-3">
-          <span className={`flex-1 min-w-0 text-[13px] leading-snug line-clamp-2 ${NEXT_TONE[u.tone] || 'text-zinc-600'}`} title={next}>{next}</span>
-          {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={`shrink-0 ${ghostBtn}`} title={ACTION_TIP[u.action]}>{u.action}</button>}
-        </span>
+        <span className="md:justify-self-end">{ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn} title={ACTION_TIP[u.action]}>{u.action}</button>}</span>
       </div>
     );
   };
-  const rowsHead = <div className={HEAD_CLS}><span>Date</span><span /><span>Property</span><span>Rep</span><span>What Happens</span><span className="text-right">{seesNet ? 'We Make' : 'Gross'}</span><span>What’s Next</span></div>;
+  const rowsHead = <div className={HEAD_CLS}><span>Date</span><span /><span>Property</span><span>Rep</span><span>What Happens</span><span /></div>;
   const empty = (t) => <div className="px-5 py-5 text-[13.5px] text-[#15803D] font-medium">✓ {t}</div>;
 
   const act = bySec('act');
