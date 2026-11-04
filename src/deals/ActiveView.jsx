@@ -20,7 +20,7 @@ import StageChip from '../shell/StageChip.jsx';
 import RepTag from '../shell/RepTag.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, addrKeys, fieldsFromGhl } from './store.js';
-import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips, CrossLink } from './ui.jsx';
+import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips, CrossLink, DueChip } from './ui.jsx';
 import { buildTcCards } from './tcList.js';
 import { call } from '../utils/dashApi.js';
 import { money, shortDate, btnCls, primaryCls } from './format.js';
@@ -31,7 +31,7 @@ import { sheetValue } from './syncReview.js';
 import { LABEL } from './fieldLib.js';
 import { useLocation, setQuery, navigate } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { assigned, hasAssignPrice, daysBetween } from './status.js';
+import { assigned, hasAssignPrice } from './status.js';
 import { needsInfo } from './required.js';
 import { urgency, SECTIONS, dealTag } from './urgency.js';
 import { showEndTime } from './ddTime.js';
@@ -103,7 +103,7 @@ function Section({ id, title, note, count, money: m, folds, children }) {
 // like option b, but i still like the act now, this week, on track and
 // missing info sections"): date · IP end or closing mark · property · rep ·
 // what happens · what we make · what's next.
-const ROW_GRID = 'grid gap-x-4 gap-y-1 items-center md:grid-cols-[112px_12px_minmax(0,2fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,0.8fr)_minmax(0,2.6fr)]';
+const ROW_GRID = 'grid gap-x-4 gap-y-1 items-center md:grid-cols-[172px_12px_minmax(0,2fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,0.8fr)_minmax(0,2.6fr)]';
 const HEAD_CLS = `${ROW_GRID} hidden md:grid px-5 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 bg-tan-50/70`;
 // What the quick buttons do (they only open the deal on that field — nothing
 // changes until it's saved there).
@@ -115,7 +115,6 @@ const ACTION_TIP = {
 };
 const ghostBtn = 'h-[30px] px-3 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center whitespace-nowrap ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50';
 const NEXT_TONE = { red: 'text-[#9f1239] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-zinc-600', blue: 'text-zinc-600' };
-const longDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 const monthName = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
 // "Street" / "City, ST 00000" from one address line.
 const splitAddr = (a) => { const i = String(a || '').indexOf(','); return i > 0 ? [a.slice(0, i), a.slice(i + 1).trim()] : [a || 'No address', '']; };
@@ -182,24 +181,28 @@ export default function ActiveView() {
   // number Finance and Team Overview count), else the gross.
   const seesNet = !s.fields || s.fields.includes('netAssign');
   const makes = (d) => (assigned(d) && hasAssignPrice(d) ? (seesNet ? sheetValue(d) ?? d.netAssign : d.grossAssign) : null);
-  const when = (d) => {
+  // The row's key date as the site's date chip (DueChip — the Pipeline
+  // cards' "IP Nov 3 · late 1d"), the IP end's time under it.
+  const keyDate = (d) => {
     const iso = d.u.date;
-    if (!ISO.test(iso || '')) return { date: assigned(d) ? 'No COE' : 'No IP end', sub: '', late: false };
-    const n = daysBetween(today, iso);
+    if (!ISO.test(iso || '')) return <span className="text-[12.5px] text-zinc-400">{assigned(d) ? 'No COE' : 'No IP end'}</span>;
     const ip = !assigned(d) && iso === d.ddEnd;
-    const rel = n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? (ip && d.ddEndTime ? `today ${showEndTime(d)}` : 'today') : n === 1 ? 'tomorrow' : `in ${n} days`;
-    return { date: n >= -6 && n <= 7 ? longDay(iso) : shortDate(iso), sub: `${ip ? 'IP end' : 'COE'} · ${rel}`, late: n < 0 };
+    return (
+      <span className="flex flex-col items-start gap-0.5">
+        <DueChip label={ip ? 'IP' : 'COE'} date={iso} today={today} />
+        {ip && d.ddEndTime && <span className="text-[11.5px] text-zinc-500">{showEndTime(d)}</span>}
+      </span>
+    );
   };
   const row = (d) => {
     const u = d.u;
     const asg = assigned(d);
-    const w = when(d);
     const [street, city] = splitAddr(d.address);
     const m = makes(d);
     const next = u.todo || (asg ? 'On track' : 'Line up a buyer');
     return (
       <div key={d.id} className={`${ROW_GRID} px-5 py-3 text-[14px]`}>
-        <span className={`font-bold leading-tight ${w.late ? 'text-[#b42318]' : 'text-navy-800'}`}>{w.date}<span className={`block text-[12px] font-medium ${w.late ? 'text-[#b42318]' : 'text-zinc-500'}`}>{w.sub}</span></span>
+        {keyDate(d)}
         <span className={`hidden md:block w-2.5 h-2.5 rounded-[3px] ${asg ? 'bg-[#15803d]' : 'bg-[#b45309]'}`} title={asg ? 'Closing — money in' : 'Inspection ends — needs a buyer by then'} />
         <span className="min-w-0">
           <button type="button" onClick={() => open(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left break-words" title="Open the deal">{street}</button>

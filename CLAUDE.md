@@ -1535,8 +1535,11 @@ differ.
 - **Sections** Act Now (dark red) · This Week · On Track · Missing Info, each
   with its money in the header ("$N waiting" / "$N closing"); `urgency()`
   still decides the section and words the problem. **One line per deal**, in
-  date order: date (red when passed) with "IP end · 3 days ago" / "COE · in
-  10 days" · an amber (IP end, needs a buyer) or green (closing) mark ·
+  date order: the key date as the site's date chip (`DueChip`, deals/ui.jsx
+  — the Pipeline cards' "IP Nov 3 · late 1d" / "COE Nov 13 · tmrw" in the
+  `dueTone` colours: maroon late, red today, light red tomorrow, yellow 2
+  days, blue 3 days, plain after; Luke, Nov 4: one way to read dates
+  everywhere), the IP end's time under it · an amber (IP end, needs a buyer) or green (closing) mark ·
   street + city · stage · rep box · what happens (`u.head`) · **We Make**
   (net, or Gross) · what's next (`u.todo`, two lines max) with the quick
   button (Cancel… / Set EMD… / Mark Closed… / Fill in). Missing Info: street,

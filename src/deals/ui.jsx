@@ -128,6 +128,23 @@ export function SyncNote({ sync }) {
   return <span className={m > 90 ? 'text-amber-700' : 'text-zinc-500'}>Synced with GHL {ago}.</span>;
 }
 
+// A key date the way the Pipeline cards show it (Luke, Nov 4: "the time
+// stamps … need to match the late examples or coming up examples that we use
+// throughout the whole site"): "IP Nov 3 · late 1d", "COE Nov 13 · tmrw" in
+// the board's deadline colours (dueTone) — maroon late, red today, light red
+// tomorrow, yellow 2 days out, blue 3 days out, plain after that.
+export function DueChip({ label, date, today = laToday() }) {
+  const n = /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? daysBetween(today, date) : null;
+  const rel = n == null ? null : n < 0 ? `late ${-n}d` : n === 0 ? 'today' : n === 1 ? 'tmrw' : `${n}d`;
+  return (
+    <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[12px] leading-none whitespace-nowrap tabular-nums ${dueTone(n)}`}>
+      <span className="font-semibold opacity-80">{label}</span>&nbsp;
+      <span className="font-bold">{date ? shortDate(date) : '—'}</span>
+      {rel && <span className="font-bold">&nbsp;· {rel}</span>}
+    </span>
+  );
+}
+
 // COE with days to go, one chip coloured like the board's Pipeline.
 export function CoeChip({ coe, today = laToday() }) {
   if (!coe) return <span className="text-zinc-300">—</span>;
