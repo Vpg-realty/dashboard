@@ -1512,6 +1512,36 @@ this address before" line (`priorText`, src/alerts/kinds.js). No Claude
 cost. Usage: one keyed read + one write per new lead with an address, ~200
 keyed reads per deploy run for the deals (~20k a day).
 
+## Development plans (Luke, Nov 4)
+
+"a development plan tab for specific members who need improvement … add this
+tab to people who need it … work with you to create a plan"; "owners only
+start plans, keep the why private". Scorecards › **Development Plan**
+(`/team/plan`, `src/devplan/DevPlanView.jsx`; server `edge/devPlans.js`, API
+`functions/api/dev-plans`, D1 `dev_plans` / `dev_checkins` made on first use).
+- **Who**: owners see every plan and start / edit / end / reopen them (from
+  the page's + Start a Plan, or Settings › Team › a person › "Start or open
+  …'s development plan" → `?new=<email>`, which opens an existing plan
+  instead); a pod lead reads their pod's active plans and writes check-ins;
+  the person reads their own active plan. The **why is owners only** (never
+  sent to anyone else); finished plans are owners only. The tab is
+  `roles: ['owner']` and `team/plan` is in `LOCKED` (not givable in the
+  Access grid) — /api/me adds `team/plan` to `access.give` for someone with
+  an active plan, or a pod lead with one in their pod (`hasPlanPage`, one
+  small read of the active plans). One active plan per person.
+- **A plan**: start and review date (30 / 60 / 90 days or any date), the
+  why, 1–6 **targets** (`METRICS` in src/devplan/metrics.js: weekly score,
+  contracts / offers / opps a week, speed %, CRM points of 12, each CRM item's
+  grade) tracked from the scorecard's `weekSeries` week by week (green hit,
+  red missed, grey this week so far — nothing typed in), **action items** =
+  Alerts development tasks (`cat` dev / improve, optional repeat and date)
+  added on the page through POST /api/alerts `add` with `to` = the person's
+  holder, so they also show on My Scorecard and in Alerts, **weekly
+  check-ins** (owner or pod lead; the person clicks "I've read this" — `ack`),
+  and an outcome (Completed / Ended + note). No sign-off at the start (Luke
+  didn't ask for it). Never written while viewing as; every write in
+  edit_log `devplan.*`.
+
 ## Agent follow-up report (Luke, Nov 4)
 
 One-off: do agents in nurture (the 90-day message) or agents who replied only

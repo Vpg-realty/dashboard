@@ -136,6 +136,10 @@ export const SECTIONS = [
       // New hires in training (Luke, Oct 19): owners every trainee, a pod
       // lead their own.
       { id: 'training', label: 'Training', view: 'mgr-training', scroll: true, roles: ['owner', 'manager'] },
+      // Development plans (Luke, Nov 4): owners always; anyone else only
+      // while they (or, for a pod lead, someone in their pod) have an active
+      // plan — /api/me adds 'team/plan' to access.give (edge/devPlans.js).
+      { id: 'plan', label: 'Development Plan', view: 'dev-plan', scroll: true, roles: ['owner'] },
     ],
   },
   {
