@@ -2051,6 +2051,34 @@ column sits right of the pinned address (`jumpTo`, band headers carry
 `--ui-zoom` scales screen pixels). No new colours or filter rows (Luke: "I
 like it how it is now").
 
+## Deals › GHL Sync Review (Luke, Nov 4)
+
+"a section … information that is not synced or that needs confirmation
+because it differs from either the sheet or GHL … review changes needed and
+ensure they are all aligned". Deals tab **GHL Sync Review** (`/deals/sync`,
+owners + TC, `SyncReviewView.jsx`; givable in Settings › Access as a Deals
+page, read only). Rules in `src/deals/syncReview.js` (`buildReview`,
+`diffsOf`): every tracker deal in play (open, or COE in the last 60 days)
+next to what GHL showed on the last sync — stage, COE, IP end (only before
+Assigned; `ghlMismatches`), contracted price, **value** (GHL's opportunity
+value vs the sheet's net assignment once earned or assigned with a price —
+`sheetValue`, the number Team Overview / Finance / Road to Hawaii / Home
+count; a GHL value with no assignment price on the sheet is flagged too) and
+address (no shared `addrKeys`). Band counters = filters: Needs Review, Not
+in GHL (open deals with no `deal_ghl` link), Not on the Sheet (`ghlDeals()`
+with no tracker deal), In Sync; **COE This Month** switch (`?m=1`), search.
+Each difference: **Update GHL ↑** (PATCH /api/deals/:id `{push}` — now also
+`price`, `netAssign` (the value, via `leadValuePush`), `address`, `title`;
+managers still only COE / IP end) and **Update site ↓** (saves GHL's value;
+the IP end as IP days from the contract date); a queued push shows "✓ Sent
+to GHL". Data: **`deal_ghl.last` now also keeps GHL's `value`, `price`,
+`address`, `title`** (`baseline` in edge/dealSync.js; the feed carries
+`value` = monetaryValue, server/deals.js) — filled in on the first deploy
+after this shipped; the sync still only acts on the stage. `GET
+/api/deals/sync` (functions/api/deals/sync.js) → links, open pushes,
+`ghl_sync`, `canFix`. Usage: one read of deal_ghl (~200 rows) + open
+ghl_push rows per page load; the first sync writes every link once.
+
 ## Deal files & Claude Review (Luke, Oct 27)
 
 "the storage center or file center for each deal … a 'claude review' section

@@ -22,6 +22,7 @@ import TargetsView from '../settings/TargetsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
 import TcListView from '../deals/TcListView.jsx';
 import DealsMapView from '../deals/DealsMapView.jsx';
+import SyncReviewView from '../deals/SyncReviewView.jsx';
 import SuggestionsView from '../suggestions/SuggestionsView.jsx';
 import AlertsPage from '../alerts/AlertsView.jsx';
 import MyTraining from '../training/MyTraining.jsx';
@@ -68,7 +69,7 @@ const ZipBrowse = () => <AllZips view="browse" />;
 const ZipHolds = () => <AllZips view="holds" />;
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
-  'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView,
+  'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView, 'deals-sync': SyncReviewView,
   suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView, 'fin-em': EmView,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
