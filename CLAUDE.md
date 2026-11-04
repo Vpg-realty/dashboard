@@ -1576,6 +1576,34 @@ differ.
   Deals › GHL Sync Review, and "N deals in GHL aren't on the sheet" → opens
   the folded In GHL, Not on the Sheet list.
 
+## IP ends today — pop-ups (Luke, Nov 4)
+
+"a popup on the top right corner … if IP is ending today … flags IP ending at
+XX time or today and alert us to if any em is at risk". `IpPopups`
+(src/shell/IpPopups.jsx, mounted in AppShell — never on the TV), rules in
+`src/deals/ipPopup.js` (`ipSlots`, `ipPopupNow`, `emAtRisk`). A deal still
+before a buyer (`isPending`, not Assigned / Closed in GHL) whose IP end
+(`ddEnd`) is today in Arizona gets, Arizona time (MST all year):
+- **9:00 AM**: address, rep · sub-account box, the cancel-by time (the IP
+  end in its own zone + Arizona, e.g. "5:00 PM Eastern · 3:00 PM Arizona"),
+  EM at risk (VPG or VPG + Buyer paid EMD → "$1,000.00 of our EM at risk";
+  else buyer only / not sent / no EMD).
+- **12:00 PM**: the same again; with no end time on file a note to confirm
+  the cancellation time.
+- **End time on file**: 1 hour and 15 minutes before the IP ends
+  (`zonedMs` converts — a 5 PM Eastern end pops at 2:00 / 2:45 PM Arizona in
+  winter, 1:00 / 1:45 PM in summer).
+- **No end time**: 4:00 PM with the confirm-the-time note.
+Only the latest slot that has come shows, and none after the IP has ended.
+"Got it" / Open deal hides that slot on the device (localStorage
+`vpg.ipPop.<email>`, today's keys only); the next slot brings it back. Who
+(Luke, same day): owners and the TC every deal; reps their own (acq. manager
+or dispo member — the API's `mine`); pod leads their own plus their pod's
+reps' (`podsOf`, matched by name). Checked every 30 s while the tab is
+visible; deals reload every 5 min (one /api/deals read per open tab — ~300
+a day per person who keeps the site open; D1 rows ≈ deals × loads, well
+inside the plan).
+
 ## Today at a Glance + Deals › Active rework (Luke, Oct 23)
 
 From the approved mock-ups. Overrides the older Active / Today notes.
