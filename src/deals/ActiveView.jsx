@@ -1,5 +1,10 @@
-// Deals › Active (Luke, Oct 14; reworked Oct 23 from the approved mock-up:
-// "too complicated … make it clear what to read, what actions, and why").
+// Deals › Active (Luke, Oct 14; reworked Oct 23, then again Nov 4 — Option C
+// of the mock-ups: "very confusing and hard to read and doesn't tell me the
+// story i need to know"). A one-line story in the band (what closes this
+// month, what needs you now), then Act Now / This Week / On Track / Missing
+// Info, one line per deal in date order: date · IP-end or closing mark ·
+// property · rep · what happens · what we make · what's next. The older
+// notes below describe the Oct 23 layout.
 // Every open deal, in sections by urgency — Act Now, This Week, Missing Info,
 // On Track (folded) and In GHL, Not on the Sheet (folded). Each deal is one
 // card read in the same order as Home's Today at a Glance: the address →
@@ -13,20 +18,20 @@
 // applies the new order.
 import StageChip from '../shell/StageChip.jsx';
 import RepTag from '../shell/RepTag.jsx';
-import { PILL_TONE } from './values.js';
 import { useEffect, useMemo, useState } from 'react';
 import { useDeals, ghlDeals, addrKey, addrKeys, fieldsFromGhl } from './store.js';
-import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips, CrossLink } from './ui.jsx';
+import { PageHead, Loading, Search, SyncNote, ResortBar, NeedChips, CrossLink, DueChip } from './ui.jsx';
 import { buildTcCards } from './tcList.js';
 import { call } from '../utils/dashApi.js';
 import { money, shortDate, btnCls, primaryCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import useFrozenOrder from './useFrozenOrder.js';
-import { isOpen, stageOf } from './math.js';
+import { isOpen, stageOf, ghlMismatches } from './math.js';
+import { sheetValue } from './syncReview.js';
 import { LABEL } from './fieldLib.js';
-import { useLocation, setQuery } from '../shell/router.js';
+import { useLocation, setQuery, navigate } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
-import { assigned, hasAssignPrice, daysBetween, emdCell } from './status.js';
+import { assigned, hasAssignPrice } from './status.js';
 import { needsInfo } from './required.js';
 import { urgency, SECTIONS, dealTag } from './urgency.js';
 import { showEndTime } from './ddTime.js';
@@ -47,30 +52,21 @@ const STAGE_TEST = {
   buyer: (d) => !assigned(d),
   asg: assigned,
 };
-const STAGE_KEY = { UNDER_CONTRACT: 'under_contract', DISPO_ACTIVE: 'dispo', ASSIGNED: 'assigned' };
-const stageChipOf = (d) => (assigned(d) ? 'assigned' : STAGE_KEY[stageOf(d)] || 'dispo');
 
-// Section looks: Act Now dark red, On Track dark green, the rest brand navy.
+// Section looks: Act Now dark red, the rest brand navy (Option C, Nov 4).
 const LOOK = {
-  act: { head: 'bg-[#7f1d1d] text-white', box: 'border-[#f3c9c4]', div: 'divide-[#fbe1de]', dot: '🔴' },
-  week: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100', dot: '🟠' },
-  need: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100', dot: '' },
-  ok: { head: 'bg-[#14532d] text-white', box: 'border-tan-200', div: 'divide-tan-100', dot: '🟢' },
-  ghl: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100', dot: '' },
+  act: { head: 'bg-[#7f1d1d] text-white', box: 'border-[#f3c9c4]', div: 'divide-[#fbe1de]' },
+  week: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100' },
+  need: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100' },
+  ok: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100' },
+  ghl: { head: 'bg-navy-700 text-white', box: 'border-tan-200', div: 'divide-tan-100' },
 };
-const PROBLEM = {
-  red: 'bg-[#fdf1f0] border-[#B42318] text-[#9f1239]',
-  amber: 'bg-[#fef6e7] border-[#DC8A0E] text-[#93370D]',
-  green: 'bg-[#ecfdf3] border-[#15803D] text-[#14532D]',
-  blue: 'bg-[#eff5ff] border-[#1D4ED8] text-[#1E40AF]',
-};
-const LINE = { red: 'text-[#9f1239]', amber: 'text-[#B54708]', green: 'text-[#15803D]', blue: 'text-[#1D4ED8]' };
 
-// Which sections are folded, remembered on this device; On Track and the
-// GHL list start folded.
-const FOLD_KEY = 'vpg.active.folds2';
+// Which sections are folded, remembered on this device; the GHL list starts
+// folded.
+const FOLD_KEY = 'vpg.active.folds3';
 function useFolds() {
-  const [folded, setFolded] = useState(() => { try { const v = localStorage.getItem(FOLD_KEY); return new Set(v ? JSON.parse(v) : ['ok', 'ghl']); } catch { return new Set(['ok', 'ghl']); } });
+  const [folded, setFolded] = useState(() => { try { const v = localStorage.getItem(FOLD_KEY); return new Set(v ? JSON.parse(v) : ['ghl']); } catch { return new Set(['ghl']); } });
   const save = (next) => { setFolded(next); try { localStorage.setItem(FOLD_KEY, JSON.stringify([...next])); } catch { /* private mode */ } };
   return {
     is: (id) => folded.has(id),
@@ -83,35 +79,32 @@ function StaleTag() {
   return <span title="Changed since the list was sorted — Re-sort now puts it in its place" className="rounded px-1 text-[10.5px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-inset ring-zinc-200 whitespace-nowrap">changed · re-sort</span>;
 }
 
-// A section: its header bar (title, count, why it's here) folds it.
-function Section({ id, title, note, count, folds, children }) {
+// A section: its header bar (title, count, why it's here, the money in it)
+// folds it.
+function Section({ id, title, note, count, money: m, folds, children }) {
   const look = LOOK[id];
   const open = !folds.is(id);
   return (
     <section id={`sec-${id}`} className={`rounded-xl border bg-white overflow-hidden shadow-[0_1px_2px_rgba(27,56,95,0.04)] scroll-mt-4 ${look.box}`}>
       <button type="button" onClick={() => folds.toggle(id)} aria-expanded={open} className={`w-full flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-left hover:brightness-110 ${look.head}`}>
-        <span className="font-semibold text-[15.5px]">{look.dot ? `${look.dot} ` : ''}{titleCase(title)} · {count}</span>
+        <span className="font-semibold text-[16px]">{titleCase(title)} · {count}</span>
         <span className="text-[12.5px] text-white/75">{note}</span>
-        <span className="ml-auto text-[13px] font-semibold">{open ? 'Hide ▴' : 'Show ▾'}</span>
+        <span className="ml-auto flex items-center gap-3">
+          {m && <span className="rounded-md bg-tan-500 text-navy-900 px-2.5 py-0.5 text-[13px] font-bold">{m}</span>}
+          <span className="text-[13px] font-semibold">{open ? 'Hide ▴' : 'Show ▾'}</span>
+        </span>
       </button>
       {open && <div className={`divide-y ${look.div}`}>{children}</div>}
     </section>
   );
 }
 
-// Act Now's small facts box: label over value, side by side.
-function MiniFacts({ rows }) {
-  return (
-    <div className="flex rounded-lg border border-tan-200 bg-tan-50/60 divide-x divide-tan-200">
-      {rows.map(([k, v, cls]) => (
-        <div key={k} className="px-3 py-1.5 min-w-0">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-tan-600 whitespace-nowrap">{k}</div>
-          <div className={`text-[13px] font-semibold tabular-nums whitespace-nowrap ${cls || 'text-navy-900'}`}>{v}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// One line per thing happening (Option C of the Nov 4 mock-ups, Luke: "i
+// like option b, but i still like the act now, this week, on track and
+// missing info sections"): date · IP end or closing mark · property · rep ·
+// what happens · what we make · what's next.
+const ROW_GRID = 'grid gap-x-4 gap-y-1 items-center md:grid-cols-[172px_12px_minmax(0,2fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,0.8fr)_minmax(0,2.6fr)]';
+const HEAD_CLS = `${ROW_GRID} hidden md:grid px-5 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500 bg-tan-50/70`;
 // What the quick buttons do (they only open the deal on that field — nothing
 // changes until it's saved there).
 const ACTION_TIP = {
@@ -120,9 +113,12 @@ const ACTION_TIP = {
   'Set EMD…': 'Opens the deal on EMD paid by',
   'Fill in': 'Opens the deal on the field to fill in',
 };
-
-const ghostBtn = 'h-[34px] px-3.5 rounded-[9px] text-[13px] font-semibold inline-flex items-center whitespace-nowrap ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50';
-const navyBtn = 'h-[34px] px-3.5 rounded-[9px] text-[13px] font-semibold inline-flex items-center whitespace-nowrap bg-navy-700 text-white hover:bg-navy-800';
+const ghostBtn = 'h-[30px] px-3 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center whitespace-nowrap ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50';
+const NEXT_TONE = { red: 'text-[#9f1239] font-semibold', amber: 'text-[#B54708] font-semibold', green: 'text-zinc-600', blue: 'text-zinc-600' };
+const monthName = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+// "Street" / "City, ST 00000" from one address line.
+const splitAddr = (a) => { const i = String(a || '').indexOf(','); return i > 0 ? [a.slice(0, i), a.slice(i + 1).trim()] : [a || 'No address', '']; };
+const sum = (xs) => xs.reduce((t, x) => t + (x || 0), 0);
 
 export default function ActiveView() {
   const s = useDeals();
@@ -181,96 +177,79 @@ export default function ActiveView() {
   const show = (k) => !only || only === k;
   const bySec = (k) => frozen.rows.filter((d) => d._group === k);
 
-  const emdChip = (d) => {
-    const e = emdCell(d);
-    const ours = String(d.emdPaidBy || '').toUpperCase() === 'VPG' && typeof d.emd === 'number' && d.emd > 0 && !assigned(d) ? ` · ${money(d.emd)} at risk` : '';
-    return <span className={`rounded-md px-2 py-0.5 text-[12px] font-bold ring-1 ring-inset whitespace-nowrap ${PILL_TONE[e.tone] || PILL_TONE.amber}`}>EMD: {e.text.replace(/^In · /, '')}{ours}</span>;
+  // What a deal makes: the net assignment where this person sees it (the
+  // number Finance and Team Overview count), else the gross.
+  const seesNet = !s.fields || s.fields.includes('netAssign');
+  const makes = (d) => (assigned(d) && hasAssignPrice(d) ? (seesNet ? sheetValue(d) ?? d.netAssign : d.grossAssign) : null);
+  // The row's key date as the site's date chip (DueChip — the Pipeline
+  // cards' "IP Nov 3 · late 1d"), the IP end's time under it.
+  const keyDate = (d) => {
+    const iso = d.u.date;
+    if (!ISO.test(iso || '')) return <span className="text-[12.5px] text-zinc-400">{assigned(d) ? 'No COE' : 'No IP end'}</span>;
+    const ip = !assigned(d) && iso === d.ddEnd;
+    return (
+      <span className="flex flex-col items-start gap-0.5">
+        <DueChip label={ip ? 'IP' : 'COE'} date={iso} today={today} />
+        {ip && d.ddEndTime && <span className="text-[11.5px] text-zinc-500">{showEndTime(d)}</span>}
+      </span>
+    );
   };
-  const tagRow = (d, extra) => (
-    <div className="mt-1 flex flex-wrap items-center gap-2">
-      <RepTag {...(dealTag(d) || {})} />
-      <StageChip stage={stageChipOf(d)} />
-      {emdChip(d)}
-      {extra}
-      {d._stale && <StaleTag />}
-    </div>
-  );
-  const address = (d, size = 'text-[17px]') => (
-    <button type="button" onClick={() => open(d.id)} className={`${size} font-bold text-navy-900 hover:underline underline-offset-2 text-left break-words`} title="Open the deal">{d.address || 'No address'}</button>
-  );
-  const ipFact = (d) => {
-    if (!d.ddEnd) return ['IP end', '—', 'text-zinc-400'];
-    const n = ISO.test(d.ddEnd) ? daysBetween(today, d.ddEnd) : null;
-    const late = n != null && n < 0;
-    return ['IP end', `${shortDate(d.ddEnd)}${d.ddEndTime ? ` ${showEndTime(d)}` : ''}${late ? ` · ${-n}d late` : n != null && n <= 7 ? ` · ${n}d` : ''}`, late || (n != null && n <= 1) ? 'text-[#9f1239]' : null];
-  };
-  const coeFact = (d) => {
-    if (!d.coe) return ['COE', 'not set', 'text-[#B54708]'];
-    const n = ISO.test(d.coe) ? daysBetween(today, d.coe) : null;
-    return ['COE', `${shortDate(d.coe)}${n != null ? (n < 0 ? ` · ${-n}d late` : ` · ${n}d`) : ''}`, n != null && n < 0 ? 'text-[#9f1239]' : null];
-  };
-  const gross = (d) => (hasAssignPrice(d) ? ['Gross', money(d.grossAssign), 'text-[#15803D]'] : ['Gross', assigned(d) ? 'price needed' : 'no buyer yet', 'text-zinc-400']);
-
-  // Act Now: the full card — the problem as a flag, facts on the right.
-  const bigCard = (d) => {
+  const row = (d) => {
     const u = d.u;
     const asg = assigned(d);
-    // The dates and money in one small box top right, beside the buttons
-    // (Luke, Oct 23: the stacked list was "too busy"; EMD is already a chip
-    // under the address).
-    const facts = asg
-      ? [coeFact(d), ['Contract', money(d.price)], gross(d)]
-      : [ipFact(d), coeFact(d), ['Contract', money(d.price)]];
+    const [street, city] = splitAddr(d.address);
+    const m = makes(d);
+    const next = u.todo || (asg ? 'On track' : 'Line up a buyer');
     return (
-      <div key={d.id} className="px-5 py-4">
-        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-          <div className="min-w-0 flex-1 basis-[320px]">
-            {address(d)}
-            {tagRow(d)}
-          </div>
-          <MiniFacts rows={facts} />
-          <div className="flex gap-2">
-            <button type="button" onClick={() => open(d.id)} className={navyBtn}>Open deal</button>
-            {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn} title={ACTION_TIP[u.action]}>{u.action}</button>}
-          </div>
-        </div>
-        {/* Just the flag — the team knows what to do (Luke, Oct 27). */}
-        <div className={`mt-2 inline-flex items-center gap-1.5 rounded-md border-l-4 px-2.5 py-1 text-[14px] font-semibold ${PROBLEM[u.tone]}`}>⚑ {u.head}</div>
+      <div key={d.id} className={`${ROW_GRID} px-5 py-3 text-[14px]`}>
+        {keyDate(d)}
+        <span className={`hidden md:block w-2.5 h-2.5 rounded-[3px] ${asg ? 'bg-[#15803d]' : 'bg-[#b45309]'}`} title={asg ? 'Closing — money in' : 'Inspection ends — needs a buyer by then'} />
+        <span className="min-w-0">
+          <button type="button" onClick={() => open(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left break-words" title="Open the deal">{street}</button>
+          <span className="block text-[12px] text-zinc-500">{city ? `${city} · ` : ''}{assigned(d) ? 'Assigned' : stageOf(d) === 'UNDER_CONTRACT' ? 'Under Contract' : 'Dispo Active'}{d._stale ? ' · ' : ''}{d._stale && <StaleTag />}</span>
+        </span>
+        <span><RepTag {...(dealTag(d) || {})} /></span>
+        <span className="text-zinc-700">{u.head}</span>
+        <span className={`md:text-right font-bold tabular-nums ${m != null ? 'text-[#15803d]' : 'text-zinc-300'}`}>{m != null ? money(m) : asg ? 'price needed' : '—'}</span>
+        <span className="flex items-center gap-3">
+          <span className={`flex-1 min-w-0 text-[13px] leading-snug line-clamp-2 ${NEXT_TONE[u.tone] || 'text-zinc-600'}`} title={next}>{next}</span>
+          {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={`shrink-0 ${ghostBtn}`} title={ACTION_TIP[u.action]}>{u.action}</button>}
+        </span>
       </div>
     );
   };
-  // This Week / On Track: a slimmer card — the problem as one coloured line.
-  const slimCard = (d) => {
-    const u = d.u;
-    const right = assigned(d)
-      ? <>{coeFact(d)[1] !== 'not set' ? `COE ${shortDate(d.coe)}` : 'No COE'} · <b className={hasAssignPrice(d) ? 'text-[#15803D]' : 'text-zinc-400'}>{hasAssignPrice(d) ? `${money(d.grossAssign)} gross` : 'price needed'}</b></>
-      : <>{d.coe ? `COE ${shortDate(d.coe)}` : 'No COE'} · {money(d.price)}</>;
-    return (
-      <div key={d.id} className="grid md:grid-cols-[1fr_270px] gap-4 px-5 py-3.5">
-        <div className="min-w-0">
-          {address(d, 'text-[16px]')}
-          {tagRow(d, <span className={`text-[13.5px] font-semibold ${LINE[u.tone]}`}>{u.head}</span>)}
-        </div>
-        <div className="text-[13px] flex items-center justify-between gap-2 text-zinc-600">
-          <span className="tabular-nums">{right}</span>
-          <span className="flex gap-2">
-            {ed && u.action && <button type="button" onClick={() => open(d.id, u.focus)} className={ghostBtn}>{u.action}</button>}
-            <button type="button" onClick={() => open(d.id)} className={ghostBtn}>Open</button>
-          </span>
-        </div>
-      </div>
-    );
-  };
+  const rowsHead = <div className={HEAD_CLS}><span>Date</span><span /><span>Property</span><span>Rep</span><span>What Happens</span><span className="text-right">{seesNet ? 'We Make' : 'Gross'}</span><span>What’s Next</span></div>;
   const empty = (t) => <div className="px-5 py-5 text-[13.5px] text-[#15803D] font-medium">✓ {t}</div>;
 
   const act = bySec('act');
   const week = bySec('week');
   const ok = bySec('ok');
   const need = needFrozen.rows;
+  const moneyOf = (ds) => sum(ds.map(makes));
+  const tag = (word, ds) => { const t = moneyOf(ds); return t ? `${money(t).replace(/\.00$/, '')} ${word}` : null; };
+  // The story in one line (Luke, Nov 4: "doesn't tell me the story i need to
+  // know"): what's lined up this month and what needs him now.
+  const month = today.slice(0, 7);
+  const allOpen = [...byId.values()];
+  const linedNow = allOpen.filter((d) => assigned(d) && String(d.coe || '').startsWith(month));
+  const lined = moneyOf(linedNow);
+  const pastIp = allOpen.filter((d) => d.u.sec === 'act' && !assigned(d) && /ended/.test(d.u.head)).length;
+  const pastCoe = allOpen.filter((d) => d.u.sec === 'act' && /COE passed/.test(d.u.head)).length;
+  const reasons = [pastIp && `${pastIp} past ${pastIp === 1 ? 'its' : 'their'} inspection period with no buyer`, pastCoe && `${pastCoe} closing${pastCoe === 1 ? '' : 's'} passed without being marked Closed`].filter(Boolean);
+  const story = (
+    <>
+      {lined > 0 && <><b className="!text-white">{money(lined).replace(/\.00$/, '')} closes in {monthName(today)}</b> across {linedNow.length} assigned deal{linedNow.length === 1 ? '' : 's'}, if they close on time. </>}
+      {counts.act ? <><b className="!text-white">{counts.act} thing{counts.act === 1 ? '' : 's'} need{counts.act === 1 ? 's' : ''} you now</b>{reasons.length ? ` — ${reasons.join(', ')}` : ''}.</> : 'Nothing needs you right now.'}
+    </>
+  );
+  // Deals the sheet and GHL disagree on (stage, COE, IP end — this hour's GHL
+  // pull, no extra read); the full list with fixes is Deals › GHL Sync Review.
+  const ghlMap = ghlDeals();
+  const mismatched = ed ? allOpen.filter((d) => { const g = addrKeys(d.address).map((k) => ghlMap.get(k)).find(Boolean); return g && ghlMismatches(d, g).length; }).length : 0;
 
   return (
     <div className="max-w-[1720px] mx-auto">
-      <PageHead title="Active Deals" sub={<>{counts.all} open deal{counts.all === 1 ? '' : 's'} · {counts.act} need you now · {counts.ok} on track · {s.readOnly ? 'click a deal to see it' : <SyncNote sync={s.sync} />}</>} right={<>
+      <PageHead title="Active Deals" sub={<span className="block max-w-[820px] text-[15px] leading-snug !text-[#e8edf4]">{story}</span>} right={<>
         {s.readOnly && (
           <span className="inline-flex rounded-lg bg-white/10 p-0.5 text-[13px] font-medium">
             {[[false, 'All active'], [true, 'Only mine']].map(([v, l]) => (
@@ -294,42 +273,55 @@ export default function ActiveView() {
         <BandCounter filter label="On track" value={counts.ok} active={only === 'ok'} onClick={() => pick('ok')} />
         {ed && <BandCounter filter label="Missing info" value={counts.need} active={only === 'need'} onClick={() => pick('need')} />}
       </>} />
-      {only && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
-          <span className="text-zinc-500">Showing</span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-zinc-600">
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#b45309]" />Inspection ends — needs a buyer by then</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#15803d]" />Closing — money in</span>
+        {only && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">
             {ONLY[only]} only
             <button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button>
           </span>
-          <button type="button" onClick={() => setQuery({ only: null })} className="text-navy-700 font-medium hover:underline">Show every section</button>
-        </div>
-      )}
-      <div className="mt-3 flex justify-end"><ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></div>
-      <div className="mt-2 flex flex-col gap-4">
-        {show('act') && <Section id="act" title={SECTIONS.act.label} note={SECTIONS.act.note} count={act.length} folds={folds}>
-          {act.length ? act.map(bigCard) : empty('Nothing late or due within 24 hours.')}
+        )}
+        <span className="ml-auto flex items-center gap-3">{!s.readOnly && <SyncNote sync={s.sync} />}<ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span>
+      </div>
+      <div className="mt-3 flex flex-col gap-4">
+        {show('act') && <Section id="act" title={SECTIONS.act.label} note="A date has passed, or one is within 24 hours · soonest first" count={act.length} money={tag('waiting', act)} folds={folds}>
+          {act.length ? <>{rowsHead}{act.map(row)}</> : empty('Nothing late or due within 24 hours.')}
         </Section>}
-        {show('week') && <Section id="week" title={SECTIONS.week.label} note={SECTIONS.week.note} count={week.length} folds={folds}>
-          {week.length ? week.map(slimCard) : empty('Nothing due in the next 7 days.')}
+        {show('week') && <Section id="week" title={SECTIONS.week.label} note="The next 7 days, day by day" count={week.length} money={tag('closing', week)} folds={folds}>
+          {week.length ? <>{rowsHead}{week.map(row)}</> : empty('Nothing due in the next 7 days.')}
         </Section>}
-        {ed && show('need') && <Section id="need" title="Missing Info" note="Each row lists exactly what's blank — click a field to fill it in." count={need.length} folds={folds}>
+        {show('ok') && <Section id="ok" title={SECTIONS.ok.label} note="Nothing due for a week or more" count={ok.length} money={tag('closing', ok)} folds={folds}>
+          {ok.length ? <>{rowsHead}{ok.map(row)}</> : <div className="px-5 py-5 text-[13.5px] text-zinc-500">No deals here right now.</div>}
+        </Section>}
+        {ed && show('need') && <Section id="need" title="Missing Info" note="Fields the sheet still needs · click a field to fill it in" count={need.length} folds={folds}>
           {need.length ? need.map((d) => {
             const fields = [...new Set(d._needs.flatMap((x) => x.fields))];
+            const [street, city] = splitAddr(d.address);
             return (
-              <div key={d.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                <span className="md:w-[340px] min-w-0">{address(d, 'text-[15px]')}</span>
-                <RepTag {...(dealTag(d) || {})} />
-                <span className="text-[12.5px] text-zinc-500">needs:</span>
+              <div key={d.id} className="grid gap-x-4 gap-y-1 items-center md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,5fr)] px-5 py-3 text-[14px]">
+                <span className="min-w-0">
+                  <button type="button" onClick={() => open(d.id)} className="font-semibold text-navy-800 hover:underline underline-offset-2 text-left">{street}</button>
+                  <span className="block text-[12px] text-zinc-500">{city}{d._stale ? ' · ' : ''}{d._stale && <StaleTag />}</span>
+                </span>
+                <span><RepTag {...(dealTag(d) || {})} /></span>
                 <NeedChips fields={fields} labels={LABEL} onPick={(k) => open(d.id, k)} />
-                {d._stale && <StaleTag />}
-                <button type="button" onClick={() => open(d.id, 'need')} className={`ml-auto ${ghostBtn}`}>Fill in</button>
               </div>
             );
           }) : empty('Every deal has what its stage needs.')}
         </Section>}
-        {show('ok') && <Section id="ok" title={SECTIONS.ok.label} note={`${SECTIONS.ok.note} Click to see them.`} count={ok.length} folds={folds}>
-          {ok.length ? ok.map(slimCard) : <div className="px-5 py-5 text-[13.5px] text-zinc-500">No deals here right now.</div>}
-        </Section>}
+        {ed && !only && (
+          <div className="flex flex-wrap gap-3">
+            <a href={`${import.meta.env.BASE_URL}deals/sync`} onClick={(e) => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); navigate('/deals/sync'); }} className="flex-1 basis-[320px] rounded-xl border border-tan-200 bg-white px-5 py-3.5 text-navy-800 font-semibold hover:bg-tan-50">
+              {mismatched ? `${mismatched} deal${mismatched === 1 ? '' : 's'} don’t match GHL` : 'The sheet and GHL agree'}
+              <span className="block text-[13px] font-normal text-zinc-500">Stage, dates, prices and values side by side, with Update GHL / Update site · GHL Sync Review →</span>
+            </a>
+            <button type="button" onClick={() => { folds.open('ghl'); requestAnimationFrame(() => document.getElementById('sec-ghl')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }} className="flex-1 basis-[320px] text-left rounded-xl border border-tan-200 bg-white px-5 py-3.5 text-navy-800 font-semibold hover:bg-tan-50">
+              {missing.length ? `${missing.length} deal${missing.length === 1 ? '' : 's'} in GHL ${missing.length === 1 ? 'isn’t' : 'aren’t'} on the sheet` : 'Every GHL deal is on the sheet'}
+              <span className="block text-[13px] font-normal text-zinc-500">{missing.length ? `${missing.slice(0, 2).map((g) => splitAddr(g.address || g.name)[0]).join(', ')}${missing.length > 2 ? '…' : ''} · add them →` : 'Under contract or later in GHL'}</span>
+            </button>
+          </div>
+        )}
         {ed && !only && missing.length > 0 && <Section id="ghl" title="In GHL, Not on the Sheet" note="Under contract in GHL but not in the tracker — add them." count={missing.length} folds={folds}>
           {missing.map((g) => (
             <div key={g.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">

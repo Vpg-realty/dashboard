@@ -1520,6 +1520,37 @@ as 100+ "leads" a day. Now:
   (`HISTORY_DAYS` / `HISTORY_MAX`, was 30 / 15) — expected to roughly halve
   the lead judge's cost. The model is unchanged.
 
+## Deals › Active, Option C (Luke, Nov 4)
+
+"very confusing and hard to read and doesn't tell me the story i need to
+know" → mock-ups A / B / C; Luke: "i like option b, but i still like the act
+now, this week, on track and missing info sections" → **C**, built in
+ActiveView.jsx. Overrides the Oct 23 / Oct 27 Active notes below where they
+differ.
+- **The band's story** in one sentence: "$N closes in <month> across N
+  assigned deals, if they close on time. N things need you now — N past their
+  inspection period with no buyer, N closings passed without being marked
+  Closed." (net assignment of assigned deals with a COE this month,
+  `sheetValue` from syncReview.js; the gross for anyone not given the net).
+- **Sections** Act Now (dark red) · This Week · On Track · Missing Info, each
+  with its money in the header ("$N waiting" / "$N closing"); `urgency()`
+  still decides the section and words the problem. **One line per deal**, in
+  date order: the key date as the site's date chip (`DueChip`, deals/ui.jsx
+  — the Pipeline cards' "IP Nov 3 · late 1d" / "COE Nov 13 · tmrw" in the
+  `dueTone` colours: maroon late, red today, light red tomorrow, yellow 2
+  days, blue 3 days, plain after; Luke, Nov 4: one way to read dates
+  everywhere), the IP end's time under it · an amber (IP end, needs a buyer) or green (closing) mark ·
+  street + city · stage · rep box · what happens (`u.head`) · **We Make**
+  (net, or Gross) · what's next (`u.todo`, two lines max) with the quick
+  button (Cancel… / Set EMD… / Mark Closed… / Fill in). Missing Info: street,
+  rep, the blank fields as chips. The old big / slim cards, MiniFacts and the
+  EMD chip row are gone; folds per device `vpg.active.folds3` (only the GHL
+  list starts folded).
+- **At the foot** (owners / TC): "N deals don't match GHL" (stage / COE / IP
+  end via `ghlMismatches` against this hour's `ghlDeals()`, no extra read) →
+  Deals › GHL Sync Review, and "N deals in GHL aren't on the sheet" → opens
+  the folded In GHL, Not on the Sheet list.
+
 ## Today at a Glance + Deals › Active rework (Luke, Oct 23)
 
 From the approved mock-ups. Overrides the older Active / Today notes.
