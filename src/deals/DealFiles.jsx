@@ -13,7 +13,7 @@
 // Server: functions/api/deal-files/[id].js, edge/dealFiles.js.
 import { useEffect, useRef, useState } from 'react';
 import { call } from '../utils/dashApi.js';
-import { FILE_KINDS, KIND_LABEL, guessKind, MAX_FILE, fileSize, readable, proposable } from './files.js';
+import { FILE_KINDS, KIND_LABEL, guessKind, MAX_FILE, fileSize, readable, proposable, alreadyHas } from './files.js';
 import { FIELD } from './math.js';
 import { show } from './fieldLib.js';
 import SearchSelect from './SearchSelect.jsx';
@@ -138,7 +138,7 @@ export default function DealFiles({ id, deal, owner, onFill }) {
   }
 
   // Proposals still worth showing: the deal doesn't already have that value.
-  const props = (review?.proposals || []).filter((p) => proposable(p.key, owner) && !same(p.value, deal[p.key]));
+  const props = (review?.proposals || []).filter((p) => proposable(p.key, owner) && !same(p.value, deal[p.key]) && !alreadyHas(p.key, p.value, deal[p.key]));
   const ticked = props.filter((p) => !pick || pick.includes(p.key));
   const nameOf = (fid) => files.find((f) => f.id === fid)?.name;
   const sorted = [...files].sort((a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || a.uploaded_at.localeCompare(b.uploaded_at));
