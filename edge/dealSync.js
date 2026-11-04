@@ -47,7 +47,10 @@ const azDate = (ms) => (ms ? new Date(ms).toLocaleDateString('en-CA', { timeZone
 
 export { addrKey };
 
-const baseline = (g) => ({ stage: g.stage, coe: g.coe || null, ipEnd: g.ipEnd || null });
+// What GHL showed on the last run. Since Nov 4 also its value, contracted
+// price, address and title, so Deals › Sync Review can compare them with the
+// sheet (the sync itself still only acts on the stage).
+const baseline = (g) => ({ stage: g.stage, coe: g.coe || null, ipEnd: g.ipEnd || null, value: g.value ?? null, price: g.price ?? null, address: g.address || null, title: g.title || null });
 
 // GHL's IP end → the tracker's DD end: as a number of days from the contract
 // date when there is one (so the formula keeps working), else typed.

@@ -97,14 +97,18 @@ export async function onRequestPatch(context) {
 
 // The tracker's value → GHL, on demand (the deal panel's "Doesn't match the
 // tracker" rows). A cancel isn't sent (the rep marks it Lost / Abandoned).
-const PUSHABLE = ['coe', 'ipEnd', 'status'];
-const PUSH_WORD = { coe: 'COE', ipEnd: 'IP end', status: 'stage' };
+// Sync Review (Nov 4) also sends the contracted price, the value (net
+// assignment), the address and the title.
+const PUSHABLE = ['coe', 'ipEnd', 'status', 'price', 'netAssign', 'address', 'title'];
+const PUSH_WORD = { coe: 'COE', ipEnd: 'IP end', status: 'stage', price: 'contracted price', netAssign: 'value', address: 'address', title: 'title' };
+const MANAGER_PUSH = ['coe', 'ipEnd'];
 async function pushNow(db, user, id, row, fields) {
   const want = fields.filter((f) => PUSHABLE.includes(f));
   if (!want.length) return json({ error: 'nothing to send' }, 400);
-  if (!canEditDeals(user) && want.includes('status')) return json({ error: 'Managers can send the COE and IP end only' }, 403);
+  if (!canEditDeals(user) && want.some((f) => !MANAGER_PUSH.includes(f))) return json({ error: 'Managers can send the COE and IP end only' }, 403);
   const deal = rowToDeal(row);
-  const pushes = ghlPushes({}, { ...deal, status: stageOf(deal) }).filter((p) => want.includes(p.field));
+  const value = want.includes('netAssign') ? leadValuePush({}, deal, await getSetting(db, 'deal_rules', {}), await getSetting(db, 'deal_lists', {})) : [];
+  const pushes = [...ghlPushes({}, { ...deal, status: stageOf(deal) }).filter((p) => want.includes(p.field)), ...value];
   if (!pushes.length) return json({ error: want.includes('status') ? 'A cancelled deal isn’t sent to GHL — the rep marks it Lost or Abandoned there' : 'The site has no value to send yet' }, 400);
   const links = (await db.prepare('SELECT ghl_id, location FROM deal_ghl WHERE deal_id = ?').bind(id).all()).results;
   if (!links.length) return json({ error: 'This deal isn’t linked to a GHL opportunity yet' }, 400);

@@ -70,6 +70,8 @@ export const SECTIONS = [
       // Order: Active, All Deals, TC List, Map (Luke, Oct 20).
       { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
       { id: 'tc', label: 'TC List', view: 'deals-tc', scroll: true, roles: ['owner', 'tc'] },
+      // Where the sheet and GHL disagree, with Update GHL / Update site (Luke, Nov 4).
+      { id: 'sync', label: 'GHL Sync Review', view: 'deals-sync', scroll: true, roles: ['owner', 'tc'] },
       // Map of every closed deal (Luke, Oct 15) — where Summary was; Summary
       // moved to Finance so everything with the money lives there.
       { id: 'map', label: 'Map', view: 'deals-map', scroll: true, roles: ['owner', 'tc'] },

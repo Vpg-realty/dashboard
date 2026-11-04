@@ -38,6 +38,6 @@ export async function accessFor(db, user) {
 export const granted = (u, pages) => (u?.grant || []).some((p) => pages.includes(p));
 
 // The pages whose data is guarded on the server, by what they read.
-export const DEAL_PAGES = ['deals/active', 'deals/all', 'deals/tc', 'deals/map'];
+export const DEAL_PAGES = ['deals/active', 'deals/all', 'deals/tc', 'deals/map', 'deals/sync'];
 export const MANAGER_PAGES = ['team/scorecard', 'team/month', 'team/training'];
 export const ZIP_PAGES = ['territory/map', 'territory/coverage', 'territory/zip-center', 'territory/zip-browse', 'territory/zip-holds'];

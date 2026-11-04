@@ -202,6 +202,8 @@ export function extractTrackerFeed({ opportunities, stageOf, fieldIds, extraIds,
       coe: toDateStr(customValue(o, fieldIds.coe)),
       ipEnd: toDateStr(customValue(o, fieldIds.ipEnd)),
       price: Number.isFinite(price) && price > 0 ? price : null,
+      // The opportunity's value (Sync Review compares it with the sheet's net).
+      value: Number.isFinite(Number(o.monetaryValue)) ? Number(o.monetaryValue) : null,
       title: customValue(o, extraIds?.title) ? String(customValue(o, extraIds.title)).trim() : null,
       dealType: customValue(o, extraIds?.dealType) ? String(customValue(o, extraIds.dealType)) : null,
     });
