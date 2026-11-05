@@ -2,7 +2,8 @@
 //   GET  [?host=1]   → the quiz as this person may see it (+ their answers);
 //                      owners with ?host=1 get everything and the scores.
 //   POST { action: mc | open | prop | finish, … }   taking it
-//   POST { action: status | key | reset, … }         hosting (owners)
+//   POST { action: status | key | reset | setup, … } hosting (owners;
+//        setup = questions / properties / clock, draft only)
 // Never written while viewing as. Usage: one settings row + the person's few
 // answer rows per call (the page polls every 5–10 s during the quiz; the
 // host page reads every answer row, ~100, every 5 s) — tens of thousands of
@@ -27,7 +28,7 @@ export async function onRequestPost(context) {
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad request' }, 400); }
   const db = context.env.DB;
-  const hosting = ['status', 'key', 'reset'].includes(b.action);
+  const hosting = ['status', 'key', 'reset', 'setup'].includes(b.action);
   const r = hosting ? await host(db, user, b) : await answer(db, user, b);
   if (r.error) return json({ error: r.error, late: r.late }, r.status || 400);
   if (hosting) {

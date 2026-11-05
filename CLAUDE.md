@@ -1624,6 +1624,14 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   each property's answers, question-by-question results, **Present** (a
   full-screen slide per property and the leaderboard, ← / →), Step Back a
   Stage, Reset Everything (type RESET).
+- **Questions & Setup editor** (Luke, Nov 5: "build the editor"): a panel
+  on Host (`SetupEditor` in QuizView.jsx) — title, intro, minutes per
+  property, each warm-up / comping-rules question (wording, 2–6 choices, the
+  right one, why; add, remove, reorder) and the property addresses. One Save
+  (POST action `setup`, `cleanSetup` in edge/compQuiz.js): draft only — once
+  started it's locked until stepped back to Not started; a property keeps its
+  answer key by id; blank choices are dropped and the right answer follows
+  its text.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 
