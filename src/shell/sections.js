@@ -78,6 +78,15 @@ export const SECTIONS = [
     ],
   },
   {
+    // Comp Challenge (Luke, Nov 5): a one-time team quiz on comping, started
+    // for everyone at once from Host (owners); src/quiz/, edge/compQuiz.js.
+    id: 'quiz', label: 'Comp Challenge', icon: 'trophy', roles: [...PEOPLE, 'trainee'],
+    tabs: [
+      { id: 'take', label: 'Take the Quiz', view: 'quiz-take', scroll: true },
+      { id: 'host', label: 'Host', view: 'quiz-host', scroll: true, roles: ['owner'] },
+    ],
+  },
+  {
     // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
     // managers, trainees and owners request zips here; the rules open from
     // an ⓘ on the page.

@@ -50,10 +50,12 @@ export default function DevPlanView() {
   const nameOf = (p) => people[p.email]?.name || p.email;
 
   // From Settings › Team: a person who already has a plan opens on it.
+  // `?new=pick` = + Start a Plan with nobody picked yet (Nov 5: it was
+  // `?new=` — setQuery drops an empty value, so the button did nothing).
   const startFor = query.get('new');
   const existing = startFor ? plans.find((p) => p.email === startFor && p.status === 'active') : null;
   if (owner && startFor != null && !existing) {
-    return <Shell><PlanForm start={query.get('new') || ''} plans={plans} onCancel={() => setQuery({ new: null })} onSave={async (v) => { const r = await run({ action: 'create', ...v }); setQuery({ new: null, plan: r.id }); }} /></Shell>;
+    return <Shell><PlanForm start={startFor === 'pick' ? '' : startFor} plans={plans} onCancel={() => setQuery({ new: null })} onSave={async (v) => { const r = await run({ action: 'create', ...v }); setQuery({ new: null, plan: r.id }); }} /></Shell>;
   }
   const picked = plans.find((p) => p.id === query.get('plan')) || existing;
   const active = plans.filter((p) => p.status === 'active');
@@ -83,7 +85,7 @@ export default function DevPlanView() {
         <div className="flex flex-wrap items-end gap-2">
           <BandCounter label="Active" value={active.length} />
           {owner && <BandCounter label="Finished" value={past.length} />}
-          {owner && <button type="button" onClick={() => setQuery({ new: '' })} className={`${btn} bg-tan-500 hover:bg-tan-400 text-navy-900`}>+ Start a Plan</button>}
+          {owner && <button type="button" onClick={() => setQuery({ new: 'pick' })} className={`${btn} bg-tan-500 hover:bg-tan-400 text-navy-900`}>+ Start a Plan</button>}
         </div>
       </div>
       <Panel title="Active Plans" num={active.length} bodyClass="divide-y divide-tan-100">
