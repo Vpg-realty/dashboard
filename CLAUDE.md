@@ -1541,6 +1541,10 @@ start plans, keep the why private". Scorecards › **Development Plan**
   and an outcome (Completed / Ended + note). No sign-off at the start (Luke
   didn't ask for it). Never written while viewing as; every write in
   edit_log `devplan.*`.
+- **+ Start a Plan fixed (Luke, Nov 5: "i cannot start a development plan
+  for reps")**: the button set `?new=` (empty), which `setQuery` drops, so
+  the form never opened; it now sets `?new=pick` (nobody picked yet).
+  Settings › Team's link (`?new=<email>`) always worked.
 
 ## Agent follow-up report (Luke, Nov 4)
 
