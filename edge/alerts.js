@@ -114,6 +114,8 @@ const KEEP_DONE_MS = 7 * 86400000;
 // reviewed") once everyone it rings has marked it. The one exception: the
 // holder ticking their own task / GHL task / check-in (nobody else is rung
 // by it) closes it outright — and a GHL task goes back to GHL.
+// The tag GHL's do-not-contact automation uses (edge/alertsSync.js DNC_TAG).
+const DNC_TAG = 'agent - dnc';
 export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
 const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
@@ -367,8 +369,16 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (existing.kind !== 'dnc') return { error: 'Only Do Not Contact alerts take a Yes / No' };
     const v = b.answer ?? null;
     if (![null, 'yes', 'no'].includes(v)) return { error: 'Answer Yes or No' };
+    // Yes puts the "agent - dnc" tag on the contact in GHL (Luke, Nov 5);
+    // taking a Yes back (No, or reopening) takes the tag off again. Sent by
+    // scripts/push-ghl.mjs with the next deploy.
+    const was = existing.verdict === 'yes';
+    const tag = existing.contact && existing.sub && was !== (v === 'yes')
+      ? [['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [`alert:${b.id}`, existing.contact, existing.sub, `tag:${DNC_TAG}`, v === 'yes' ? 'add' : 'remove', user.name, now, 'pending']]]
+      : [];
     return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_at = ?, done_by = ? WHERE id = ?',
-      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]]] };
+      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]], ...tag] };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };

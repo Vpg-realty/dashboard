@@ -188,7 +188,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           {[whose && <span key="w" className="font-semibold text-navy-700">{whose}</span>,
             a.body,
             a.kind === 'lead' ? `texted ${ago(a.created_at)}` : a.kind === 'task' && a.created_by ? `added by ${a.created_by}` : null,
-            a.kind === 'dnc' && a.verdict && `${a.verdict === 'yes' ? 'Confirmed Do Not Contact' : 'Not a Do Not Contact'} — ${a.verdict_by}`,
+            a.kind === 'dnc' && a.verdict && `${a.verdict === 'yes' ? 'Confirmed Do Not Contact' : 'Not a Do Not Contact'} — ${a.verdict_by}${a.verdict === 'yes' && a.contact ? ' · "agent - dnc" tag added in GHL with the next refresh' : ''}`,
             a.done_at && !(a.kind === 'dnc' && a.verdict) && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
             !a.done_at && mine && `${mine.name && mine.who !== me ? `reviewed by ${mine.name}` : a.kind === 'lead' ? 'you reviewed it' : 'you completed it'}${mine.grade ? ` · ${LEAD_TYPE[mine.grade]?.label}` : ''} · ${dayLabel(azDate(new Date(mine.at)))}`,
           ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
@@ -242,7 +242,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
             <span className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
               {[['yes', 'Yes', 'bg-[#B42318] text-white'], ['no', 'No', 'bg-navy-700 text-white']].map(([v, label, on]) => (
                 <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v}
-                  title={a.verdict === v ? 'Click again to reopen it' : v === 'yes' ? 'Yes — they asked not to be contacted. Dismisses it for everyone and teaches Claude' : 'No — a false alarm. Dismisses it for everyone and teaches Claude'}
+                  title={a.verdict === v ? 'Click again to reopen it' : v === 'yes' ? 'Yes — they asked not to be contacted. Adds the "agent - dnc" tag in GHL, dismisses it for everyone and teaches Claude' : 'No — a false alarm. Dismisses it for everyone and teaches Claude'}
                   onClick={() => act({ action: 'dnc', id: a.id, answer: a.verdict === v ? null : v })}
                   className={`h-8 px-3 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${a.verdict === v ? on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{label}</button>
               ))}

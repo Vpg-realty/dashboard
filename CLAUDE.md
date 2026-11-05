@@ -1719,6 +1719,13 @@ out. The lead judge gets the last 30 answers (`DNC_EXAMPLES_MAX`, answered
 before the current hour, in the cached examples block) as DNC / NOT DNC
 examples. Usage: one ≤ 30-row read per run with texts to judge.
 
+**Yes adds the tag (Luke, Nov 5: "if we click yes, it applies the 'agent -
+dnc' tag automatically")**: answering Yes queues `tag:agent - dnc` (value
+add, ghl_id = the contact) in `ghl_push`; taking a Yes back (No / reopen)
+queues remove. scripts/push-ghl.mjs sends it with the next deploy (POST /
+DELETE `/contacts/:id/tags`, the key's "contacts.write"); a refusal shows in
+settings `ghl_push.lastError`. DND channels are still set by hand in GHL.
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
