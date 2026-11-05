@@ -1615,8 +1615,9 @@ two reps pays each $20.
   then each award's status, "Update Finance" if the winners changed, "Open in
   Finance →". The prize cards (and the leaderboard crown) count only people on
   the team (`onTeam` — Dale can't win them).
-- **Scorecards › Reviews** (`/team/reviews`, `src/reviews/ReviewsView.jsx`;
-  owners only, in `LOCKED`): GHL's API has no reviews, so an owner pastes the
+- **Finance › Reviews** (`/finance/reviews`, `src/reviews/ReviewsView.jsx`;
+  owners only like all of Finance — Luke, Nov 5: "move them to the finance
+  tab"; it sat in Scorecards until then and `/team/reviews` redirects): GHL's API has no reviews, so an owner pastes the
   month's Google reviews; Claude (`readPaste`, edge/reviews.js — effort low,
   structured output, ~1–3¢ a paste, counts toward `chat_cap`, thread
   `reviews`) splits them and picks the reps each names (active reps from

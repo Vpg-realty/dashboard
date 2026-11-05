@@ -1,4 +1,4 @@
-// Scorecards › Reviews (Luke, Nov 4: "pull in all reviews we got for the
+// Finance › Reviews (was Scorecards › Reviews until Nov 5) (Luke, Nov 4: "pull in all reviews we got for the
 // month and then assign them to an individual who got the review … $20 per
 // review, up to 5 reviews per month … once a rep is assigned … a new payment
 // to approve and then be marked as paid"). Owners only. Google's reviews
@@ -76,7 +76,7 @@ export default function ReviewsView() {
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Scorecards · Reviews</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Finance · Reviews</div>
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">Google Reviews</h1>
           <p className="mt-1 text-[13.5px] text-white/75">{money(REVIEW_PAY)} to each rep a review names, up to {REVIEW_CAP} reviews a rep a month. Each one goes to Finance › Bonuses to approve and mark paid.</p>
         </div>

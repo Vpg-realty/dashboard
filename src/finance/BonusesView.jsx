@@ -25,7 +25,7 @@ export default function BonusesView({ lines, run, pay, busy, undoPart, onRemove 
     <span className="text-[12.5px] font-semibold">
       <button type="button" onClick={() => navigate('/team/month')} className="hover:underline">Month in Review</button>
       <span className="mx-1.5 opacity-60">·</span>
-      <button type="button" onClick={() => navigate('/team/reviews')} className="hover:underline">Reviews</button>
+      <button type="button" onClick={() => navigate('/finance/reviews')} className="hover:underline">Reviews</button>
     </span>
   );
   if (!months.length) {

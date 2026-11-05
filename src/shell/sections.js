@@ -140,9 +140,6 @@ export const SECTIONS = [
       // while they (or, for a pod lead, someone in their pod) have an active
       // plan — /api/me adds 'team/plan' to access.give (edge/devPlans.js).
       { id: 'plan', label: 'Development Plan', view: 'dev-plan', scroll: true, roles: ['owner'] },
-      // Google reviews (Luke, Nov 4): $20 a review to the rep it names, 5 a
-      // month — owners only (it makes payments); src/reviews/.
-      { id: 'reviews', label: 'Reviews', view: 'reviews', scroll: true, roles: ['owner'] },
     ],
   },
   {
@@ -160,6 +157,10 @@ export const SECTIONS = [
       // Where VPG's earnest money is (Luke, Oct 22): out, at risk, closed not returned.
       { id: 'em', label: 'Earnest Money', view: 'fin-em', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
+      // Google reviews (Luke, Nov 4): $20 a review to the rep it names, 5 a
+      // month — they make payments, so they sit in Finance since Nov 5
+      // (Luke: "move them to the finance tab"; /team/reviews redirects).
+      { id: 'reviews', label: 'Reviews', view: 'reviews', scroll: true },
     ],
   },
   {
@@ -267,6 +268,7 @@ const MOVED = {
   // My Scorecard's own sidebar entry folded into Scorecards (Oct 22).
   me: { section: 'team', tabs: { scorecard: 'mine', breakdown: 'mine' } },
   'team/my-breakdown': { section: 'team', tab: 'mine' },
+  'team/reviews': { section: 'finance', tab: 'reviews' },
 };
 
 export function resolve(path, role, extra = [], acc = null) {
