@@ -4143,6 +4143,14 @@ created-this-period count, `openedIds`), so a deleted opp stays counted
 Contract still comes off (removed from `contractIds`). Drops that happened
 before this shipped aren't restored.
 
+**Offers entered by hand (Luke, Nov 5**: "make danni's offers 7. 3 were not
+counted before the change we made"): `MANUAL_OFFERS` (server/config.js) —
+stand-ins `{rep, mkt, id, at}` with no opp ids — are added once to the pair's
+`offerIds` by applyStickyCounts (`manualOffers`), +1 to the week / month they
+fall in, so they hold under the ceiling and the floor and drop off when the
+period rolls over. Danni AZ, three for the week of Nov 2 (the market is a
+guess; her total is what counts).
+
 If contracts ever appear inflated (e.g. Luke's "58 contracts when it
 should be much less"), the failure mode is usually one of:
 - `OFFER_OR_BEYOND` style fanout accidentally re-introduced

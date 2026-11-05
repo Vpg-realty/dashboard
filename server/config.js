@@ -37,6 +37,15 @@ let manualContracts;
 try { manualContracts = JSON.parse(readFileSync(path.resolve(here, '..', 'manual-contracts.json'), 'utf8')).contracts || []; } catch { manualContracts = []; }
 export const MANUAL_CONTRACTS = manualContracts;
 
+// Offers the live count missed (Luke, Nov 5: "make danni's offers 7. 3 were
+// not counted before the change we made" — offers moved back out of Offer
+// Submitted before Nov 3's "counted means counted" shipped). Each is an opp
+// stand-in added once to its pair's offer list (server/stickyCounts.js), so
+// it counts in the week / month it falls in, holds under the ceiling and
+// drops off when the period rolls over. No opp ids or addresses here (the
+// repo is public).
+export const MANUAL_OFFERS = [1, 2, 3].map((n) => ({ rep: 'danni_brown', mkt: 'AZ', id: `manual-offer:danni_brown:2026-11-02:${n}`, at: '2026-11-02T19:00:00Z' }));
+
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
 export const STAGE_ALIASES = {

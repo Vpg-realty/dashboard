@@ -64,7 +64,7 @@ function periodStartsMs(now) {
 // this week / month are taken back once (it reached the contract band at
 // `started`, so that crossing — and the offer one, which happens at or
 // before it — counted in any period that began before then).
-export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [], manualContracts = [] }) {
+export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [], manualContracts = [], manualOffers = [] }) {
   const { weekMs, monthMs } = periodStartsMs(now);
   // Cancellations are kept from the start of last month.
   const lm = new Date(monthMs); lm.setMonth(lm.getMonth() - 1);
@@ -192,6 +192,18 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       manualAdded[mc.id] = true;
     }
     for (const id of Object.keys(manualAdded)) if (!manualContracts.some((mc) => mc.id === id && Date.parse(mc.at) >= monthMs)) delete manualAdded[id];
+
+    // Offers the live count missed (server/config.js MANUAL_OFFERS): added
+    // once — the first run that doesn't find the stand-in in the pair's
+    // offer list — then kept in that list like any counted offer.
+    for (const mo of manualOffers) {
+      if (`${mo.rep}|${mo.mkt}` !== key || offerIds[mo.id]) continue;
+      const at = Date.parse(mo.at);
+      if (!(at >= keepIdsFrom)) continue;
+      offerIds[mo.id] = at;
+      if (at >= monthMs) offersMonth += 1;
+      if (at >= weekMs) offersWeek += 1;
+    }
 
     // The breadcrumb's opps (at Offer Submitted / Under Contract now, moved
     // there in the period; created in the period) join the lists too, so a
