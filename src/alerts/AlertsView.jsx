@@ -42,6 +42,14 @@ const SHARED = new Set(['lead', 'deal', 'dupe', 'dnc']);
 // Each person grades a lead themself — that's their review; the latest grade
 // colours the row for everyone. Ungraded leads stay purple.
 const TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
+// A Do Not Contact alert's three answers (Luke, Nov 5; edge/alerts.js
+// DNC_ANSWERS) — older Yes / No answers read as dnc / none.
+const DNC_PICK = {
+  dnc: { label: 'Do Not Contact', done: 'Do Not Contact', tag: 'agent - dnc', on: 'bg-[#B42318] text-white', tip: 'They want no contact — adds the "agent - dnc" tag in GHL, dismisses it for everyone and teaches Claude' },
+  pause: { label: 'Stop Automations', done: 'Stop Automations', tag: 'internal - do not automate', on: 'bg-amber-600 text-white', tip: 'Annoyed by the automated texts but still worth a personal text — adds "internal - do not automate" in GHL, dismisses it for everyone and teaches Claude' },
+  none: { label: 'No Action', done: 'No action needed', tag: null, on: 'bg-navy-700 text-white', tip: 'A false alarm — dismisses it for everyone and teaches Claude; nothing changes in GHL' },
+};
+const dncAnswer = (v) => ({ yes: 'dnc', no: 'none' }[v] || v || null);
 
 // No Today list (Luke, Oct 22: "not needed") — the page opens on Leads.
 const RAIL = [
@@ -179,6 +187,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           {isNew && !done && <span className="mr-1.5 rounded px-1.5 py-px text-[11px] font-bold bg-rose-600 text-white align-[1px]">NEW</span>}
           <span className={`mr-1.5 rounded px-1.5 py-px text-[11px] font-bold align-[1px] ${k.tag}`}>{k.label}</span>
           {/* Claude's proposed grade, always shown (Luke, Oct 22). */}
+          {a.kind === 'dnc' && DNC_PICK[a.hint] && <span title="Claude's suggestion — your pick is what counts, and it teaches Claude" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude suggests: {DNC_PICK[a.hint].label}</span>}
           {a.kind === 'lead' && HINT_WORD[a.hint] && <span title="Claude's proposed grade — your pick is what counts, and it teaches Claude" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-violet-700 ring-1 ring-violet-200">Claude: {HINT_WORD[a.hint]}</span>}
           <span className="mr-1.5 align-[1px]"><DueTag a={a} today={today} /></span>
           {a.kind === 'task' && RECUR[a.recur] && <span title="Ticking it adds the next one" className="mr-1.5 rounded px-1.5 py-px text-[11px] font-semibold align-[1px] bg-white text-navy-700 ring-1 ring-navy-200">↻ {RECUR[a.recur]}</span>}
@@ -188,8 +197,8 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           {[whose && <span key="w" className="font-semibold text-navy-700">{whose}</span>,
             a.body,
             a.kind === 'lead' ? `texted ${ago(a.created_at)}` : a.kind === 'task' && a.created_by ? `added by ${a.created_by}` : null,
-            a.kind === 'dnc' && a.verdict && `${a.verdict === 'yes' ? 'Confirmed Do Not Contact' : 'Not a Do Not Contact'} — ${a.verdict_by}${a.verdict === 'yes' && a.contact ? ' · "agent - dnc" tag added in GHL with the next refresh' : ''}`,
-            a.done_at && !(a.kind === 'dnc' && a.verdict) && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
+            a.kind === 'dnc' && DNC_PICK[dncAnswer(a.verdict)] && `${DNC_PICK[dncAnswer(a.verdict)].done} — ${a.verdict_by}${DNC_PICK[dncAnswer(a.verdict)].tag && a.contact ? ` · "${DNC_PICK[dncAnswer(a.verdict)].tag}" tag added in GHL with the next refresh` : ''}`,
+            a.done_at && !(a.kind === 'dnc' && DNC_PICK[dncAnswer(a.verdict)]) && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
             !a.done_at && mine && `${mine.name && mine.who !== me ? `reviewed by ${mine.name}` : a.kind === 'lead' ? 'you reviewed it' : 'you completed it'}${mine.grade ? ` · ${LEAD_TYPE[mine.grade]?.label}` : ''} · ${dayLabel(azDate(new Date(mine.at)))}`,
           ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
         </div>
@@ -234,19 +243,19 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
             ))}
           </span>
         )}
-        {/* Do Not Contact, Yes / No (Luke, Nov 5): one answer dismisses it for
-            everyone and teaches Claude; the same answer again reopens it. */}
+        {/* Do Not Contact (Luke, Nov 5): three answers — one dismisses it for
+            everyone, adds its tag in GHL and teaches Claude; the same answer
+            again reopens it and takes the tag back off. */}
         {a.kind === 'dnc' && (
-          <span role="group" aria-label="Is this a Do Not Contact?" className="inline-flex items-center gap-1.5">
-            <span className="text-[12px] font-semibold text-zinc-600">Do Not Contact?</span>
-            <span className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
-              {[['yes', 'Yes', 'bg-[#B42318] text-white'], ['no', 'No', 'bg-navy-700 text-white']].map(([v, label, on]) => (
-                <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v}
-                  title={a.verdict === v ? 'Click again to reopen it' : v === 'yes' ? 'Yes — they asked not to be contacted. Adds the "agent - dnc" tag in GHL, dismisses it for everyone and teaches Claude' : 'No — a false alarm. Dismisses it for everyone and teaches Claude'}
-                  onClick={() => act({ action: 'dnc', id: a.id, answer: a.verdict === v ? null : v })}
-                  className={`h-8 px-3 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${a.verdict === v ? on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{label}</button>
-              ))}
-            </span>
+          <span role="group" aria-label="What should we do?" className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
+            {Object.entries(DNC_PICK).map(([v, p]) => {
+              const on = dncAnswer(a.verdict) === v;
+              return (
+                <button key={v} type="button" disabled={busy} aria-pressed={on} title={on ? 'Click again to reopen it' : p.tip}
+                  onClick={() => act({ action: 'dnc', id: a.id, answer: on ? null : v })}
+                  className={`h-8 px-3 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${on ? p.on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{on ? '✓ ' : ''}{p.label}</button>
+              );
+            })}
           </span>
         )}
         {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}

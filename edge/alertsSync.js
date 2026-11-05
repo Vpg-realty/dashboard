@@ -78,6 +78,8 @@ const clip = (x, n) => (x == null ? null : String(x).trim().slice(0, n) || null)
 // Handled = the "agent - dnc" tag AND at least one DND channel checked
 // (dnd on, or any channel active / permanent). null when GHL can't be read.
 export const DNC_TAG = 'agent - dnc';
+// The tag GHL's workflows skip (Luke, Nov 5) — "Stop Automations" on a DNC alert.
+export const PAUSE_TAG = 'internal - do not automate';
 export async function contactDnc(token, contactId) {
   if (!token || !contactId) return null;
   try {
@@ -88,11 +90,13 @@ export async function contactDnc(token, contactId) {
   } catch { return null; }
 }
 export function dncState(c) {
-  const tag = (c.tags || []).some((t) => String(t).trim().toLowerCase() === DNC_TAG);
+  const tags = (c.tags || []).map((t) => String(t).trim().toLowerCase());
+  const tag = tags.includes(DNC_TAG);
+  const pause = tags.includes(PAUSE_TAG);
   const channels = Object.entries(c.dndSettings || {}).filter(([, v]) => ['active', 'permanent'].includes(String(v?.status || '').toLowerCase())).map(([k]) => k);
   const dnd = !!c.dnd || channels.length > 0;
   const name = c.contactName || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.name || '';
-  return { tag, dnd, channels: c.dnd && !channels.length ? ['All'] : channels, name: String(name).trim().slice(0, 80) || null };
+  return { tag, pause, dnd, channels: c.dnd && !channels.length ? ['All'] : channels, name: String(name).trim().slice(0, 80) || null };
 }
 // What's still missing, for the alert's text.
 export const dncMissing = (s) => [!s.tag ? `the "${DNC_TAG}" tag isn't on the contact` : null, !s.dnd ? 'no DND channel is checked' : null].filter(Boolean);
@@ -165,6 +169,9 @@ DO NOT CONTACT (Luke, Nov 4 — "flag anyone and anything that could represent s
 - any hostile or aggressive text — threats, insults, sarcasm or profanity aimed at the rep or VPG, "you people are a joke", "scammers".
 NOT dnc: a polite or neutral decline of one offer or property with no irritation and no push-off — "no thanks", "not interested in this one", "seller won't go that low", "no deals right now", "sold", "pending" — or a counter-offer.
 When dnc is true, set lead false (stopping us wins over a lead), and put in dnc_reason at most 10 words on why (no names or numbers); otherwise dnc_reason null.
+Also when dnc is true, propose what to do in dnc_kind (the team decides; null when dnc is false):
+- "dnc": they clearly want no contact at all — asking us to stop or remove them, "lose my number", threats, insults or profanity aimed at us, "scammers";
+- "pause": annoyed by our automated or repeated texts or by an offer, or pushing us off, but still someone a rep could text personally later — "stop sending me these mass texts", "that offer is insulting", "go find someone else", "not interested in your blasts".
 
 Return one verdict per item. For a lead: kind "address" (an address was sent) or "coming" (a deal is promised), the address as written (or null), and a summary of at most 12 words with no names or phone numbers.`;
 
@@ -186,8 +193,9 @@ const LEAD_SCHEMA = {
           same_as_earlier: { anyOf: [{ type: 'boolean' }, { type: 'null' }] },
           dnc: { type: 'boolean' },
           dnc_reason: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          dnc_kind: { anyOf: [{ type: 'string', enum: ['dnc', 'pause'] }, { type: 'null' }] },
         },
-        required: ['id', 'lead', 'kind', 'address', 'summary', 'type', 'bank_hud', 'same_as_earlier', 'dnc', 'dnc_reason'],
+        required: ['id', 'lead', 'kind', 'address', 'summary', 'type', 'bank_hud', 'same_as_earlier', 'dnc', 'dnc_reason', 'dnc_kind'],
         additionalProperties: false,
       },
     },
@@ -205,7 +213,7 @@ export async function judgeLeads(client, batch, examples) {
   const dncEx = examples.filter((e) => String(e.verdict).startsWith('dnc_'));
   const ex = [
     leadEx.length ? `The team's grades on earlier alerts (follow them — they show what this team counts as a lead and how good each kind is):\n${leadEx.map((e) => line(e, VERDICT_WORD[e.verdict] || 'LEAD')).join('\n')}` : '',
-    dncEx.length ? `The team's answers on texts you flagged as do-not-contact (follow them — DNC = the team agreed the person asked not to be contacted; NOT DNC = a false alarm, don't flag texts like it):\n${dncEx.map((e) => line(e, e.verdict === 'dnc_yes' ? 'DNC' : 'NOT DNC')).join('\n')}` : '',
+    dncEx.length ? `The team's answers on texts you flagged as do-not-contact (follow them — DNC = no contact at all, dnc_kind "dnc"; STOP AUTOMATIONS = annoyed, stop the automated texts but a rep may still text them, dnc_kind "pause"; NOT DNC = a false alarm, don't flag texts like it):\n${dncEx.map((e) => line(e, DNC_WORD[e.verdict.slice(4)] || 'NOT DNC')).join('\n')}` : '',
   ].filter(Boolean).join('\n\n');
   const earlier = (t) => (t.earlier ? `EARLIER LEAD from this agent to this rep, ${Math.max(1, Math.round((t.at - t.earlier.at) / 3600000))} h before: "${String(t.earlier.quote || '').replace(/\s+/g, ' ').slice(0, 300)}"${t.earlier.addr ? ` (address: ${t.earlier.addr})` : ''}\n` : '');
   const body = batch.map((t, i) => `<item id="${ids[i]}">\n${earlier(t)}${t.before.length ? 'CONVERSATION HISTORY (oldest first):\n' : ''}${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
@@ -230,6 +238,7 @@ export async function judgeLeads(client, batch, examples) {
   return out;
 }
 
+const DNC_WORD = { yes: 'DNC', dnc: 'DNC', pause: 'STOP AUTOMATIONS', no: 'NOT DNC', none: 'NOT DNC' };
 const VERDICT_WORD = { hot: 'HOT LEAD', warm: 'WARM LEAD', cold: 'COLD LEAD', wholesale: 'WHOLESALE', not: 'NOT A LEAD', real: 'REAL LEAD' };
 const REPEAT_MS = 2 * 3600000;
 // Same agent: their phone, else the contact (one sub-account).
@@ -428,7 +437,7 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     const examples = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'lead' AND verdict IS NOT NULL AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${EXAMPLES_MAX}`, [hourStart]);
     // The team's Yes / No on earlier Do Not Contact flags (Luke, Nov 5:
     // "train you on what is vs isnt"), kept apart as dnc_yes / dnc_no.
-    const dncEx = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'dnc' AND verdict IN ('yes', 'no') AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${DNC_EXAMPLES_MAX}`, [hourStart]);
+    const dncEx = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'dnc' AND verdict IN ('yes', 'no', 'dnc', 'pause', 'none') AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${DNC_EXAMPLES_MAX}`, [hourStart]);
     examples.push(...dncEx.map((e) => ({ quote: e.quote, verdict: `dnc_${e.verdict}` })));
     // A month of each conversation (Luke, Oct 23: "if there has already been
     // back and forth about the property"), in place of the few texts the
@@ -454,9 +463,9 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
           if (st && st.tag && st.dnd) { status.dncHandled = (status.dncHandled || 0) + 1; continue; }
           const miss = st ? dncMissing(st) : ['GHL couldn’t be read — check the tag and DND by hand'];
           const at = new Date(m.at).toISOString();
-          const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, agent, created_by, created_at, agent_name) VALUES (?, ?, ?, 'dnc', ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?)
+          const r = await query(`INSERT INTO alerts (id, ext_id, holder, kind, title, body, quote, sub, conv, contact, due, agent, created_by, created_at, agent_name, hint) VALUES (?, ?, ?, 'dnc', ?, ?, ?, ?, ?, ?, ?, ?, 'Claude', ?, ?, ?)
             ON CONFLICT (ext_id) DO NOTHING`,
-          [newId(), `dnc:${m.id}`, m.sub.repId, clip(`Asked not to be contacted — ${v.dnc_reason || 'hostile text'}`, 200), clip(`To do: ${miss.join('; ')}.${st?.channels?.length ? ` DND on: ${st.channels.join(', ')}.` : ''}`, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), m.phone || null, at, m.who || st?.name || null]);
+          [newId(), `dnc:${m.id}`, m.sub.repId, clip(`Asked not to be contacted — ${v.dnc_reason || 'hostile text'}`, 200), clip(`To do: ${miss.join('; ')}.${st?.channels?.length ? ` DND on: ${st.channels.join(', ')}.` : ''}`, 300), clip(m.body, 600), m.sub.key, m.conv || null, m.contact || null, azDate(m.at), m.phone || null, at, m.who || st?.name || null, v.dnc_kind || null]);
           if (r[0]?.meta?.changes) status.dnc = (status.dnc || 0) + 1;
           continue;
         }
@@ -508,6 +517,8 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
       const st = await contactDnc(tokens[locOf[a.sub]], a.contact);
       if (!st) continue;
       if (st.tag && st.dnd) { await query("UPDATE alerts SET done_by = 'Tagged DNC in GHL', done_at = ? WHERE id = ?", [iso, a.id]); status.dncClosed = (status.dncClosed || 0) + 1; continue; }
+      // Someone parked them in GHL directly (Nov 5) — that's an answer too.
+      if (st.pause) { await query("UPDATE alerts SET done_by = 'Tagged do not automate in GHL', done_at = ? WHERE id = ?", [iso, a.id]); status.dncClosed = (status.dncClosed || 0) + 1; continue; }
       const body = clip(`To do: ${dncMissing(st).join('; ')}.${st.channels.length ? ` DND on: ${st.channels.join(', ')}.` : ''}`, 300);
       if (body !== a.body) await query('UPDATE alerts SET body = ? WHERE id = ?', [body, a.id]);
     }
