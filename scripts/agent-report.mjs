@@ -40,16 +40,24 @@ async function oppsOf(loc, pit) {
   }
   return out;
 }
-async function messagesOf(loc, pit) {
+async function messagesOf(loc, pit, since = 0) {
   const out = []; let cursor;
   for (let i = 0; i < 600; i++) {
-    const d = await ghlFetch('/conversations/messages/export', pit, { params: { locationId: loc, startDate: '2015-01-01T00:00:00.000Z', endDate: new Date().toISOString(), limit: 1000, sortBy: 'createdAt', sortOrder: 'asc', ...(cursor ? { cursor } : {}) } });
+    const d = await ghlFetch('/conversations/messages/export', pit, { params: { locationId: loc, startDate: new Date(since || Date.parse('2015-01-01T00:00:00Z')).toISOString(), endDate: new Date().toISOString(), limit: 1000, sortBy: 'createdAt', sortOrder: 'asc', ...(cursor ? { cursor } : {}) } });
     out.push(...(d?.messages || []).map((m) => ({ contactId: m.contactId, direction: m.direction, dateAdded: m.dateAdded, body: m.body, messageType: m.messageType, source: m.source, userId: m.userId })));
     cursor = d?.nextCursor;
     if (!cursor || !d?.messages?.length) break;
   }
   return out;
 }
+
+// Each job runs once (its own D1 keys): all history, then (Luke, Nov 5: "a
+// comparison over the last 6 months") May 5 – Nov 5, 2026 — a fixed start,
+// so the numbers don't drift while the runs finish.
+const JOBS = [
+  { key: 'agent_report', since: 0 },
+  { key: 'agent_report_6m', since: Date.parse('2026-05-05T07:00:00Z') },
+];
 
 async function main() {
   if (!process.env.GITHUB_ACTIONS && !process.env.REPORT_LOCAL) return;
@@ -64,8 +72,15 @@ async function main() {
     if (!r.ok || !d.success) throw new Error(`D1 ${r.status} ${JSON.stringify(d.errors || []).slice(0, 150)}`);
     return d.result[0].results;
   };
-  let st = JSON.parse((await d1("SELECT value FROM settings WHERE key = 'agent_report'"))[0]?.value || '{}');
-  if (st.version !== REPORT_VERSION) st = { version: REPORT_VERSION, started: new Date().toISOString(), done: [], errors: {} };
+  for (const job of JOBS) {
+    if (Date.now() - T0 > BUDGET_MS - 60_000) return;
+    await runJob(job, d1, secrets);
+  }
+}
+
+async function runJob({ key, since }, d1, secrets) {
+  let st = JSON.parse((await d1('SELECT value FROM settings WHERE key = ?', [key]))[0]?.value || '{}');
+  if (st.version !== REPORT_VERSION) st = { version: REPORT_VERSION, started: new Date().toISOString(), since: since ? new Date(since).toISOString() : null, done: [], errors: {} };
   if (st.finished) return;
   const pits = tokensFrom(secrets, process.env.GHL_TOKENS);
   const locs = Object.keys(pits).sort();
@@ -75,20 +90,20 @@ async function main() {
   const labels = Object.fromEntries((subs.subaccounts || []).map((s) => [s.locationId, `${repName[s.repId] || s.repId} · ${s.marketId}`]));
   // One small row per sub-account (agent_report:<location>) and this index —
   // D1 caps a statement at 100 KB.
-  const put = (key, v) => d1("INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, 'Agent report') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [key, JSON.stringify(v), new Date().toISOString()]);
-  const save = () => put('agent_report', st);
+  const put = (k, v) => d1("INSERT INTO settings (key, value, updated_at, updated_by) VALUES (?, ?, ?, 'Agent report') ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [k, JSON.stringify(v), new Date().toISOString()]);
+  const save = () => put(key, st);
   for (const loc of locs) {
     if (st.done.includes(loc) || (st.errors[loc]?.tries || 0) >= 3) continue;
     if (Date.now() - T0 > BUDGET_MS - 60_000) break;
     try {
       const pit = pits[loc];
       const [contacts, opps, pipelines] = await Promise.all([contactsOf(loc, pit), oppsOf(loc, pit), ghlFetch('/opportunities/pipelines', pit, { params: { locationId: loc } }).then((d) => d?.pipelines || [])]);
-      const messages = await messagesOf(loc, pit);
-      const r = { ...analyzeLocation({ contacts, opps, pipelines, messages, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
-      await put(`agent_report:${loc}`, r);
+      const messages = await messagesOf(loc, pit, since);
+      const r = { ...analyzeLocation({ contacts, opps, pipelines, messages, since, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
+      await put(`${key}:${loc}`, r);
       st.done.push(loc);
       delete st.errors[loc];
-      log(`${labels[loc] || loc}: ${r.agents} agents, ${messages.length} messages`);
+      log(`${key} ${labels[loc] || loc}: ${r.agents} agents, ${messages.length} messages`);
     } catch (err) {
       st.errors[loc] = { msg: String(err.message).slice(0, 200), tries: (st.errors[loc]?.tries || 0) + 1 };
       log(`${loc}: ${err.message}`);
@@ -96,11 +111,11 @@ async function main() {
     await save();
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
-    const rows = await d1("SELECT value FROM settings WHERE key LIKE 'agent_report:%'");
-    await put('agent_report_total', totalOf(rows.map((r) => JSON.parse(r.value))));
+    const rows = await d1('SELECT value FROM settings WHERE key LIKE ?', [`${key}:%`]);
+    await put(`${key}_total`, totalOf(rows.map((r) => JSON.parse(r.value))));
     st.finished = new Date().toISOString();
     await save();
-    log('finished');
+    log(`${key} finished`);
   }
 }
 
