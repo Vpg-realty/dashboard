@@ -16,6 +16,10 @@
 // field `task:<contactId>`, ghl_id = the task id, value done | open (edge/
 // alerts.js ghlTick) → PUT /contacts/:contactId/tasks/:taskId/completed. Needs
 // the key's "contacts.write" (edit contacts / tasks).
+//
+// Do Not Contact "Yes" on Alerts (Luke, Nov 5) rides it too: field
+// `tag:<tag>`, ghl_id = the contact id, value add | remove (edge/alerts.js)
+// → POST / DELETE /contacts/:contactId/tags. Also needs "contacts.write".
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +69,7 @@ export function planPush(rows) {
   return { updates: [...byOpp.values()], superseded };
 }
 
-export async function runPush({ query, fields, tokens, locationOf, put, complete = null, now = new Date() }) {
+export async function runPush({ query, fields, tokens, locationOf, put, complete = null, tagContact = null, now = new Date() }) {
   const iso = now.toISOString();
   const rows = (await query("SELECT * FROM ghl_push WHERE status = 'pending' ORDER BY id"))[0]?.results || [];
   const { updates, superseded } = planPush(rows);
@@ -89,6 +93,17 @@ export async function runPush({ query, fields, tokens, locationOf, put, complete
       await settle(r, error);
     }
     u.rows = u.rows.filter((r) => !String(r.field).startsWith('task:'));
+    // Contact tags: one call each (here ghl_id is the contact).
+    for (const r of u.rows.filter((x) => String(x.field).startsWith('tag:'))) {
+      const locationId = locationOf(u.location);
+      const token = locationId && tokens[locationId];
+      let error = null;
+      if (!token) error = 'no GHL key for this sub-account';
+      else if (!tagContact) error = 'tags not sent this run';
+      else { try { await tagContact(u.ghlId, token, r.field.slice(4), r.value !== 'remove'); } catch (e) { error = String(e.message || e).slice(0, 300); } }
+      await settle(r, error);
+    }
+    u.rows = u.rows.filter((r) => !String(r.field).startsWith('tag:'));
     if (!u.rows.length) continue;
     if (!fields) continue; // no field ids this run — they wait for the next
     const ids = fields[u.location] || {};
@@ -168,7 +183,18 @@ async function main() {
       throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the task change (${r.status}) — the sub-account's key needs permission to edit contacts / tasks` : `GHL ${r.status}: ${t}`);
     }
   };
-  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put, complete });
+  const tagContact = async (contactId, pit, tag, add) => {
+    const r = await fetch(`${GHL}/contacts/${encodeURIComponent(contactId)}/tags`, {
+      method: add ? 'POST' : 'DELETE',
+      headers: { Authorization: `Bearer ${pit}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: [tag] }),
+    });
+    if (!r.ok) {
+      const t = (await r.text()).slice(0, 200);
+      throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the tag change (${r.status}) — the sub-account's key needs permission to edit contacts` : `GHL ${r.status}: ${t}`);
+    }
+  };
+  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put, complete, tagContact });
   console.log(`[ghl-push] ${status.sent} sent · ${status.failed} not sent${status.lastError ? ` (${status.lastError})` : ''}`);
 }
 
