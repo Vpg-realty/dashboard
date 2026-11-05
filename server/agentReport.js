@@ -71,7 +71,16 @@ function templateKey(body, c) {
   return t.replace(/https?:\/\/\S+/g, '{link}').replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().slice(0, 110);
 }
 
-export function analyzeLocation({ contacts, opps, pipelines, messages, label }) {
+// `since` (ms, optional): only that stretch — texts / calls on or after it,
+// leads = opportunities opened on or after it, and only agents we were in
+// touch with then (a text or call either way) or who became a lead then.
+// Tags are today's (GHL keeps no tag history), so "nurture" / "engaged" mean
+// the agent is or was in that campaign, whenever it was.
+export function analyzeLocation({ contacts, opps, pipelines, messages, label, since = 0 }) {
+  if (since) {
+    messages = messages.filter((m) => Date.parse(m.dateAdded) >= since);
+    opps = opps.filter((o) => Date.parse(o.createdAt || o.dateAdded) >= since);
+  }
   const stageName = {};
   for (const p of pipelines || []) for (const s of p.stages || []) stageName[s.id] = String(s.name || '');
   const byContact = new Map();
@@ -114,7 +123,6 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
   for (const c of contacts) {
     const tags = (c.tags || []).map((t) => String(t).toLowerCase());
     if (!tags.some((t) => AGENT_TAG.test(t))) continue;
-    out.agents++;
     const nurtureNow = tags.includes(NURTURE_NOW);
     const nurturePast = tags.some((t) => NURTURE_PAST.test(t));
     const engaged = tags.some((t) => ENGAGED.test(t));
@@ -127,14 +135,16 @@ export function analyzeLocation({ contacts, opps, pipelines, messages, label }) 
     const firstLead = os.length ? Math.min(...os.map((o) => Date.parse(o.createdAt || o.dateAdded) || Infinity)) : null;
     const closedOpps = os.filter((o, i) => /closed/.test(stages[i]) && o.status !== 'lost' && o.status !== 'abandoned');
     const msgs = byContact.get(c.id) || [];
+    if (since && !msgs.length && !os.length) continue;
     const a = {
       lead: os.length > 0,
-      contracted: tags.includes('agent - contracted deal') || stages.some((s) => /under contract|dispo|assigned|closed/.test(s)),
-      closed: closedOpps.length > 0 || tags.includes('closed deal'),
+      contracted: (!since && tags.includes('agent - contracted deal')) || stages.some((s) => /under contract|dispo|assigned|closed/.test(s)),
+      closed: closedOpps.length > 0 || (!since && tags.includes('closed deal')),
       closedValue: closedOpps.reduce((t, o) => t + (Number(o.monetaryValue) || 0), 0),
       sent: msgs.filter((m) => m.direction === 'outbound').length,
     };
     if (a.closed) a.contracted = true;
+    out.agents++;
     const rounds = replyRounds(msgs);
     const before = firstLead && Number.isFinite(firstLead) ? rounds.filter((t) => t < firstLead + DAY) : rounds;
     const n = before.length;

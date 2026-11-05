@@ -1564,6 +1564,17 @@ rate by Arizona hour and weekday; automated texts by wording (sent, reply in
 (`agent_report:<location>`, D1 caps a statement at 100 KB) plus
 `agent_report` (progress) and `agent_report_total`.
 
+**Last 6 months (Luke, Nov 5: "a comparison over the last 6 months")**: a
+second job in scripts/agent-report.mjs (`JOBS`) runs the same report for May
+5 – Nov 5, 2026 (a fixed start) into settings `agent_report_6m`,
+`agent_report_6m:<location>` and `agent_report_6m_total`; the all-history
+rows stay as they are. `analyzeLocation({ since })` keeps only texts / calls
+from then on, counts leads = opportunities opened from then on, and takes
+only agents we were in touch with (or who became a lead) in the stretch; the
+"contracted deal" / "closed deal" tags aren't used (they carry no date).
+Tags are today's, so nurture / engaged / campaign groups are who is or was in
+them. Same cost as the first run, less message history to read.
+
 ## Bonuses: contest awards and Google reviews (Luke, Nov 4)
 
 "add two payments for the winning tiles … first contract of the month and
