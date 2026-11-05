@@ -1593,6 +1593,40 @@ closed ever, and the list. Written as `agent_timing:<location>` by the 6-month
 job (`also`) and by a third job `agent_timing` for the sub-accounts that job
 finished before this shipped; `agent_timing_total` once all are in.
 
+## Comp Challenge — the team quiz (Luke, Nov 5)
+
+"a one time quiz that will be fun for everyone … teaching them how to comp
+properties correctly … start it for everyone at the same time and have their
+answers recorded … project answers on the board". Sidebar **Comp Challenge**
+(section `quiz`, everyone in the app; `src/quiz/QuizView.jsx`, server
+`edge/compQuiz.js`, API `functions/api/comp-quiz`, scoring `src/quiz/score.js`).
+- **The quiz** = D1 settings `comp_quiz` (never in the repo — it holds the
+  right answers): `{id, title, intro, status, timeLimit, warmup: [{id, q,
+  options, answer, why}], properties: [{id, addr, key: {arv, repairs, buy,
+  comps}}], guide: [...]}`. Loaded Nov 5 by Claude as a draft (5 warm-up, 4
+  properties, 10 comping-rule questions from Luke's comping sheet) for Luke
+  to approve. Answers: D1 `quiz_answers (quiz, email, name, part, data,
+  started_at, saved_at)`, part `warmup` / `guide` / `p:<id>` / `done`.
+- **Flow**: draft (nobody sees questions) → **Start for Everyone** (Host
+  tab, owners) → live: Part 1 warm-up (multiple choice) → Part 2 each
+  property with a **4-minute clock from Start the Clock** (the server keeps
+  the start; saves after 4 min + 15 s are refused; answers save as they type,
+  the last save counts) — ARV, repair cost, our buy price, comps optional →
+  Part 3 comping rules → done. **Close Answers** locks it, **Reveal Results**
+  shows everyone the right answers (with the why), Luke's numbers and the
+  leaderboard. No right answer or answer key reaches a browser before the
+  reveal (owners' Host tab aside).
+- **Scoring**: 1 point a right answer; per property up to 3 points each for
+  ARV / repairs / buy price — within 5% = 3, 10% = 2, 20% = 1 (repairs also
+  by $2.5K / $5K / $10K); ties go to less time on the properties.
+- **Host** (`/quiz/host`, owners, `LOCKED`): the answer key per property
+  (enter any time before the reveal), live progress per person, leaderboard,
+  each property's answers, question-by-question results, **Present** (a
+  full-screen slide per property and the leaderboard, ← / →), Step Back a
+  Stage, Reset Everything (type RESET).
+- Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
+  rows), the host every 5 s (all rows) — under 100k rows for the hour.
+
 ## Bonuses: contest awards and Google reviews (Luke, Nov 4)
 
 "add two payments for the winning tiles … first contract of the month and

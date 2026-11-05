@@ -27,7 +27,7 @@ const ROLE_IDS = ACCESS_ROLES.map((r) => r.id);
 // together), and pages only owners may ever open.
 const ONE_ROW = { calendar: 'calendar', board: 'board', finance: 'finance', settings: 'settings', alerts: 'alerts', zips: 'zips', suggestions: 'suggestions' };
 // team/plan: given by having a development plan, never from the grid.
-export const LOCKED = new Set(['finance', 'settings', 'toolkit/commission', 'team/plan']);
+export const LOCKED = new Set(['finance', 'settings', 'toolkit/commission', 'team/plan', 'quiz/host']);
 // My Training is the trainees' own program, not a page to hand out.
 const SKIP = new Set(['training']);
 const ROW_LABEL = { calendar: 'Calendar', board: 'Team Overview & TV Mode', finance: 'Finance (every tab)', settings: 'Settings (every tab)', alerts: 'Alerts', zips: 'Get Zips', suggestions: 'Suggestion Box', home: 'Home' };
