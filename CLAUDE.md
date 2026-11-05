@@ -2674,6 +2674,10 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
     green ≥ 10% (`COC_TARGET`), amber 6–10%, red below. Rehab is its own
     line (the sheet folded it into closing — same result). The sheet's
     guidance shows under each field (`MF_HINTS`).
+    **Nov 5** (Luke: "the MF calculator is not working" — a saved deal had
+    both units ticked Vacant with no market rent, so every result read "—"):
+    with no results the page says what's missing ("To see the numbers, fill
+    in: …") and outlines the empty rent boxes in red.
   - Both: the bar under the calculator (`CalcFrame.jsx` CalcBar) — a name,
     **Link to an opportunity** (`OppPicker`: opps.json + the board's
     contracted deals, scoped like Home — reps theirs, pod leads their pod,
