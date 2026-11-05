@@ -115,6 +115,47 @@ export async function answer(db, user, b) {
   return { error: 'bad action' };
 }
 
+const ID_RE = /^[a-z0-9_-]{1,24}$/i;
+const rid = () => Math.random().toString(36).slice(2, 9);
+function cleanMc(list, label) {
+  if (!Array.isArray(list) || list.length > 40) return { error: `${label}: up to 40 questions` };
+  const out = []; const seen = new Set();
+  for (const [n, x] of list.entries()) {
+    const q = clip(x?.q, 400);
+    // Blank choices are dropped; the right one keeps pointing at the same text.
+    const all = (Array.isArray(x?.options) ? x.options : []).map((o) => clip(o, 200));
+    const options = all.filter(Boolean);
+    if (!q) return { error: `${label} ${n + 1}: write the question` };
+    if (options.length < 2 || options.length > 6) return { error: `${label} ${n + 1}: give 2 to 6 answer choices` };
+    const was = Number(x?.answer);
+    if (!Number.isInteger(was) || !all[was]) return { error: `${label} ${n + 1}: pick the right answer` };
+    const answer = all.slice(0, was).filter(Boolean).length;
+    let id = ID_RE.test(String(x?.id || '')) ? String(x.id) : rid();
+    while (seen.has(id)) id = rid();
+    seen.add(id);
+    out.push({ id, q, options, answer, why: clip(x?.why, 500) || undefined });
+  }
+  return { list: out };
+}
+function cleanSetup(b, quiz) {
+  const w = cleanMc(b.warmup, 'Warm-up'); if (w.error) return w;
+  const g = cleanMc(b.guide, 'Comping rules'); if (g.error) return g;
+  if (!Array.isArray(b.properties) || b.properties.length > 10) return { error: 'Up to 10 properties' };
+  const old = Object.fromEntries((quiz.properties || []).map((p) => [p.id, p]));
+  const seen = new Set(); const properties = [];
+  for (const [n, x] of b.properties.entries()) {
+    const addr = clip(x?.addr, 200);
+    if (!addr) return { error: `Property ${n + 1}: type the address` };
+    let id = ID_RE.test(String(x?.id || '')) ? String(x.id) : rid();
+    while (seen.has(id)) id = rid();
+    seen.add(id);
+    properties.push({ id, addr, ...(old[id]?.key ? { key: old[id].key } : {}) });
+  }
+  const mins = Number(b.minutes);
+  if (!Number.isFinite(mins) || mins < 1 || mins > 30) return { error: 'Time per property: 1 to 30 minutes' };
+  return { setup: { title: clip(b.title, 80) || 'Comp Challenge', intro: clip(b.intro, 400), timeLimit: Math.round(mins * 60), warmup: w.list, guide: g.list, properties } };
+}
+
 // Hosting (owners).
 export async function host(db, user, b) {
   if (user.role !== 'owner' || user.viewAs) return { error: 'Owners only', status: 403 };
@@ -135,6 +176,16 @@ export async function host(db, user, b) {
     const key = { comps: clip(b.comps, 1500) };
     for (const [f] of PROP_FIELDS) { const v = num(b[f]); key[f] = v == null ? null : Math.round(v); }
     prop.key = key;
+    await saveQuiz(db, quiz);
+    return { ok: true };
+  }
+  if (b.action === 'setup') {
+    // The questions, properties and clock — only before the start, so nothing
+    // moves under anyone mid-quiz (Luke, Nov 5: "build the editor").
+    if (quiz.status !== 'draft') return { error: 'Questions can only be changed before the quiz starts — Step Back a Stage to draft first' };
+    const c = cleanSetup(b, quiz);
+    if (c.error) return c;
+    Object.assign(quiz, c.setup);
     await saveQuiz(db, quiz);
     return { ok: true };
   }

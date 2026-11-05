@@ -342,6 +342,7 @@ function HostView() {
         </div>
       </Band>
       {err && <p className="text-rose-700 text-[14px]">{err}</p>}
+      <SetupEditor quiz={quiz} save={(body) => act({ action: 'setup', ...body })} />
       <Panel title="Answer Key" sub="Your numbers — the team’s answers are scored against these. Only owners see them until the reveal.">
         <div className="divide-y divide-tan-100">{(quiz.properties || []).map((p, i) => <KeyRow key={p.id} prop={p} n={i + 1} save={(v) => act({ action: 'key', prop: p.id, ...v })} />)}</div>
       </Panel>
@@ -381,6 +382,125 @@ function HostView() {
       </div>
       {present && <Present quiz={quiz} answers={answers} names={names} scores={scores} max={max} onClose={() => setPresent(false)} />}
     </Shell>
+  );
+}
+
+// The questions, properties and clock (Luke, Nov 5: "build the editor").
+// Editable only before the start; the server refuses it otherwise.
+const blankQ = () => ({ id: '', q: '', options: ['', ''], answer: 0, why: '' });
+const fromQuiz = (quiz) => ({
+  title: quiz.title || '', intro: quiz.intro || '', minutes: String(Math.round((quiz.timeLimit || 240) / 6) / 10),
+  warmup: (quiz.warmup || []).map((q) => ({ ...q, why: q.why || '' })),
+  guide: (quiz.guide || []).map((q) => ({ ...q, why: q.why || '' })),
+  properties: (quiz.properties || []).map((p) => ({ id: p.id, addr: p.addr })),
+});
+function SetupEditor({ quiz, save }) {
+  const draft = quiz.status === 'draft';
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState(() => fromQuiz(quiz));
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const saved = JSON.stringify(fromQuiz(quiz));
+  const dirty = JSON.stringify(v) !== saved;
+  const counts = `${(quiz.warmup || []).length} warm-up · ${(quiz.properties || []).length} properties · ${(quiz.guide || []).length} comping rules`;
+  if (!draft) {
+    return (
+      <Panel title="Questions & Setup" sub={counts}>
+        <p className="px-6 py-4 text-[14px] text-zinc-600">🔒 Locked while the quiz is running, so nothing changes under anyone. To edit, Step Back a Stage until it reads Not started.</p>
+      </Panel>
+    );
+  }
+  const setList = (k, fn) => setV((x) => ({ ...x, [k]: fn(x[k]) }));
+  const onSave = async () => {
+    setBusy(true); setMsg('');
+    try { const d = await save(v); if (d?.quiz) setV(fromQuiz(d.quiz)); setMsg('Saved ✓'); } catch (e) { setMsg(e.message); }
+    setBusy(false);
+  };
+  return (
+    <Panel title="Questions & Setup" sub={`${counts} · editable until you press Start`}
+      right={<button type="button" onClick={() => setOpen(!open)} className="px-2">{open ? 'Close ▴' : 'Edit ▾'}</button>}>
+      {!open ? (
+        <p className="px-6 py-4 text-[14px] text-zinc-600">Change the wording, the answer choices, which one is right and the explanation; add or remove questions and properties; set the clock.</p>
+      ) : (
+        <div className="px-6 py-5 grid gap-6">
+          <div className="grid sm:grid-cols-[1fr_160px] gap-3">
+            <label className="block"><span className="block text-[12.5px] text-zinc-600 mb-1">Title</span>
+              <input className={inputCls} value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} /></label>
+            <label className="block"><span className="block text-[12.5px] text-zinc-600 mb-1">Minutes per property</span>
+              <input className={inputCls} inputMode="decimal" value={v.minutes} onChange={(e) => setV({ ...v, minutes: e.target.value })} /></label>
+          </div>
+          <label className="block"><span className="block text-[12.5px] text-zinc-600 mb-1">Intro (shown before it starts)</span>
+            <textarea rows={2} className={`${inputCls} h-auto py-2`} value={v.intro} onChange={(e) => setV({ ...v, intro: e.target.value })} /></label>
+          <McEditor title="Part 1 · Warm-Up" list={v.warmup} set={(fn) => setList('warmup', fn)} />
+          <div className="grid gap-2">
+            <div className="text-[13px] font-semibold uppercase tracking-wide text-tan-700">Part 2 · Properties</div>
+            {v.properties.map((p, i) => (
+              <div key={p.id || `n${i}`} className="flex items-center gap-2">
+                <span className="w-6 text-zinc-500 tabular-nums">{i + 1}.</span>
+                <input className={inputCls} value={p.addr} placeholder="Street, city, state" onChange={(e) => setList('properties', (l) => l.map((x, j) => (j === i ? { ...x, addr: e.target.value } : x)))} />
+                <Mover i={i} n={v.properties.length} set={(fn) => setList('properties', fn)} />
+              </div>
+            ))}
+            <div><button type="button" onClick={() => setList('properties', (l) => [...l, { id: '', addr: '' }])} className={quiet}>+ Add a Property</button></div>
+            <p className="text-[12.5px] text-zinc-500">A property keeps its answer key when you change the address; a new one needs its key entered below.</p>
+          </div>
+          <McEditor title="Part 3 · Comping Rules" list={v.guide} set={(fn) => setList('guide', fn)} />
+          <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-tan-200 flex items-center gap-3">
+            <button type="button" disabled={!dirty || busy} onClick={onSave} className={primary}>{busy ? 'Saving…' : 'Save Changes'}</button>
+            <button type="button" disabled={!dirty || busy} onClick={() => { setV(fromQuiz(quiz)); setMsg(''); }} className={quiet}>Discard</button>
+            <span className={`text-[13px] ${msg && msg !== 'Saved ✓' ? 'text-rose-700' : 'text-zinc-500'}`}>{msg || (dirty ? 'Unsaved changes' : '')}</span>
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function Mover({ i, n, set }) {
+  const swap = (a, b) => set((l) => { const c = [...l]; [c[a], c[b]] = [c[b], c[a]]; return c; });
+  const sm = 'h-8 w-8 rounded-md ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50 disabled:opacity-30 shrink-0';
+  return (
+    <>
+      <button type="button" title="Move up" disabled={i === 0} onClick={() => swap(i, i - 1)} className={sm}>↑</button>
+      <button type="button" title="Move down" disabled={i === n - 1} onClick={() => swap(i, i + 1)} className={sm}>↓</button>
+      <button type="button" title="Remove" onClick={() => { if (window.confirm('Remove this?')) set((l) => l.filter((_, j) => j !== i)); }} className={`${sm} text-rose-700`}>×</button>
+    </>
+  );
+}
+
+function McEditor({ title, list, set }) {
+  const edit = (i, patch) => set((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  return (
+    <div className="grid gap-3">
+      <div className="text-[13px] font-semibold uppercase tracking-wide text-tan-700">{title} · {list.length} questions</div>
+      {list.map((q, i) => (
+        <div key={q.id || `n${i}`} className="rounded-xl border border-tan-200 bg-tan-50/40 p-4 grid gap-2.5">
+          <div className="flex items-start gap-2">
+            <span className="w-6 pt-2 text-zinc-500 tabular-nums">{i + 1}.</span>
+            <textarea rows={2} className={`${inputCls} h-auto py-2`} value={q.q} placeholder="The question" onChange={(e) => edit(i, { q: e.target.value })} />
+            <Mover i={i} n={list.length} set={set} />
+          </div>
+          <div className="pl-8 grid gap-1.5">
+            {q.options.map((o, k) => (
+              <div key={k} className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-[12.5px] w-[84px] shrink-0 cursor-pointer">
+                  <input type="radio" name={`${title}-${i}`} checked={q.answer === k} onChange={() => edit(i, { answer: k })} />
+                  <span className={q.answer === k ? 'text-emerald-700 font-semibold' : 'text-zinc-500'}>{q.answer === k ? 'Right' : 'Wrong'}</span>
+                </label>
+                <input className={`${inputCls} ${q.answer === k ? 'ring-1 ring-emerald-400' : ''}`} value={o} placeholder={`Choice ${k + 1}`}
+                  onChange={(e) => edit(i, { options: q.options.map((x, m) => (m === k ? e.target.value : x)) })} />
+                <button type="button" title="Remove this choice" disabled={q.options.length <= 2}
+                  onClick={() => edit(i, { options: q.options.filter((_, m) => m !== k), answer: q.answer === k ? 0 : q.answer > k ? q.answer - 1 : q.answer })}
+                  className="h-8 w-8 rounded-md text-zinc-400 hover:text-rose-700 disabled:opacity-30 shrink-0">×</button>
+              </div>
+            ))}
+            {q.options.length < 6 && <div><button type="button" onClick={() => edit(i, { options: [...q.options, ''] })} className="text-[13px] text-navy-700 underline">+ Add a choice</button></div>}
+            <input className={inputCls} value={q.why} placeholder="Why it's right (shown at the reveal)" onChange={(e) => edit(i, { why: e.target.value })} />
+          </div>
+        </div>
+      ))}
+      <div><button type="button" onClick={() => set((l) => [...l, blankQ()])} className={quiet}>+ Add a Question</button></div>
+    </div>
   );
 }
 
