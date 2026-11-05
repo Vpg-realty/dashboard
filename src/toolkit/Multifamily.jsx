@@ -80,6 +80,15 @@ export default function Multifamily() {
 
   if (c.missing) return <div className="py-16 text-center text-zinc-500">That calculation was removed, or isn’t yours to see.</div>;
   const cocT = m.ready ? cocTone(m.current.coc) : null;
+  // Nov 5 (Luke: "the MF calculator is not working" — both units ticked
+  // Vacant with no market rent left every result at "—"): say what's missing
+  // and mark the boxes, instead of dashes with no reason.
+  const noRent = (u) => (u.vacant === 'yes' || !num(u.rent)) && !num(u.market);
+  const missingRent = units.map((u, n) => (noRent(u) ? n : -1)).filter((n) => n >= 0);
+  const missing = m.ready ? [] : [
+    ...(!m.price ? ['Our contract price'] : []),
+    ...(missingRent.length ? [`a rent for ${missingRent.length === units.length && units.length > 1 ? 'every unit' : `unit ${missingRent.map((n) => units[n].unit || n + 1).join(', ')}`} — a vacant unit needs its market rent`] : []),
+  ];
   return (
     <div className="flex flex-col gap-4 pb-16">
       {c.form.opp && <div className="rounded-xl border border-tan-200 bg-white px-4 py-2.5 text-[13px]"><span className="text-zinc-500 mr-1.5">Linked to</span><LinkedOpp opp={c.form.opp} /></div>}
@@ -98,7 +107,7 @@ export default function Multifamily() {
                   <tr key={n} className="border-t border-tan-100">
                     {UNIT_COLS.map(([k, , w, pre]) => (
                       <td key={k} className="px-2 first:pl-5 py-1.5">
-                        <span className={`flex items-center h-8 rounded-md border border-zinc-200 px-2 ${w} ${ro ? 'bg-zinc-50' : 'bg-white'} ${k === 'rent' && u.vacant === 'yes' ? 'opacity-40' : ''}`}>
+                        <span className={`flex items-center h-8 rounded-md border border-zinc-200 px-2 ${w} ${ro ? 'bg-zinc-50' : 'bg-white'} ${k === 'rent' && u.vacant === 'yes' ? 'opacity-40' : ''} ${!m.ready && noRent(u) && (k === 'market' || (k === 'rent' && u.vacant !== 'yes')) ? 'border-rose-400 ring-1 ring-rose-300' : ''}`}>
                           {pre && <span className="text-zinc-400 mr-0.5">{pre}</span>}
                           <input value={u[k] ?? ''} readOnly={ro} onChange={(e) => setUnit(n, k, e.target.value)} className="min-w-0 w-full bg-transparent outline-none tabular-nums" />
                         </span>
@@ -126,6 +135,11 @@ export default function Multifamily() {
           </Panel>
         </div>
         <div className="flex flex-col gap-4">
+          {missing.length > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[13.5px] text-amber-900">
+              <span className="font-semibold">To see the numbers, fill in: </span>{missing.join('; ')}.
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Tile dot={cocT || 'grey'} tint={cocT || undefined} label="Cash-on-Cash" value={m.ready ? pct(m.current.coc) : '—'} sub={`current rents · rec. ${COC_TARGET}%+`} />
             <Tile dot={!m.ready ? 'grey' : m.capOk ? 'green' : 'red'} tint={!m.ready ? undefined : m.capOk ? 'green' : 'red'} label="Cap Rate" value={m.ready ? pct(m.current.cap) : '—'} sub={`current rents · rec. ${CAP_TARGET}%+`} />
