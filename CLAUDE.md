@@ -1694,6 +1694,17 @@ in GHL" once the tag and a DND channel are on, else refreshes what's
 missing. Cost: a few output tokens on calls already made; one GHL contact
 read per flagged text and per open dnc alert per deploy; D1 a few rows.
 
+**Yes / No on each DNC alert (Luke, Nov 5: "a yes or no selection box under
+the DNC area … select one to dismiss it and also train you on what is vs
+isnt")**: a dnc row has no tick box; "Do Not Contact? Yes | No" (POST
+/api/alerts `{action: 'dnc', id, answer: 'yes' | 'no' | null}`, `plan` in
+edge/alerts.js) closes it for everyone (`done_by` = who answered, `verdict` =
+the answer, shown as "Confirmed Do Not Contact / Not a Do Not Contact — <name>")
+and the same answer again reopens it; `done` / `doneMany` leave dnc alerts
+out. The lead judge gets the last 30 answers (`DNC_EXAMPLES_MAX`, answered
+before the current hour, in the cached examples block) as DNC / NOT DNC
+examples. Usage: one ≤ 30-row read per run with texts to judge.
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,

@@ -88,7 +88,7 @@ export async function onRequestPost(context) {
   const p = plan(b, user, now, existing);
   if (p.error) return json({ error: p.error }, 400);
   const log = b.action === 'seen' || b.action === 'chime' ? [] : [
-    db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, ids: p.ids, to: b.to, verdict: b.verdict, done: b.done })),
+    db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `alerts.${b.action}`, JSON.stringify({ id: p.id || b.id, ids: p.ids, to: b.to, verdict: b.verdict, answer: b.answer, done: b.done })),
   ];
   await db.batch([...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)), ...log]);
   await closeReviewed(db, p.check || [], now);

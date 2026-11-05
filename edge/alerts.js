@@ -330,7 +330,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   // Tick (or untick) several at once (Luke, Oct 19: "select all"). Spotted
   // leads take a Real / Not a lead answer instead, so they're left out.
   if (a === 'doneMany') {
-    const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind !== 'lead');
+    const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind !== 'lead' && x.kind !== 'dnc');
     if (!list.length) return { error: 'Pick the alerts to tick off' };
     return { ids: list.map((x) => x.id), check: b.done ? list.filter((x) => personal(x, scope)) : [], run: list.flatMap((x) => tick(x, !!b.done, user, scope, now)) };
   }
@@ -339,6 +339,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     // A lead is reviewed by picking its type (Luke, Oct 22: "complete button
     // would not be needed anymore").
     if (existing.kind === 'lead') return { error: 'Pick the lead type (Hot, Warm, Cold, Wholesale or Not a lead) — that marks it reviewed' };
+    if (existing.kind === 'dnc') return { error: 'Answer Yes or No — is it a Do Not Contact?' };
     return { check: b.done && personal(existing, scope) ? [existing] : [], run: tick(existing, !!b.done, user, scope, now) };
   }
   if (a === 'verdict') {
@@ -357,6 +358,17 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
         [b.id, markWho(existing, user, scope), user.name, now, v]],
       ['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ? WHERE id = ?', [v, user.name, now, b.id]],
     ] };
+  }
+  // Do Not Contact, Yes / No (Luke, Nov 5: "select one to dismiss it and also
+  // train you on what is vs isnt"): one answer closes it for everyone and
+  // teaches the lead judge (the last 30 go along as examples); picking the
+  // same answer again reopens it.
+  if (a === 'dnc') {
+    if (existing.kind !== 'dnc') return { error: 'Only Do Not Contact alerts take a Yes / No' };
+    const v = b.answer ?? null;
+    if (![null, 'yes', 'no'].includes(v)) return { error: 'Answer Yes or No' };
+    return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_at = ?, done_by = ? WHERE id = ?',
+      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]]] };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
