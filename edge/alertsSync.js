@@ -29,6 +29,7 @@ const LEAD_PER_CALL = 25;
 // Cost cuts (Luke, Nov 3 — ~$10–15 a day of Claude, mostly this): 50
 // graded examples (was 150), 14 days / 8 messages of history (was 30 / 15).
 const EXAMPLES_MAX = 50;
+const DNC_EXAMPLES_MAX = 30;
 const HISTORY_DAYS = 14;
 const HISTORY_MAX = 8;
 const LEAD_MAX_PER_RUN = 200;
@@ -199,9 +200,13 @@ export async function judgeLeads(client, batch, examples) {
   const ids = batch.map((_, i) => `t${i + 1}`);
   // The team's grades (Luke, Oct 23: "more the better") — up to EXAMPLES_MAX,
   // the same set for an hour, so they sit in a 1-hour prompt cache.
-  const ex = examples.length
-    ? `The team's grades on earlier alerts (follow them — they show what this team counts as a lead and how good each kind is):\n${examples.map((e) => `- ${VERDICT_WORD[e.verdict] || 'LEAD'}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`).join('\n')}`
-    : '';
+  const line = (e, word) => `- ${word}: "${String(e.quote).replace(/\s+/g, ' ').slice(0, 300)}"`;
+  const leadEx = examples.filter((e) => !String(e.verdict).startsWith('dnc_'));
+  const dncEx = examples.filter((e) => String(e.verdict).startsWith('dnc_'));
+  const ex = [
+    leadEx.length ? `The team's grades on earlier alerts (follow them — they show what this team counts as a lead and how good each kind is):\n${leadEx.map((e) => line(e, VERDICT_WORD[e.verdict] || 'LEAD')).join('\n')}` : '',
+    dncEx.length ? `The team's answers on texts you flagged as do-not-contact (follow them — DNC = the team agreed the person asked not to be contacted; NOT DNC = a false alarm, don't flag texts like it):\n${dncEx.map((e) => line(e, e.verdict === 'dnc_yes' ? 'DNC' : 'NOT DNC')).join('\n')}` : '',
+  ].filter(Boolean).join('\n\n');
   const earlier = (t) => (t.earlier ? `EARLIER LEAD from this agent to this rep, ${Math.max(1, Math.round((t.at - t.earlier.at) / 3600000))} h before: "${String(t.earlier.quote || '').replace(/\s+/g, ' ').slice(0, 300)}"${t.earlier.addr ? ` (address: ${t.earlier.addr})` : ''}\n` : '');
   const body = batch.map((t, i) => `<item id="${ids[i]}">\n${earlier(t)}${t.before.length ? 'CONVERSATION HISTORY (oldest first):\n' : ''}${t.before.map((x) => `${x.from}: ${x.body.replace(/\s+/g, ' ')}`).join('\n')}${t.before.length ? '\n' : ''}AGENT (the text to judge): ${t.body.replace(/\s+/g, ' ')}\n</item>`).join('\n\n');
   const response = await client.beta.messages.create({
@@ -421,6 +426,10 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
     // for the hour.
     const hourStart = new Date(Math.floor(now / 3600000) * 3600000).toISOString();
     const examples = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'lead' AND verdict IS NOT NULL AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${EXAMPLES_MAX}`, [hourStart]);
+    // The team's Yes / No on earlier Do Not Contact flags (Luke, Nov 5:
+    // "train you on what is vs isnt"), kept apart as dnc_yes / dnc_no.
+    const dncEx = await rows(`SELECT quote, verdict FROM alerts WHERE kind = 'dnc' AND verdict IN ('yes', 'no') AND verdict_at < ? ORDER BY verdict_at DESC LIMIT ${DNC_EXAMPLES_MAX}`, [hourStart]);
+    examples.push(...dncEx.map((e) => ({ quote: e.quote, verdict: `dnc_${e.verdict}` })));
     // A month of each conversation (Luke, Oct 23: "if there has already been
     // back and forth about the property"), in place of the few texts the
     // day's export holds.

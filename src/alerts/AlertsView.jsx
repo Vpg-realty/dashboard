@@ -132,7 +132,7 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
     : a.kind === 'dupe' ? refs.map((r) => subTag(r.sub)).filter(Boolean) : [];
   return (
     <div className={`grid grid-cols-[22px_30px_minmax(0,1fr)] md:grid-cols-[22px_30px_minmax(0,1fr)_auto] gap-x-3 gap-y-2 items-start px-4 md:px-5 py-3 border-t border-tan-100 ${type ? `border-l-4 ${type.row}` : ''} ${isNew && !done && !type ? 'bg-gradient-to-r from-rose-50 to-white' : ''} ${done ? 'opacity-75' : ''}`}>
-      {a.kind === 'lead' ? <span /> : sel ? (
+      {a.kind === 'lead' || a.kind === 'dnc' ? <span /> : sel ? (
         <input type="checkbox" checked={sel.has(a.id)} onChange={() => toggle(a.id)}
           className="mt-1.5 w-[18px] h-[18px] accent-tan-600 cursor-pointer" aria-label="Select" />
       ) : (
@@ -188,7 +188,8 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
           {[whose && <span key="w" className="font-semibold text-navy-700">{whose}</span>,
             a.body,
             a.kind === 'lead' ? `texted ${ago(a.created_at)}` : a.kind === 'task' && a.created_by ? `added by ${a.created_by}` : null,
-            a.done_at && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
+            a.kind === 'dnc' && a.verdict && `${a.verdict === 'yes' ? 'Confirmed Do Not Contact' : 'Not a Do Not Contact'} — ${a.verdict_by}`,
+            a.done_at && !(a.kind === 'dnc' && a.verdict) && `${a.done_by === 'Everyone reviewed' ? 'everyone reviewed it' : `done by ${a.done_by}`} · ${dayLabel(azDate(new Date(a.done_at)))}`,
             !a.done_at && mine && `${mine.name && mine.who !== me ? `reviewed by ${mine.name}` : a.kind === 'lead' ? 'you reviewed it' : 'you completed it'}${mine.grade ? ` · ${LEAD_TYPE[mine.grade]?.label}` : ''} · ${dayLabel(azDate(new Date(mine.at)))}`,
           ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
         </div>
@@ -231,6 +232,21 @@ function Row({ a, isNew, today, names, me, keys, busy, act, sel, toggle, openDea
                 onClick={() => act({ action: 'verdict', id: a.id, verdict: mine?.grade === v ? null : v })}
                 className={`h-8 px-2.5 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${mine?.grade === v ? LEAD_TYPE[v].on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{mine?.grade === v ? '✓ ' : ''}{LEAD_TYPE[v].label}</button>
             ))}
+          </span>
+        )}
+        {/* Do Not Contact, Yes / No (Luke, Nov 5): one answer dismisses it for
+            everyone and teaches Claude; the same answer again reopens it. */}
+        {a.kind === 'dnc' && (
+          <span role="group" aria-label="Is this a Do Not Contact?" className="inline-flex items-center gap-1.5">
+            <span className="text-[12px] font-semibold text-zinc-600">Do Not Contact?</span>
+            <span className="inline-flex rounded-lg ring-1 ring-zinc-200 overflow-hidden">
+              {[['yes', 'Yes', 'bg-[#B42318] text-white'], ['no', 'No', 'bg-navy-700 text-white']].map(([v, label, on]) => (
+                <button key={v} type="button" disabled={busy} aria-pressed={a.verdict === v}
+                  title={a.verdict === v ? 'Click again to reopen it' : v === 'yes' ? 'Yes — they asked not to be contacted. Dismisses it for everyone and teaches Claude' : 'No — a false alarm. Dismisses it for everyone and teaches Claude'}
+                  onClick={() => act({ action: 'dnc', id: a.id, answer: a.verdict === v ? null : v })}
+                  className={`h-8 px-3 text-[12.5px] font-semibold border-l border-zinc-200 first:border-l-0 disabled:opacity-50 ${a.verdict === v ? on : 'bg-white text-navy-700 hover:bg-zinc-50'}`}>{a.verdict === v ? '✓ ' : ''}{label}</button>
+              ))}
+            </span>
           </span>
         )}
         {a.kind === 'deal' && a.opp && <button type="button" onClick={() => openDeal(a.opp)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-navy-700 text-[12.5px] font-semibold hover:bg-zinc-50 whitespace-nowrap">Open deal</button>}
