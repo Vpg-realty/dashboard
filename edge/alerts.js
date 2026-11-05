@@ -114,8 +114,10 @@ const KEEP_DONE_MS = 7 * 86400000;
 // reviewed") once everyone it rings has marked it. The one exception: the
 // holder ticking their own task / GHL task / check-in (nobody else is rung
 // by it) closes it outright — and a GHL task goes back to GHL.
-// The tag GHL's do-not-contact automation uses (edge/alertsSync.js DNC_TAG).
-const DNC_TAG = 'agent - dnc';
+// A Do Not Contact alert's answers and the GHL tag each puts on the contact
+// (edge/alertsSync.js DNC_TAG / PAUSE_TAG).
+export const DNC_ANSWERS = ['dnc', 'pause', 'none'];
+const DNC_TAGS = { dnc: 'agent - dnc', pause: 'internal - do not automate' };
 export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
 const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
@@ -361,24 +363,27 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
       ['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ? WHERE id = ?', [v, user.name, now, b.id]],
     ] };
   }
-  // Do Not Contact, Yes / No (Luke, Nov 5: "select one to dismiss it and also
-  // train you on what is vs isnt"): one answer closes it for everyone and
-  // teaches the lead judge (the last 30 go along as examples); picking the
-  // same answer again reopens it.
+  // Do Not Contact (Luke, Nov 5): three answers — Do Not Contact (adds the
+  // "agent - dnc" tag in GHL), Stop Automations (adds "internal - do not
+  // automate", which GHL's workflows skip) or No Action. One answer closes it
+  // for everyone and teaches the lead judge (the last 30 go along as
+  // examples); the same answer again reopens it and takes its tag back off,
+  // switching answers swaps the tags. Sent by scripts/push-ghl.mjs with the
+  // next deploy. Older answers yes / no read as dnc / none.
   if (a === 'dnc') {
-    if (existing.kind !== 'dnc') return { error: 'Only Do Not Contact alerts take a Yes / No' };
+    if (existing.kind !== 'dnc') return { error: 'Only Do Not Contact alerts take this answer' };
     const v = b.answer ?? null;
-    if (![null, 'yes', 'no'].includes(v)) return { error: 'Answer Yes or No' };
-    // Yes puts the "agent - dnc" tag on the contact in GHL (Luke, Nov 5);
-    // taking a Yes back (No, or reopening) takes the tag off again. Sent by
-    // scripts/push-ghl.mjs with the next deploy.
-    const was = existing.verdict === 'yes';
-    const tag = existing.contact && existing.sub && was !== (v === 'yes')
-      ? [['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [`alert:${b.id}`, existing.contact, existing.sub, `tag:${DNC_TAG}`, v === 'yes' ? 'add' : 'remove', user.name, now, 'pending']]]
-      : [];
+    if (![null, ...DNC_ANSWERS].includes(v)) return { error: 'Pick Do Not Contact, Stop Automations or No Action' };
+    const was = { yes: 'dnc', no: 'none' }[existing.verdict] || existing.verdict || null;
+    const push = (tag, op) => ['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [`alert:${b.id}`, existing.contact, existing.sub, `tag:${tag}`, op, user.name, now, 'pending']];
+    const tags = [];
+    if (existing.contact && existing.sub && was !== v) {
+      if (DNC_TAGS[was]) tags.push(push(DNC_TAGS[was], 'remove'));
+      if (DNC_TAGS[v]) tags.push(push(DNC_TAGS[v], 'add'));
+    }
     return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_at = ?, done_by = ? WHERE id = ?',
-      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]], ...tag] };
+      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]], ...tags] };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };

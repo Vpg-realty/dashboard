@@ -1726,6 +1726,20 @@ queues remove. scripts/push-ghl.mjs sends it with the next deploy (POST /
 DELETE `/contacts/:id/tags`, the key's "contacts.write"); a refusal shows in
 settings `ghl_push.lastError`. DND channels are still set by hand in GHL.
 
+**Three answers (Luke, later Nov 5: "three options: apply the dnc tag, apply
+the internal do not automate tag, or nothing")** — overrides the Yes / No
+notes above: **Do Not Contact** (`dnc`, adds "agent - dnc"), **Stop
+Automations** (`pause`, adds "internal - do not automate", which GHL's
+workflows skip) and **No Action** (`none`). `DNC_ANSWERS` / `DNC_TAGS` in
+edge/alerts.js: one answer closes it for everyone, the same answer again
+reopens it and removes its tag, switching answers swaps the tags (older
+yes / no read as dnc / none). DND stays GHL's job — Luke's automation turns
+on every DND channel when the dnc tag lands. The lead judge proposes one
+(`dnc_kind` in `LEAD_SCHEMA`, kept in `alerts.hint`, shown as "Claude
+suggests: …") and learns from the answers as DNC / STOP AUTOMATIONS / NOT
+DNC examples. An open alert also closes "Tagged do not automate in GHL" when
+someone adds that tag in GHL directly (`dncState().pause`).
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
