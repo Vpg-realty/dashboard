@@ -253,3 +253,86 @@ export function totalOf(locs) {
   if (t.templates) t.templates = topTemplates(t.templates, 60);
   return t;
 }
+
+// Timing and parked agents (Luke, Nov 5: "what to do or focus on for mondays
+// and fridays … east coast markets … start those outreaches a little
+// earlier?" and "parked agents — who are these agents … how often are they
+// touched"). One sub-account's texts / calls from `since`:
+//   cells[zone]["<AZ weekday>|<AZ hour>|a|m"] = { s: messages we started
+//     (not the 2nd part of a burst), d: replied the same day, r: replied in 3
+//     days, x: STOP / remove me, l: a lead opened within 14 days }
+//     a = automated, m = typed by a person; zone = the market's time zone.
+//   parked = agents tagged "internal - do not automate" (not DNC): how many,
+//     how long since we last texted / called them, how often in the stretch,
+//     and the list (name, touches, last touch, last reply, lead / closed ever).
+const ZONE = { 'America/New_York': 'ET', 'America/Detroit': 'ET', 'America/Indiana/Indianapolis': 'ET', 'America/Chicago': 'CT', 'America/Denver': 'MT', 'America/Phoenix': 'AZ', 'America/Los_Angeles': 'PT' };
+const ageBucket = (ms, now) => (!ms ? 'none' : now - ms <= 30 * DAY ? '0-30' : now - ms <= 90 * DAY ? '31-90' : '91+');
+const countBucket = (n) => (n === 0 ? '0' : n <= 2 ? '1-2' : n <= 5 ? '3-5' : '6+');
+const ymd = (ms) => (ms ? new Date(ms - AZ).toISOString().slice(0, 10) : null);
+
+export function timingLocation({ contacts, opps, pipelines, messages, label, tz, since = 0, now = Date.now() }) {
+  const zone = ZONE[tz] || 'AZ';
+  const stageName = {};
+  for (const p of pipelines || []) for (const s of p.stages || []) stageName[s.id] = String(s.name || '');
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId || Date.parse(m.dateAdded) < since) continue;
+    (byContact.get(m.contactId) || byContact.set(m.contactId, []).get(m.contactId)).push(m);
+  }
+  for (const list of byContact.values()) list.sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+  const oppsOf = new Map();
+  for (const o of opps) { const cid = o.contactId || o.contact?.id; if (cid) (oppsOf.get(cid) || oppsOf.set(cid, []).get(cid)).push(o); }
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const cells = {};
+  const parked = { agents: 0, lastOut: {}, lastManual: {}, touches: {}, leads: 0, closed: 0, list: [] };
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    if (!tags.some((t) => AGENT_TAG.test(t))) continue;
+    const os = oppsOf.get(c.id) || [];
+    const leadTimes = os.map((o) => Date.parse(o.createdAt || o.dateAdded)).filter(Number.isFinite);
+    const msgs = byContact.get(c.id) || [];
+    let prevOut = 0;
+    msgs.forEach((m, i) => {
+      if (m.direction !== 'outbound') return;
+      const at = Date.parse(m.dateAdded);
+      const starts = at - prevOut > 30 * 60_000;
+      prevOut = at;
+      if (!starts) return;
+      let reply = null; let stop = false;
+      for (let j = i + 1; j < msgs.length; j++) {
+        const x = msgs[j]; const t = Date.parse(x.dateAdded);
+        if (t - at > 3 * DAY) break;
+        if (isStop(x)) { stop = true; break; }
+        if (realReply(x)) { reply = t; break; }
+      }
+      const h = new Date(at - AZ);
+      const key = `${DOW[h.getUTCDay()]}|${h.getUTCHours()}|${isManual(m) || isCall(m) ? 'm' : 'a'}`;
+      const cell = ((cells[zone] ||= {})[key] ||= { s: 0, d: 0, r: 0, x: 0, l: 0 });
+      cell.s++;
+      if (reply != null && reply - at <= DAY) cell.d++;
+      if (reply != null) cell.r++;
+      if (stop) cell.x++;
+      if (leadTimes.some((t) => t >= at && t - at <= 14 * DAY)) cell.l++;
+    });
+    const dnc = tags.includes('agent - dnc') || c.dnd === true;
+    if (!tags.includes('internal - do not automate') || dnc) continue;
+    const outs = msgs.filter((m) => m.direction === 'outbound');
+    const lastOut = outs.length ? Date.parse(outs[outs.length - 1].dateAdded) : 0;
+    const man = outs.filter((m) => isManual(m) || isCall(m));
+    const lastManual = man.length ? Date.parse(man[man.length - 1].dateAdded) : 0;
+    const ins = msgs.filter(realReply);
+    const lastIn = ins.length ? Date.parse(ins[ins.length - 1].dateAdded) : 0;
+    const stages = os.map((o) => (o.status === 'won' ? 'closed' : stageName[o.pipelineStageId] || '').toLowerCase());
+    const closed = os.some((o, i) => /closed/.test(stages[i]) && o.status !== 'lost' && o.status !== 'abandoned') || tags.includes('closed deal');
+    parked.agents++;
+    if (os.length) parked.leads++;
+    if (closed) parked.closed++;
+    const inc = (o, k) => { o[k] = (o[k] || 0) + 1; };
+    inc(parked.lastOut, ageBucket(lastOut, now));
+    inc(parked.lastManual, ageBucket(lastManual, now));
+    inc(parked.touches, countBucket(outs.length));
+    parked.list.push({ name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.contactName || c.id, out: outs.length, manual: man.length, lastOut: ymd(lastOut), lastManual: ymd(lastManual), lastIn: ymd(lastIn), lead: os.length > 0, closed });
+  }
+  parked.list.sort((a, b) => (a.lastOut || '').localeCompare(b.lastOut || ''));
+  return { label, zone, cells, parked };
+}

@@ -1575,6 +1575,20 @@ only agents we were in touch with (or who became a lead) in the stretch; the
 Tags are today's, so nurture / engaged / campaign groups are who is or was in
 them. Same cost as the first run, less message history to read.
 
+**Timing and parked agents (Luke, Nov 5: "what to do or focus on for mondays
+and fridays … east coast markets … start those outreaches a little earlier?";
+"parked agents — who are these agents … how often are they touched")**:
+`timingLocation` (server/agentReport.js) over the same May 5 – Nov 5 data —
+`cells[zone]["<AZ weekday>|<AZ hour>|a|m"]` = {s sent (burst starts), d
+replied same day, r replied in 3 days, x STOP / remove me, l lead in 14 days},
+a = automated, m = typed by a person or a call, zone = the market's time zone
+(ET / CT / MT / AZ / PT from `MARKET_TZ`); and `parked` = agents tagged
+"internal - do not automate" (not DNC): count, last outbound / last manual
+touch bucket (0-30 / 31-90 / 91+ / none in the stretch), touches, leads /
+closed ever, and the list. Written as `agent_timing:<location>` by the 6-month
+job (`also`) and by a third job `agent_timing` for the sub-accounts that job
+finished before this shipped; `agent_timing_total` once all are in.
+
 ## Bonuses: contest awards and Google reviews (Luke, Nov 4)
 
 "add two payments for the winning tiles … first contract of the month and
