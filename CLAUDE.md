@@ -1611,6 +1611,17 @@ closed ever, and the list. Written as `agent_timing:<location>` by the 6-month
 job (`also`) and by a third job `agent_timing` for the sub-accounts that job
 finished before this shipped; `agent_timing_total` once all are in.
 
+**Work lists (Luke, Nov 6: "an excel sheet with tabs for each rep with a
+list of parked agents that haven't been contacted in a while but should be
+asap … agents that are not tagged tier 1, but by your accounts should be")**:
+a fourth job `agent_lists` (`listsLocation`, server/agentReport.js; texts /
+calls since May 5, opportunities all-time) writes `agent_lists:<location>` =
+`parked` (do-not-automate, not DNC, ever a lead / contracted / closed or wrote
+back, and nothing from us in 30+ days) and `tier1` (not tagged tier 1, not
+DNC, closed / contracted, 2+ leads, or a lead and 3+ replies), ≤ 80 each,
+with contact id, phone, email, tier, leads, contracted, closed $, replies and
+the last touch / reply / lead dates. Read once into a spreadsheet for Luke.
+
 ## Comp Challenge — the team quiz (Luke, Nov 5)
 
 "a one time quiz that will be fun for everyone … teaching them how to comp
