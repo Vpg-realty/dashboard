@@ -15,6 +15,11 @@ import { Tile as SiteTile } from '../../shell/Tile.jsx';
 import { useMe } from '../../utils/dashApi.js';
 import AwardsToFinance from './AwardsToFinance.jsx';
 import { monthAwards } from './awards.js';
+import { BonusCard, BonusEditor } from './MonthBonus.jsx';
+import { useMonthBonus } from './useMonthBonus.js';
+import { bonusFor, mostImproved } from './monthBonus.js';
+import { useScorecards } from './useScorecards.js';
+import { weekSeries } from './trends.js';
 import {
   monthsOnFile, monthTotals, prevMonth, teamTargets, repTargets, monthEvents, logCovers, leaders,
   repColor, firstName, repName, whenLabel, dayLabel, monthLabel, CANCELS_FROM, cancelCounts, addedContracts,
@@ -84,6 +89,10 @@ export default function MonthView() {
   const [tab, setTab] = useState('contracts');
   const me = useMe();
   const owner = me?.role === 'owner' && !me.viewAs;
+  // The month's bonus category (Nov 6, monthBonus.js).
+  const bonusStore = useMonthBonus();
+  const sc = useScorecards();
+  const [editBonus, setEditBonus] = useState(false);
 
   const cur = monthTotals(entries, mo);
   const pm = prevMonth(mo);
@@ -136,6 +145,10 @@ export default function MonthView() {
   const teamByRep = Object.fromEntries(Object.entries(cur.byRep).filter(([id]) => onTeam(id)));
   const lead = { contracts: leaders(teamByRep, 'contracts'), closed: leaders(cur.byRep, 'closed'), revenue: leaders(cur.byRep, 'revenue'), offers: leaders(cur.byRep, 'offers'), opps: leaders(cur.byRep, 'opps') };
   const isLead = (k, id) => lead[k]?.ids.includes(id);
+  const bonusCfg = bonusStore ? bonusFor(bonusStore, mo) : null;
+  const improved = bonusCfg?.kind === 'improved' ? mostImproved(weekSeries(sc, 60), mo, onTeam) : null;
+  const bonusWin = bonusCfg ? { title: bonusCfg.title, prize: bonusCfg.prize, ids: bonusCfg.kind === 'pick' ? bonusCfg.winners || [] : improved?.ids || [] } : null;
+  const bonusCol = !!bonusCfg || owner;
 
   const coverage = [
     cur.asOf && `Totals as of ${shortDate(cur.asOf)}${isCurrent ? ' (month in progress)' : ''}`,
@@ -165,7 +178,7 @@ export default function MonthView() {
         </div>
 
         <div className="grid gap-2">
-        <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr_1fr] gap-3">
+        <div className={`grid gap-3 ${bonusCol ? 'grid-cols-[1.3fr_1.3fr_1.3fr_1fr_1fr_1fr]' : 'grid-cols-[1.3fr_1.3fr_1fr_1fr_1fr]'}`}>
           <Award icon="🥇" title="First contract of the month" prize={50} note={firstContract && !covered && !firstContract.manual ? `Earliest on record — the deal log starts ${since}, so an earlier one may be missing.` : null}>
             {firstContract ? (
               <div className="min-w-0">
@@ -176,6 +189,7 @@ export default function MonthView() {
             ) : <NotTracked state={logState} since={since} />}
           </Award>
           <Award icon="🏆" title="Most contracts" prize={100}><Winners lead={lead.contracts} unit="contracts" /></Award>
+          {bonusCol && <BonusCard month={mo} cfg={bonusCfg} result={improved} isCurrent={isCurrent} owner={owner} onEdit={() => setEditBonus(true)} />}
           <Award icon="🔑" title="Most deals closed"><Winners lead={lead.closed} unit="closed" /></Award>
           <Award icon="💰" title="Top revenue"><Winners lead={lead.revenue} fmt={money} unit="closed" /></Award>
           <Award icon="💎" title="Biggest closing">
@@ -187,8 +201,9 @@ export default function MonthView() {
             ) : <NotTracked state={logState} since={since} />}
           </Award>
         </div>
+        {owner && editBonus && <BonusEditor key={mo} month={mo} store={bonusStore || {}} onClose={() => setEditBonus(false)} />}
         {owner && <AwardsToFinance month={mo} label={monthLabel(`${mo}-01`)} isCurrent={isCurrent}
-          awards={monthAwards({ first: firstContract, most: na('contracts') ? null : lead.contracts, label: monthLabel(`${mo}-01`), nameOf: repName })} />}
+          awards={monthAwards({ first: firstContract, most: na('contracts') ? null : lead.contracts, bonus: sc.loaded ? bonusWin : null, label: monthLabel(`${mo}-01`), nameOf: repName })} />}
         </div>
 
         <div className="grid grid-cols-[1.35fr_1fr] gap-3 min-h-0">

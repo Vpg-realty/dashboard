@@ -147,10 +147,12 @@ export function bonusStatements(all, month, kinds, want, user, now) {
   return { statements: st };
 }
 
-// bonusAwards { month, awards: [{ kind: first | most, repId, who, amount, note }] }
+// bonusAwards { month, awards: [{ kind: first | most | bonus, repId, who, amount, note }] }
+// (bonus = the month's bonus category, Nov 6 — src/views/manager/monthBonus.js)
 // — the Month in Review contest awards of a finished month (owners; the page
 // works out the winners from the month's numbers). bonusRemove { id } — a
 // bonus still waiting for approval.
+const AWARD_KINDS = ['first', 'most', 'bonus'];
 function planBonus(all, body, user, now) {
   if (body.action === 'bonusRemove') {
     const b = all.bonuses.find((x) => x.id === String(body.id || ''));
@@ -168,7 +170,7 @@ function planBonus(all, body, user, now) {
   if (awards.length > 20) return { error: 'too many awards' };
   const want = [];
   for (const a of awards) {
-    if (!['first', 'most'].includes(a?.kind)) return { error: 'unknown award' };
+    if (!AWARD_KINDS.includes(a?.kind)) return { error: 'unknown award' };
     const repId = String(a.repId || '').slice(0, 40);
     const who = String(a.who || '').trim().slice(0, 60);
     const amount = cents(a.amount);
@@ -176,7 +178,7 @@ function planBonus(all, body, user, now) {
     if (!(amount > 0) || amount > 10000) return { error: 'each award needs its amount' };
     want.push({ ref: `award:${month}:${a.kind}:${repId}`, kind: a.kind, repId, who, amount, note: String(a.note || `${BONUS_KIND[a.kind]} · ${month}`).slice(0, 200) });
   }
-  const r = bonusStatements(all, month, ['first', 'most'], want, user, now);
+  const r = bonusStatements(all, month, AWARD_KINDS, want, user, now);
   if (r.error) return r;
   return { action: 'bonusAwards', lines: [], detail: { month, awards: want.map((w) => `${w.who} ${w.amount}`) }, statements: r.statements };
 }

@@ -68,7 +68,7 @@ export const isExtra = (l) => l.part === 'extra';
 // (edge/finance.js), one line each with part 'bonus'. Unlike other payments
 // they wait for an owner's approval, then are marked paid; never on a deal.
 export const isBonus = (l) => l.part === 'bonus';
-export const BONUS_KIND = { first: 'First contract of the month', most: 'Most contracts', review: 'Google review' };
+export const BONUS_KIND = { first: 'First contract of the month', most: 'Most contracts', review: 'Google review', bonus: 'Monthly bonus' };
 const cents2 = (n) => Math.round(Number(n) * 100) / 100;
 // Payments toward a line (Luke, Oct 30: "my zelle is capped at 5k per day …
 // pay him partially, … the remainder tomorrow"): D1 `fin_payments`, one row

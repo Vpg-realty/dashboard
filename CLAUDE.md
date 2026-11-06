@@ -1714,6 +1714,21 @@ two reps pays each $20.
   then each award's status, "Update Finance" if the winners changed, "Open in
   Finance →". The prize cards (and the leaderboard crown) count only people on
   the team (`onTeam` — Dale can't win them).
+- **Bonus category** (Luke, Nov 6: "a bonus category each month that
+  management chooses … this month's … most improved based on scorecards for
+  the month of october … a $50 prize"): a third gold card after Most
+  Contracts (`BonusCard`, src/views/manager/MonthBonus.jsx; rules in
+  monthBonus.js). One per month in D1 settings `month_bonus` {[YYYY-MM]:
+  {title, kind, prize, winners?}} — GET /api/month-bonus (whoever sees the
+  page), PUT {month, bonus} owners only (null = no bonus that month); a month
+  with nothing stored uses `DEFAULT_BONUS` (October 2026 = Most improved,
+  $50). Kinds: **improved** = biggest rise in average weekly score from last
+  month's scorecard weeks to this month's (a week counts in the month of its
+  Monday; team members scored in both months; finished weeks only; a tie
+  splits the prize; nobody up = no winner) and **pick** = owners tick the
+  winner(s). Owners get "Change" / "+ Add a bonus" (`BonusEditor`). It goes
+  to Finance with the other two awards (kind `bonus`, "Monthly bonus",
+  ref `award:<month>:bonus:<rep>`). Usage: one settings row per page load.
 - **Finance › Reviews** (`/finance/reviews`, `src/reviews/ReviewsView.jsx`;
   owners only like all of Finance — Luke, Nov 5: "move them to the finance
   tab"; it sat in Scorecards until then and `/team/reviews` redirects): GHL's API has no reviews, so an owner pastes the

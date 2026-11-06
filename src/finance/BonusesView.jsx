@@ -13,7 +13,7 @@ import { navigate } from '../shell/router.js';
 
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthName = (m) => `${MON[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}`;
-const ICON = { first: '🥇', most: '🏆', review: '⭐' };
+const ICON = { first: '🥇', most: '🏆', review: '⭐', bonus: '🎖️' };
 
 export default function BonusesView({ lines, run, pay, busy, undoPart, onRemove }) {
   const by = new Map();
