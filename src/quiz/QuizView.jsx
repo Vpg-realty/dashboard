@@ -7,13 +7,14 @@
 // Present mode to put on the screen).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { call, useMe } from '../utils/dashApi.js';
+import { navigate, useLocation } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import BandMark from '../shell/BandMark.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
 import { inputCls } from '../settings/ui.jsx';
 import { PROP_FIELDS, fieldPoints, propMax, num } from './score.js';
 
-const api = (body, host) => call(body ? 'comp-quiz' : `comp-quiz${host ? '?host=1' : ''}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
+const api = (body, host, practice) => call(body ? 'comp-quiz' : `comp-quiz${host ? '?host=1' : practice ? '?practice=1' : ''}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
 const btn = 'h-10 px-4 rounded-lg text-[14px] font-semibold disabled:opacity-50';
 const primary = `${btn} bg-navy-700 hover:bg-navy-800 text-white`;
 const tan = `${btn} bg-tan-500 hover:bg-tan-400 text-navy-900`;
@@ -22,12 +23,12 @@ const money = (v) => (v == null || v === '' ? '—' : `$${Math.round(Number(v)).
 const mmss = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, Math.floor(s) % 60)).padStart(2, '0')}`;
 const STATUS_WORD = { draft: 'Not started', live: 'Live', closed: 'Answers locked', revealed: 'Results revealed' };
 
-function useQuiz(host) {
+function useQuiz(host, practice = false) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const skew = useRef(0);
   const take = useCallback((d) => { if (d?.now) skew.current = Date.parse(d.now) - Date.now(); setData(d); return d; }, []);
-  const reload = useCallback(() => api(null, host).then(take).catch((e) => setErr(e.message)), [host, take]);
+  const reload = useCallback(() => api(null, host, practice).then(take).catch((e) => setErr(e.message)), [host, practice, take]);
   const status = data?.quiz?.status;
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => {
@@ -36,7 +37,7 @@ function useQuiz(host) {
     const t = setInterval(() => { if (!document.hidden) reload(); }, ms);
     return () => clearInterval(t);
   }, [host, status, reload]);
-  const act = async (body) => take(await api(body));
+  const act = async (body) => take(await api(practice ? { ...body, practice: true } : body));
   return { data, err, setErr, act, reload, now: () => Date.now() + skew.current };
 }
 
@@ -60,11 +61,28 @@ function Band({ title, sub, children, right }) {
 const Shell = ({ children }) => <div className="max-w-[1720px] mx-auto w-full flex flex-col gap-4 pb-16">{children}</div>;
 
 // ─── Take the quiz ───────────────────────────────────────────────────────────
-export default function QuizView() { return <TakeView />; }
+export default function QuizView() {
+  const { query } = useLocation();
+  const practice = query.get('practice') === '1';
+  return <TakeView key={practice ? 'practice' : 'real'} practice={practice} />;
+}
+
+// Practice run (Luke, Nov 6): owners take the quiz as it stands, draft
+// included, with their own answers that count nowhere (edge/compQuiz.js).
+function PracticeBar({ act, setErr }) {
+  return (
+    <div className="rounded-xl bg-amber-50 ring-1 ring-amber-300 px-4 py-3 flex flex-wrap items-center gap-3 text-[14px] text-amber-900">
+      <span className="font-semibold">🧪 Practice run</span>
+      <span className="flex-1 min-w-[220px]">Only you see this and nothing counts — the team can’t see the questions, and your answers stay out of the real results.</span>
+      <button type="button" onClick={() => { if (window.confirm('Clear your practice answers and start over?')) act({ action: 'practiceReset' }).catch((e) => setErr(e.message)); }} className={quiet}>↺ Start Over</button>
+      <button type="button" onClick={() => navigate('/quiz/host')} className={quiet}>← Back to Host</button>
+    </div>
+  );
+}
 export function QuizHost() { return <HostView />; }
 
-function TakeView() {
-  const { data, err, setErr, act, now, reload } = useQuiz(false);
+function TakeView({ practice }) {
+  const { data, err, setErr, act, now, reload } = useQuiz(false, practice);
   if (err && !data) return <Shell><p className="text-rose-700">{err}</p></Shell>;
   if (!data) return <Shell><p className="text-zinc-500">Loading…</p></Shell>;
   const { quiz, mine } = data;
@@ -88,7 +106,9 @@ function TakeView() {
       </Shell>
     );
   }
-  if (quiz.status === 'revealed') return <Reveal data={data} />;
+  if (practice && !data.practice) return <Shell><Band title="Owners Only" sub="The practice run is for owners." /></Shell>;
+  const bar = practice ? <PracticeBar act={act} setErr={setErr} /> : null;
+  if (quiz.status === 'revealed') return <Reveal data={data} bar={bar} />;
   // Which step is this person on?
   const warmDone = !!mine.warmup?.data?.submitted || !quiz.warmup.length;
   const guideDone = !!mine.guide?.data?.submitted || !quiz.guide.length;
@@ -104,6 +124,7 @@ function TakeView() {
   const stepsAll = 2 + quiz.properties.length + (chal.length ? 1 : 0);
   return (
     <Shell>
+      {bar}
       <Band title={quiz.title || 'Comp Challenge'} sub={locked ? 'Answers are locked — wait for the reveal.' : 'Your answers save as you go.'}
         right={<div className="text-right"><div className="text-[11px] uppercase tracking-wide text-white/60">Progress</div><div className="text-[24px] font-semibold tabular-nums">{stepsDone} / {stepsAll}</div></div>} />
       {err && <p className="text-rose-700 text-[14px]">{err}</p>}
@@ -298,12 +319,13 @@ function McReview({ title, list, picks }) {
   );
 }
 
-function Reveal({ data }) {
+function Reveal({ data, bar }) {
   const me = useMe();
   const { quiz, mine, scores, answers, names } = data;
   const mineScore = scores?.find((s) => s.email === me?.email);
   return (
     <Shell>
+      {bar}
       <Band title="The Results" sub={mineScore ? `You scored ${mineScore.total} of ${quiz.max} — #${scores.indexOf(mineScore) + 1} of ${scores.length}.` : 'Here’s how everyone did.'} />
       <Panel title="Leaderboard"><Leaderboard scores={scores} max={quiz.max} me={me?.email} /></Panel>
       {quiz.properties.map((p, i) => <Panel key={p.id} title={`Property ${i + 1} · ${p.addr}`}><PropTable prop={p} answers={answers} names={names} /></Panel>)}
@@ -336,6 +358,7 @@ function HostView() {
             {quiz.status === 'draft' && <button type="button" onClick={() => go({ action: 'status', status: 'live' }, 'Start the quiz for everyone now?')} className={tan}>▶ Start for Everyone</button>}
             {quiz.status === 'live' && <button type="button" onClick={() => go({ action: 'status', status: 'closed' }, 'Lock everyone’s answers now?')} className={tan}>■ Close Answers</button>}
             {quiz.status === 'closed' && <button type="button" onClick={() => go({ action: 'status', status: 'revealed' }, keysMissing ? `${keysMissing} properties have no answer key yet — reveal anyway?` : 'Show the answers and leaderboard to everyone?')} className={tan}>★ Reveal Results</button>}
+            <button type="button" onClick={() => navigate('/quiz/take?practice=1')} className="h-10 px-4 rounded-lg text-[14px] font-semibold bg-white/10 hover:bg-white/20 text-white" title="Take it yourself — only you see it, nothing counts">🧪 Practice Run</button>
             {quiz.status !== 'draft' && <button type="button" onClick={() => setPresent(true)} className="h-10 px-4 rounded-lg text-[14px] font-semibold bg-white/10 hover:bg-white/20 text-white">⛶ Present</button>}
           </div>
         )}>

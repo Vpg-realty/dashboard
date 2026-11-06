@@ -55,11 +55,33 @@ function publicQuiz(quiz) {
   };
 }
 
-export async function load(db, user, { host = false } = {}) {
+// Practice run (Luke, Nov 6: "let me run the comp challenge to see how i like
+// it"): an owner takes the quiz as it stands — draft included — with answers
+// kept under their own '<quiz id>~practice' rows, so nobody else sees them and
+// they never reach the real scores, the host page or a reset. Finishing it
+// shows the owner the reveal (their score, the right answers, the key).
+export const practiceId = (quiz) => `${quiz.id}~practice`;
+const isOwner = (user) => user.role === 'owner' && !user.viewAs;
+
+async function loadPractice(db, user, quiz) {
+  const id = practiceId(quiz);
+  const mine = rowsBy((await db.prepare('SELECT * FROM quiz_answers WHERE quiz = ? AND email = ?').bind(id, user.email).all()).results)[user.email] || {};
+  const base = { mine, now: new Date().toISOString(), owner: true, practice: true };
+  if (!mine.done) return { ...base, quiz: publicQuiz({ ...quiz, status: 'live' }) };
+  const names = { [user.email]: user.name || user.email.split('@')[0] };
+  return {
+    ...base, quiz: publicQuiz({ ...quiz, status: 'revealed' }), names,
+    scores: scoreAll(quiz, { [user.email]: mine }, names),
+    answers: { [user.email]: Object.fromEntries(Object.entries(mine).filter(([k]) => k.startsWith('p:')).map(([k, v]) => [k, v.data])) },
+  };
+}
+
+export async function load(db, user, { host = false, practice = false } = {}) {
   const quiz = await readQuiz(db);
   if (!quiz) return { quiz: null };
   await ensure(db);
-  const owner = user.role === 'owner' && !user.viewAs;
+  const owner = isOwner(user);
+  if (practice && owner) return loadPractice(db, user, quiz);
   if (host && owner) {
     const all = rowsBy((await db.prepare('SELECT * FROM quiz_answers WHERE quiz = ?').bind(quiz.id).all()).results);
     const names = Object.fromEntries((await db.prepare('SELECT DISTINCT email, name FROM quiz_answers WHERE quiz = ?').bind(quiz.id).all()).results.map((r) => [r.email, r.name]));
@@ -86,10 +108,19 @@ const upsert = (db, quiz, user, part, data, { start = false } = {}) => {
 
 // Taking the quiz.
 export async function answer(db, user, b) {
-  const quiz = await readQuiz(db);
-  if (!quiz) return { error: 'No quiz set up' };
-  if (quiz.status !== 'live') return { error: quiz.status === 'draft' ? 'The quiz hasn’t started yet' : 'The quiz is closed' };
+  const real = await readQuiz(db);
+  if (!real) return { error: 'No quiz set up' };
+  let quiz = real;
+  if (b.practice) {
+    if (!isOwner(user)) return { error: 'Owners only', status: 403 };
+    quiz = { ...real, id: practiceId(real) };
+  } else if (real.status !== 'live') return { error: real.status === 'draft' ? 'The quiz hasn’t started yet' : 'The quiz is closed' };
   await ensure(db);
+  if (b.action === 'practiceReset') {
+    if (!b.practice) return { error: 'bad action' };
+    await db.prepare('DELETE FROM quiz_answers WHERE quiz = ? AND email = ?').bind(quiz.id, user.email).run();
+    return { ok: true };
+  }
   if (b.action === 'mc') {
     const list = MC_PARTS.includes(b.part) ? quiz[b.part] || [] : null;
     if (!list) return { error: 'bad part' };
