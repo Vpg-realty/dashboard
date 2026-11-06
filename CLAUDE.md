@@ -1665,6 +1665,13 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   edge/compQuiz.js; `{practice: true}` on POSTs), so nobody else sees it and
   it never reaches the real results, the host page or Reset. Finishing shows
   the owner the reveal; ↺ Start Over (action `practiceReset`) clears it.
+- **Locked in stays locked** (Luke, Nov 6: stuck on a property in the
+  practice run — an auto-save sent just before Lock It In reached the server
+  after it and un-submitted the property, and the button wouldn't send
+  again): the server ignores saves to a part already submitted (`mc` /
+  `prop`), Lock It In cancels the pending auto-save and can be pressed again
+  after an error, and `useQuiz` applies replies in request order (a slow
+  reply can't put the page back).
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 

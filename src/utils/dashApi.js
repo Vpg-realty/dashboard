@@ -21,7 +21,7 @@ export async function call(path, opts = {}) {
   const type = r.headers.get('content-type') || '';
   if (!type.includes('json')) throw Object.assign(new Error('not available'), { status: r.status >= 500 ? r.status : 0 });
   const data = await r.json();
-  if (!r.ok) throw Object.assign(new Error(data?.error || `error ${r.status}`), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(data?.error || `error ${r.status}`), { status: r.status, late: !!data?.late });
   return data;
 }
 

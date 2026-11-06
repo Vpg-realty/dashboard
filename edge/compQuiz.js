@@ -124,6 +124,10 @@ export async function answer(db, user, b) {
   if (b.action === 'mc') {
     const list = MC_PARTS.includes(b.part) ? quiz[b.part] || [] : null;
     if (!list) return { error: 'bad part' };
+    // Once a part is submitted it stays submitted — a late auto-save can't
+    // reopen it (Luke, Nov 6: stuck on a property in the practice run).
+    const was = await db.prepare('SELECT data FROM quiz_answers WHERE quiz = ? AND email = ? AND part = ?').bind(quiz.id, user.email, b.part).first();
+    try { if (was?.data && JSON.parse(was.data)?.submitted) return { ok: true }; } catch { /* keep going */ }
     const answers = {};
     for (const q of list) { const v = b.answers?.[q.id]; if (v != null && Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) < q.options.length) answers[q.id] = Number(v); }
     await upsert(db, quiz, user, b.part, { answers, submitted: !!b.submitted });
@@ -137,8 +141,9 @@ export async function answer(db, user, b) {
   }
   if (b.action === 'prop') {
     if (!prop) return { error: 'bad property' };
-    const row = await db.prepare('SELECT started_at FROM quiz_answers WHERE quiz = ? AND email = ? AND part = ?').bind(quiz.id, user.email, `p:${prop.id}`).first();
+    const row = await db.prepare('SELECT started_at, data FROM quiz_answers WHERE quiz = ? AND email = ? AND part = ?').bind(quiz.id, user.email, `p:${prop.id}`).first();
     if (!row?.started_at) return { error: 'Open the property first' };
+    try { if (row.data && JSON.parse(row.data)?.submitted) return { ok: true }; } catch { /* keep going */ }
     const limit = (quiz.timeLimit || 240) * 1000;
     if (Date.now() > Date.parse(row.started_at) + limit + GRACE_MS) return { error: 'Time is up for this property — your last saved answer counts', late: true };
     const data = { submitted: !!b.submitted, comps: clip(b.comps, 1500) };
