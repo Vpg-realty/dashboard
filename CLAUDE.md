@@ -1685,6 +1685,21 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   `prop`), Lock It In cancels the pending auto-save and can be pressed again
   after an error, and `useQuiz` applies replies in request order (a slow
   reply can't put the page back).
+- **Scores by Person** (Luke, Nov 6: "categorize this per person so that we
+  can see it on the screen with the team … i dont want results impacted"):
+  `ByPerson` in QuizView.jsx — one row per person in leaderboard order with
+  Warm-Up, each property, Properties, Comping Rules, Challenge and **Bonus**
+  (a Challenge question whose text starts with "BONUS", `isBonusQ`, split
+  out of the Challenge column), the top score per column in gold. A Host
+  panel and Present's second slide (after the leaderboard). Display only —
+  read from the same `scoreAll` scores; nothing about scoring changed.
+- **Results by Section** (Luke, same day: "per section with team results on
+  who got the most right and wrong"): `SectionResults` (QuizView.jsx) for
+  Warm-Up, Comping Rules, The Challenge and the Bonus question (`SECTIONS`) —
+  a navy Team line (✓ right / ✗ wrong / % right), By Person (right, wrong,
+  blank; Most Right gold / Most Wrong rose) and By Question (the answer, ✓ / ✗
+  and a bar; Easiest / Hardest). A Host panel each and Present slides after
+  Scores by Person. Display only.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 
