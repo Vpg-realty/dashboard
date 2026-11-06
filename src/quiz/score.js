@@ -39,6 +39,7 @@ export function scoreAll(quiz, rows, people = {}) {
     };
     const warm = mc(quiz.warmup, 'warmup');
     const guide = mc(quiz.guide, 'guide');
+    const chal = mc(quiz.challenge, 'challenge');
     let props = 0; let secs = 0; const byProp = {};
     for (const p of quiz.properties || []) {
       const r = parts[`p:${p.id}`];
@@ -48,9 +49,9 @@ export function scoreAll(quiz, rows, people = {}) {
       props += pts;
       if (r.started_at && r.saved_at) secs += Math.max(0, (Date.parse(r.saved_at) - Date.parse(r.started_at)) / 1000);
     }
-    out.push({ email, name: people[email] || email.split('@')[0], warm, guide, props, byProp, total: warm + guide + props, secs: Math.round(secs), done: !!parts.done });
+    out.push({ email, name: people[email] || email.split('@')[0], warm, guide, chal, props, byProp, total: warm + guide + chal + props, secs: Math.round(secs), done: !!parts.done });
   }
   return out.sort((a, b) => b.total - a.total || a.secs - b.secs || a.name.localeCompare(b.name));
 }
 
-export const maxScore = (quiz) => (quiz.warmup || []).length + (quiz.guide || []).length + (quiz.properties || []).length * propMax;
+export const maxScore = (quiz) => (quiz.warmup || []).length + (quiz.guide || []).length + (quiz.challenge || []).length + (quiz.properties || []).length * propMax;

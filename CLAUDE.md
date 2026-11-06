@@ -1652,6 +1652,12 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   its text. Open by default (Luke, Nov 6: "why can i not edit the
   questions" — it started folded behind a small Edit tab in the header);
   Close folds it, ✎ Edit Questions opens it again.
+- **The Challenge** (Luke, Nov 6: "a challenge section at the end"): a
+  fourth, multiple-choice part after Comping Rules — `comp_quiz.challenge`,
+  answer part `challenge` (`MC_PARTS` in edge/compQuiz.js), scored like the
+  others (`chal` in scoreAll), left out when empty. In the editor every
+  question has **Move to** Warm-Up / Comping Rules / The Challenge (ids stay
+  unique across the parts).
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 

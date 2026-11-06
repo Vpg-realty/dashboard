@@ -77,6 +77,7 @@ function TakeView() {
             <BandCounter label="Warm-Up" value={quiz.counts.warmup} sub="questions" />
             <BandCounter label="Properties" value={quiz.counts.properties} sub={`${Math.round(quiz.timeLimit / 60)} min each`} />
             <BandCounter label="Comping Rules" value={quiz.counts.guide} sub="questions" />
+            {quiz.counts.challenge > 0 && <BandCounter label="Challenge" value={quiz.counts.challenge} sub="questions" />}
           </div>
         </Band>
         <Panel title="Waiting to Start" bodyClass="px-6 py-8 text-center">
@@ -91,14 +92,16 @@ function TakeView() {
   // Which step is this person on?
   const warmDone = !!mine.warmup?.data?.submitted || !quiz.warmup.length;
   const guideDone = !!mine.guide?.data?.submitted || !quiz.guide.length;
+  const chal = quiz.challenge || [];
+  const chalDone = !!mine.challenge?.data?.submitted || !chal.length;
   const limitMs = quiz.timeLimit * 1000;
   const propDone = (p) => { const r = mine[`p:${p.id}`]; return !!r?.data?.submitted || (r?.started_at && now() > Date.parse(r.started_at) + limitMs); };
   const nextProp = quiz.properties.find((p) => !propDone(p));
   const locked = quiz.status === 'closed';
-  const finished = !!mine.done || (warmDone && !nextProp && guideDone);
-  const step = locked || finished ? 'done' : !warmDone ? 'warmup' : nextProp ? 'prop' : !guideDone ? 'guide' : 'done';
-  const stepsDone = (warmDone ? 1 : 0) + quiz.properties.filter(propDone).length + (guideDone ? 1 : 0);
-  const stepsAll = 2 + quiz.properties.length;
+  const finished = !!mine.done || (warmDone && !nextProp && guideDone && chalDone);
+  const step = locked || finished ? 'done' : !warmDone ? 'warmup' : nextProp ? 'prop' : !guideDone ? 'guide' : !chalDone ? 'challenge' : 'done';
+  const stepsDone = (warmDone ? 1 : 0) + quiz.properties.filter(propDone).length + (guideDone ? 1 : 0) + (chal.length && chalDone ? 1 : 0);
+  const stepsAll = 2 + quiz.properties.length + (chal.length ? 1 : 0);
   return (
     <Shell>
       <Band title={quiz.title || 'Comp Challenge'} sub={locked ? 'Answers are locked — wait for the reveal.' : 'Your answers save as you go.'}
@@ -106,7 +109,8 @@ function TakeView() {
       {err && <p className="text-rose-700 text-[14px]">{err}</p>}
       {step === 'warmup' && <McPart key="warmup" title="Part 1 · Warm-Up" list={quiz.warmup} saved={mine.warmup?.data} part="warmup" act={act} setErr={setErr} />}
       {step === 'prop' && <PropPart key={nextProp.id} quiz={quiz} prop={nextProp} index={quiz.properties.indexOf(nextProp)} row={mine[`p:${nextProp.id}`]} act={act} setErr={setErr} now={now} reload={reload} />}
-      {step === 'guide' && <McPart key="guide" title="Part 3 · Comping Rules" list={quiz.guide} saved={mine.guide?.data} part="guide" act={act} setErr={setErr} last />}
+      {step === 'guide' && <McPart key="guide" title="Part 3 · Comping Rules" list={quiz.guide} saved={mine.guide?.data} part="guide" act={act} setErr={setErr} last={!chal.length} />}
+      {step === 'challenge' && <McPart key="challenge" title="Part 4 · The Challenge" list={chal} saved={mine.challenge?.data} part="challenge" act={act} setErr={setErr} last />}
       {step === 'done' && (
         <Panel title={locked && !finished ? 'Time’s Up' : 'All Done'} bodyClass="px-6 py-8 text-center">
           <div className="text-[44px]">🏁</div>
@@ -240,7 +244,7 @@ function Leaderboard({ scores, max, me, big }) {
         <li key={s.email} className={`flex items-center gap-4 px-6 ${big ? 'py-4' : 'py-3'} ${s.email === me ? 'bg-tan-50' : ''}`}>
           <span className={`w-10 text-center font-bold tabular-nums ${big ? 'text-[30px]' : 'text-[20px]'} ${i === 0 ? 'text-amber-500' : i < 3 ? 'text-tan-600' : 'text-zinc-400'}`}>{i === 0 ? '👑' : i + 1}</span>
           <span className={`flex-1 font-semibold text-navy-800 ${big ? 'text-[28px]' : 'text-[16px]'}`}>{s.name}</span>
-          <span className={`text-zinc-500 tabular-nums ${big ? 'text-[16px]' : 'text-[12.5px]'}`}>warm-up {s.warm} · properties {s.props} · rules {s.guide}</span>
+          <span className={`text-zinc-500 tabular-nums ${big ? 'text-[16px]' : 'text-[12.5px]'}`}>warm-up {s.warm} · properties {s.props} · rules {s.guide}{s.chal ? ` · challenge ${s.chal}` : ''}</span>
           <span className={`font-bold tabular-nums text-navy-800 ${big ? 'text-[34px]' : 'text-[20px]'}`}>{s.total}<span className="text-zinc-400 font-normal text-[0.6em]"> / {max}</span></span>
         </li>
       ))}
@@ -305,6 +309,7 @@ function Reveal({ data }) {
       {quiz.properties.map((p, i) => <Panel key={p.id} title={`Property ${i + 1} · ${p.addr}`}><PropTable prop={p} answers={answers} names={names} /></Panel>)}
       {quiz.warmup.length > 0 && <McReview title="Warm-Up · Answers" list={quiz.warmup} picks={mine.warmup?.data?.answers} />}
       {quiz.guide.length > 0 && <McReview title="Comping Rules · Answers" list={quiz.guide} picks={mine.guide?.data?.answers} />}
+      {quiz.challenge?.length > 0 && <McReview title="The Challenge · Answers" list={quiz.challenge} picks={mine.challenge?.data?.answers} />}
     </Shell>
   );
 }
@@ -321,7 +326,7 @@ function HostView() {
   const people = Object.keys(answers || {});
   const doneN = people.filter((e) => answers[e].done).length;
   const go = (body, ask) => { if (ask && !window.confirm(ask)) return; setErr(null); act(body).catch((e) => setErr(e.message)); };
-  const max = (quiz.warmup?.length || 0) + (quiz.guide?.length || 0) + (quiz.properties?.length || 0) * propMax;
+  const max = (quiz.warmup?.length || 0) + (quiz.guide?.length || 0) + (quiz.challenge?.length || 0) + (quiz.properties?.length || 0) * propMax;
   const keysMissing = (quiz.properties || []).filter((p) => !PROP_FIELDS.every(([f]) => p.key?.[f] != null)).length;
   return (
     <Shell>
@@ -352,7 +357,7 @@ function HostView() {
             <thead><tr className="text-left text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50">
               <th className="px-4 py-2">Who</th><th className="px-4 py-2">Warm-Up</th>
               {(quiz.properties || []).map((p, i) => <th key={p.id} className="px-4 py-2">Property {i + 1}</th>)}
-              <th className="px-4 py-2">Rules</th><th className="px-4 py-2">Score</th>
+              <th className="px-4 py-2">Rules</th>{quiz.challenge?.length > 0 && <th className="px-4 py-2">Challenge</th>}<th className="px-4 py-2">Score</th>
             </tr></thead>
             <tbody>
               {(scores || []).map((s) => {
@@ -364,6 +369,7 @@ function HostView() {
                     <td className="px-4 py-2">{mc('warmup', quiz.warmup || [])}</td>
                     {(quiz.properties || []).map((p) => { const r = a[`p:${p.id}`]; return <td key={p.id} className="px-4 py-2">{!r ? '—' : r.data?.submitted ? `✓ ${money(r.data.arv)}` : r.data ? `⏱ ${money(r.data.arv)}` : '⏱ started'}</td>; })}
                     <td className="px-4 py-2">{mc('guide', quiz.guide || [])}</td>
+                    {quiz.challenge?.length > 0 && <td className="px-4 py-2">{mc('challenge', quiz.challenge)}</td>}
                     <td className="px-4 py-2 font-semibold">{s.total}</td>
                   </tr>
                 );
@@ -392,6 +398,7 @@ const fromQuiz = (quiz) => ({
   title: quiz.title || '', intro: quiz.intro || '', minutes: String(Math.round((quiz.timeLimit || 240) / 6) / 10),
   warmup: (quiz.warmup || []).map((q) => ({ ...q, why: q.why || '' })),
   guide: (quiz.guide || []).map((q) => ({ ...q, why: q.why || '' })),
+  challenge: (quiz.challenge || []).map((q) => ({ ...q, why: q.why || '' })),
   properties: (quiz.properties || []).map((p) => ({ id: p.id, addr: p.addr })),
 });
 function SetupEditor({ quiz, save }) {
@@ -404,7 +411,7 @@ function SetupEditor({ quiz, save }) {
   const [busy, setBusy] = useState(false);
   const saved = JSON.stringify(fromQuiz(quiz));
   const dirty = JSON.stringify(v) !== saved;
-  const counts = `${(quiz.warmup || []).length} warm-up · ${(quiz.properties || []).length} properties · ${(quiz.guide || []).length} comping rules`;
+  const counts = `${(quiz.warmup || []).length} warm-up · ${(quiz.properties || []).length} properties · ${(quiz.guide || []).length} comping rules · ${(quiz.challenge || []).length} challenge`;
   if (!draft) {
     return (
       <Panel title="Questions & Setup" sub={counts}>
@@ -413,6 +420,9 @@ function SetupEditor({ quiz, save }) {
     );
   }
   const setList = (k, fn) => setV((x) => ({ ...x, [k]: fn(x[k]) }));
+  // Move a question to another section (it goes to the end of that one).
+  const moveTo = (from, i, to) => setV((x) => ({ ...x, [from]: x[from].filter((_, j) => j !== i), [to]: [...x[to], x[from][i]] }));
+  const mcProps = (k) => ({ list: v[k], set: (fn) => setList(k, fn), move: (i, to) => moveTo(k, i, to), part: k });
   const onSave = async () => {
     setBusy(true); setMsg('');
     try { const d = await save(v); if (d?.quiz) setV(fromQuiz(d.quiz)); setMsg('Saved ✓'); } catch (e) { setMsg(e.message); }
@@ -436,7 +446,7 @@ function SetupEditor({ quiz, save }) {
           </div>
           <label className="block"><span className="block text-[12.5px] text-zinc-600 mb-1">Intro (shown before it starts)</span>
             <textarea rows={2} className={`${inputCls} h-auto py-2`} value={v.intro} onChange={(e) => setV({ ...v, intro: e.target.value })} /></label>
-          <McEditor title="Part 1 · Warm-Up" list={v.warmup} set={(fn) => setList('warmup', fn)} />
+          <McEditor title="Part 1 · Warm-Up" {...mcProps('warmup')} />
           <div className="grid gap-2">
             <div className="text-[13px] font-semibold uppercase tracking-wide text-tan-700">Part 2 · Properties</div>
             {v.properties.map((p, i) => (
@@ -449,7 +459,8 @@ function SetupEditor({ quiz, save }) {
             <div><button type="button" onClick={() => setList('properties', (l) => [...l, { id: '', addr: '' }])} className={quiet}>+ Add a Property</button></div>
             <p className="text-[12.5px] text-zinc-500">A property keeps its answer key when you change the address; a new one needs its key entered below.</p>
           </div>
-          <McEditor title="Part 3 · Comping Rules" list={v.guide} set={(fn) => setList('guide', fn)} />
+          <McEditor title="Part 3 · Comping Rules" {...mcProps('guide')} />
+          <McEditor title="Part 4 · The Challenge" note="Comes last, after Comping Rules — the harder questions. Leave it empty to skip it." {...mcProps('challenge')} />
           <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-tan-200 flex items-center gap-3">
             <button type="button" disabled={!dirty || busy} onClick={onSave} className={primary}>{busy ? 'Saving…' : 'Save Changes'}</button>
             <button type="button" disabled={!dirty || busy} onClick={() => { setV(fromQuiz(quiz)); setMsg(''); }} className={quiet}>Discard</button>
@@ -473,11 +484,15 @@ function Mover({ i, n, set }) {
   );
 }
 
-function McEditor({ title, list, set }) {
+const MC_LABEL = { warmup: 'Warm-Up', guide: 'Comping Rules', challenge: 'The Challenge' };
+function McEditor({ title, note, list, set, move, part }) {
   const edit = (i, patch) => set((l) => l.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   return (
     <div className="grid gap-3">
-      <div className="text-[13px] font-semibold uppercase tracking-wide text-tan-700">{title} · {list.length} questions</div>
+      <div>
+        <div className="text-[13px] font-semibold uppercase tracking-wide text-tan-700">{title} · {list.length} questions</div>
+        {note && <p className="text-[12.5px] text-zinc-500 mt-0.5">{note}</p>}
+      </div>
       {list.map((q, i) => (
         <div key={q.id || `n${i}`} className="rounded-xl border border-tan-200 bg-tan-50/40 p-4 grid gap-2.5">
           <div className="flex items-start gap-2">
@@ -501,6 +516,14 @@ function McEditor({ title, list, set }) {
             ))}
             {q.options.length < 6 && <div><button type="button" onClick={() => edit(i, { options: [...q.options, ''] })} className="text-[13px] text-navy-700 underline">+ Add a choice</button></div>}
             <input className={inputCls} value={q.why} placeholder="Why it's right (shown at the reveal)" onChange={(e) => edit(i, { why: e.target.value })} />
+            {move && (
+              <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-zinc-500">
+                Move to
+                {Object.entries(MC_LABEL).filter(([k]) => k !== part).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => move(i, k)} className="rounded-md px-2 py-0.5 ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50">{l} →</button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -533,7 +556,7 @@ function KeyRow({ prop, n, save }) {
 }
 
 function McStats({ quiz, answers }) {
-  const rows = [...(quiz.warmup || []).map((q) => ['warmup', q]), ...(quiz.guide || []).map((q) => ['guide', q])];
+  const rows = ['warmup', 'guide', 'challenge'].flatMap((k) => (quiz[k] || []).map((q) => [k, q]));
   return (
     <Panel title="Question by Question" sub="How many got each one right">
       <div className="divide-y divide-tan-100">
@@ -542,7 +565,7 @@ function McStats({ quiz, answers }) {
           const right = picks.filter((x) => Number(x) === q.answer).length;
           return (
             <div key={q.id} className="px-6 py-3 flex flex-wrap items-center gap-3 text-[13.5px]">
-              <span className="w-24 text-[11px] uppercase tracking-wide text-zinc-500">{part === 'warmup' ? 'Warm-up' : 'Rules'}</span>
+              <span className="w-24 text-[11px] uppercase tracking-wide text-zinc-500">{part === 'warmup' ? 'Warm-up' : part === 'guide' ? 'Rules' : 'Challenge'}</span>
               <span className="flex-1 text-navy-800">{q.q}</span>
               <span className="text-emerald-700 font-semibold">✓ {q.options[q.answer]}</span>
               <span className="tabular-nums text-zinc-600">{picks.length ? `${right} of ${picks.length} right` : 'no answers'}</span>
