@@ -16,6 +16,11 @@ export const METRICS = [
   ...CRM_ITEMS.map((c, i) => ({ key: `crm:${c.key}`, label: `${c.short} grade`, unit: 'of 2', hint: c.label, get: (r) => (r.crm?.[i] ?? null) })),
 ];
 export const metricOf = (key) => METRICS.find((m) => m.key === key);
+// A target written in by hand (Luke, Nov 5): its own words, marked Hit /
+// Missed each week by an owner or the pod lead.
+export const CUSTOM = 'custom';
+export const isCustom = (t) => t?.metric === CUSTOM;
+export const targetLabel = (t) => (isCustom(t) ? t.text : metricOf(t.metric)?.label || t.metric);
 export const fmtGoal = (m, v) => (v == null ? '—' : `${v}${m?.unit === '%' ? '%' : m?.unit ? ` ${m.unit}` : ''}`);
 
 // The plan's weeks, Monday keys from the week it started through the review

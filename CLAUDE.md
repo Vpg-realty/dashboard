@@ -1541,6 +1541,16 @@ start plans, keep the why private". Scorecards › **Development Plan**
   and an outcome (Completed / Ended + note). No sign-off at the start (Luke
   didn't ask for it). Never written while viewing as; every write in
   edit_log `devplan.*`.
+- **Typed in, not only picked (Luke, Nov 5: "right now its just selections,
+  but i want to be able to type something in")**: **What We Expect** (D1
+  `dev_plans.focus`, added by `ensure` on first use — one pragma read per
+  worker) is the plan in the owner's words, shown to the person and their
+  pod lead (the why stays owners only); every target takes an optional
+  **note**; and **✎ Write your own** targets (`metric: 'custom'`, `text`, an
+  optional typed `goal`) sit in their own **Our Targets** card, where an
+  owner or the pod lead clicks each week Hit → Missed → blank (POST action
+  `mark`; `marks` {monday: 'hit' | 'miss'} kept on the target, which keeps
+  its `tid` across edits). Up to 8 targets.
 - **+ Start a Plan fixed (Luke, Nov 5: "i cannot start a development plan
   for reps")**: the button set `?new=` (empty), which `setQuery` drops, so
   the form never opened; it now sets `?new=pick` (nobody picked yet).
