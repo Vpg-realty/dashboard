@@ -2,6 +2,8 @@
 //   GET  [?host=1]   → the quiz as this person may see it (+ their answers);
 //                      owners with ?host=1 get everything and the scores.
 //   POST { action: mc | open | prop | finish, … }   taking it
+//   ?practice=1 / { practice: true, … } an owner's practice run (any status,
+//        their own '<id>~practice' rows; action practiceReset starts over)
 //   POST { action: status | key | reset | setup, … } hosting (owners;
 //        setup = questions / properties / clock, draft only)
 // Never written while viewing as. Usage: one settings row + the person's few
@@ -17,8 +19,8 @@ export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (NOT.includes(user.role)) return json({ error: 'not available' }, 403);
-  const isHost = new URL(context.request.url).searchParams.get('host') === '1';
-  return json(await load(context.env.DB, user, { host: isHost }));
+  const q = new URL(context.request.url).searchParams;
+  return json(await load(context.env.DB, user, { host: q.get('host') === '1', practice: q.get('practice') === '1' }));
 }
 
 export async function onRequestPost(context) {
@@ -35,5 +37,5 @@ export async function onRequestPost(context) {
     await db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)')
       .bind(new Date().toISOString(), user.email, `quiz.${b.action}`, JSON.stringify({ status: b.status, prop: b.prop })).run();
   }
-  return json(await load(db, user, { host: hosting }));
+  return json(await load(db, user, { host: hosting, practice: !hosting && !!b.practice }));
 }

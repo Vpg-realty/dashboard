@@ -1658,6 +1658,13 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   others (`chal` in scoreAll), left out when empty. In the editor every
   question has **Move to** Warm-Up / Comping Rules / The Challenge (ids stay
   unique across the parts).
+- **Practice Run** (Luke, Nov 6: "let me run the comp challenge to see how
+  i like it"): Host's 🧪 Practice Run → `/quiz/take?practice=1` — an owner
+  takes the quiz as it stands (draft included, clocks and all) with answers
+  under their own `<quiz id>~practice` rows (`practiceId`, `loadPractice` in
+  edge/compQuiz.js; `{practice: true}` on POSTs), so nobody else sees it and
+  it never reaches the real results, the host page or Reset. Finishing shows
+  the owner the reveal; ↺ Start Over (action `practiceReset`) clears it.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 
