@@ -27,8 +27,16 @@ function useQuiz(host, practice = false) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const skew = useRef(0);
-  const take = useCallback((d) => { if (d?.now) skew.current = Date.parse(d.now) - Date.now(); setData(d); return d; }, []);
-  const reload = useCallback(() => api(null, host, practice).then(take).catch((e) => setErr(e.message)), [host, practice, take]);
+  // Replies are applied in the order the requests went out, so a slow
+  // auto-save's reply can't put the page back after a later Lock It In
+  // (Luke, Nov 6: stuck on a property in the practice run).
+  const seq = useRef(0); const shown = useRef(0);
+  const take = useCallback((d, n) => {
+    if (n != null) { if (n < shown.current) return d; shown.current = n; }
+    if (d?.now) skew.current = Date.parse(d.now) - Date.now();
+    setData(d); return d;
+  }, []);
+  const reload = useCallback(() => { const n = ++seq.current; return api(null, host, practice).then((d) => take(d, n)).catch((e) => setErr(e.message)); }, [host, practice, take]);
   const status = data?.quiz?.status;
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => {
@@ -37,7 +45,7 @@ function useQuiz(host, practice = false) {
     const t = setInterval(() => { if (!document.hidden) reload(); }, ms);
     return () => clearInterval(t);
   }, [host, status, reload]);
-  const act = async (body) => take(await api(practice ? { ...body, practice: true } : body));
+  const act = async (body) => { const n = ++seq.current; return take(await api(practice ? { ...body, practice: true } : body), n); };
   return { data, err, setErr, act, reload, now: () => Date.now() + skew.current };
 }
 
@@ -190,10 +198,15 @@ function PropPart({ quiz, prop, index, row, act, setErr, now, reload }) {
   const vRef = useRef(v);
   useEffect(() => { vRef.current = v; }, [v]);
   const sent = useRef(false);
+  const saveT = useRef(null);
   const submit = useCallback(async (auto) => {
     if (sent.current) return; sent.current = true; setBusy(true);
-    try { await act({ action: 'prop', prop: prop.id, ...vRef.current, submitted: true }); } catch (e) { if (!auto) setErr(e.message); reload(); }
-    finally { setBusy(false); }
+    clearTimeout(saveT.current); // a pending auto-save must not follow the lock-in
+    try { await act({ action: 'prop', prop: prop.id, ...vRef.current, submitted: true }); } catch (e) {
+      if (!auto) setErr(e.message);
+      if (!e.late) sent.current = false; // let them press it again
+      reload();
+    } finally { setBusy(false); }
   }, [act, prop.id, setErr, reload]);
   // The clock — from the server's start time.
   useEffect(() => {
@@ -210,8 +223,8 @@ function PropPart({ quiz, prop, index, row, act, setErr, now, reload }) {
   // Save as they type (the last save counts if time runs out).
   useEffect(() => {
     if (!started) return undefined;
-    const t = setTimeout(() => { act({ action: 'prop', prop: prop.id, ...v, submitted: false }).catch(() => {}); }, 1200);
-    return () => clearTimeout(t);
+    saveT.current = setTimeout(() => { if (!sent.current) act({ action: 'prop', prop: prop.id, ...v, submitted: false }).catch(() => {}); }, 1200);
+    return () => clearTimeout(saveT.current);
   }, [v, started, act, prop.id]);
   const total = quiz.properties.length;
   if (!started) {
