@@ -34,3 +34,7 @@ function mondayOf(day) {
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
+
+// Up to 20 targets a plan (Luke, Nov 6: at the old limit of 8 the add
+// buttons quietly vanished from Edit plan). Shared with edge/devPlans.js.
+export const MAX_TARGETS = 20;

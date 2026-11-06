@@ -15,7 +15,7 @@ import { useScorecards } from '../views/manager/useScorecards.js';
 import { weekSeries } from '../views/manager/trends.js';
 import { useAlerts, loadAlerts, alertAction } from '../alerts/store.js';
 import { TASK_CAT, RECUR, isCoaching } from '../alerts/kinds.js';
-import { METRICS, metricOf, fmtGoal, planWeeks, CUSTOM, isCustom, targetLabel } from './metrics.js';
+import { METRICS, metricOf, fmtGoal, planWeeks, CUSTOM, isCustom, targetLabel, MAX_TARGETS } from './metrics.js';
 import Panel from '../shell/Panel.jsx';
 import BandMark from '../shell/BandMark.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
@@ -487,7 +487,9 @@ function PlanForm({ plan, start, plans, name, onSave, onCancel }) {
                   </div>
                 );
               })}
-              {v.targets.length < 8 && (
+              {v.targets.length >= MAX_TARGETS ? (
+                <p className="text-[13px] text-zinc-500">{MAX_TARGETS} targets is the most a plan can hold — remove one to add another.</p>
+              ) : (
                 <div className="flex gap-4">
                   <button type="button" onClick={() => setV({ ...v, targets: [...v.targets, { metric: 'offers', goal: 5 }] })} className="text-[13px] font-semibold text-navy-700 hover:underline">+ Add a scorecard target</button>
                   <button type="button" onClick={() => setV({ ...v, targets: [...v.targets, { metric: CUSTOM, text: '', goal: '' }] })} className="text-[13px] font-semibold text-navy-700 hover:underline">✎ Write your own target</button>
