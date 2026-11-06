@@ -2089,6 +2089,14 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   period's cancels by reason (deals, share, our EMD lost, buyer's EMD kept) —
   a reason picks the deal list under it (`?reason=`), "Open in All Deals →".
 
+- **Inspection and Earnest Money apart** (Luke, Nov 6: "too hard to read
+  … clear on what is what. inspection comes first, emd comes after"): the
+  panel's "Earnest Money & Inspection" card is two — **Inspection Period**
+  (`ip`, group dd) then **Earnest Money** (`emd`), each with its own folded
+  line; the status tiles read Inspection before EMD too. Under Contract opens
+  both ("You are here", `HERE` lists a stage's sections). Folds are kept under
+  `vpg.deal.open2.<id>` (the old key's lists held the combined card).
+
 ## Assigned / Closed pop-ups (Luke, Oct 26)
 
 "a similar popup as we created for cancelled … when the deal is marked as

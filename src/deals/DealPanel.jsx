@@ -164,10 +164,13 @@ function tileStatus(d) {
 // section for the deal's stage opens by itself and says "You are here"; the
 // others fold to one line with what's in them and ✓ / "N missing". Any
 // section opens with a click and stays open; which ones are open is kept per
-// deal on this device (localStorage `vpg.deal.open.<id>`).
+// deal on this device (localStorage `vpg.deal.open2.<id>`).
 const SECTIONS = [
   { id: 'contract', label: 'The Contract', short: 'Contract', groups: ['contract', 'title'] },
-  { id: 'emd', label: 'Earnest Money & Inspection', short: 'EMD & Inspection', groups: ['emd', 'dd'] },
+  // Inspection first, then earnest money — two cards (Luke, Nov 6: "too hard
+  // to read … clear on what is what").
+  { id: 'ip', label: 'Inspection Period', short: 'Inspection', groups: ['dd'] },
+  { id: 'emd', label: 'Earnest Money', short: 'EMD', groups: ['emd'] },
   { id: 'dispo', label: 'Selling It', short: 'Selling It', groups: ['dispo'] },
   { id: 'money', label: 'The Money', short: 'Money', groups: ['money', 'pay'] },
   { id: 'notes', label: 'Notes & Links', short: 'Notes', groups: ['notes'] },
@@ -183,9 +186,10 @@ const MONEY_CATS = [
   { id: 'profit', label: 'Profit', hint: 'what VPG keeps', group: 'pay', keys: ['grossProfit', 'netProfit'] },
 ];
 const SUB_LABEL = { contract: 'Contract', title: 'Title', emd: 'Earnest Money', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
-const HERE = { UNDER_CONTRACT: 'emd', DISPO_ACTIVE: 'dispo', ASSIGNED: 'dispo', COMPLETE: 'money', CANCELLED: 'emd' };
+// The stage's section(s) — open by themselves with "You are here".
+const HERE = { UNDER_CONTRACT: ['ip', 'emd'], DISPO_ACTIVE: ['dispo'], ASSIGNED: ['dispo'], COMPLETE: ['money'], CANCELLED: ['emd'] };
 const secOfGroup = (gid) => SECTIONS.find((x) => x.groups.includes(gid))?.id;
-const openKey = (id) => `vpg.deal.open.${id}`;
+const openKey = (id) => `vpg.deal.open2.${id}`; // open2: Nov 6 split of EMD & Inspection
 function readOpen(id) {
   try { const v = JSON.parse(localStorage.getItem(openKey(id)) || 'null'); return Array.isArray(v) ? v : null; } catch { return null; }
 }
@@ -199,7 +203,8 @@ function summaryOf(sec, d, { owner, ro }) {
   const has = (v) => !isBlank(v);
   const parts = {
     contract: [first(d.acq), has(d.dealType) && pretty('dealType', d.dealType), ISO.test(d.accepted || '') && `${shortDate(d.accepted)} → COE ${ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}`, typeof d.price === 'number' && d.price > 0 && money(d.price), has(d.title) && clip(d.title, 28)],
-    emd: [typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)} EMD` : 'No EMD amount', has(d.emdPaidBy) && String(d.emdPaidBy).toUpperCase() !== 'PENDING' ? pretty('emdPaidBy', d.emdPaidBy) : 'not placed yet', ISO.test(d.ddEnd || '') && `IP ends ${shortDate(d.ddEnd)}`],
+    ip: [typeof d.ddDays === 'number' && `${d.ddDays} days`, ISO.test(d.ddStart || '') && `starts ${shortDate(d.ddStart)}`, ISO.test(d.ddEnd || '') ? `ends ${shortDate(d.ddEnd)}` : 'No IP end yet'],
+    emd: [typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)} EMD` : 'No EMD amount', has(d.emdPaidBy) && String(d.emdPaidBy).toUpperCase() !== 'PENDING' ? pretty('emdPaidBy', d.emdPaidBy) : 'not placed yet', ISO.test(d.emdSent || '') && `sent ${shortDate(d.emdSent)}`],
     dispo: [first(d.dispoMember), owner && has(d.buyer) && clip(d.buyer, 26), typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? `Assigned at ${money(d.vpgAssign)}` : 'No buyer yet'],
     money: noBuyer(d) && !keptMoney(d) ? ['No buyer yet'] : [typeof d.grossAssign === 'number' && `Gross ${money(d.grossAssign)}`, !ro && typeof d.netAssign === 'number' && `Net ${money(d.netAssign)}`, owner && typeof d.netProfit === 'number' && `Profit ${money(d.netProfit)}`],
     notes: [ro ? null : has(d.notes) ? clip(d.notes, 50) : 'No notes', has(d.links) && 'Zillow link'],
@@ -558,9 +563,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   // Sections (S2): which are visible to this person, which is "you are here",
   // which are open.
   const secs = SECTIONS.map((x) => ({ ...x, groups: x.groups.filter((gid) => groups.some(([g2]) => g2 === gid)) })).filter((x) => x.groups.length);
-  const here = isNew ? null : (secs.find((x) => x.id === HERE[stageOf(merged)]) || secs[0])?.id;
+  const hereIds = secs.filter((x) => (HERE[stageOf(merged)] || []).includes(x.id)).map((x) => x.id);
+  const here = isNew ? [] : hereIds.length ? hereIds : secs.slice(0, 1).map((x) => x.id);
   const missingIn = (sec) => FIELDS.filter((f) => sec.groups.includes(f.group) && need.has(f.key)).length;
-  const defaultOpen = isNew ? secs.map((x) => x.id) : secs.filter((x) => x.id === here || missingIn(x) > 0).map((x) => x.id);
+  const defaultOpen = isNew ? secs.map((x) => x.id) : secs.filter((x) => here.includes(x.id) || missingIn(x) > 0).map((x) => x.id);
   const openList = [...new Set([...(userOpen || defaultOpen), ...forced])];
   const toggle = (sid) => {
     const next = openList.includes(sid) ? openList.filter((x) => x !== sid) : [...openList, sid];
@@ -704,7 +710,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const sectionCard = (sec, si) => {
     const open = openList.includes(sec.id);
     const n = missingIn(sec);
-    const isHere = sec.id === here;
+    const isHere = here.includes(sec.id);
     if (!open) {
       return (
         <button key={sec.id} id={`deal-s-${sec.id}`} data-sec={sec.id} type="button" onClick={() => toggle(sec.id)}
@@ -831,8 +837,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                 <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
                 <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
                 <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : 'plain'}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : dash}</StatusTile>
-                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
                 <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
+                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
                 <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
               </div>
             </div>
