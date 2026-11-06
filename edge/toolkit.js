@@ -74,12 +74,31 @@ async function scope(db, u) {
   return { emails: new Set([u.email, ...trainees]), reps };
 }
 const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+// `shared` (Luke, Nov 6: "a way to assign a rep if they need to view
+// calculations that i did") = the emails an owner shared a calculation with;
+// it then sits in their own My Calculations. Added to the table on first use
+// (one pragma read per worker).
+let sharedChecked = false;
+export async function ensureShared(db) {
+  if (sharedChecked) return;
+  const cols = (await db.prepare("SELECT name FROM pragma_table_info('calcs')").all()).results.map((r) => r.name);
+  if (!cols.includes('shared')) await db.prepare('ALTER TABLE calcs ADD COLUMN shared TEXT').run();
+  sharedChecked = true;
+}
 export async function calcs(db, u) {
+  await ensureShared(db);
   const sc = await scope(db, u);
   // Commission reviews (kind 'comm') are owners-only and never in My Calculations.
   const rows = (await db.prepare("SELECT * FROM calcs WHERE deleted = 0 AND kind != 'comm' ORDER BY updated_at DESC").all()).results;
-  return rows.filter((r) => !sc || sc.emails.has(r.by_email) || (r.rep_id && sc.reps.has(r.rep_id)))
-    .map((r) => ({ ...r, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email }));
+  const me = String(u.email || '').toLowerCase();
+  return rows.map((r) => ({ r, shared: (parse(r.shared) || []).filter((e) => typeof e === 'string') }))
+    .filter(({ r, shared }) => !sc || sc.emails.has(r.by_email) || (r.rep_id && sc.reps.has(r.rep_id)) || shared.includes(me))
+    .map(({ r, shared }) => ({
+      ...r, shared: undefined, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email,
+      sharedWithMe: r.by_email !== u.email && shared.includes(me),
+      // Who it's shared with — owners and whoever saved it only.
+      sharedWith: u.role === 'owner' || r.by_email === u.email ? shared : undefined,
+    }));
 }
 
 // Saved commission reviews (Toolkit › Commission Calculator, Luke Nov 3:
@@ -241,6 +260,15 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
     const id = newId('k');
     return { id, run: [['INSERT INTO calcs (id, kind, title, inputs, summary, opp, rep_id, by_name, by_email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [id, kind, title, JSON.stringify(inputs), summary, opp ? JSON.stringify(opp) : null, u.rep_id || null, u.name, u.email, now, now]]] };
+  }
+  if (a === 'calcShare') {
+    if (u.role !== 'owner' || u.viewAs) return { error: 'Only owners share calculations' };
+    if (!CID.test(String(b.id || '')) || !existing || existing.deleted || existing.kind === 'comm') return { error: 'That calculation is gone' };
+    const list = Array.isArray(b.emails) ? b.emails : [];
+    if (list.length > 40) return { error: 'Share with up to 40 people' };
+    const emails = [...new Set(list.map((e) => String(e || '').trim().toLowerCase()))].filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (emails.length !== list.length) return { error: 'Pick people from the list' };
+    return { id: b.id, run: [['UPDATE calcs SET shared = ? WHERE id = ?', [emails.length ? JSON.stringify(emails) : null, b.id]]] };
   }
   if (a === 'commSave') {
     if (!canComm(u)) return { error: 'Only owners save commission reviews' };

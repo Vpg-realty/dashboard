@@ -2751,6 +2751,17 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   Remove (whoever saved it, or an owner). Only the author (or an owner)
   changes a saved one; others Save a Copy. Results coloured against the
   goals; a down payment of 10%+ is flagged.
+- **Shared with a rep** (Luke, Nov 6: "a way to assign a rep if they need
+  to view calculations that i did … it'll save the sheet for them to view
+  under their calculations as well"): owners click **Share** on a row of My
+  Calculations and tick people (`SharePicker`, people from GET /api/users).
+  D1 `calcs.shared` (JSON emails, added by `ensureShared` in edge/toolkit.js
+  on first use — one pragma read per worker); POST /api/toolkit action
+  `calcShare` (owners, not while viewing as). The calculation then shows in
+  that person's own list (Mine) tagged "Shared by Luke" (`sharedWithMe`);
+  they can open it, download the PDF and Save a Copy, never change the
+  original. Owners (and whoever saved it) see "Shared with …" under the
+  title (`sharedWith`); nobody else is told who it's shared with. No new reads.
 - **Ask Claude about these numbers** (`CalcAsk.jsx`, both calculators): a
   private thread per person (`chat_messages` thread `calc:<email>`),
   `edge/calcChat.js` — a briefing with VPG's formulas plus the open

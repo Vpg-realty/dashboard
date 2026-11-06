@@ -2,11 +2,14 @@
 // own; a pod lead also their pod's (and their trainees'); owners everyone's
 // (Luke, Oct 22: "saved calculations by reps should be seen by pod leads and
 // owners"). Open, save a copy, or remove (whoever saved it, or an owner).
-import { useMemo, useState } from 'react';
+// Owners can share one with anyone (Luke, Nov 6: "assign a rep if they need
+// to view calculations that i did … it'll save the sheet for them to view
+// under their calculations") — it shows in that person's own list, "Shared by".
+import { useEffect, useMemo, useState } from 'react';
 import Panel from '../shell/Panel.jsx';
 import SearchBox from '../shell/SearchBox.jsx';
 import { navigate, useLocation, setQuery } from '../shell/router.js';
-import { useMe } from '../utils/dashApi.js';
+import { useMe, listUsers } from '../utils/dashApi.js';
 import { useToolkit, act } from './store.js';
 import { LinkedOpp } from './CalcFrame.jsx';
 import { KINDS, summaryOf } from './calc.js';
@@ -26,11 +29,16 @@ export default function MyCalcs() {
   const s = useToolkit();
   const query = useLocation().query;
   const [q, setQ] = useState('');
-  const others = (s.calcs || []).some((c) => !c.mine);
+  const others = (s.calcs || []).some((c) => !c.mine && !c.sharedWithMe);
   const who = query.get('who') || (me?.role === 'owner' && others ? 'all' : 'mine');
   const kind = query.get('kind');
   const needle = q.trim().toLowerCase();
-  const rows = useMemo(() => (s.calcs || []).filter((c) => (who === 'mine' ? c.mine : true) && (!kind || c.kind === kind)
+  const owner = me?.role === 'owner' && !me?.viewAs;
+  const [people, setPeople] = useState(null);
+  const [sharing, setSharing] = useState(null);
+  useEffect(() => { if (owner) listUsers().then((r) => setPeople((r.users || []).filter((u) => u.role !== 'owner'))).catch(() => setPeople([])); }, [owner]);
+  const nameOf = (e) => people?.find((u) => u.email === e)?.name || e.split('@')[0];
+  const rows = useMemo(() => (s.calcs || []).filter((c) => (who === 'mine' ? c.mine || c.sharedWithMe : true) && (!kind || c.kind === kind)
     && (!needle || [c.title, c.opp?.label, c.by_name].join(' ').toLowerCase().includes(needle))), [s.calcs, who, kind, needle]);
   const canRemove = (c) => c.mine || me?.role === 'owner';
   const remove = async (c) => { if (!confirm(`Remove “${c.title}”?`)) return; try { await act({ action: 'calcRemove', id: c.id }); } catch (e) { alert(e.message); } };
@@ -70,7 +78,12 @@ export default function MyCalcs() {
                 const open = `${PAGE[c.kind]}?calc=${c.id}`;
                 return (
                   <tr key={c.id} className="border-t border-tan-100 hover:bg-tan-50/60">
-                    <td className="pl-5 py-2.5"><a href={open} onClick={(e) => { e.preventDefault(); navigate(open); }} className="font-semibold text-navy-800 hover:underline">{c.title}</a><ReadLine i={c.inputs} /></td>
+                    <td className="pl-5 py-2.5"><a href={open} onClick={(e) => { e.preventDefault(); navigate(open); }} className="font-semibold text-navy-800 hover:underline">{c.title}</a>
+                      {c.sharedWithMe && <span className="ml-2 rounded-full bg-tan-100 px-2 py-0.5 text-[11.5px] font-semibold text-tan-800 ring-1 ring-tan-300">Shared by {c.by_name}</span>}
+                      <ReadLine i={c.inputs} />
+                      {c.sharedWith?.length > 0 && <span className="block text-[11.5px] text-zinc-500">Shared with {c.sharedWith.map(nameOf).join(', ')}</span>}
+                      {sharing === c.id && <SharePicker calc={c} people={people} onClose={() => setSharing(null)} />}
+                    </td>
                     <td className="px-3"><span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-semibold ring-1 ${KIND_CLS[c.kind]}`}>{KINDS[c.kind]}</span></td>
                     <td className="px-3 py-2">{c.opp ? <LinkedOpp opp={c.opp} stacked /> : <span className="text-zinc-400">Not linked</span>}</td>
                     <td className="px-3 whitespace-nowrap"><span className={`font-semibold tabular-nums ${TONE[sum.tone]}`}>{sum.text}</span>{sum.warn && <span className="block text-[11.5px] font-medium text-rose-700">{sum.warn}</span>}</td>
@@ -79,6 +92,7 @@ export default function MyCalcs() {
                     <td className="pr-5 text-right whitespace-nowrap">
                       <a href={open} onClick={(e) => { e.preventDefault(); navigate(open); }} className="text-[12.5px] font-medium text-navy-700 hover:underline">Open</a>
                       <button type="button" onClick={() => copyOf(c)} className="ml-3 text-[12.5px] font-medium text-navy-700 hover:underline">Copy</button>
+                      {owner && <button type="button" onClick={() => setSharing(sharing === c.id ? null : c.id)} className="ml-3 text-[12.5px] font-medium text-navy-700 hover:underline">Share{c.sharedWith?.length ? ` (${c.sharedWith.length})` : ''}</button>}
                       {canRemove(c) && !me?.viewAs && <button type="button" onClick={() => remove(c)} className="ml-3 text-[12.5px] font-medium text-red-700 hover:underline">Remove</button>}
                     </td>
                   </tr>
@@ -88,7 +102,7 @@ export default function MyCalcs() {
           </table>
         )}
       </Panel>
-      <p className="text-[12.5px] text-zinc-500">Results are coloured against VPG’s goals: seller finance $300+ a month cash flow, multifamily 10–12% cash-on-cash (stabilized). {me?.role === 'owner' ? 'Owners see everyone’s calculations.' : me?.role === 'manager' ? 'Pod leads see their pod’s calculations; owners see everyone’s.' : 'Your pod lead and the owners can see what you save.'}</p>
+      <p className="text-[12.5px] text-zinc-500">Results are coloured against VPG’s goals: seller finance $300+ a month cash flow, multifamily 10–12% cash-on-cash (stabilized). {me?.role === 'owner' ? 'Owners see everyone’s calculations. Share one and it shows in that person’s own list — they can open it and save a copy, not change yours.' : me?.role === 'manager' ? 'Pod leads see their pod’s calculations; owners see everyone’s.' : 'Your pod lead and the owners can see what you save.'}{me?.role !== 'owner' ? ' Calculations an owner shares with you show here as “Shared by”.' : ''}</p>
     </div>
   );
 }
@@ -99,3 +113,41 @@ function ReadLine({ i }) {
   const v = (() => { try { return i?.review ? JSON.parse(i.review).verdict : null; } catch { return null; } })();
   return v ? <span className="block text-[11.5px] text-zinc-500">Claude’s take: {VERDICT[v] || v}</span> : null;
 }
+
+// Owners: tick who gets to see this calculation in their own list.
+function SharePicker({ calc, people, onClose }) {
+  const [picked, setPicked] = useState(() => new Set(calc.sharedWith || []));
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const needle = q.trim().toLowerCase();
+  const list = (people || []).filter((u) => !needle || `${u.name} ${u.email}`.toLowerCase().includes(needle));
+  const flip = (e) => setPicked((p) => { const n = new Set(p); if (n.has(e)) n.delete(e); else n.add(e); return n; });
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try { await act({ action: 'calcShare', id: calc.id, emails: [...picked] }); onClose(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-2 max-w-[420px] rounded-xl border border-tan-300 bg-white p-3 shadow-md">
+      <div className="text-[12.5px] font-semibold text-navy-800 mb-2">Share “{calc.title}” with</div>
+      <SearchBox value={q} onChange={setQ} placeholder="Find a person…" />
+      <div className="mt-2 max-h-56 overflow-y-auto divide-y divide-tan-100">
+        {!people && <div className="py-3 text-zinc-400 text-[13px]">Loading…</div>}
+        {people && !list.length && <div className="py-3 text-zinc-500 text-[13px]">Nobody matches.</div>}
+        {list.map((u) => (
+          <label key={u.email} className="flex items-center gap-2 py-1.5 text-[13.5px] cursor-pointer">
+            <input type="checkbox" checked={picked.has(u.email)} onChange={() => flip(u.email)} />
+            <span className="font-medium text-navy-800">{u.name}</span>
+            <span className="text-[12px] text-zinc-500">{ROLE_WORD[u.role] || u.role}</span>
+          </label>
+        ))}
+      </div>
+      {err && <p className="mt-2 text-[12.5px] text-rose-700">{err}</p>}
+      <div className="mt-3 flex items-center gap-2">
+        <button type="button" disabled={busy} onClick={save} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[13px] font-semibold disabled:opacity-50">{busy ? 'Saving…' : picked.size ? `Share with ${picked.size}` : 'Stop sharing'}</button>
+        <button type="button" onClick={onClose} className="h-8 px-3 rounded-lg ring-1 ring-inset ring-tan-300 text-navy-700 text-[13px] font-semibold">Cancel</button>
+      </div>
+    </div>
+  );
+}
+const ROLE_WORD = { team: 'Rep', manager: 'Manager', tc: 'TC', trainee: 'Trainee' };

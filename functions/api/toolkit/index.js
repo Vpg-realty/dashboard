@@ -14,7 +14,7 @@
 //   → the same as GET (+ id for a new agency / calculation)
 // Writes are logged in edit_log (never the file itself) and refused while viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
-import { canUse, load, plan } from '../../../edge/toolkit.js';
+import { canUse, load, plan, ensureShared } from '../../../edge/toolkit.js';
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
@@ -34,14 +34,15 @@ export async function onRequestPost(context) {
   const id = String(b?.id || '');
   const existing = !id ? null
     : ['agency', 'agencyRemove', 'prefer'].includes(a) ? await db.prepare('SELECT * FROM title_agencies WHERE id = ?').bind(id).first()
-    : ['calcSave', 'calcRemove', 'commSave', 'commRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
+    : ['calcSave', 'calcRemove', 'calcShare', 'commSave', 'commRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
   const slot = ['pof', 'pofExpires', 'pofLabel', 'pofRemove'].includes(a) ? String(b?.slot || (a === 'pof' ? '' : 'pof'))
     : ['doc', 'docEdit', 'docRemove'].includes(a) ? String(b?.slot || '') : '';
   const letter = slot ? await db.prepare('SELECT name, label, states, note FROM toolkit_files WHERE name = ?').bind(slot).first() : null;
   const now = new Date().toISOString();
   const p = plan(b, user, now, letter || existing);
   if (p.error) return json({ error: p.error }, 400);
-  const detail = a === 'terms' ? { terms: (b.terms || []).length, states: Object.keys(b.states || {}).length } : a.startsWith('pof') || a.startsWith('doc') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires, states: b.states } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name };
+  if (a === 'calcShare') await ensureShared(db);
+  const detail = a === 'terms' ? { terms: (b.terms || []).length, states: Object.keys(b.states || {}).length } : a.startsWith('pof') || a.startsWith('doc') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires, states: b.states } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name, emails: b.emails };
   await db.batch([
     ...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)),
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `toolkit.${a}`, JSON.stringify(detail)),
