@@ -1550,7 +1550,9 @@ start plans, keep the why private". Scorecards › **Development Plan**
   optional typed `goal`) sit in their own **Our Targets** card, where an
   owner or the pod lead clicks each week Hit → Missed → blank (POST action
   `mark`; `marks` {monday: 'hit' | 'miss'} kept on the target, which keeps
-  its `tid` across edits). Up to 8 targets.
+  its `tid` across edits). Up to 20 targets (`MAX_TARGETS`, edge/devPlans.js —
+  8 until Nov 6, when Axel's plan hit it and the add buttons vanished; at the
+  limit Edit plan now says so).
 - **Reorder (Luke, Nov 6: "a way to reorder the targets for action items
   and scorecard targets")**: targets move with ↑ / ↓ in Edit plan (the order
   of `targets`; each card shows them in that order). Action items move with

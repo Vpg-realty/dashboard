@@ -15,6 +15,10 @@ import { refreshPods } from './pods.js';
 export const METRIC_KEYS = ['custom', 'score', 'contracts', 'offers', 'opps', 'speed', 'crm', 'crm:pipeline', 'crm:notes', 'crm:messaging', 'crm:dispo', 'crm:followups'];
 export const OUTCOMES = ['completed', 'ended'];
 export const MARKS = ['hit', 'miss'];
+// Up to 20 targets a plan (Luke, Nov 6: at the old 8 the add buttons quietly
+// vanished from Edit plan) — the same number as MAX_TARGETS in
+// src/devplan/metrics.js (which this file can't import: it loads JSON).
+export const MAX_TARGETS = 20;
 const ID = /^[a-z0-9]{6,20}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const clip = (s, n) => String(s ?? '').trim().slice(0, n);
@@ -91,7 +95,7 @@ export async function load(db, user) {
 // pod lead (`marks` {monday: 'hit' | 'miss'}). Either can carry a note.
 // `tid` keeps a written target's marks across edits.
 function cleanTargets(t, old = []) {
-  if (!Array.isArray(t) || !t.length || t.length > 8) return { error: 'Give the plan one to eight targets' };
+  if (!Array.isArray(t) || !t.length || t.length > MAX_TARGETS) return { error: `Give the plan one to ${MAX_TARGETS} targets` };
   const prev = Object.fromEntries(old.filter((x) => x?.tid).map((x) => [x.tid, x]));
   const out = []; const seen = new Set();
   for (const [n, x] of t.entries()) {
