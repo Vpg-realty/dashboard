@@ -1641,7 +1641,9 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   (POST action `setup`, `cleanSetup` in edge/compQuiz.js): draft only — once
   started it's locked until stepped back to Not started; a property keeps its
   answer key by id; blank choices are dropped and the right answer follows
-  its text.
+  its text. Open by default (Luke, Nov 6: "why can i not edit the
+  questions" — it started folded behind a small Edit tab in the header);
+  Close folds it, ✎ Edit Questions opens it again.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 
