@@ -9,7 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
-import { analyzeLocation, timingLocation, totalOf, REPORT_VERSION } from '../server/agentReport.js';
+import { analyzeLocation, timingLocation, listsLocation, totalOf, REPORT_VERSION } from '../server/agentReport.js';
 import { MARKET_TZ } from '../server/messaging.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +25,7 @@ async function contactsOf(loc, pit) {
   for (let i = 0; i < 1000; i++) {
     const d = await ghlFetch('/contacts/search', pit, { method: 'POST', body: { locationId: loc, pageLimit: 100, sort: [{ field: 'dateAdded', direction: 'asc' }], ...(after ? { searchAfter: after } : {}) } });
     const page = d?.contacts || [];
-    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName, dnd: c.dnd })));
+    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName, dnd: c.dnd, phone: c.phone, email: c.email })));
     after = page[page.length - 1]?.searchAfter;
     if (page.length < 100 || !after) break;
   }
@@ -62,6 +62,9 @@ const JOBS = [
   // — written alongside the 6-month run from the same data; this job only
   // fills in the sub-accounts that run finished before it was added.
   { key: 'agent_timing', since: Date.parse('2026-05-05T07:00:00Z'), kind: 'timing' },
+  // Work lists (Luke, Nov 6): parked agents to call back and agents who act
+  // like tier 1 without the tag — texts / calls since May 5, leads all-time.
+  { key: 'agent_lists', since: Date.parse('2026-05-05T07:00:00Z'), kind: 'lists' },
 ];
 
 async function main() {
@@ -115,6 +118,7 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
       const messages = await messagesOf(loc, pit, since);
       const data = { contacts, opps, pipelines, messages };
       const r = kind === 'timing' ? timing(loc, data)
+        : kind === 'lists' ? listsLocation({ ...data, since, label: labels[loc] || loc })
         : { ...analyzeLocation({ ...data, since, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
       await put(`${key}:${loc}`, r);
       if (also) await put(`${also}:${loc}`, timing(loc, data));
@@ -126,6 +130,9 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
       log(`${loc}: ${err.message}`);
     }
     await save();
+  }
+  if (kind === 'lists' && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+    st.finished = new Date().toISOString(); await save(); log(`${key} finished`); return;
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
     const rows = await d1('SELECT value FROM settings WHERE key LIKE ?', [`${key}:%`]);

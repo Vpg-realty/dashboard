@@ -336,3 +336,63 @@ export function timingLocation({ contacts, opps, pipelines, messages, label, tz,
   parked.list.sort((a, b) => (a.lastOut || '').localeCompare(b.lastOut || ''));
   return { label, zone, cells, parked };
 }
+
+// Work lists (Luke, Nov 6: "an excel sheet with tabs for each rep with a list
+// of parked agents that haven't been contacted in a while but should be asap"
+// and "agents that are not tagged tier 1, but by your accounts should be …
+// and need more attention than we are giving them"). One sub-account; texts /
+// calls from `since`, opportunities all-time (a lead is a lead whenever).
+//   parked     tagged "internal - do not automate" (not DNC), worth a call —
+//              ever a lead / contracted / closed, or wrote back in the stretch
+//              — and no text or call from us in the last 30 days.
+//   tier1      not tagged tier 1, not DNC, and acting like one: closed or
+//              contracted with us, 2+ leads, or a lead and 3+ replies.
+// Each with what we know: tags' tier, leads, contracted, closed (and $),
+// replies, our last text / call and their last reply, ids for a GHL link.
+export function listsLocation({ contacts, opps, pipelines, messages, label, since = 0, now = Date.now() }) {
+  const stageName = {};
+  for (const p of pipelines || []) for (const s of p.stages || []) stageName[s.id] = String(s.name || '');
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId || Date.parse(m.dateAdded) < since) continue;
+    (byContact.get(m.contactId) || byContact.set(m.contactId, []).get(m.contactId)).push(m);
+  }
+  for (const list of byContact.values()) list.sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+  const oppsOf = new Map();
+  for (const o of opps) { const cid = o.contactId || o.contact?.id; if (cid) (oppsOf.get(cid) || oppsOf.set(cid, []).get(cid)).push(o); }
+  const parked = []; const tier1 = [];
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    if (!tags.some((t) => AGENT_TAG.test(t))) continue;
+    if (tags.includes('agent - dnc') || c.dnd === true) continue;
+    const os = oppsOf.get(c.id) || [];
+    const stages = os.map((o) => (o.status === 'won' ? 'closed' : stageName[o.pipelineStageId] || '').toLowerCase());
+    const closedOpps = os.filter((o, i) => /closed/.test(stages[i]) && o.status !== 'lost' && o.status !== 'abandoned');
+    const closed = closedOpps.length + (closedOpps.length ? 0 : tags.includes('closed deal') ? 1 : 0);
+    const contracted = os.filter((o, i) => /under contract|dispo|assigned|closed/.test(stages[i])).length || (tags.includes('agent - contracted deal') || closed ? 1 : 0);
+    const msgs = byContact.get(c.id) || [];
+    const outs = msgs.filter((m) => m.direction === 'outbound');
+    const man = outs.filter((m) => isManual(m) || isCall(m));
+    const ins = msgs.filter(realReply);
+    const lastOut = outs.length ? Date.parse(outs[outs.length - 1].dateAdded) : 0;
+    const lastManual = man.length ? Date.parse(man[man.length - 1].dateAdded) : 0;
+    const lastIn = ins.length ? Date.parse(ins[ins.length - 1].dateAdded) : 0;
+    const lastLead = os.length ? Math.max(...os.map((o) => Date.parse(o.createdAt) || 0)) : 0;
+    const replies = replyRounds(msgs).length;
+    const tier = ['tier 1', 'tier 2', 'tier 3', 'tier 4'].find((t) => tags.includes(t)) || 'no tier';
+    const row = {
+      id: c.id, name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.contactName || '', phone: c.phone || '', email: c.email || '',
+      tier, parked: tags.includes('internal - do not automate'), leads: os.length, contracted, closed,
+      closedValue: Math.round(closedOpps.reduce((t, o) => t + (Number(o.monetaryValue) || 0), 0)),
+      replies, sent: outs.length, typed: man.length,
+      lastOut: ymd(lastOut), lastManual: ymd(lastManual), lastIn: ymd(lastIn), lastLead: ymd(lastLead),
+      quiet: lastOut ? Math.floor((now - lastOut) / DAY) : null,
+    };
+    if (row.parked && (os.length || replies) && (!lastOut || now - lastOut > 30 * DAY)) parked.push(row);
+    if (tier !== 'tier 1' && (closed || contracted || os.length >= 2 || (os.length && replies >= 3))) tier1.push(row);
+  }
+  const score = (r) => r.closed * 100 + r.contracted * 30 + r.leads * 10 + Math.min(r.replies, 10);
+  parked.sort((a, b) => score(b) - score(a));
+  tier1.sort((a, b) => score(b) - score(a));
+  return { label, parked: parked.slice(0, 80), tier1: tier1.slice(0, 80), parkedAll: parked.length, tier1All: tier1.length };
+}
