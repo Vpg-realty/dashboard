@@ -1693,6 +1693,13 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   out of the Challenge column), the top score per column in gold. A Host
   panel and Present's second slide (after the leaderboard). Display only —
   read from the same `scoreAll` scores; nothing about scoring changed.
+- **Results by Section** (Luke, same day: "per section with team results on
+  who got the most right and wrong"): `SectionResults` (QuizView.jsx) for
+  Warm-Up, Comping Rules, The Challenge and the Bonus question (`SECTIONS`) —
+  a navy Team line (✓ right / ✗ wrong / % right), By Person (right, wrong,
+  blank; Most Right gold / Most Wrong rose) and By Question (the answer, ✓ / ✗
+  and a bar; Easiest / Hardest). A Host panel each and Present slides after
+  Scores by Person. Display only.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 

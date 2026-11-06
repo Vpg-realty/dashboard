@@ -479,6 +479,7 @@ function HostView() {
       <Panel title="Leaderboard"><Leaderboard scores={scores} max={max} /></Panel>
       <Panel title="Scores by Person" sub="Each part side by side — the top score in each column is gold. Display only."><ByPerson quiz={quiz} answers={answers} scores={scores} /></Panel>
       {(quiz.properties || []).map((p, i) => <Panel key={p.id} title={`Property ${i + 1} · ${p.addr}`}><PropTable prop={p} answers={Object.fromEntries(Object.entries(answers || {}).map(([e, parts]) => [e, Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.data]))]))} names={names} /></Panel>)}
+      {sectionsOf(quiz).map(([k, label]) => <Panel key={k} title={`Results · ${label}`} sub="Team right and wrong, by person and by question. Display only."><SectionResults quiz={quiz} answers={answers} names={names} section={k} /></Panel>)}
       <McStats quiz={quiz} answers={answers} />
       <div className="flex flex-wrap gap-2">
         {quiz.status !== 'draft' && <button type="button" onClick={() => go({ action: 'status', status: quiz.status === 'revealed' ? 'closed' : quiz.status === 'closed' ? 'live' : 'draft' }, 'Step the quiz back one stage?')} className={quiet}>↶ Step Back a Stage</button>}
@@ -653,6 +654,95 @@ function KeyRow({ prop, n, save }) {
   );
 }
 
+// Results by section (Luke, Nov 6: "per section with team results on who
+// got the most right and wrong"): Warm-Up, Comping Rules, Challenge and Bonus
+// (a Challenge question starting "BONUS") each get one view — the team's
+// right / wrong, every person's right and wrong (most right gold, most wrong
+// rose), and every question's right / wrong (easiest and hardest marked).
+// Display only — the same answers the scores use.
+const SECTIONS = [
+  ['warmup', 'Warm-Up', (q) => q.warmup || [], 'warmup'],
+  ['guide', 'Comping Rules', (q) => q.guide || [], 'guide'],
+  ['chal', 'The Challenge', (q) => (q.challenge || []).filter((x) => !isBonusQ(x)), 'challenge'],
+  ['bonus', 'Bonus Question', (q) => (q.challenge || []).filter(isBonusQ), 'challenge'],
+];
+const sectionsOf = (quiz) => SECTIONS.filter(([, , list]) => list(quiz).length);
+function SectionResults({ quiz, answers, names, section, big }) {
+  const [, , listOf, part] = SECTIONS.find(([k]) => k === section);
+  const list = listOf(quiz);
+  const people = Object.entries(answers || {}).filter(([, a]) => a[part]).map(([email, a]) => {
+    const picked = a[part]?.data?.answers || {};
+    let right = 0; let wrong = 0;
+    for (const q of list) { if (picked[q.id] == null) continue; if (Number(picked[q.id]) === q.answer) right += 1; else wrong += 1; }
+    return { email, name: names?.[email] || email.split('@')[0], right, wrong, blank: list.length - right - wrong };
+  }).sort((a, b) => b.right - a.right || a.wrong - b.wrong || a.name.localeCompare(b.name));
+  const qs = list.map((q) => {
+    const picks = people.map((p) => answers[p.email]?.[part]?.data?.answers?.[q.id]).filter((x) => x != null);
+    const right = picks.filter((x) => Number(x) === q.answer).length;
+    return { q, right, wrong: picks.length - right, n: picks.length };
+  });
+  const teamRight = people.reduce((t, p) => t + p.right, 0);
+  const teamWrong = people.reduce((t, p) => t + p.wrong, 0);
+  const mostRight = people.length ? Math.max(...people.map((p) => p.right)) : 0;
+  const mostWrong = people.length ? Math.max(...people.map((p) => p.wrong)) : 0;
+  const easiest = qs.length ? Math.max(...qs.map((x) => x.right)) : 0;
+  const hardest = qs.length ? Math.max(...qs.map((x) => x.wrong)) : 0;
+  const t = big ? 'text-[20px]' : 'text-[13.5px]';
+  const pad = big ? 'px-5 py-3' : 'px-4 py-2';
+  if (!people.length) return <p className="px-6 py-6 text-zinc-500">No answers yet.</p>;
+  return (
+    <div className="flex flex-col">
+      <div className={`flex flex-wrap items-center gap-x-8 gap-y-2 ${pad} bg-navy-700 text-white`}>
+        <span className={`${big ? 'text-[22px]' : 'text-[15px]'} font-semibold`}>Team</span>
+        <span className={`${big ? 'text-[26px]' : 'text-[16px]'} font-bold text-emerald-300`}>✓ {teamRight} right</span>
+        <span className={`${big ? 'text-[26px]' : 'text-[16px]'} font-bold text-rose-300`}>✗ {teamWrong} wrong</span>
+        <span className={`${big ? 'text-[18px]' : 'text-[13px]'} text-white/70`}>{teamRight + teamWrong ? Math.round((100 * teamRight) / (teamRight + teamWrong)) : 0}% right · {people.length} people · {list.length} question{list.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="grid md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] divide-y md:divide-y-0 md:divide-x divide-tan-200">
+        <div>
+          <div className={`${pad} text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50`}>By Person</div>
+          <table className="w-full tabular-nums">
+            <tbody>
+              {people.map((p) => {
+                // One question (the bonus): ✓ / ✗ says it — no Most Right / Wrong tags.
+                const top = list.length > 1 && p.right === mostRight && mostRight > 0;
+                const low = list.length > 1 && p.wrong === mostWrong && mostWrong > 0;
+                return (
+                  <tr key={p.email} className="border-t border-tan-100">
+                    <td className={`${pad} ${t} font-semibold text-navy-800`}>{p.name}{top && <span className="ml-2 rounded bg-amber-100 text-amber-900 text-[0.6em] font-bold px-1.5 py-0.5 align-middle">MOST RIGHT</span>}{low && <span className="ml-2 rounded bg-rose-100 text-rose-800 text-[0.6em] font-bold px-1.5 py-0.5 align-middle">MOST WRONG</span>}</td>
+                    <td className={`${pad} ${t} text-right font-bold ${top ? 'text-amber-700' : 'text-emerald-700'}`}>✓ {p.right}</td>
+                    <td className={`${pad} ${t} text-right font-bold ${low ? 'text-rose-700' : 'text-rose-500/80'}`}>✗ {p.wrong}</td>
+                    {p.blank > 0 && <td className={`${pad} ${t} text-right text-zinc-400`}>{p.blank} blank</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div className={`${pad} text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50`}>By Question</div>
+          <div className="divide-y divide-tan-100">
+            {qs.map((x, i) => (
+              <div key={x.q.id} className={`${pad} flex flex-col gap-1`}>
+                <div className={`${t} text-navy-800`}><span className="text-zinc-400 mr-2">{i + 1}.</span>{x.q.q}
+                  {qs.length > 1 && x.right === easiest && x.right > 0 && <span className="ml-2 rounded bg-emerald-100 text-emerald-800 text-[0.6em] font-bold px-1.5 py-0.5 align-middle">EASIEST</span>}
+                  {qs.length > 1 && x.wrong === hardest && x.wrong > 0 && <span className="ml-2 rounded bg-rose-100 text-rose-800 text-[0.6em] font-bold px-1.5 py-0.5 align-middle">HARDEST</span>}
+                </div>
+                <div className={`flex flex-wrap items-center gap-x-4 ${big ? 'text-[16px]' : 'text-[12.5px]'}`}>
+                  <span className="text-emerald-700 font-semibold">Answer: {x.q.options?.[x.q.answer]}</span>
+                  <span className="tabular-nums font-bold text-emerald-700">✓ {x.right}</span>
+                  <span className="tabular-nums font-bold text-rose-700">✗ {x.wrong}</span>
+                  <span className="flex-1 min-w-24 h-2 rounded-full bg-rose-200 overflow-hidden"><span className="block h-full bg-emerald-500" style={{ width: `${x.n ? (100 * x.right) / x.n : 0}%` }} /></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function McStats({ quiz, answers }) {
   const rows = ['warmup', 'guide', 'challenge'].flatMap((k) => (quiz[k] || []).map((q) => [k, q]));
   return (
@@ -676,10 +766,10 @@ function McStats({ quiz, answers }) {
 }
 
 // Present: one big slide at a time for the screen — the leaderboard, scores
-// by person, then
+// by person, each section's results (Warm-Up, Rules, Challenge, Bonus), then
 // each property's answers. ← / → or the buttons; Esc closes.
 function Present({ quiz, answers, names, scores, max, onClose }) {
-  const slides = useMemo(() => ['board', 'people', ...(quiz.properties || []).map((p) => p.id)], [quiz.properties]);
+  const slides = useMemo(() => ['board', 'people', ...sectionsOf(quiz).map(([k]) => `sec:${k}`), ...(quiz.properties || []).map((p) => p.id)], [quiz]);
   const [i, setI] = useState(0);
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') setI((x) => Math.min(slides.length - 1, x + 1)); if (e.key === 'ArrowLeft') setI((x) => Math.max(0, x - 1)); };
@@ -695,7 +785,7 @@ function Present({ quiz, answers, names, scores, max, onClose }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[14px] font-semibold uppercase tracking-[0.18em] text-tan-600">Comp Challenge</div>
-            <h1 className="text-[44px] font-bold text-navy-800 leading-tight">{prop ? `Property ${(quiz.properties || []).indexOf(prop) + 1} · ${prop.addr}` : s === 'people' ? 'Scores by Person' : 'Leaderboard'}</h1>
+            <h1 className="text-[44px] font-bold text-navy-800 leading-tight">{prop ? `Property ${(quiz.properties || []).indexOf(prop) + 1} · ${prop.addr}` : s === 'people' ? 'Scores by Person' : s.startsWith('sec:') ? SECTIONS.find(([k]) => `sec:${k}` === s)[1] : 'Leaderboard'}</h1>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setI(Math.max(0, i - 1))} className={quiet}>←</button>
@@ -704,7 +794,7 @@ function Present({ quiz, answers, names, scores, max, onClose }) {
           </div>
         </div>
         <div className="rounded-2xl border border-tan-200 bg-white overflow-hidden shadow-sm">
-          {prop ? <PropTable prop={prop} answers={flat} names={names} big /> : s === 'people' ? <ByPerson quiz={quiz} answers={answers} scores={scores} big /> : <Leaderboard scores={scores} max={max} big />}
+          {prop ? <PropTable prop={prop} answers={flat} names={names} big /> : s === 'people' ? <ByPerson quiz={quiz} answers={answers} scores={scores} big /> : s.startsWith('sec:') ? <SectionResults quiz={quiz} answers={answers} names={names} section={s.slice(4)} big /> : <Leaderboard scores={scores} max={max} big />}
         </div>
       </div>
     </div>
