@@ -1551,6 +1551,14 @@ start plans, keep the why private". Scorecards › **Development Plan**
   owner or the pod lead clicks each week Hit → Missed → blank (POST action
   `mark`; `marks` {monday: 'hit' | 'miss'} kept on the target, which keeps
   its `tid` across edits). Up to 8 targets.
+- **Reorder (Luke, Nov 6: "a way to reorder the targets for action items
+  and scorecard targets")**: targets move with ↑ / ↓ in Edit plan (the order
+  of `targets`; each card shows them in that order). Action items move with
+  ↑ / ↓ on the plan (owners and the pod lead): POST action `order` saves the
+  keys in D1 `dev_plans.item_order` (added by `ensure` like `focus`) — an
+  alert's id, or for a repeating item its first task's id (`itemKey`, from
+  ext_id `rep:<first id>:<due>`), so a ticked repeat keeps its place; new
+  items go after the ordered ones by kind and date.
 - **+ Start a Plan fixed (Luke, Nov 5: "i cannot start a development plan
   for reps")**: the button set `?new=` (empty), which `setQuery` drops, so
   the form never opened; it now sets `?new=pick` (nobody picked yet).
