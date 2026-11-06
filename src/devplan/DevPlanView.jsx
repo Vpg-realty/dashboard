@@ -3,8 +3,10 @@
 // why private"). Server rules: edge/devPlans.js. Owners see every plan, start
 // / change / end them; a pod lead reads their pod's plans and writes weekly
 // check-ins; the person reads their own plan (never the why), ticks their
-// action items and acknowledges each check-in. Targets are tracked from the
-// scorecard (weekSeries) — nobody types progress in. Action items are Alerts
+// action items and acknowledges each check-in. Scorecard targets are tracked
+// from the scorecard (weekSeries); targets written in by hand (Nov 5) are
+// marked Hit / Missed each week by an owner or the pod lead. "What we
+// expect" is the plan in the owner's words, shown to the person. Action items are Alerts
 // development tasks (they also show on My Scorecard and in Alerts).
 import { useEffect, useMemo, useState } from 'react';
 import { useMe, call, listUsers } from '../utils/dashApi.js';
@@ -13,7 +15,7 @@ import { useScorecards } from '../views/manager/useScorecards.js';
 import { weekSeries } from '../views/manager/trends.js';
 import { useAlerts, loadAlerts, alertAction } from '../alerts/store.js';
 import { TASK_CAT, RECUR, isCoaching } from '../alerts/kinds.js';
-import { METRICS, metricOf, fmtGoal, planWeeks } from './metrics.js';
+import { METRICS, metricOf, fmtGoal, planWeeks, CUSTOM, isCustom, targetLabel } from './metrics.js';
 import Panel from '../shell/Panel.jsx';
 import BandMark from '../shell/BandMark.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
@@ -105,12 +107,32 @@ function Shell({ children }) {
   return <div className="max-w-[1720px] mx-auto space-y-5">{children}</div>;
 }
 
-// The last finished week's value for each target vs its goal.
+// The plan's Mondays from its start through this week (or the review date)
+// — the weeks a written-in target is marked for.
+function planMondays(plan) {
+  const end = [azToday(), plan.review].sort()[0];
+  const out = [];
+  for (let d = mondayOf(plan.starts); d <= end; d = addDays(d, 7)) out.push(d);
+  return out;
+}
+const MARK = { hit: ['Hit', 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200'], miss: ['Missed', 'bg-rose-50 text-rose-800 ring-1 ring-rose-200'] };
+const goalText = (t) => (isCustom(t) ? t.goal || '' : fmtGoal(metricOf(t.metric), t.goal));
+
+// The last finished week's value for each target vs its goal (a written-in
+// target: the last week someone marked).
 function latest(plan, series) {
   const weeks = planWeeks(series, plan).filter((w) => !w.live);
   const last = weeks[weeks.length - 1];
   const r = last && plan.rep_id ? last.reps[plan.rep_id] : null;
-  return plan.targets.map((t) => { const m = metricOf(t.metric); const v = r ? m?.get(r) : null; return { t, m, v, hit: v != null && v >= t.goal }; });
+  return plan.targets.map((t) => {
+    if (isCustom(t)) {
+      const wk = Object.keys(t.marks || {}).sort().pop();
+      const mk = wk ? t.marks[wk] : null;
+      return { t, v: mk ? MARK[mk][0] : null, hit: mk === 'hit' };
+    }
+    const m = metricOf(t.metric); const v = r ? m?.get(r) : null;
+    return { t, m, v, hit: v != null && v >= t.goal };
+  });
 }
 
 function PlanRow({ plan, name, series }) {
@@ -124,9 +146,9 @@ function PlanRow({ plan, name, series }) {
         <div className="text-[12.5px] text-zinc-500">{fmtDay(plan.starts)} → review {fmtDay(plan.review, true)}{plan.status === 'active' ? ` · ${left >= 0 ? `${left} days left` : `review ${-left} days late`}` : plan.ended_at ? ` · ended ${fmtDay(plan.ended_at.slice(0, 10))}` : ''}</div>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {latest(plan, series).map(({ t, m, v, hit }) => (
-          <span key={t.metric} className={`rounded-md px-2 py-1 text-[12px] font-semibold ring-1 ${v == null ? 'bg-zinc-50 text-zinc-500 ring-zinc-200' : hit ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-rose-200'}`}>
-            {m?.label || t.metric}: {v ?? '—'} / {fmtGoal(m, t.goal)}
+        {latest(plan, series).map(({ t, v, hit }, i) => (
+          <span key={t.tid || i} title={targetLabel(t)} className={`max-w-[280px] truncate rounded-md px-2 py-1 text-[12px] font-semibold ring-1 ${v == null ? 'bg-zinc-50 text-zinc-500 ring-zinc-200' : hit ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-rose-200'}`}>
+            {targetLabel(t)}: {v ?? '—'}{isCustom(t) ? '' : ` / ${goalText(t)}`}
           </span>
         ))}
       </div>
@@ -175,45 +197,92 @@ function PlanDetail({ plan, name, first, data, series, owner, run, back }) {
           <div className="px-5 py-4 text-[14px] text-zinc-700 whitespace-pre-wrap">{plan.why || <span className="text-zinc-400">Not written.</span>}</div>
         </Panel>
       )}
-      <Targets plan={plan} weeks={weeks} />
+      <Panel title="What We Expect" sub={plan.mine ? 'From your manager' : 'They see this'}>
+        <div className="px-5 py-4 text-[14px] text-zinc-700 whitespace-pre-wrap">{plan.focus || <span className="text-zinc-400">Nothing written yet{owner ? ' — add it with Edit plan.' : '.'}</span>}</div>
+      </Panel>
+      <Targets plan={plan} weeks={weeks} run={wrap(run)} />
       <ActionItems plan={plan} canAdd={owner || plan.canCheckIn} first={first} />
       <CheckIns plan={plan} checkins={checkins} run={run} />
     </>
   );
 }
 
-function Targets({ plan, weeks }) {
+function Targets({ plan, weeks, run }) {
+  const nums = plan.targets.filter((t) => !isCustom(t));
+  const own = plan.targets.filter(isCustom);
   return (
-    <Panel title="Targets" sub="From the scorecard every week — nothing to fill in" bodyClass="overflow-x-auto">
-      {!plan.rep_id ? <div className="px-5 py-4 text-[13.5px] text-zinc-500">No scorecard numbers for this person yet (no sub-account of their own).</div> : (
-        <table className="w-full text-[13.5px]">
-          <thead>
-            <tr className="text-left text-[12px] text-zinc-500 border-b border-tan-200">
-              <th className="font-medium px-5 py-2">Target</th>
-              <th className="font-medium px-3 py-2">Goal</th>
-              {weeks.map((w) => <th key={w.monday} className="font-medium px-2 py-2 text-center whitespace-nowrap">{fmtDay(w.monday)}{w.live ? ' · now' : ''}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {plan.targets.map((t) => {
-              const m = metricOf(t.metric);
-              return (
-                <tr key={t.metric} className="border-b border-tan-100">
-                  <td className="px-5 py-2.5"><div className="font-semibold text-navy-800">{m?.label || t.metric}</div>{m?.hint && <div className="text-[11.5px] text-zinc-400">{m.hint}</div>}</td>
-                  <td className="px-3 py-2.5 font-semibold text-navy-800 whitespace-nowrap">{fmtGoal(m, t.goal)}</td>
-                  {weeks.map((w) => {
-                    const r = w.reps[plan.rep_id];
-                    const v = r ? m?.get(r) : null;
-                    const tone = v == null ? 'text-zinc-400' : w.live ? (v >= t.goal ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-200') : v >= t.goal ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200';
-                    return <td key={w.monday} className="px-2 py-2.5 text-center"><span className={`inline-block min-w-[44px] rounded-md px-2 py-1 font-semibold tabular-nums ${tone}`}>{v ?? '—'}</span></td>;
-                  })}
+    <>
+      {nums.length > 0 && (
+        <Panel title="Scorecard Targets" sub="From the scorecard every week — nothing to fill in" bodyClass="overflow-x-auto">
+          {!plan.rep_id ? <div className="px-5 py-4 text-[13.5px] text-zinc-500">No scorecard numbers for this person yet (no sub-account of their own).</div> : (
+            <table className="w-full text-[13.5px]">
+              <thead>
+                <tr className="text-left text-[12px] text-zinc-500 border-b border-tan-200">
+                  <th className="font-medium px-5 py-2">Target</th>
+                  <th className="font-medium px-3 py-2">Goal</th>
+                  {weeks.map((w) => <th key={w.monday} className="font-medium px-2 py-2 text-center whitespace-nowrap">{fmtDay(w.monday)}{w.live ? ' · now' : ''}</th>)}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {nums.map((t, i) => {
+                  const m = metricOf(t.metric);
+                  return (
+                    <tr key={t.tid || i} className="border-b border-tan-100">
+                      <td className="px-5 py-2.5 max-w-[340px]"><div className="font-semibold text-navy-800">{m?.label || t.metric}</div>{m?.hint && <div className="text-[11.5px] text-zinc-400">{m.hint}</div>}{t.note && <div className="mt-0.5 text-[12.5px] text-zinc-600 whitespace-pre-wrap">{t.note}</div>}</td>
+                      <td className="px-3 py-2.5 font-semibold text-navy-800 whitespace-nowrap">{fmtGoal(m, t.goal)}</td>
+                      {weeks.map((w) => {
+                        const r = w.reps[plan.rep_id];
+                        const v = r ? m?.get(r) : null;
+                        const tone = v == null ? 'text-zinc-400' : w.live ? (v >= t.goal ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-200') : v >= t.goal ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200';
+                        return <td key={w.monday} className="px-2 py-2.5 text-center"><span className={`inline-block min-w-[44px] rounded-md px-2 py-1 font-semibold tabular-nums ${tone}`}>{v ?? '—'}</span></td>;
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {plan.rep_id && <div className="px-5 py-2.5 text-[12px] text-zinc-500 border-t border-tan-100">Green = hit the goal that week · red = missed · grey = this week so far.</div>}
+        </Panel>
       )}
-      {plan.rep_id && <div className="px-5 py-2.5 text-[12px] text-zinc-500 border-t border-tan-100">Green = hit the goal that week · red = missed · grey = this week so far.</div>}
+      {own.length > 0 && <OwnTargets plan={plan} targets={own} run={run} />}
+    </>
+  );
+}
+
+// Targets written in by hand: an owner or the pod lead marks each week Hit /
+// Missed (a click on a chip cycles Hit → Missed → blank).
+function OwnTargets({ plan, targets, run }) {
+  const mondays = planMondays(plan);
+  const can = plan.canCheckIn && plan.status === 'active';
+  const [busy, setBusy] = useState(false);
+  const next = (v) => (v === 'hit' ? 'miss' : v === 'miss' ? null : 'hit');
+  const mark = async (t, week) => { setBusy(true); try { await run({ action: 'mark', id: plan.id, tid: t.tid, week, value: next(t.marks?.[week]) }); } finally { setBusy(false); } };
+  const thisWeek = mondayOf(azToday());
+  return (
+    <Panel title="Our Targets" sub={can ? 'Written for this plan — click a week to mark it Hit or Missed' : 'Written for this plan — marked each week by their manager'} bodyClass="overflow-x-auto">
+      <table className="w-full text-[13.5px]">
+        <thead>
+          <tr className="text-left text-[12px] text-zinc-500 border-b border-tan-200">
+            <th className="font-medium px-5 py-2">Target</th>
+            <th className="font-medium px-3 py-2">Goal</th>
+            {mondays.map((d) => <th key={d} className="font-medium px-2 py-2 text-center whitespace-nowrap">{fmtDay(d)}{d === thisWeek ? ' · now' : ''}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {targets.map((t, i) => (
+            <tr key={t.tid || i} className="border-b border-tan-100">
+              <td className="px-5 py-2.5 max-w-[380px]"><div className="font-semibold text-navy-800 whitespace-pre-wrap">{t.text}</div>{t.note && <div className="mt-0.5 text-[12.5px] text-zinc-600 whitespace-pre-wrap">{t.note}</div>}</td>
+              <td className="px-3 py-2.5 font-semibold text-navy-800">{t.goal || <span className="text-zinc-400">—</span>}</td>
+              {mondays.map((d) => {
+                const v = t.marks?.[d];
+                const chip = <span className={`inline-block min-w-[58px] rounded-md px-2 py-1 font-semibold ${v ? MARK[v][1] : 'text-zinc-400 ring-1 ring-dashed ring-zinc-200'}`}>{v ? MARK[v][0] : can ? 'Mark' : '—'}</span>;
+                return <td key={d} className="px-2 py-2.5 text-center">{can ? <button type="button" disabled={busy} onClick={() => mark(t, d)} title="Click: Hit → Missed → clear">{chip}</button> : chip}</td>;
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Panel>
   );
 }
@@ -332,7 +401,7 @@ function EndForm({ onSave, onCancel }) {
 function PlanForm({ plan, start, plans, name, onSave, onCancel }) {
   const today = azToday();
   const [users, setUsers] = useState(null);
-  const [v, setV] = useState(() => (plan ? { email: plan.email, why: plan.why || '', starts: plan.starts, review: plan.review, targets: plan.targets } : { email: start || '', why: '', starts: today, review: addDays(today, 30), targets: [{ metric: 'contracts', goal: 1 }] }));
+  const [v, setV] = useState(() => (plan ? { email: plan.email, why: plan.why || '', focus: plan.focus || '', starts: plan.starts, review: plan.review, targets: plan.targets } : { email: start || '', why: '', focus: '', starts: today, review: addDays(today, 30), targets: [{ metric: 'contracts', goal: 1 }] }));
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (!plan) listUsers().then((r) => setUsers(r.users || [])).catch(() => setUsers([])); }, [plan]);
@@ -364,22 +433,44 @@ function PlanForm({ plan, start, plans, name, onSave, onCancel }) {
           <label className="block"><span className="block text-[12.5px] font-medium text-zinc-600 mb-1">Why they’re on a plan <span className="text-zinc-400">· private — only owners see this</span></span>
             <textarea rows={4} className={`${inputCls} h-auto py-2`} value={v.why} onChange={(e) => setV({ ...v, why: e.target.value })} placeholder="e.g. Contracts behind four weeks running; follow-ups graded 0 three weeks out of four." />
           </label>
+          <label className="block"><span className="block text-[12.5px] font-medium text-zinc-600 mb-1">What we expect <span className="text-zinc-400">· they see this — the plan in your own words</span></span>
+            <textarea rows={4} className={`${inputCls} h-auto py-2`} value={v.focus} onChange={(e) => setV({ ...v, focus: e.target.value })} placeholder="e.g. Over the next 30 days we want every agent reply answered within 15 minutes, notes on every deal the same day, and two offers a day." />
+          </label>
           <div>
-            <div className="text-[12.5px] font-medium text-zinc-600 mb-1">Targets <span className="text-zinc-400">· tracked from their scorecard every week</span></div>
-            <div className="flex flex-col gap-2">
+            <div className="text-[12.5px] font-medium text-zinc-600 mb-1">Targets <span className="text-zinc-400">· a scorecard number (tracked for you) or one you write (marked Hit / Missed each week)</span></div>
+            <div className="flex flex-col gap-3">
               {v.targets.map((t, i) => {
                 const m = metricOf(t.metric);
+                const own = isCustom(t);
+                const pick = (k) => { if (!k || k === t.metric) return; setT(i, k === CUSTOM ? { metric: k, text: '', goal: '' } : { metric: k, goal: isCustom(t) ? 1 : t.goal, text: undefined }); };
                 return (
-                  <div key={i} className="flex flex-wrap items-center gap-2">
-                    <div className="w-[300px]"><SearchSelect value={t.metric} onChange={(k) => k && setT(i, { metric: k })} options={METRICS.map((x) => ({ value: x.key, label: x.label }))} clearable={false} sort={false} /></div>
-                    <span className="text-[13px] text-zinc-500">at least</span>
-                    <input type="number" min="0" step="any" className={`${inputCls} w-[100px] tabular-nums`} value={t.goal} onChange={(e) => setT(i, { goal: e.target.value === '' ? '' : Number(e.target.value) })} />
-                    <span className="text-[13px] text-zinc-500">{m?.unit || ''}</span>
-                    {v.targets.length > 1 && <button type="button" onClick={() => setV({ ...v, targets: v.targets.filter((_, j) => j !== i) })} className="text-[12.5px] text-zinc-500 hover:text-rose-700">Remove</button>}
+                  <div key={t.tid || i} className="rounded-xl border border-tan-200 bg-tan-50/40 p-3 grid gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="w-[300px]"><SearchSelect value={t.metric} onChange={pick} options={[{ value: CUSTOM, label: '✎ Write your own' }, ...METRICS.map((x) => ({ value: x.key, label: x.label }))]} clearable={false} sort={false} /></div>
+                      {!own && (<>
+                        <span className="text-[13px] text-zinc-500">at least</span>
+                        <div className="w-[100px]"><input type="number" min="0" step="any" className={`${inputCls} tabular-nums`} value={t.goal} onChange={(e) => setT(i, { goal: e.target.value === '' ? '' : Number(e.target.value) })} /></div>
+                        <span className="text-[13px] text-zinc-500">{m?.unit || ''}</span>
+                      </>)}
+                      <span className="flex-1" />
+                      {v.targets.length > 1 && <button type="button" onClick={() => setV({ ...v, targets: v.targets.filter((_, j) => j !== i) })} className="text-[12.5px] text-zinc-500 hover:text-rose-700">Remove</button>}
+                    </div>
+                    {own && (
+                      <div className="grid sm:grid-cols-[1fr_220px] gap-2">
+                        <input className={inputCls} value={t.text || ''} onChange={(e) => setT(i, { text: e.target.value })} placeholder="The target — e.g. Call 5 listing agents before 10am every day" />
+                        <input className={inputCls} value={t.goal || ''} onChange={(e) => setT(i, { goal: e.target.value })} placeholder="Goal (optional) — e.g. 4 of 5 days" />
+                      </div>
+                    )}
+                    <input className={inputCls} value={t.note || ''} onChange={(e) => setT(i, { note: e.target.value })} placeholder="Note (optional) — why this target, or how to get there" />
                   </div>
                 );
               })}
-              {v.targets.length < 6 && <div><button type="button" onClick={() => setV({ ...v, targets: [...v.targets, { metric: 'offers', goal: 5 }] })} className="text-[13px] font-semibold text-navy-700 hover:underline">+ Add a target</button></div>}
+              {v.targets.length < 8 && (
+                <div className="flex gap-4">
+                  <button type="button" onClick={() => setV({ ...v, targets: [...v.targets, { metric: 'offers', goal: 5 }] })} className="text-[13px] font-semibold text-navy-700 hover:underline">+ Add a scorecard target</button>
+                  <button type="button" onClick={() => setV({ ...v, targets: [...v.targets, { metric: CUSTOM, text: '', goal: '' }] })} className="text-[13px] font-semibold text-navy-700 hover:underline">✎ Write your own target</button>
+                </div>
+              )}
             </div>
           </div>
           {err && <p className="text-rose-700 text-[13.5px]">{err}</p>}

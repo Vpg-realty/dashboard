@@ -12,8 +12,9 @@
 // viewing as. D1 tables made on first use (edge/devPlans.sql has the same).
 import { refreshPods } from './pods.js';
 
-export const METRIC_KEYS = ['score', 'contracts', 'offers', 'opps', 'speed', 'crm', 'crm:pipeline', 'crm:notes', 'crm:messaging', 'crm:dispo', 'crm:followups'];
+export const METRIC_KEYS = ['custom', 'score', 'contracts', 'offers', 'opps', 'speed', 'crm', 'crm:pipeline', 'crm:notes', 'crm:messaging', 'crm:dispo', 'crm:followups'];
 export const OUTCOMES = ['completed', 'ended'];
+export const MARKS = ['hit', 'miss'];
 const ID = /^[a-z0-9]{6,20}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const clip = (s, n) => String(s ?? '').trim().slice(0, n);
@@ -23,7 +24,7 @@ export async function ensure(db) {
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS dev_plans (
       id TEXT PRIMARY KEY, email TEXT NOT NULL, rep_id TEXT, why TEXT, targets TEXT NOT NULL,
-      starts TEXT NOT NULL, review TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+      starts TEXT NOT NULL, review TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', focus TEXT,
       outcome_note TEXT, created_by TEXT, created_at TEXT NOT NULL, updated_by TEXT, updated_at TEXT, ended_at TEXT)`),
     db.prepare('CREATE INDEX IF NOT EXISTS dev_plans_email ON dev_plans (email, status)'),
     db.prepare(`CREATE TABLE IF NOT EXISTS dev_checkins (
@@ -31,7 +32,14 @@ export async function ensure(db) {
       by_name TEXT, by_email TEXT, at TEXT NOT NULL, ack_at TEXT)`),
     db.prepare('CREATE INDEX IF NOT EXISTS dev_checkins_plan ON dev_checkins (plan_id)'),
   ]);
+  // `focus` (Nov 5) — added to a table made before it, once per worker.
+  if (!focusChecked) {
+    const cols = (await db.prepare("SELECT name FROM pragma_table_info('dev_plans')").all()).results.map((r) => r.name);
+    if (!cols.includes('focus')) await db.prepare('ALTER TABLE dev_plans ADD COLUMN focus TEXT').run();
+    focusChecked = true;
+  }
 }
+let focusChecked = false;
 
 // The people whose plans this user may read: owners everyone; a pod lead
 // their pod's reps (by rep id) and themself; anyone else themself.
@@ -75,14 +83,30 @@ export async function load(db, user) {
   return { plans, checkins, people, owner: user.role === 'owner' };
 }
 
-function cleanTargets(t) {
-  if (!Array.isArray(t) || !t.length || t.length > 6) return { error: 'Give the plan one to six targets' };
-  const out = [];
-  for (const x of t) {
+// A target: a scorecard number (metric + goal number) or one written in
+// (Luke, Nov 5: "i want to be able to type something in") — `custom` with
+// its own words and goal, marked Hit / Missed each week by an owner or the
+// pod lead (`marks` {monday: 'hit' | 'miss'}). Either can carry a note.
+// `tid` keeps a written target's marks across edits.
+function cleanTargets(t, old = []) {
+  if (!Array.isArray(t) || !t.length || t.length > 8) return { error: 'Give the plan one to eight targets' };
+  const prev = Object.fromEntries(old.filter((x) => x?.tid).map((x) => [x.tid, x]));
+  const out = []; const seen = new Set();
+  for (const [n, x] of t.entries()) {
     if (!METRIC_KEYS.includes(x?.metric)) return { error: 'Unknown target' };
+    let tid = /^[a-z0-9]{4,16}$/.test(String(x.tid || '')) ? String(x.tid) : rid();
+    while (seen.has(tid)) tid = rid();
+    seen.add(tid);
+    const note = clip(x.note, 400) || undefined;
+    if (x.metric === 'custom') {
+      const text = clip(x.text, 200);
+      if (!text) return { error: `Target ${n + 1}: write what they'll do` };
+      out.push({ tid, metric: 'custom', text, goal: clip(x.goal, 80) || undefined, note, marks: prev[tid]?.marks || undefined });
+      continue;
+    }
     const goal = Number(x.goal);
-    if (!Number.isFinite(goal) || goal < 0 || goal > 1000) return { error: 'Each target needs a goal number' };
-    out.push({ metric: x.metric, goal });
+    if (x.goal === '' || x.goal == null || !Number.isFinite(goal) || goal < 0 || goal > 1000) return { error: `Target ${n + 1}: give it a goal number` };
+    out.push({ tid, metric: x.metric, goal, note });
   }
   return { targets: out };
 }
@@ -93,8 +117,11 @@ export async function act(db, user, b, now) {
   const a = b?.action;
   if (a === 'create' || a === 'update') {
     if (user.role !== 'owner') return { error: 'Only owners start or change a plan' };
-    const t = cleanTargets(b.targets);
+    const was = a === 'update' && ID.test(String(b.id || '')) ? await db.prepare('SELECT targets FROM dev_plans WHERE id = ?').bind(b.id).first() : null;
+    let oldTargets = []; try { oldTargets = JSON.parse(was?.targets || '[]'); } catch { /* none */ }
+    const t = cleanTargets(b.targets, oldTargets);
     if (t.error) return t;
+    const focus = clip(b.focus, 3000) || null;
     if (!DAY.test(b.starts || '') || !DAY.test(b.review || '') || b.review <= b.starts) return { error: 'Pick a start date and a later review date' };
     if (a === 'create') {
       const email = String(b.email || '').toLowerCase();
@@ -103,12 +130,12 @@ export async function act(db, user, b, now) {
       const open = await db.prepare("SELECT id FROM dev_plans WHERE email = ? AND status = 'active'").bind(email).first();
       if (open) return { error: 'They already have an active plan — change that one' };
       const id = rid();
-      return { id, run: [['INSERT INTO dev_plans (id, email, rep_id, why, targets, starts, review, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, email, person.rep_id || null, clip(b.why, 3000) || null, JSON.stringify(t.targets), b.starts, b.review, 'active', user.name, now, now]]] };
+      return { id, run: [['INSERT INTO dev_plans (id, email, rep_id, why, focus, targets, starts, review, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, email, person.rep_id || null, clip(b.why, 3000) || null, focus, JSON.stringify(t.targets), b.starts, b.review, 'active', user.name, now, now]]] };
     }
     if (!ID.test(String(b.id || ''))) return { error: 'That plan is gone' };
-    return { id: b.id, run: [['UPDATE dev_plans SET why = ?, targets = ?, starts = ?, review = ?, updated_by = ?, updated_at = ? WHERE id = ?',
-      [clip(b.why, 3000) || null, JSON.stringify(t.targets), b.starts, b.review, user.name, now, b.id]]] };
+    return { id: b.id, run: [['UPDATE dev_plans SET why = ?, focus = ?, targets = ?, starts = ?, review = ?, updated_by = ?, updated_at = ? WHERE id = ?',
+      [clip(b.why, 3000) || null, focus, JSON.stringify(t.targets), b.starts, b.review, user.name, now, b.id]]] };
   }
   if (a === 'end') {
     if (user.role !== 'owner') return { error: 'Only owners end a plan' };
@@ -132,6 +159,19 @@ export async function act(db, user, b, now) {
     if (!note) return { error: 'Write the check-in first' };
     if (!DAY.test(b.week || '')) return { error: 'Pick the week' };
     return { id: b.id, run: [['INSERT INTO dev_checkins (id, plan_id, week, note, by_name, by_email, at) VALUES (?, ?, ?, ?, ?, ?, ?)', [rid(), b.id, b.week, note, user.name, user.email, now]]] };
+  }
+  if (a === 'mark') {
+    // A written target's week: Hit / Missed / cleared (owners, the pod lead).
+    const p = ID.test(String(b.id || '')) ? await db.prepare('SELECT * FROM dev_plans WHERE id = ?').bind(b.id).first() : null;
+    if (!p || p.status !== 'active') return { error: 'That plan is gone' };
+    if (!canCheckIn(user, await scopeOf(db, user), p)) return { error: 'Only owners and their pod lead mark targets' };
+    if (!DAY.test(b.week || '') || (b.value != null && !MARKS.includes(b.value))) return { error: 'Pick Hit or Missed' };
+    let targets = []; try { targets = JSON.parse(p.targets || '[]'); } catch { /* none */ }
+    const t = targets.find((x) => x.tid === b.tid && x.metric === 'custom');
+    if (!t) return { error: 'That target is gone' };
+    t.marks = { ...(t.marks || {}) };
+    if (b.value) t.marks[b.week] = b.value; else delete t.marks[b.week];
+    return { id: b.id, run: [['UPDATE dev_plans SET targets = ?, updated_by = ?, updated_at = ? WHERE id = ?', [JSON.stringify(targets), user.name, now, b.id]]] };
   }
   if (a === 'checkinRemove') {
     const c = ID.test(String(b.checkin || '')) ? await db.prepare('SELECT by_email FROM dev_checkins WHERE id = ?').bind(b.checkin).first() : null;

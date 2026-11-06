@@ -1,6 +1,7 @@
 // Development plans (Luke, Nov 4 — edge/devPlans.js).
 //   GET  → { plans, checkins, people, owner }   (what this person may read)
-//   POST { action: create | update | end | reopen | checkin | checkinRemove | ack, … }
+//   POST { action: create | update | end | reopen | checkin | checkinRemove | ack | mark, … }
+//        (mark = a written-in target's week Hit / Missed — owners, the pod lead)
 // Never written while viewing as; every write in edit_log. Usage: the plans
 // and check-ins tables are tiny (a handful of rows) plus one users read per
 // load.
