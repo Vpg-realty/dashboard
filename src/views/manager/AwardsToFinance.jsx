@@ -12,6 +12,7 @@ import { money } from '../../deals/format.js';
 import { navigate } from '../../shell/router.js';
 
 const cents = (n) => Math.round(n * 100) / 100;
+const ICON = { first: '🥇', most: '🏆', bonus: '🎖️' };
 const TONE = { green: 'text-emerald-800', violet: 'text-violet-800', red: 'text-red-700', blue: 'text-sky-800', amber: 'text-amber-800' };
 
 export default function AwardsToFinance({ month, label, isCurrent, awards }) {
@@ -19,7 +20,7 @@ export default function AwardsToFinance({ month, label, isCurrent, awards }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const sig = (xs) => xs.map((a) => `${a.kind}:${a.repId}:${cents(a.amount)}`).sort().join('|');
-  const have = f.lines.filter((l) => isBonus(l) && l.month === month && (l.kind === 'first' || l.kind === 'most'));
+  const have = f.lines.filter((l) => isBonus(l) && l.month === month && ['first', 'most', 'bonus'].includes(l.kind));
   const same = have.length > 0 && sig(have.map((l) => ({ kind: l.kind, repId: l.repId, amount: l.amount }))) === sig(awards);
   async function send() {
     setBusy(true); setErr(null);
@@ -36,7 +37,7 @@ export default function AwardsToFinance({ month, label, isCurrent, awards }) {
           <>
             {(have.length ? have : awards).map((a) => {
               const t = a.key ? payText(a) : null;
-              return <span key={a.key || `${a.kind}${a.repId}`} className="whitespace-nowrap">{a.kind === 'first' ? '🥇' : '🏆'} {a.who.split(' ')[0]} {money(a.amount)}{t && <span className={`ml-1 font-semibold ${TONE[t.tone] || ''}`}>· {t.text}</span>}</span>;
+              return <span key={a.key || `${a.kind}${a.repId}`} className="whitespace-nowrap">{ICON[a.kind] || '🏆'} {a.who.split(' ')[0]} {money(a.amount)}{t && <span className={`ml-1 font-semibold ${TONE[t.tone] || ''}`}>· {t.text}</span>}</span>;
             })}
             {!have.length && <button type="button" disabled={busy} onClick={send} className="h-7 px-3 rounded-lg bg-navy-700 hover:bg-navy-800 text-white text-[12.5px] font-semibold disabled:opacity-40">Send to Finance · {money(total)}</button>}
             {have.length > 0 && !same && <button type="button" disabled={busy} onClick={send} title="The winners or amounts changed since they went to Finance" className="h-7 px-3 rounded-lg border border-navy-700 text-navy-800 text-[12.5px] font-semibold disabled:opacity-40">Update Finance</button>}
