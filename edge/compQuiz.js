@@ -11,6 +11,10 @@
 // plus a few seconds of grace is refused, the last save stands).
 import { scoreAll, maxScore, num, PROP_FIELDS } from '../src/quiz/score.js';
 
+// The multiple-choice parts, in the order they're taken around the properties:
+// warm-up first, then the properties, comping rules, and the Challenge last
+// (Luke, Nov 6: "a challenge section at the end").
+export const MC_PARTS = ['warmup', 'guide', 'challenge'];
 export const STATUSES = ['draft', 'live', 'closed', 'revealed'];
 const GRACE_MS = 15_000;
 const clip = (s, n) => String(s ?? '').trim().slice(0, n);
@@ -45,9 +49,9 @@ function publicQuiz(quiz) {
   return {
     id: quiz.id, title: quiz.title, intro: quiz.intro, status: quiz.status, startedAt: quiz.startedAt || null,
     timeLimit: quiz.timeLimit || 240, max: maxScore(quiz),
-    warmup: live ? mc(quiz.warmup) : [], guide: live ? mc(quiz.guide) : [],
+    warmup: live ? mc(quiz.warmup) : [], guide: live ? mc(quiz.guide) : [], challenge: live ? mc(quiz.challenge) : [],
     properties: live ? (quiz.properties || []).map((p) => ({ id: p.id, addr: p.addr, ...(shown ? { key: p.key } : {}) })) : [],
-    counts: { warmup: (quiz.warmup || []).length, guide: (quiz.guide || []).length, properties: (quiz.properties || []).length },
+    counts: { warmup: (quiz.warmup || []).length, guide: (quiz.guide || []).length, challenge: (quiz.challenge || []).length, properties: (quiz.properties || []).length },
   };
 }
 
@@ -87,7 +91,7 @@ export async function answer(db, user, b) {
   if (quiz.status !== 'live') return { error: quiz.status === 'draft' ? 'The quiz hasn’t started yet' : 'The quiz is closed' };
   await ensure(db);
   if (b.action === 'mc') {
-    const list = b.part === 'warmup' ? quiz.warmup : b.part === 'guide' ? quiz.guide : null;
+    const list = MC_PARTS.includes(b.part) ? quiz[b.part] || [] : null;
     if (!list) return { error: 'bad part' };
     const answers = {};
     for (const q of list) { const v = b.answers?.[q.id]; if (v != null && Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) < q.options.length) answers[q.id] = Number(v); }
@@ -140,6 +144,10 @@ function cleanMc(list, label) {
 function cleanSetup(b, quiz) {
   const w = cleanMc(b.warmup, 'Warm-up'); if (w.error) return w;
   const g = cleanMc(b.guide, 'Comping rules'); if (g.error) return g;
+  const c = cleanMc(b.challenge || [], 'Challenge'); if (c.error) return c;
+  // A question moved between sections keeps its id; ids stay unique quiz-wide.
+  const seenQ = new Set();
+  for (const q of [...w.list, ...g.list, ...c.list]) { while (seenQ.has(q.id)) q.id = rid(); seenQ.add(q.id); }
   if (!Array.isArray(b.properties) || b.properties.length > 10) return { error: 'Up to 10 properties' };
   const old = Object.fromEntries((quiz.properties || []).map((p) => [p.id, p]));
   const seen = new Set(); const properties = [];
@@ -153,7 +161,7 @@ function cleanSetup(b, quiz) {
   }
   const mins = Number(b.minutes);
   if (!Number.isFinite(mins) || mins < 1 || mins > 30) return { error: 'Time per property: 1 to 30 minutes' };
-  return { setup: { title: clip(b.title, 80) || 'Comp Challenge', intro: clip(b.intro, 400), timeLimit: Math.round(mins * 60), warmup: w.list, guide: g.list, properties } };
+  return { setup: { title: clip(b.title, 80) || 'Comp Challenge', intro: clip(b.intro, 400), timeLimit: Math.round(mins * 60), warmup: w.list, guide: g.list, challenge: c.list, properties } };
 }
 
 // Hosting (owners).
