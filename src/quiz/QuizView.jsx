@@ -286,6 +286,67 @@ function Leaderboard({ scores, max, me, big }) {
   );
 }
 
+// Scores by person (Luke, Nov 6: "categorize this per person so that we can
+// see it on the screen with the team … i dont want results impacted"): each
+// part's points side by side, read from the same scores — display only. A
+// Challenge question that starts with "BONUS" gets its own column. The top
+// score in each column is gold.
+const isBonusQ = (q) => /^\s*bonus\b/i.test(q?.q || '');
+function ByPerson({ quiz, answers, scores, big }) {
+  if (!scores?.length) return <p className="px-6 py-6 text-zinc-500">No answers yet.</p>;
+  const chal = quiz.challenge || [];
+  const bonusQs = chal.filter(isBonusQ);
+  const chalQs = chal.filter((q) => !isBonusQ(q));
+  const props = quiz.properties || [];
+  const right = (email, part, list) => {
+    const picked = answers?.[email]?.[part]?.data?.answers || {};
+    return list.reduce((n, q) => n + (picked[q.id] != null && Number(picked[q.id]) === q.answer ? 1 : 0), 0);
+  };
+  const rows = scores.map((s) => ({
+    s,
+    cols: [
+      ['warm', s.warm, (quiz.warmup || []).length],
+      ...props.map((p) => [`p:${p.id}`, s.byProp?.[p.id] ?? null, propMax]),
+      ['props', s.props, props.length * propMax],
+      ['guide', s.guide, (quiz.guide || []).length],
+      ...(chalQs.length ? [['chal', right(s.email, 'challenge', chalQs), chalQs.length]] : []),
+      ...(bonusQs.length ? [['bonus', right(s.email, 'challenge', bonusQs), bonusQs.length]] : []),
+    ],
+  }));
+  const top = {};
+  for (const r of rows) for (const [k, v] of r.cols) if (v != null) top[k] = Math.max(top[k] ?? 0, v);
+  const heads = ['Warm-Up', ...props.map((_, i) => `P${i + 1}`), 'Properties', 'Comping Rules', ...(chalQs.length ? ['Challenge'] : []), ...(bonusQs.length ? ['Bonus'] : [])];
+  const cell = big ? 'px-4 py-3 text-[22px]' : 'px-3 py-2 text-[13.5px]';
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full tabular-nums text-center">
+        <thead><tr className={`uppercase tracking-wide text-zinc-500 bg-tan-50 ${big ? 'text-[13px]' : 'text-[11.5px]'}`}>
+          <th className={`${cell} text-left`}>Who</th>
+          {heads.map((h) => <th key={h} className={`${cell} ${h === 'Properties' ? 'border-l border-tan-200' : ''}`}>{h}</th>)}
+          <th className={`${cell} border-l border-tan-200`}>Total</th>
+        </tr></thead>
+        <tbody>
+          {rows.map(({ s, cols }, i) => (
+            <tr key={s.email} className="border-t border-tan-100">
+              <td className={`${cell} text-left font-semibold text-navy-800 whitespace-nowrap`}><span className="text-zinc-400 mr-2">{i === 0 ? '👑' : i + 1}</span>{s.name}</td>
+              {cols.map(([k, v, of]) => {
+                const best = v != null && v > 0 && v === top[k];
+                const isBonus = k === 'bonus';
+                return (
+                  <td key={k} className={`${cell} ${k === 'props' ? 'border-l border-tan-200 font-semibold' : ''} ${best ? 'bg-amber-100 text-amber-900 font-bold' : 'text-navy-800'}`}>
+                    {v == null ? <span className="text-zinc-300">—</span> : isBonus && of === 1 ? (v ? '✓' : <span className="text-zinc-400">✗</span>) : <>{v}<span className="text-zinc-400 font-normal text-[0.7em]">/{of}</span></>}
+                  </td>
+                );
+              })}
+              <td className={`${cell} border-l border-tan-200 font-bold text-navy-800`}>{s.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function PropTable({ prop, answers, names, big }) {
   const rows = Object.entries(answers || {}).map(([email, parts]) => ({ email, name: names?.[email] || email.split('@')[0], a: parts[`p:${prop.id}`] })).filter((r) => r.a);
   const pts = (r) => PROP_FIELDS.reduce((s, [f]) => s + fieldPoints(f, r.a?.[f], prop.key?.[f]), 0);
@@ -416,6 +477,7 @@ function HostView() {
         </div>
       </Panel>
       <Panel title="Leaderboard"><Leaderboard scores={scores} max={max} /></Panel>
+      <Panel title="Scores by Person" sub="Each part side by side — the top score in each column is gold. Display only."><ByPerson quiz={quiz} answers={answers} scores={scores} /></Panel>
       {(quiz.properties || []).map((p, i) => <Panel key={p.id} title={`Property ${i + 1} · ${p.addr}`}><PropTable prop={p} answers={Object.fromEntries(Object.entries(answers || {}).map(([e, parts]) => [e, Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.data]))]))} names={names} /></Panel>)}
       <McStats quiz={quiz} answers={answers} />
       <div className="flex flex-wrap gap-2">
@@ -613,10 +675,11 @@ function McStats({ quiz, answers }) {
   );
 }
 
-// Present: one big slide at a time for the screen — the leaderboard, then
+// Present: one big slide at a time for the screen — the leaderboard, scores
+// by person, then
 // each property's answers. ← / → or the buttons; Esc closes.
 function Present({ quiz, answers, names, scores, max, onClose }) {
-  const slides = useMemo(() => ['board', ...(quiz.properties || []).map((p) => p.id)], [quiz.properties]);
+  const slides = useMemo(() => ['board', 'people', ...(quiz.properties || []).map((p) => p.id)], [quiz.properties]);
   const [i, setI] = useState(0);
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowRight') setI((x) => Math.min(slides.length - 1, x + 1)); if (e.key === 'ArrowLeft') setI((x) => Math.max(0, x - 1)); };
@@ -632,7 +695,7 @@ function Present({ quiz, answers, names, scores, max, onClose }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[14px] font-semibold uppercase tracking-[0.18em] text-tan-600">Comp Challenge</div>
-            <h1 className="text-[44px] font-bold text-navy-800 leading-tight">{prop ? `Property ${(quiz.properties || []).indexOf(prop) + 1} · ${prop.addr}` : 'Leaderboard'}</h1>
+            <h1 className="text-[44px] font-bold text-navy-800 leading-tight">{prop ? `Property ${(quiz.properties || []).indexOf(prop) + 1} · ${prop.addr}` : s === 'people' ? 'Scores by Person' : 'Leaderboard'}</h1>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setI(Math.max(0, i - 1))} className={quiet}>←</button>
@@ -641,7 +704,7 @@ function Present({ quiz, answers, names, scores, max, onClose }) {
           </div>
         </div>
         <div className="rounded-2xl border border-tan-200 bg-white overflow-hidden shadow-sm">
-          {prop ? <PropTable prop={prop} answers={flat} names={names} big /> : <Leaderboard scores={scores} max={max} big />}
+          {prop ? <PropTable prop={prop} answers={flat} names={names} big /> : s === 'people' ? <ByPerson quiz={quiz} answers={answers} scores={scores} big /> : <Leaderboard scores={scores} max={max} big />}
         </div>
       </div>
     </div>
