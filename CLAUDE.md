@@ -1551,6 +1551,14 @@ start plans, keep the why private". Scorecards › **Development Plan**
   owner or the pod lead clicks each week Hit → Missed → blank (POST action
   `mark`; `marks` {monday: 'hit' | 'miss'} kept on the target, which keeps
   its `tid` across edits). Up to 8 targets.
+- **Reorder (Luke, Nov 6: "a way to reorder the targets for action items
+  and scorecard targets")**: targets move with ↑ / ↓ in Edit plan (the order
+  of `targets`; each card shows them in that order). Action items move with
+  ↑ / ↓ on the plan (owners and the pod lead): POST action `order` saves the
+  keys in D1 `dev_plans.item_order` (added by `ensure` like `focus`) — an
+  alert's id, or for a repeating item its first task's id (`itemKey`, from
+  ext_id `rep:<first id>:<due>`), so a ticked repeat keeps its place; new
+  items go after the ordered ones by kind and date.
 - **+ Start a Plan fixed (Luke, Nov 5: "i cannot start a development plan
   for reps")**: the button set `?new=` (empty), which `setQuery` drops, so
   the form never opened; it now sets `?new=pick` (nobody picked yet).
@@ -1641,7 +1649,9 @@ answers recorded … project answers on the board". Sidebar **Comp Challenge**
   (POST action `setup`, `cleanSetup` in edge/compQuiz.js): draft only — once
   started it's locked until stepped back to Not started; a property keeps its
   answer key by id; blank choices are dropped and the right answer follows
-  its text.
+  its text. Open by default (Luke, Nov 6: "why can i not edit the
+  questions" — it started folded behind a small Edit tab in the header);
+  Close folds it, ✎ Edit Questions opens it again.
 - Usage: the page polls every 4–10 s (one settings row + the person's ≤ 7
   rows), the host every 5 s (all rows) — under 100k rows for the hour.
 
@@ -2751,6 +2761,17 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   Remove (whoever saved it, or an owner). Only the author (or an owner)
   changes a saved one; others Save a Copy. Results coloured against the
   goals; a down payment of 10%+ is flagged.
+- **Shared with a rep** (Luke, Nov 6: "a way to assign a rep if they need
+  to view calculations that i did … it'll save the sheet for them to view
+  under their calculations as well"): owners click **Share** on a row of My
+  Calculations and tick people (`SharePicker`, people from GET /api/users).
+  D1 `calcs.shared` (JSON emails, added by `ensureShared` in edge/toolkit.js
+  on first use — one pragma read per worker); POST /api/toolkit action
+  `calcShare` (owners, not while viewing as). The calculation then shows in
+  that person's own list (Mine) tagged "Shared by Luke" (`sharedWithMe`);
+  they can open it, download the PDF and Save a Copy, never change the
+  original. Owners (and whoever saved it) see "Shared with …" under the
+  title (`sharedWith`); nobody else is told who it's shared with. No new reads.
 - **Ask Claude about these numbers** (`CalcAsk.jsx`, both calculators): a
   private thread per person (`chat_messages` thread `calc:<email>`),
   `edge/calcChat.js` — a briefing with VPG's formulas plus the open

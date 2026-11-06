@@ -33,6 +33,7 @@ const OUTCOME = { completed: ['Completed', 'bg-emerald-50 text-emerald-800 ring-
 const btn = 'h-9 px-3.5 rounded-lg text-[13px] font-semibold disabled:opacity-50';
 const primary = `${btn} bg-navy-700 hover:bg-navy-800 text-white`;
 const quiet = `${btn} ring-1 ring-inset ring-tan-300 text-navy-700 hover:bg-tan-50`;
+const MOVE = 'h-6 w-6 rounded ring-1 ring-inset ring-tan-300 text-[12px] text-navy-700 hover:bg-tan-50 disabled:opacity-30';
 
 const api = (body) => call('dev-plans', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
 
@@ -201,7 +202,7 @@ function PlanDetail({ plan, name, first, data, series, owner, run, back }) {
         <div className="px-5 py-4 text-[14px] text-zinc-700 whitespace-pre-wrap">{plan.focus || <span className="text-zinc-400">Nothing written yet{owner ? ' — add it with Edit plan.' : '.'}</span>}</div>
       </Panel>
       <Targets plan={plan} weeks={weeks} run={wrap(run)} />
-      <ActionItems plan={plan} canAdd={owner || plan.canCheckIn} first={first} />
+      <ActionItems plan={plan} canAdd={owner || plan.canCheckIn} first={first} run={wrap(run)} />
       <CheckIns plan={plan} checkins={checkins} run={run} />
     </>
   );
@@ -287,15 +288,25 @@ function OwnTargets({ plan, targets, run }) {
   );
 }
 
-function ActionItems({ plan, canAdd, first }) {
+// A repeating item gets a new alert each time it's ticked; its key is the
+// first one's id (ext_id rep:<first id>:<due>) so it keeps its place.
+const itemKey = (a) => (String(a.ext_id || '').startsWith('rep:') ? String(a.ext_id).split(':')[1] : String(a.id));
+function ActionItems({ plan, canAdd, first, run }) {
   const { data } = useAlerts();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [form, setForm] = useState(null);
   useEffect(() => { if (!data) loadAlerts().catch(() => {}); }, [data]);
   const holder = holderFor(plan);
+  // Their saved order first (Luke, Nov 6), then anything new by kind and date.
+  const pos = new Map((plan.itemOrder || []).map((k, i) => [k, i]));
   const list = (data?.alerts || []).filter((a) => a.holder === holder && isCoaching(a) && !a.done_at)
-    .sort((a, b) => `${a.cat}${a.due || '9999'}`.localeCompare(`${b.cat}${b.due || '9999'}`));
+    .sort((a, b) => (pos.get(itemKey(a)) ?? 1e6) - (pos.get(itemKey(b)) ?? 1e6) || `${a.cat}${a.due || '9999'}`.localeCompare(`${b.cat}${b.due || '9999'}`));
+  const canMove = canAdd && plan.status === 'active' && list.length > 1;
+  const move = async (i, j) => {
+    const keys = list.map(itemKey); [keys[i], keys[j]] = [keys[j], keys[i]];
+    setBusy(true); try { await run({ action: 'order', id: plan.id, items: keys }); } finally { setBusy(false); }
+  };
   const doIt = async (body) => { setBusy(true); setErr(null); try { await alertAction(body); return true; } catch (e) { setErr(e.message); return false; } finally { setBusy(false); } };
   const add = async () => {
     if (!form.title.trim()) return;
@@ -320,10 +331,16 @@ function ActionItems({ plan, canAdd, first }) {
         </div>
       )}
       {!list.length && !form && <div className="px-5 py-4 text-[13.5px] text-zinc-500">No open items.{canAdd && plan.status === 'active' ? ' Add the first with + Add an item.' : ''}</div>}
-      {list.map((a) => {
+      {list.map((a, i) => {
         const c = TASK_CAT[a.cat];
         return (
           <div key={a.id} className="flex items-start gap-3 px-5 py-3">
+            {canMove && (
+              <div className="flex flex-col gap-0.5 -my-0.5">
+                <button type="button" title="Move up" disabled={busy || i === 0} onClick={() => move(i, i - 1)} className={MOVE}>↑</button>
+                <button type="button" title="Move down" disabled={busy || i === list.length - 1} onClick={() => move(i, i + 1)} className={MOVE}>↓</button>
+              </div>
+            )}
             <input type="checkbox" disabled={busy} onChange={() => doIt({ action: 'done', id: a.id, done: true })} className="mt-1 w-[18px] h-[18px] accent-navy-700 cursor-pointer" aria-label="Mark done" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -407,6 +424,7 @@ function PlanForm({ plan, start, plans, name, onSave, onCancel }) {
   useEffect(() => { if (!plan) listUsers().then((r) => setUsers(r.users || [])).catch(() => setUsers([])); }, [plan]);
   const onPlan = new Set(plans.filter((p) => p.status === 'active').map((p) => p.email));
   const people = (users || []).filter((u) => !['owner', 'tv'].includes(u.role) && !onPlan.has(u.email)).map((u) => ({ value: u.email, label: u.name, search: u.email }));
+  const moveT = (i, j) => setV((x) => { const t = [...x.targets]; [t[i], t[j]] = [t[j], t[i]]; return { ...x, targets: t }; });
   const setT = (i, patch) => setV({ ...v, targets: v.targets.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
   const save = async () => { setBusy(true); setErr(null); try { await onSave(v); } catch (e) { setErr(e.message); } finally { setBusy(false); } };
   const len = daysBetween(v.starts, v.review);
@@ -453,7 +471,11 @@ function PlanForm({ plan, start, plans, name, onSave, onCancel }) {
                         <span className="text-[13px] text-zinc-500">{m?.unit || ''}</span>
                       </>)}
                       <span className="flex-1" />
-                      {v.targets.length > 1 && <button type="button" onClick={() => setV({ ...v, targets: v.targets.filter((_, j) => j !== i) })} className="text-[12.5px] text-zinc-500 hover:text-rose-700">Remove</button>}
+                      {v.targets.length > 1 && (<>
+                        <button type="button" title="Move up" disabled={i === 0} onClick={() => moveT(i, i - 1)} className={MOVE}>↑</button>
+                        <button type="button" title="Move down" disabled={i === v.targets.length - 1} onClick={() => moveT(i, i + 1)} className={MOVE}>↓</button>
+                        <button type="button" onClick={() => setV({ ...v, targets: v.targets.filter((_, j) => j !== i) })} className="text-[12.5px] text-zinc-500 hover:text-rose-700">Remove</button>
+                      </>)}
                     </div>
                     {own && (
                       <div className="grid sm:grid-cols-[1fr_220px] gap-2">

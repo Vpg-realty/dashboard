@@ -396,7 +396,9 @@ const fromQuiz = (quiz) => ({
 });
 function SetupEditor({ quiz, save }) {
   const draft = quiz.status === 'draft';
-  const [open, setOpen] = useState(false);
+  // Open from the start while it's a draft (Luke, Nov 6: "why can i not edit
+  // the questions" — folded, the small Edit tab in the corner was missed).
+  const [open, setOpen] = useState(true);
   const [v, setV] = useState(() => fromQuiz(quiz));
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -420,7 +422,10 @@ function SetupEditor({ quiz, save }) {
     <Panel title="Questions & Setup" sub={`${counts} · editable until you press Start`}
       right={<button type="button" onClick={() => setOpen(!open)} className="px-2">{open ? 'Close ▴' : 'Edit ▾'}</button>}>
       {!open ? (
-        <p className="px-6 py-4 text-[14px] text-zinc-600">Change the wording, the answer choices, which one is right and the explanation; add or remove questions and properties; set the clock.</p>
+        <div className="px-6 py-4 flex flex-wrap items-center gap-4">
+          <button type="button" onClick={() => setOpen(true)} className={primary}>✎ Edit Questions</button>
+          <p className="text-[14px] text-zinc-600">Change the wording, the answer choices, which one is right and the explanation; add or remove questions and properties; set the clock.</p>
+        </div>
       ) : (
         <div className="px-6 py-5 grid gap-6">
           <div className="grid sm:grid-cols-[1fr_160px] gap-3">

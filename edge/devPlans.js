@@ -24,7 +24,7 @@ export async function ensure(db) {
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS dev_plans (
       id TEXT PRIMARY KEY, email TEXT NOT NULL, rep_id TEXT, why TEXT, targets TEXT NOT NULL,
-      starts TEXT NOT NULL, review TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', focus TEXT,
+      starts TEXT NOT NULL, review TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', focus TEXT, item_order TEXT,
       outcome_note TEXT, created_by TEXT, created_at TEXT NOT NULL, updated_by TEXT, updated_at TEXT, ended_at TEXT)`),
     db.prepare('CREATE INDEX IF NOT EXISTS dev_plans_email ON dev_plans (email, status)'),
     db.prepare(`CREATE TABLE IF NOT EXISTS dev_checkins (
@@ -32,10 +32,12 @@ export async function ensure(db) {
       by_name TEXT, by_email TEXT, at TEXT NOT NULL, ack_at TEXT)`),
     db.prepare('CREATE INDEX IF NOT EXISTS dev_checkins_plan ON dev_checkins (plan_id)'),
   ]);
-  // `focus` (Nov 5) — added to a table made before it, once per worker.
+  // `focus` (Nov 5) and `item_order` (Nov 6) — added to a table made before
+  // them, once per worker.
   if (!focusChecked) {
     const cols = (await db.prepare("SELECT name FROM pragma_table_info('dev_plans')").all()).results.map((r) => r.name);
     if (!cols.includes('focus')) await db.prepare('ALTER TABLE dev_plans ADD COLUMN focus TEXT').run();
+    if (!cols.includes('item_order')) await db.prepare('ALTER TABLE dev_plans ADD COLUMN item_order TEXT').run();
     focusChecked = true;
   }
 }
@@ -72,7 +74,7 @@ export async function load(db, user) {
     .filter((p) => canRead(scope, p))
     // Someone who isn't an owner sees active plans only; the why never.
     .filter((p) => user.role === 'owner' || p.status === 'active')
-    .map((p) => ({ ...p, targets: JSON.parse(p.targets || '[]'), why: user.role === 'owner' ? p.why : undefined, mine: p.email === user.email, canCheckIn: canCheckIn(user, scope, p) }));
+    .map((p) => ({ ...p, targets: JSON.parse(p.targets || '[]'), itemOrder: (() => { try { return JSON.parse(p.item_order || '[]'); } catch { return []; } })(), item_order: undefined, why: user.role === 'owner' ? p.why : undefined, mine: p.email === user.email, canCheckIn: canCheckIn(user, scope, p) }));
   const ids = plans.map((p) => p.id);
   const checkins = [];
   for (let i = 0; i < ids.length; i += 90) {
@@ -172,6 +174,16 @@ export async function act(db, user, b, now) {
     t.marks = { ...(t.marks || {}) };
     if (b.value) t.marks[b.week] = b.value; else delete t.marks[b.week];
     return { id: b.id, run: [['UPDATE dev_plans SET targets = ?, updated_by = ?, updated_at = ? WHERE id = ?', [JSON.stringify(targets), user.name, now, b.id]]] };
+  }
+  if (a === 'order') {
+    // The action items' order on the plan (Luke, Nov 6: "a way to reorder …
+    // action items"): keys from the page (an alert id, or a repeating item's
+    // first id), owners and the pod lead.
+    const p = ID.test(String(b.id || '')) ? await db.prepare('SELECT * FROM dev_plans WHERE id = ?').bind(b.id).first() : null;
+    if (!p || p.status !== 'active') return { error: 'That plan is gone' };
+    if (!canCheckIn(user, await scopeOf(db, user), p)) return { error: 'Only owners and their pod lead reorder the plan' };
+    const items = Array.isArray(b.items) ? b.items.map((x) => String(x)).filter((x) => /^[A-Za-z0-9_:.-]{1,80}$/.test(x)).slice(0, 200) : [];
+    return { id: b.id, run: [['UPDATE dev_plans SET item_order = ?, updated_at = ? WHERE id = ?', [JSON.stringify(items), now, b.id]]] };
   }
   if (a === 'checkinRemove') {
     const c = ID.test(String(b.checkin || '')) ? await db.prepare('SELECT by_email FROM dev_checkins WHERE id = ?').bind(b.checkin).first() : null;
