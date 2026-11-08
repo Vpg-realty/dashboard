@@ -9,7 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
-import { analyzeLocation, timingLocation, listsLocation, totalOf, REPORT_VERSION } from '../server/agentReport.js';
+import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
 import { MARKET_TZ } from '../server/messaging.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +25,7 @@ async function contactsOf(loc, pit) {
   for (let i = 0; i < 1000; i++) {
     const d = await ghlFetch('/contacts/search', pit, { method: 'POST', body: { locationId: loc, pageLimit: 100, sort: [{ field: 'dateAdded', direction: 'asc' }], ...(after ? { searchAfter: after } : {}) } });
     const page = d?.contacts || [];
-    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName, dnd: c.dnd, phone: c.phone, email: c.email })));
+    out.push(...page.map((c) => ({ id: c.id, tags: c.tags, firstName: c.firstName, lastName: c.lastName, contactName: c.contactName, dnd: c.dnd, dndAny: Object.values(c.dndSettings || {}).some((x) => x && (x.status === 'active' || x.status === 'permanent')), phone: c.phone, email: c.email })));
     after = page[page.length - 1]?.searchAfter;
     if (page.length < 100 || !after) break;
   }
@@ -65,6 +65,11 @@ const JOBS = [
   // Work lists (Luke, Nov 6): parked agents to call back and agents who act
   // like tier 1 without the tag — texts / calls since May 5, leads all-time.
   { key: 'agent_lists', since: Date.parse('2026-05-05T07:00:00Z'), kind: 'lists' },
+  // Low-response agents (Luke, Nov 8): in nurture / engaged, 4+ automated
+  // texts ignored since their last reply — all message history. Rows in
+  // chunks (agent_lowresp:<location>:<n>), the index per sub-account in
+  // agent_lowresp:<location>.
+  { key: 'agent_lowresp', since: 0, kind: 'lowresp' },
 ];
 
 async function main() {
@@ -117,6 +122,16 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
       const [contacts, opps, pipelines] = await Promise.all([contactsOf(loc, pit), oppsOf(loc, pit), ghlFetch('/opportunities/pipelines', pit, { params: { locationId: loc } }).then((d) => d?.pipelines || [])]);
       const messages = await messagesOf(loc, pit, since);
       const data = { contacts, opps, pipelines, messages };
+      if (kind === 'lowresp') {
+        const r = lowResponseLocation({ ...data, label: labels[loc] || loc });
+        const CH = 350; const parts = Math.ceil(r.rows.length / CH);
+        for (let i = 0; i < parts; i++) await put(`${key}:${loc}:${i}`, r.rows.slice(i * CH, (i + 1) * CH));
+        await put(`${key}:${loc}`, { label: r.label, count: r.count, rows: r.rows.length, parts, cols: ROW_COLS, at: new Date().toISOString() });
+        st.done.push(loc); delete st.errors[loc];
+        log(`${key} ${r.label}: ${r.rows.length} agents`);
+        await save();
+        continue;
+      }
       const r = kind === 'timing' ? timing(loc, data)
         : kind === 'lists' ? listsLocation({ ...data, since, label: labels[loc] || loc })
         : { ...analyzeLocation({ ...data, since, label: labels[loc] || loc }), contacts: contacts.length, opps: opps.length, messages: messages.length };
@@ -131,7 +146,7 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
     }
     await save();
   }
-  if (kind === 'lists' && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+  if ((kind === 'lists' || kind === 'lowresp') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
     st.finished = new Date().toISOString(); await save(); log(`${key} finished`); return;
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {

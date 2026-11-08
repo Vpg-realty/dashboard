@@ -106,4 +106,6 @@ export const chatForget = (id) => call(`chat/memory?id=${id}`, { method: 'DELETE
 
 // GHL backup (Settings › Backups, owners — functions/api/backups).
 export const loadBackups = () => call('backups');
+export const loadLowResp = () => call('agent-lists');
+export const lowRespCsv = (min) => `${BASE}api/agent-lists?csv=1&min=${min}`;
 export const backupUrl = (key) => `${BASE}api/backups?key=${encodeURIComponent(key)}`;

@@ -396,3 +396,67 @@ export function listsLocation({ contacts, opps, pipelines, messages, label, sinc
   tier1.sort((a, b) => score(b) - score(a));
   return { label, parked: parked.slice(0, 80), tier1: tier1.slice(0, 80), parkedAll: parked.length, tier1All: tier1.length };
 }
+
+// Low-response list (Luke, Nov 8: agents in nurture / engaged who replied
+// once or twice and keep getting automated texts — "cutoff can be 4 or more
+// texts ignored. past leads would only go on the list if they have not
+// provided a lead to us in 4 months"). One sub-account, all message history.
+//   on it      nurture or engaged tag on now; not "internal - do not
+//              automate", not DNC, no DND channel on; replied at least once,
+//              and 4+ automated texts since their last reply (a burst within
+//              30 min counts once; texts a person typed and calls don't), and
+//              - never a lead: replied 1–2 times ever, or
+//              - a past lead: their last lead opened 4+ months ago (any
+//                number of replies).
+// Rows are compact arrays (ROW_COLS) so a sub-account fits in a few settings
+// rows (D1 caps a statement at 100 KB).
+export const LOW_IGNORED = 4;
+export const LOW_LEAD_DAYS = 122; // ~4 months
+export const ROW_COLS = ['id', 'name', 'phone', 'email', 'automation', 'replies', 'lastReply', 'ignored', 'lastAuto', 'tier', 'leads', 'lastLead'];
+export function lowResponseLocation({ contacts, opps, messages, label, now = Date.now() }) {
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId) continue;
+    (byContact.get(m.contactId) || byContact.set(m.contactId, []).get(m.contactId)).push(m);
+  }
+  for (const list of byContact.values()) list.sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+  const lastLeadOf = new Map(); const leadsOf = new Map();
+  for (const o of opps) {
+    const cid = o.contactId || o.contact?.id; if (!cid) continue;
+    leadsOf.set(cid, (leadsOf.get(cid) || 0) + 1);
+    lastLeadOf.set(cid, Math.max(lastLeadOf.get(cid) || 0, Date.parse(o.createdAt) || 0));
+  }
+  const rows = [];
+  const count = { checked: 0, neverLead: 0, pastLead: 0, ignoredSent: 0 };
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    const nurture = tags.includes(NURTURE_NOW);
+    const engaged = tags.includes('agent - engaged') || tags.includes('agent engaged - email preferred');
+    if (!nurture && !engaged) continue;
+    if (tags.includes('internal - do not automate') || tags.includes('agent - dnc') || c.dnd === true || c.dndAny) continue;
+    count.checked++;
+    const msgs = byContact.get(c.id) || [];
+    const rounds = replyRounds(msgs);
+    if (!rounds.length) continue;
+    const lastReply = rounds[rounds.length - 1];
+    let ignored = 0; let prev = 0; let lastAuto = 0;
+    for (const m of msgs) {
+      if (m.direction !== 'outbound' || isCall(m) || isManual(m)) continue;
+      const at = Date.parse(m.dateAdded);
+      if (at <= lastReply) continue;
+      if (at - prev > 30 * 60_000) ignored++;
+      prev = at; lastAuto = at;
+    }
+    if (ignored < LOW_IGNORED) continue;
+    const leads = leadsOf.get(c.id) || 0;
+    const lastLead = lastLeadOf.get(c.id) || 0;
+    if (leads ? now - lastLead < LOW_LEAD_DAYS * DAY : rounds.length > 2) continue;
+    if (leads) count.pastLead++; else count.neverLead++;
+    count.ignoredSent += ignored;
+    const tier = ['tier 1', 'tier 2', 'tier 3', 'tier 4'].find((t) => tags.includes(t)) || '';
+    rows.push([c.id, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.contactName || '', c.phone || '', c.email || '',
+      nurture && engaged ? 'nurture + engaged' : nurture ? 'nurture' : 'engaged', rounds.length, ymd(lastReply), ignored, ymd(lastAuto), tier, leads, ymd(lastLead)]);
+  }
+  rows.sort((a, b) => b[7] - a[7]);
+  return { label, count, rows };
+}

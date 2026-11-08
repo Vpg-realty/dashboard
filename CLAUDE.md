@@ -1624,6 +1624,24 @@ DNC, closed / contracted, 2+ leads, or a lead and 3+ replies), ≤ 80 each,
 with contact id, phone, email, tier, leads, contracted, closed $, replies and
 the last touch / reply / lead dates. Read once into a spreadsheet for Luke.
 
+**Low-response agents (Luke, Nov 8: "cutoff can be 4 or more texts ignored.
+past leads would only go on the list if they have not provided a lead to us
+in 4 months")**: a fifth job `agent_lowresp` (`lowResponseLocation`,
+server/agentReport.js; all message history) — agents with the nurture or
+engaged tag on now, not do-not-automate, not DNC, no DND channel
+(`dndAny` from the contact's `dndSettings`), who replied at least once and
+got 4+ automated texts (`LOW_IGNORED`; a burst within 30 min counts once,
+typed texts and calls don't) since their last reply; never a lead with 1–2
+replies ever, or a past lead whose last lead opened 4+ months ago
+(`LOW_LEAD_DAYS` 122, any replies). Rows are compact arrays (`ROW_COLS`) in
+chunks of 350 (`agent_lowresp:<location>:<n>`) with an index per sub-account
+(`agent_lowresp:<location>`). **Settings › Connections › Backups** shows a
+Low-Response Agents card (`src/settings/LowResponse.jsx`: counts per rep ·
+state, a 4+ / 6+ / 8+ / 10+ / 15+ ignored pick and Download CSV) from `GET
+/api/agent-lists` (owners only, never while viewing as; `?csv=1&min=N` = every
+row with a GHL contact link). Read only — nothing is tagged in GHL until Luke
+approves a count.
+
 ## Comp Challenge — the team quiz (Luke, Nov 5)
 
 "a one time quiz that will be fun for everyone … teaching them how to comp
