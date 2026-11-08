@@ -9,7 +9,7 @@
 import { granted } from './access.js';
 export const KINDS = { fix: 'Something is wrong', change: 'Change something', idea: 'New idea' };
 export const STATUSES = { new: 'New', review: 'Under review', approved: 'Approved', done: 'Done', declined: 'Not now' };
-export const ROLES = ['owner', 'manager', 'tc'];
+export const ROLES = ['owner', 'manager', 'tc', 'team']; // reps since Nov 8 (Luke: "suggestion box as standard for reps")
 // Anyone else owners add by name (Luke, Oct 21: Danni) — D1 settings
 // `suggest_people` { emails: [...] }, set in Settings › People.
 export const canSuggest = (u, extra = []) => !!u && (ROLES.includes(u.role) || (u.role !== 'tv' && u.role !== 'none' && extra.includes(String(u.email || '').toLowerCase())));

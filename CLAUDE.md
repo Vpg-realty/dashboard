@@ -1635,12 +1635,70 @@ typed texts and calls don't) since their last reply; never a lead with 1–2
 replies ever, or a past lead whose last lead opened 4+ months ago
 (`LOW_LEAD_DAYS` 122, any replies). Rows are compact arrays (`ROW_COLS`) in
 chunks of 350 (`agent_lowresp:<location>:<n>`) with an index per sub-account
-(`agent_lowresp:<location>`). **Settings › Connections › Backups** shows a
-Low-Response Agents card (`src/settings/LowResponse.jsx`: counts per rep ·
-state, a 4+ / 6+ / 8+ / 10+ / 15+ ignored pick and Download CSV) from `GET
-/api/agent-lists` (owners only, never while viewing as; `?csv=1&min=N` = every
-row with a GHL contact link). Read only — nothing is tagged in GHL until Luke
-approves a count.
+(`agent_lowresp:<location>`). **My Work › Agent Follow-Up › Low-Response
+Agents** (`/followup/low`, owners only — moved out of Settings › Backups the
+same day, Luke: "under my work for owners only, not hidden away in settings";
+`src/followup/LowResponse.jsx`: counts per rep · state, a 4+ / 6+ / 8+ / 10+ /
+15+ ignored pick and Download CSV) from `GET /api/agent-lists` (owners only,
+never while viewing as; `?csv=1&min=N` = every row with a GHL contact link).
+Read only — nothing is tagged in GHL until Luke approves a count.
+
+## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
+
+From the approved proposal page (owners / managers / reps / TC sidebars).
+Overrides older sidebar-order notes.
+- **Sidebar headers**: `head` on each section in sections.js, drawn by
+  AppShell (a thin line when collapsed; the main nav scrolls on short
+  screens). Home and Alerts on top with none, then **My Work** (Pipeline,
+  Calendar, Agent Follow-Up, Get Zips), **Deals & Money** (Deals, Finance —
+  reads "Deals" for someone without Finance, `headLabel`), **Team**
+  (Scorecards, Team Overview — no longer `bottom: 'screens'`), **Learn &
+  Grow** (Team Quizzes), **Resources** (Toolkit, Territory); Suggestion Box
+  and Settings stay at the bottom. Settings › Access groups follow
+  (`GROUP` in access.js). **Suggestion Box is standard for reps** (Luke:
+  "add suggestion box as standard for reps"): roles + edge/suggestions.js
+  `ROLES` include `team`; suggestions stay private to their author.
+- **Team Quizzes** (was Comp Challenge, section `quiz`; Luke: "fun but not
+  too pressure focused"): tabs Today's Quiz / **Past Quizzes**
+  (`/quiz/past`, `src/quiz/PastQuizzes.jsx`) / Host. The TC neither takes
+  nor sees them (section roles; the API refuses role tc). Past Quizzes =
+  every revealed quiz (the current one and each saved with Host's **📚 Save
+  & Start a New Quiz** — action `archive`, settings `quiz_past:<id>`, then
+  an empty draft with a new id; answers stay under the old id) — per
+  question the answer given, the **Correct answer** (Luke: "dont say my
+  name") and why; per property the numbers given vs the correct ones and
+  points; own score, no rank. Whose answers (`past` in edge/compQuiz.js,
+  GET /api/comp-quiz?past=1&quiz=&who=): owners anyone, managers their own
+  + their pod (`podMates`), reps / trainees their own. The quiz pages say
+  "Correct answer" where they said "Answer key".
+- **Agent Follow-Up** (`/followup/list`, section `followup`, owners /
+  managers / reps; `src/followup/AgentFollowUp.jsx`, `edge/agentWork.js`,
+  `functions/api/agent-work.js`): the Nov 6 work lists (settings
+  `agent_lists:<location>`) copied once into D1 `agent_work (loc, list,
+  contact, data, seq, outcome, tries, note, by_*, at)` by `ensure` (flag
+  settings `agent_work_seeded`, INSERT OR IGNORE). The rep holding the
+  sub-account today (subaccounts.json) works it: rail **Call Back · Parked**
+  (Reached · working them / No answer — 3 tries → "Couldn't reach" / Not
+  worth it), **Make Tier 1?** (Make Tier 1 / Keep their tier / Not a fit),
+  **Done** (Undo); an optional one-line note; why each agent is on the list
+  in plain words; market chips; Open in GHL. Only that rep marks their rows,
+  never while viewing as. **GHL** (Luke: "ok to push the one tag and add a
+  note"): Make Tier 1 queues `tag:tier 1` add + the old tier tag remove
+  (Undo reverses); Reached queues a contact note (`note:<time>` →
+  push-ghl.mjs `addNote`, POST /contacts/:id/notes). **Progress**: owners
+  open on Team progress (each rep's done / total for both lists, made Tier
+  1, this week, last checked off) and open any rep's list read only; a pod
+  lead gets their pod's progress and lists (Luke: "pod leads can see their
+  pod too"). Usage: a rep's load reads their own rows; an owner's reads the
+  table (~1.9k rows).
+- **Settings › Backups & Usage** (Luke: "a usage section in the settings …
+  backups & usage"): the rail group holds **GHL Backups** and **Site
+  Usage** (`/settings/usage`, `src/settings/UsageView.jsx`, GET /api/usage,
+  owners): R2 files by what they are (deal files, message history, weekly
+  copies, daily contacts — one R2 list per 1,000 objects), the D1 database
+  size (`meta.size_after`), toolkit documents, against the plan's 10 GB R2 /
+  5 GB D1. Nov 8: ~315 MB of files (162 MB deal files in 253 files, ~153 MB
+  backups) + 10.7 MB database.
 
 ## Comp Challenge — the team quiz (Luke, Nov 5)
 

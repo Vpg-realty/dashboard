@@ -55,7 +55,7 @@ function Band({ title, sub, children, right }) {
       <BandMark />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Comp Challenge</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">Team Quizzes</div>
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{title}</h1>
           {sub && <p className="mt-1 text-[13.5px] text-white/75 max-w-3xl">{sub}</p>}
         </div>
@@ -357,7 +357,7 @@ function PropTable({ prop, answers, names, big }) {
       <table className="w-full tabular-nums">
         <thead><tr className="text-left text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50"><th className={cell}>Who</th>{PROP_FIELDS.map(([f, l]) => <th key={f} className={cell}>{l}</th>)}<th className={cell}>Points</th></tr></thead>
         <tbody>
-          <tr className="bg-navy-700 text-white font-semibold"><td className={cell}>Answer key</td>{PROP_FIELDS.map(([f]) => <td key={f} className={cell}>{money(prop.key?.[f])}</td>)}<td className={cell}>{propMax}</td></tr>
+          <tr className="bg-navy-700 text-white font-semibold"><td className={cell}>Correct answer</td>{PROP_FIELDS.map(([f]) => <td key={f} className={cell}>{money(prop.key?.[f])}</td>)}<td className={cell}>{propMax}</td></tr>
           {rows.map((r) => (
             <tr key={r.email} className="border-t border-tan-100">
               <td className={`${cell} font-semibold text-navy-800`}>{r.name}</td>
@@ -431,7 +431,8 @@ function HostView() {
           <div className="flex flex-wrap gap-2">
             {quiz.status === 'draft' && <button type="button" onClick={() => go({ action: 'status', status: 'live' }, 'Start the quiz for everyone now?')} className={tan}>▶ Start for Everyone</button>}
             {quiz.status === 'live' && <button type="button" onClick={() => go({ action: 'status', status: 'closed' }, 'Lock everyone’s answers now?')} className={tan}>■ Close Answers</button>}
-            {quiz.status === 'closed' && <button type="button" onClick={() => go({ action: 'status', status: 'revealed' }, keysMissing ? `${keysMissing} properties have no answer key yet — reveal anyway?` : 'Show the answers and leaderboard to everyone?')} className={tan}>★ Reveal Results</button>}
+            {quiz.status === 'revealed' && <button type="button" onClick={() => go({ action: 'archive' }, 'Save this quiz to Past Quizzes and start a new, empty one? Everyone keeps their answers in Past Quizzes.')} className="h-10 px-4 rounded-lg text-[14px] font-semibold bg-white/10 hover:bg-white/20 text-white" title="Past Quizzes keeps it with everyone’s answers">📚 Save &amp; Start a New Quiz</button>}
+            {quiz.status === 'closed' && <button type="button" onClick={() => go({ action: 'status', status: 'revealed' }, keysMissing ? `${keysMissing} properties have no correct answer yet — reveal anyway?` : 'Show the answers and leaderboard to everyone?')} className={tan}>★ Reveal Results</button>}
             <button type="button" onClick={() => navigate('/quiz/take?practice=1')} className="h-10 px-4 rounded-lg text-[14px] font-semibold bg-white/10 hover:bg-white/20 text-white" title="Take it yourself — only you see it, nothing counts">🧪 Practice Run</button>
             {quiz.status !== 'draft' && <button type="button" onClick={() => setPresent(true)} className="h-10 px-4 rounded-lg text-[14px] font-semibold bg-white/10 hover:bg-white/20 text-white">⛶ Present</button>}
           </div>

@@ -20,6 +20,11 @@
 // Do Not Contact "Yes" on Alerts (Luke, Nov 5) rides it too: field
 // `tag:<tag>`, ghl_id = the contact id, value add | remove (edge/alerts.js)
 // → POST / DELETE /contacts/:contactId/tags. Also needs "contacts.write".
+//
+// Agent Follow-Up (Luke, Nov 8; edge/agentWork.js): Make Tier 1 rides the
+// tag rows ("tier 1" on, the old tier off), and Reached adds a note on the
+// contact — field `note:<time>`, ghl_id = the contact, value = the note's
+// text → POST /contacts/:contactId/notes. Also needs "contacts.write".
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,7 +74,7 @@ export function planPush(rows) {
   return { updates: [...byOpp.values()], superseded };
 }
 
-export async function runPush({ query, fields, tokens, locationOf, put, complete = null, tagContact = null, now = new Date() }) {
+export async function runPush({ query, fields, tokens, locationOf, put, complete = null, tagContact = null, addNote = null, now = new Date() }) {
   const iso = now.toISOString();
   const rows = (await query("SELECT * FROM ghl_push WHERE status = 'pending' ORDER BY id"))[0]?.results || [];
   const { updates, superseded } = planPush(rows);
@@ -104,6 +109,17 @@ export async function runPush({ query, fields, tokens, locationOf, put, complete
       await settle(r, error);
     }
     u.rows = u.rows.filter((r) => !String(r.field).startsWith('tag:'));
+    // Contact notes (Agent Follow-Up): one call each.
+    for (const r of u.rows.filter((x) => String(x.field).startsWith('note:'))) {
+      const locationId = locationOf(u.location);
+      const token = locationId && tokens[locationId];
+      let error = null;
+      if (!token) error = 'no GHL key for this sub-account';
+      else if (!addNote) error = 'notes not sent this run';
+      else { try { await addNote(u.ghlId, token, String(r.value || '')); } catch (e) { error = String(e.message || e).slice(0, 300); } }
+      await settle(r, error);
+    }
+    u.rows = u.rows.filter((r) => !String(r.field).startsWith('note:'));
     if (!u.rows.length) continue;
     if (!fields) continue; // no field ids this run — they wait for the next
     const ids = fields[u.location] || {};
@@ -194,7 +210,18 @@ async function main() {
       throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the tag change (${r.status}) — the sub-account's key needs permission to edit contacts` : `GHL ${r.status}: ${t}`);
     }
   };
-  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put, complete, tagContact });
+  const addNote = async (contactId, pit, body) => {
+    const r = await fetch(`${GHL}/contacts/${encodeURIComponent(contactId)}/notes`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${pit}`, Version: '2021-07-28', Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    });
+    if (!r.ok) {
+      const t = (await r.text()).slice(0, 200);
+      throw new Error(r.status === 401 || r.status === 403 ? `GHL refused the note (${r.status}) — the sub-account's key needs permission to edit contacts` : `GHL ${r.status}: ${t}`);
+    }
+  };
+  const status = await runPush({ query, fields, tokens: tokensFrom(secrets, process.env.GHL_TOKENS), locationOf, put, complete, tagContact, addNote });
   console.log(`[ghl-push] ${status.sent} sent · ${status.failed} not sent${status.lastError ? ` (${status.lastError})` : ''}`);
 }
 

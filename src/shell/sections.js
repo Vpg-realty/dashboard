@@ -37,7 +37,7 @@ export const SECTIONS = [
   {
     // Luke, Oct 14: the board's Pipeline as the team's own page, with a
     // Full team / Mine / pick-a-person filter; deals open their details.
-    id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: [...PEOPLE, 'trainee'],
+    head: 'My Work', id: 'pipeline', label: 'Pipeline', icon: 'pipeline', roles: [...PEOPLE, 'trainee'],
     // Luke, Oct 16 (Pipeline A): Contracted deals / Opportunities as tabs
     // along the top, like Finance (the old ?view=opps links still work).
     tabs: [
@@ -53,18 +53,38 @@ export const SECTIONS = [
     // (with their time) and closings, from the tracker when it has the deal.
     // Oct 22 (Luke: the page jumped when you came from Pipeline): a tab bar
     // like Pipeline's — Month / Two Weeks — instead of `solo`.
-    id: 'calendar', label: 'Calendar', icon: 'calendar', roles: PEOPLE,
+    head: 'My Work', id: 'calendar', label: 'Calendar', icon: 'calendar', roles: PEOPLE,
     tabs: [
       { id: 'month', label: 'Month', view: 'team-pipeline-cal', scroll: true },
       { id: 'weeks', label: 'Two Weeks', view: 'team-pipeline-cal', scroll: true },
     ],
   },
   {
+    // Agent Follow-Up (Luke, Nov 8): each rep's Nov 6 work lists — parked
+    // agents to call back, agents who should be Tier 1 — one tap per agent
+    // (src/followup, edge/agentWork.js). Owners and pod leads also see
+    // progress. Low-Response Agents (the agent report's nurture / engaged
+    // list, owners only) sits here too (Luke: "under my work for owners only,
+    // not hidden away in settings").
+    head: 'My Work', id: 'followup', label: 'Agent Follow-Up', icon: 'phone', roles: ['owner', 'manager', 'team'],
+    tabs: [
+      { id: 'list', label: 'Agent Follow-Up', view: 'agent-followup', scroll: true },
+      { id: 'low', label: 'Low-Response Agents', view: 'agent-lowresp', scroll: true, roles: ['owner'] },
+    ],
+  },
+  {
+    // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
+    // managers, trainees and owners request zips here; the rules open from
+    // an ⓘ on the page.
+    head: 'My Work', id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee', 'tc'], solo: true,
+    tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
+  },
+  {
     // Luke, Oct 14: the 2026 Deal Tracker sheet, for owners and the TC (Aiza
     // sees everything except commission and profit — enforced server-side).
     // Owners and the TC only since Oct 19 (Luke's site map; reps and managers
     // had Active read-only from Oct 14 — their deals are on Pipeline / Calendar).
-    id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
+    head: 'Deals & Money', id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
     tabs: [
       { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
       // Order: Active, All Deals, TC List, Map (Luke, Oct 20).
@@ -78,86 +98,12 @@ export const SECTIONS = [
     ],
   },
   {
-    // Comp Challenge (Luke, Nov 5): a one-time team quiz on comping, started
-    // for everyone at once from Host (owners); src/quiz/, edge/compQuiz.js.
-    id: 'quiz', label: 'Comp Challenge', icon: 'trophy', roles: [...PEOPLE, 'trainee'],
-    tabs: [
-      { id: 'take', label: 'Take the Quiz', view: 'quiz-take', scroll: true },
-      { id: 'host', label: 'Host', view: 'quiz-host', scroll: true, roles: ['owner'] },
-    ],
-  },
-  {
-    // Get Zips is its own sidebar entry (Luke's site map, Oct 19): reps,
-    // managers, trainees and owners request zips here; the rules open from
-    // an ⓘ on the page.
-    id: 'zips', label: 'Get Zips', icon: 'pin', roles: ['owner', 'team', 'manager', 'trainee', 'tc'], solo: true,
-    tabs: [{ id: 'mine', label: 'Get Zips', view: 'zips-mine', scroll: true }],
-  },
-  {
-    // Territory (Oct 14: areas, states and zips in one place) — owners and,
-    // since Oct 28, the TC read-only; right under Get Zips (Luke, Oct 28).
-    // Laid out like Settings: a left rail (src/settings/Frame.jsx).
-    id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'tc'], rail: true,
-    tabs: [
-      { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
-      // Luke, Oct 19: Needs Review and the team structure review as one list,
-      // with the Reps × States grid.
-      { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
-      // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
-      // as one page with tabs (Overview / Browse & Assign / Holds & History).
-      // Oct 22 (Luke: no tabs inside tabs): its three views are rail entries.
-      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
-      { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
-      { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
-    ],
-  },
-  {
-    // Luke, Oct 22: documents and calculators for everyone — the proof of
-    // funds letter, title agencies by market, the seller finance and
-    // multifamily calculators, and the calculations people saved
-    // (src/toolkit; data in D1, functions/api/toolkit).
-    id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
-    tabs: [
-      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The letters to send with offers', title: 'Proof of funds', blurb: 'The letters to send with offers — pick the one that fits the deal. Always download them from here; each is replaced whenever a new one comes in.' },
-      { id: 'disclosures', label: 'Disclosures', view: 'tk-docs', scroll: true, group: 'Documents', sub: 'Required forms by state', title: 'Disclosures by state', blurb: 'The forms a state requires with an offer or contract. Pick the state; the offer templates and Contract Terms show the ones for each deal’s state, ready to download.' },
-      { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
-      { id: 'offer', label: 'Offer Templates', view: 'tk-offer', scroll: true, group: 'Offers', sub: 'Cash or creative, to text or email', title: 'Offer templates', blurb: 'Pick cash or creative, fill in the property and the terms — the message is written for you with the state’s contract terms, ready to copy, email or text.' },
-      { id: 'terms', label: 'Contract Terms', view: 'tk-terms', scroll: true, group: 'Offers', sub: 'What every state’s contract needs', title: 'Contract terms by state', blurb: 'The terms every contract gets, the off-market term, each state’s own terms and what to check on its form. The offer templates add the ones that apply.' },
-      { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
-      { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
-      { id: 'commission', label: 'Commission Calculator', view: 'tk-comm', scroll: true, group: 'Calculators', roles: ['owner'], sub: 'Owners only · compare scenarios', title: 'Commission calculator', blurb: 'Purchase and sale price, who acquires and who dispos — every commission, the TC fee and VPG’s net profit, with the same rates as the deal tracker. Add scenarios to compare them side by side.' },
-      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
-    ],
-  },
-  {
-    // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…), then
-    // Team Scorecards (Oct 19). Oct 22 (Luke: "rename the team / my
-    // scorecards to just scorecards … internal tabs can distinguish"): one
-    // Scorecards entry for owners, managers and reps — My Scorecard (reps and
-    // managers; This Week, the trend and Look Back, the old Full Breakdown)
-    // and Team Scorecard (owners, managers). Old /me/… links land on My
-    // Scorecard (MOVED). Coaching is the Scorecard's Where They Leak view.
-    id: 'team', label: 'Scorecards', icon: 'team', roles: ['owner', 'manager', 'team'],
-    tabs: [
-      { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager', 'team'] },
-      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK, roles: ['owner', 'manager'] },
-      { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK, roles: ['owner', 'manager'] },
-      // New hires in training (Luke, Oct 19): owners every trainee, a pod
-      // lead their own.
-      { id: 'training', label: 'Training', view: 'mgr-training', scroll: true, roles: ['owner', 'manager'] },
-      // Development plans (Luke, Nov 4): owners always; anyone else only
-      // while they (or, for a pod lead, someone in their pod) have an active
-      // plan — /api/me adds 'team/plan' to access.give (edge/devPlans.js).
-      { id: 'plan', label: 'Development Plan', view: 'dev-plan', scroll: true, roles: ['owner'] },
-    ],
-  },
-  {
     // Below Team Scorecards (Luke, Oct 22: "move the finance category to the
     // bottom below team scorecards").
     // Luke, Oct 15: commissions per deal (paid at closing), approved by Luke
     // or Jack, statements per person, and the money side of closed deals.
     // Owners only (the API refuses everyone else).
-    id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
+    head: 'Deals & Money', id: 'finance', label: 'Finance', icon: 'finance', roles: ['owner'],
     tabs: [
       // Oct 19 (Luke's site map): Deal Summary is the Finance Overview (the
       // old Overview page went), Payouts + Wires In are one page.
@@ -173,17 +119,88 @@ export const SECTIONS = [
     ],
   },
   {
+    // Luke, Oct 14: "Team" renamed "Management" (URLs keep /team/…), then
+    // Team Scorecards (Oct 19). Oct 22 (Luke: "rename the team / my
+    // scorecards to just scorecards … internal tabs can distinguish"): one
+    // Scorecards entry for owners, managers and reps — My Scorecard (reps and
+    // managers; This Week, the trend and Look Back, the old Full Breakdown)
+    // and Team Scorecard (owners, managers). Old /me/… links land on My
+    // Scorecard (MOVED). Coaching is the Scorecard's Where They Leak view.
+    head: 'Team', id: 'team', label: 'Scorecards', icon: 'team', roles: ['owner', 'manager', 'team'],
+    tabs: [
+      { id: 'mine', label: 'My Scorecard', view: 'my-scorecard', scroll: true, roles: ['manager', 'team'] },
+      { id: 'scorecard', label: 'Team Scorecard', view: 'mgr-team', phone: DESK, roles: ['owner', 'manager'] },
+      { id: 'month', label: 'Month in Review', view: 'mgr-month', phone: DESK, roles: ['owner', 'manager'] },
+      // New hires in training (Luke, Oct 19): owners every trainee, a pod
+      // lead their own.
+      { id: 'training', label: 'Training', view: 'mgr-training', scroll: true, roles: ['owner', 'manager'] },
+      // Development plans (Luke, Nov 4): owners always; anyone else only
+      // while they (or, for a pod lead, someone in their pod) have an active
+      // plan — /api/me adds 'team/plan' to access.give (edge/devPlans.js).
+      { id: 'plan', label: 'Development Plan', view: 'dev-plan', scroll: true, roles: ['owner'] },
+    ],
+  },
+  {
     // Luke, Oct 14: "Board" renamed "Team Overview" (same TV pages; URLs
     // keep /board/…). Later the same day: moved to the bottom of the sidebar
     // for everyone, next to "TV Mode" (`bottom: 'screens'`), and its Pipeline
     // tab dropped — the Pipeline section is the one place for it now (old
     // /board/pipeline links redirect, see MOVED). The TV still has it.
-    id: 'board', label: 'Team Overview', icon: 'board', roles: PEOPLE, bottom: 'screens',
+    head: 'Team', id: 'board', label: 'Team Overview', icon: 'board', roles: PEOPLE,
     tabs: [
       { id: 'overview', label: 'Overview', view: 'master', phone: WIDE },
       { id: 'conversations', label: 'Conversations', view: 'conversations', phone: WIDE },
       { id: 'agents', label: 'Agents', view: 'agents', phone: WIDE },
       { id: 'opportunities', label: 'Opportunities', view: 'opportunities', phone: { h: 2200 } },
+    ],
+  },
+  {
+    // Comp Challenge (Luke, Nov 5): a one-time team quiz on comping, started
+    // for everyone at once from Host (owners); src/quiz/, edge/compQuiz.js.
+    // Nov 8 (Luke): "Team Quizzes" under Learn & Grow, "fun but not too
+    // pressure focused", with Past Quizzes (your answers vs the correct
+    // ones); the TC doesn't see them.
+    head: 'Learn & Grow', id: 'quiz', label: 'Team Quizzes', icon: 'trophy', roles: ['owner', 'manager', 'team', 'trainee'],
+    tabs: [
+      { id: 'take', label: "Today's Quiz", view: 'quiz-take', scroll: true },
+      { id: 'past', label: 'Past Quizzes', view: 'quiz-past', scroll: true },
+      { id: 'host', label: 'Host', view: 'quiz-host', scroll: true, roles: ['owner'] },
+    ],
+  },
+  {
+    // Luke, Oct 22: documents and calculators for everyone — the proof of
+    // funds letter, title agencies by market, the seller finance and
+    // multifamily calculators, and the calculations people saved
+    // (src/toolkit; data in D1, functions/api/toolkit).
+    head: 'Resources', id: 'toolkit', label: 'Toolkit', icon: 'tool', roles: [...PEOPLE, 'trainee'], rail: true, groupTabs: true,
+    tabs: [
+      { id: 'pof', label: 'Proof of Funds', view: 'tk-pof', scroll: true, group: 'Documents', sub: 'The letters to send with offers', title: 'Proof of funds', blurb: 'The letters to send with offers — pick the one that fits the deal. Always download them from here; each is replaced whenever a new one comes in.' },
+      { id: 'disclosures', label: 'Disclosures', view: 'tk-docs', scroll: true, group: 'Documents', sub: 'Required forms by state', title: 'Disclosures by state', blurb: 'The forms a state requires with an offer or contract. Pick the state; the offer templates and Contract Terms show the ones for each deal’s state, ready to download.' },
+      { id: 'title', label: 'Title Agencies', view: 'tk-title', scroll: true, group: 'Documents', sub: 'By market', title: 'Title agencies by market', blurb: 'Who we close with in each state. ★ = the one to use first; a state that isn’t listed uses “All other states”.' },
+      { id: 'offer', label: 'Offer Templates', view: 'tk-offer', scroll: true, group: 'Offers', sub: 'Cash or creative, to text or email', title: 'Offer templates', blurb: 'Pick cash or creative, fill in the property and the terms — the message is written for you with the state’s contract terms, ready to copy, email or text.' },
+      { id: 'terms', label: 'Contract Terms', view: 'tk-terms', scroll: true, group: 'Offers', sub: 'What every state’s contract needs', title: 'Contract terms by state', blurb: 'The terms every contract gets, the off-market term, each state’s own terms and what to check on its form. The offer templates add the ones that apply.' },
+      { id: 'seller', label: 'Seller Finance', view: 'tk-seller', scroll: true, group: 'Calculators', sub: 'Payment, cash flow, balloon', title: 'Seller finance calculator', blurb: 'Fill in the purchase details — the payment, balloon, interest, cash flow and the seller’s yield update as you type. Ideal: $300+ a month cash flow; the down payment must be under 10%.' },
+      { id: 'multifamily', label: 'Multifamily', view: 'tk-mf', scroll: true, group: 'Calculators', sub: 'NOI, cap rate, cash-on-cash', title: 'Multifamily calculator', blurb: 'The units, expenses and financing — graded on current rents (vacant units at market rent). Ideal: an 8 cap or higher and 10%+ cash-on-cash.' },
+      { id: 'commission', label: 'Commission Calculator', view: 'tk-comm', scroll: true, group: 'Calculators', roles: ['owner'], sub: 'Owners only · compare scenarios', title: 'Commission calculator', blurb: 'Purchase and sale price, who acquires and who dispos — every commission, the TC fee and VPG’s net profit, with the same rates as the deal tracker. Add scenarios to compare them side by side.' },
+      { id: 'saved', label: 'My Calculations', view: 'tk-saved', scroll: true, group: 'Calculators', sub: 'Open, copy, remove', title: 'Saved calculations', blurb: 'Everything saved from the calculators. Link one to an opportunity so your pod lead and the owners can review it.' },
+    ],
+  },
+  {
+    // Territory (Oct 14: areas, states and zips in one place) — owners and,
+    // since Oct 28, the TC read-only; right under Get Zips (Luke, Oct 28).
+    // Laid out like Settings: a left rail (src/settings/Frame.jsx).
+    head: 'Resources', id: 'territory', label: 'Territory', icon: 'map', roles: ['owner', 'tc'], rail: true,
+    tabs: [
+      { id: 'map', label: 'Who Works Where', view: 'terr-who', scroll: true, group: 'Map', sub: 'States, reps, year to date', title: 'Who works where' },
+      // Luke, Oct 19: Needs Review and the team structure review as one list,
+      // with the Reps × States grid.
+      { id: 'coverage', label: 'Coverage', view: 'terr-reps', scroll: true, group: 'Team', sub: 'What to review, reps × states', title: 'Coverage' },
+      // Luke, Oct 19: Territory Sheet, Zips & Holds and Rules & Data Health
+      // as one page with tabs (Overview / Browse & Assign / Holds & History).
+      // Oct 22 (Luke: no tabs inside tabs): its three views are rail entries.
+      { id: 'zip-center', label: 'Zip Center', view: 'zips-all', scroll: true, group: 'Zips', sub: 'Overview, needs attention', title: 'Zip center' },
+      { id: 'zip-browse', label: 'Browse & Assign', view: 'zips-browse', scroll: true, group: 'Zips', sub: 'States, counties, zips', title: 'Browse & assign' },
+      { id: 'zip-holds', label: 'Holds & History', view: 'zips-holds', scroll: true, group: 'Zips', sub: 'Who holds what, requests', title: 'Holds & history' },
     ],
   },
   {
@@ -193,7 +210,7 @@ export const SECTIONS = [
     // owners review and answer (src/suggestions).
     // In the sidebar just above Team Overview, tinted so it's easy to find
     // (Luke, Oct 15) — `bottom: 'suggest'`, drawn by AppShell.
-    id: 'suggestions', label: 'Suggestion Box', icon: 'idea', roles: ['owner', 'manager', 'tc'], bottom: 'suggest',
+    id: 'suggestions', label: 'Suggestion Box', icon: 'idea', roles: ['owner', 'manager', 'tc', 'team'], bottom: 'suggest',
     tabs: [{ id: 'all', label: 'Suggestions', view: 'suggestions', scroll: true }],
   },
   {
@@ -212,8 +229,9 @@ export const SECTIONS = [
       { id: 'commissions', label: 'Commissions', view: 'settings-rules', scroll: true, group: 'Money', sub: 'Rates by person, the rules', title: 'Who gets paid what', blurb: 'Every rate with its start date — acquisitions, dispo, manager, pod lead and the TC. Deals use the rules in effect on their COE, so closed deals keep what they had.' },
       { id: 'cancel-reasons', label: 'Cancellation Reasons', view: 'settings-cancel', scroll: true, group: 'Deals', sub: 'What the cancel pop-up offers', title: 'Cancellation reasons', blurb: 'The reasons a deal can be cancelled for. They show in the cancel pop-up, the All Deals filter and Finance Overview › Cancellations.' },
       { id: 'subaccounts', label: 'Connections', view: 'settings-subaccounts', scroll: true, group: 'Connections', sub: 'GHL keys, health, GitHub', title: 'GHL connections', blurb: 'The technical side of each GoHighLevel sub-account: location ID, API key and health, and adding a brand-new one. Who holds each state is set on Team.' },
-      { id: 'backups', label: 'Backups', view: 'settings-backups', scroll: true, group: 'Connections', sub: 'GHL contacts, data, messages', title: 'GHL backups', blurb: 'A copy of every GoHighLevel sub-account the site has a key for — contacts every day, everything else every week, and all message history. Owners only.' },
       { id: 'alerts', label: 'Discord & Chat', view: 'settings-alerts', scroll: true, group: 'Connections', sub: 'Team chat, test alert', title: 'Discord and team chat', blurb: 'The Team Chat button in the sidebar and the Discord alerts.' },
+      { id: 'backups', label: 'GHL Backups', view: 'settings-backups', scroll: true, group: 'Backups & Usage', sub: 'GHL contacts, data, messages', title: 'GHL backups', blurb: 'A copy of every GoHighLevel sub-account the site has a key for — contacts every day, everything else every week, and all message history. Owners only.' },
+      { id: 'usage', label: 'Site Usage', view: 'settings-usage', scroll: true, group: 'Backups & Usage', sub: 'Storage, database, plan', title: 'Site usage', blurb: 'How much the site stores — deal files, GHL backups, toolkit documents and the database — against what the Cloudflare plan includes. Owners only.' },
     ],
   },
 ];
