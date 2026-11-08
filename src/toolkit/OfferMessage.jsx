@@ -85,8 +85,21 @@ export default function OfferMessage({ c, kind }) {
         <Field label="EMD" value={i.emd} onChange={(v) => c.setInput('emd', v)} pre="$" readOnly={ro} hint=" " />
         <Field label="Inspection period" value={i.ipDays} onChange={(v) => c.setInput('ipDays', v)} post="days" readOnly={ro} hint=" " />
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">COE
-          <input value={i.coe || ''} readOnly={ro} onChange={(e) => c.setInput('coe', e.target.value)} placeholder={coeText(coe)} className="h-10 rounded-lg border border-zinc-200 px-2.5 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-navy-100" />
-          <span className="text-[11.5px] font-normal text-tan-600">{i.coe ? 'Type a date or a number of days' : `${coeText(coe)} — 14 days out, weekends move to Monday`}</span>
+          {/* A date picker beside the box (Luke, Nov 8: "add date selector …
+              for COE"); typing words like "30 days" still works. */}
+          <span className="relative flex">
+            <input value={/^\d{4}-\d{2}-\d{2}$/.test(i.coe || '') ? coeText(i.coe) : i.coe || ''} readOnly={ro} onChange={(e) => c.setInput('coe', e.target.value)} placeholder={coeText(coe)} className="h-10 w-full rounded-lg border border-zinc-200 pl-2.5 pr-11 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-navy-100" />
+            {!ro && (
+              <span className="absolute right-1 top-1 h-8 w-9 rounded-md grid place-items-center text-navy-700 hover:bg-tan-100" title="Pick a date">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+                <input type="date" aria-label="Pick the COE date" value={/^\d{4}-\d{2}-\d{2}$/.test(coe) ? coe : ''}
+                  onChange={(e) => e.target.value && c.setInput('coe', e.target.value)}
+                  onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* older browsers open on click */ } }}
+                  className="absolute inset-0 opacity-0 cursor-pointer" />
+              </span>
+            )}
+          </span>
+          <span className="text-[11.5px] font-normal text-tan-600">{i.coe ? 'Pick a date, or type one or a number of days' : `${coeText(coe)} — 14 days out, weekends move to Monday`}</span>
         </label>
         <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-navy-800">Title company
           <SearchSelect value={options.find((o) => o.line === title)?.value || null} disabled={ro || !options.length} clearable={false}

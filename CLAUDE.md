@@ -3046,6 +3046,9 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   editable box with Copy / Email (mailto) / Text (sms:). Signer = `SIGNER`,
   plus "and/or Assigns" outside AZ, AL, FL, OK (`MARKETS_NO_ASSIGNS`); the
   market defaults to the linked opportunity's state.
+  **COE date picker** (Luke, Nov 8): a calendar button inside the COE box
+  (a native date input over the icon, `showPicker`) sets the date; the box
+  shows it as "Nov 27, 2026" and typing a date or "30 days" still works.
 - **Disclosures** (Luke, Nov 3: "a general tab for disclosure documents …
   select what state they are for … the offer templates would show the
   document we have to include and we could download it … similar to the POF
