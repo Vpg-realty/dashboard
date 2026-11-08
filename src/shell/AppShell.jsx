@@ -21,6 +21,10 @@ import CancelReasonsView from '../settings/CancelReasonsView.jsx';
 import BackupsView from '../settings/BackupsView.jsx';
 import DevPlanView from '../devplan/DevPlanView.jsx';
 import ReviewsView from '../reviews/ReviewsView.jsx';
+import PastQuizzes from '../quiz/PastQuizzes.jsx';
+import AgentFollowUp from '../followup/AgentFollowUp.jsx';
+import LowResponse from '../followup/LowResponse.jsx';
+import UsageView from '../settings/UsageView.jsx';
 import QuizView, { QuizHost } from '../quiz/QuizView.jsx';
 import TargetsView from '../settings/TargetsView.jsx';
 import AlertsView from '../settings/AlertsView.jsx';
@@ -79,7 +83,7 @@ const VIEWS = {
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,
-  'settings-people': PeopleView, 'settings-access': AccessView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView, 'settings-backups': BackupsView, 'dev-plan': DevPlanView, reviews: ReviewsView, 'quiz-take': QuizView, 'quiz-host': QuizHost,
+  'settings-people': PeopleView, 'settings-access': AccessView, 'settings-rules': RulesView, 'settings-subaccounts': SubAccountsView, 'settings-alerts': AlertsView, 'settings-targets': TargetsView, 'settings-cancel': CancelReasonsView, 'settings-backups': BackupsView, 'dev-plan': DevPlanView, reviews: ReviewsView, 'quiz-take': QuizView, 'quiz-host': QuizHost, 'quiz-past': PastQuizzes, 'agent-followup': AgentFollowUp, 'agent-lowresp': LowResponse, 'settings-usage': UsageView,
   'tk-pof': ProofOfFunds, 'tk-docs': Disclosures, 'tk-offer': OfferTemplates, 'tk-terms': ContractTerms, 'tk-title': TitleAgencies, 'tk-seller': SellerFinance, 'tk-mf': Multifamily, 'tk-saved': MyCalcs, 'tk-comm': CommissionCalc,
   'mgr-team': TeamHub, 'mgr-coaching': CoachingView, 'mgr-month': MonthView,
 };
@@ -134,6 +138,9 @@ function useStoredFlag(key, initial) {
 // A `groupTabs` rail section (Toolkit, Oct 22): one top tab per group (it
 // opens the group's first page); the rail lists the picked group's pages.
 const groupHeads = (tabs) => tabs.filter((t, n) => tabs.findIndex((x) => x.group === t.group) === n);
+
+// "Deals & Money" reads "Deals" for someone with no Finance (the TC).
+const headLabel = (h, all) => (h === 'Deals & Money' && !all.some((x) => x.id === 'finance') ? 'Deals' : h);
 
 export default function AppShell({ me }) {
   const { path, query } = useLocation();
@@ -212,12 +219,24 @@ export default function AppShell({ me }) {
           <Icon name="search" size={14} />
           {!collapsed && <><span className="text-[13px] whitespace-nowrap truncate">Search or jump to…</span><kbd className="ml-auto text-[10.5px] font-medium text-zinc-500 border border-zinc-200 rounded px-1 bg-zinc-50">⌘K</kbd></>}
         </button>
-        <nav className="flex flex-col gap-0.5">{sections.filter((x) => !x.bottom).map(navItem)}</nav>
-        <div className="flex-1" />
+        {/* Headers (Luke, Nov 8): Home and Alerts on top, then My Work ·
+            Deals & Money · Team · Learn & Grow · Resources (`head` in
+            sections.js); a header shows only over pages the person has. */}
+        <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto -mx-2.5 px-2.5 pb-2">
+          {sections.filter((x) => !x.bottom).map((s, i, all) => {
+            const h = s.head && s.head !== all[i - 1]?.head ? headLabel(s.head, all) : null;
+            return [
+              h && (collapsed
+                ? <div key={`h-${s.head}`} className="mx-2 my-1.5 border-t border-tan-200" aria-hidden="true" />
+                : <div key={`h-${s.head}`} className="px-2.5 pt-3 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-tan-600/90">{h}</div>),
+              navItem(s),
+            ];
+          })}
+        </nav>
         {/* Bottom of the sidebar (Luke, Oct 14): Team Overview (the TV pages,
             for everyone; its TV Mode button sits in its tab bar — Luke,
             Oct 15) — then the owners' admin. */}
-        <nav className="flex flex-col gap-0.5 mb-2" aria-label="Team screens">
+        <nav className="flex flex-col gap-0.5 mb-2 pt-2" aria-label="More">
           {/* Suggestion Box (Luke, Oct 15: "above team overview and colored
               slightly differently to easily find"). */}
           {sections.filter((x) => x.bottom === 'suggest').map((s) => {
@@ -230,7 +249,6 @@ export default function AppShell({ me }) {
               </a>
             );
           })}
-          {sections.filter((x) => x.bottom === 'screens').map(navItem)}
           {/* Team Chat (Luke, Oct 15): the team's Discord, in a new tab. */}
           {me.teamChat && (
             <a href={me.teamChat} target="_blank" rel="noopener noreferrer" title="Team Chat (Discord) — opens in a new tab"

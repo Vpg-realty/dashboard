@@ -4,7 +4,6 @@
 // scripts/backup-ghl.mjs; the files: GET /api/backups (owners only).
 import { useEffect, useMemo, useState } from 'react';
 import { loadBackups, backupUrl } from '../utils/dashApi.js';
-import LowResponse from './LowResponse.jsx';
 import { Section } from './ui.jsx';
 import Tile from '../shell/Tile.jsx';
 
@@ -55,7 +54,6 @@ export default function BackupsView() {
 
   return (
     <div className="flex flex-col gap-5">
-      <LowResponse />
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <Tile label="Contacts · Daily" dot="navy" value={st.lastContacts ? day(st.lastContacts.day) : 'Not yet'} sub={st.contacts ? `${st.contacts.done.length} of ${locs.length} sub-accounts today` : 'Starts with the next deploy'} />
         <Tile label="Weekly Copy" dot="tan" value={st.lastWeekly ? `Week of ${day(st.lastWeekly.week).replace(/, \d{4}$/, '')}` : 'Not yet'} sub={st.weekly ? `${st.weekly.done.length} of ${locs.length} sub-accounts this week` : 'Runs once a week'} />

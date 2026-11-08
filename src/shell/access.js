@@ -33,7 +33,8 @@ const SKIP = new Set(['training']);
 const ROW_LABEL = { calendar: 'Calendar', board: 'Team Overview & TV Mode', finance: 'Finance (every tab)', settings: 'Settings (every tab)', alerts: 'Alerts', zips: 'Get Zips', suggestions: 'Suggestion Box', home: 'Home' };
 
 // Grid headings: one-page sections join a group (the mock-up's Daily etc.).
-const GROUP = { home: 'Daily', alerts: 'Daily', pipeline: 'Daily', calendar: 'Daily', zips: 'Territory', board: 'Screens & More', suggestions: 'Screens & More' };
+// Follows the sidebar's headers (Luke, Nov 8).
+const GROUP = { home: 'Daily', alerts: 'Daily', pipeline: 'My Work', calendar: 'My Work', followup: 'My Work', zips: 'My Work', board: 'Team', suggestions: 'More' };
 
 // The page a section / tab belongs to.
 export const pageOf = (sid, tid) => ONE_ROW[sid] || (tid ? `${sid}/${tid}` : sid);

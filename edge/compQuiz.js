@@ -10,6 +10,8 @@
 // person opens it (the server keeps the start time; a save after the limit
 // plus a few seconds of grace is refused, the last save stands).
 import { scoreAll, maxScore, num, PROP_FIELDS } from '../src/quiz/score.js';
+import { refreshPods } from './pods.js';
+import { podMates } from '../src/shell/access.js';
 
 // The multiple-choice parts, in the order they're taken around the properties:
 // warm-up first, then the properties, comping rules, and the Challenge last
@@ -233,6 +235,16 @@ export async function host(db, user, b) {
     await saveQuiz(db, quiz);
     return { ok: true };
   }
+  if (b.action === 'archive') {
+    // Keep this quiz in Past Quizzes and start an empty draft for the next
+    // one (Luke, Nov 8) — answers stay under the old id.
+    if (quiz.status !== 'revealed') return { error: 'Reveal the results first — Past Quizzes shows the correct answers' };
+    await db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .bind(`quiz_past:${quiz.id}`, JSON.stringify({ ...quiz, archivedAt: new Date().toISOString() })).run();
+    const id = `quiz-${new Date().toISOString().slice(0, 10)}-${Math.random().toString(36).slice(2, 6)}`;
+    await saveQuiz(db, { id, title: 'New Quiz', intro: '', status: 'draft', timeLimit: quiz.timeLimit || 240, warmup: [], properties: [], guide: [], challenge: [] });
+    return { ok: true };
+  }
   if (b.action === 'reset') {
     if (b.confirm !== 'RESET') return { error: 'Type RESET to clear every answer' };
     await db.prepare('DELETE FROM quiz_answers WHERE quiz = ?').bind(quiz.id).run();
@@ -241,4 +253,59 @@ export async function host(db, user, b) {
     return { ok: true };
   }
   return { error: 'bad action' };
+}
+
+// ─── Past Quizzes (Luke, Nov 8) ─────────────────────────────────────────────
+// "a history where reps can go back and see their answers vs. correct
+// answers. owners can see all, managers can see theirs and their pods, reps
+// can only see theirs, TC does not see these." A quiz is in the history once
+// its results are revealed: the current one (settings comp_quiz) and every
+// one saved with Host's "Save to Past Quizzes" (settings quiz_past:<id>).
+async function pastQuizzes(db) {
+  const out = [];
+  const cur = await readQuiz(db);
+  if (cur?.status === 'revealed') out.push(cur);
+  for (const r of (await db.prepare("SELECT value FROM settings WHERE key LIKE 'quiz_past:%'").all()).results || []) {
+    try { const q = JSON.parse(r.value); if (!out.some((x) => x.id === q.id)) out.push(q); } catch { /* skip */ }
+  }
+  return out.sort((a, b) => String(b.startedAt || b.archivedAt || '').localeCompare(String(a.startedAt || a.archivedAt || '')));
+}
+
+// Whose answers this person may open: null = everyone (owners), else emails.
+async function whoCanSee(db, user) {
+  if (user.role === 'owner') return null;
+  const mine = [String(user.email).toLowerCase()];
+  if (user.role !== 'manager' || !user.rep_id) return mine;
+  const pods = await refreshPods(db);
+  const mates = podMates(user.rep_id, pods);
+  if (!mates.length) return mine;
+  const ph = mates.map(() => '?').join(',');
+  const rows = (await db.prepare(`SELECT email FROM users WHERE rep_id IN (${ph})`).bind(...mates).all()).results || [];
+  return [...new Set([...mine, ...rows.map((r) => String(r.email).toLowerCase())])];
+}
+
+const PAST_ROLES = ['owner', 'manager', 'team', 'trainee'];
+
+export async function past(db, user, { quiz: qid, who } = {}) {
+  if (!PAST_ROLES.includes(user.role)) return { error: 'not available', status: 403 };
+  await ensure(db);
+  const quizzes = await pastQuizzes(db);
+  const allowed = await whoCanSee(db, user);
+  const me = String(user.email).toLowerCase();
+  const list = quizzes.map((q) => ({ id: q.id, title: q.title, at: q.startedAt || q.archivedAt || null, max: maxScore(q) }));
+  const quiz = quizzes.find((q) => q.id === qid) || quizzes[0];
+  if (!quiz) return { quizzes: [], people: [], me };
+  const rows = rowsBy((await db.prepare('SELECT * FROM quiz_answers WHERE quiz = ?').bind(quiz.id).all()).results);
+  const names = Object.fromEntries((await db.prepare('SELECT DISTINCT email, name FROM quiz_answers WHERE quiz = ?').bind(quiz.id).all()).results.map((r) => [String(r.email).toLowerCase(), r.name]));
+  const seen = Object.keys(rows).filter((e) => !allowed || allowed.includes(String(e).toLowerCase()));
+  const people = seen.map((e) => ({ email: e, name: names[String(e).toLowerCase()] || e.split('@')[0] })).sort((a, b) => a.name.localeCompare(b.name));
+  const pick = String(who || '').toLowerCase();
+  const email = seen.find((e) => e.toLowerCase() === pick) || seen.find((e) => e.toLowerCase() === me) || null;
+  // Every number is worked out from this person's rows only.
+  const score = email ? scoreAll(quiz, { [email]: rows[email] }, { [email]: names[email.toLowerCase()] })[0] : null;
+  return {
+    quizzes: list, people, me, email, quizId: quiz.id,
+    quiz: { id: quiz.id, title: quiz.title, max: maxScore(quiz), warmup: quiz.warmup || [], guide: quiz.guide || [], challenge: quiz.challenge || [], properties: (quiz.properties || []).map((p) => ({ id: p.id, addr: p.addr, key: p.key || null })) },
+    rows: email ? rows[email] : null, score,
+  };
 }

@@ -1,4 +1,7 @@
 // Comp Challenge (Luke, Nov 5 — edge/compQuiz.js).
+//   GET  ?past=1[&quiz=&who=] → Past Quizzes (Nov 8): revealed quizzes, the
+//                      person's answers vs the correct ones (owners anyone,
+//                      managers their pod, reps themselves; never the TC)
 //   GET  [?host=1]   → the quiz as this person may see it (+ their answers);
 //                      owners with ?host=1 get everything and the scores.
 //   POST { action: mc | open | prop | finish, … }   taking it
@@ -11,15 +14,20 @@
 // host page reads every answer row, ~100, every 5 s) — tens of thousands of
 // rows for the hour it runs.
 import { currentUser, json } from '../../../edge/auth.js';
-import { load, answer, host } from '../../../edge/compQuiz.js';
+import { load, answer, host, past } from '../../../edge/compQuiz.js';
 
-const NOT = ['tv', 'service', 'none'];
+// The TC doesn't take or see the quizzes (Luke, Nov 8).
+const NOT = ['tv', 'service', 'none', 'tc'];
 
 export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (NOT.includes(user.role)) return json({ error: 'not available' }, 403);
   const q = new URL(context.request.url).searchParams;
+  if (q.get('past') === '1') {
+    const r = await past(context.env.DB, user, { quiz: q.get('quiz'), who: q.get('who') });
+    return r.error ? json({ error: r.error }, r.status || 400) : json(r);
+  }
   return json(await load(context.env.DB, user, { host: q.get('host') === '1', practice: q.get('practice') === '1' }));
 }
 
@@ -30,7 +38,7 @@ export async function onRequestPost(context) {
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad request' }, 400); }
   const db = context.env.DB;
-  const hosting = ['status', 'key', 'reset', 'setup'].includes(b.action);
+  const hosting = ['status', 'key', 'reset', 'setup', 'archive'].includes(b.action);
   const r = hosting ? await host(db, user, b) : await answer(db, user, b);
   if (r.error) return json({ error: r.error, late: r.late }, r.status || 400);
   if (hosting) {
