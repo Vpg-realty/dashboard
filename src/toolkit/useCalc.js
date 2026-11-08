@@ -35,7 +35,8 @@ export function useCalc(kind, defaults) {
   const base = saved && form.id === id ? { id, title: saved.title, inputs: { ...structuredClone(defaults), ...saved.inputs }, opp: saved.opp } : blank(defaults);
   const dirty = !same({ ...form, id: base.id }, base);
   useEffect(() => { writeDraft(kind, dirty ? form : null); }, [kind, form, dirty]);
-  const canEdit = !saved || saved.mine || me?.role === 'owner';
+  // Editors (Nov 8) save changes too — the server says so per calculation.
+  const canEdit = !saved || saved.canEdit || saved.mine || me?.role === 'owner';
   const patch = (p) => setForm((f) => ({ ...f, ...p }));
   const setInput = (k, v) => setForm((f) => ({ ...f, inputs: { ...f.inputs, [k]: v } }));
   async function save(asCopy = false) {

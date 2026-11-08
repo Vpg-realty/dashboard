@@ -2843,6 +2843,19 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   they can open it, download the PDF and Save a Copy, never change the
   original. Owners (and whoever saved it) see "Shared with …" under the
   title (`sharedWith`); nobody else is told who it's shared with. No new reads.
+- **Editors** (Luke, Nov 8: "a way to add editors to saved calculations so
+  they can also see them and edit them"): the Share picker gives each person
+  **No access / View / Edit** (`SharePicker`, MyCalcs.jsx). D1
+  `calcs.editors` (JSON emails, added by `ensureShared` next to `shared`);
+  POST `calcShare {id, emails, editors}` — now owners **and whoever saved it**
+  (not while viewing as); someone picked for both is an editor. An editor sees
+  it in their list ("Shared by Sam · you can edit"), and Save changes the
+  original (`calcEditor` in edge/toolkit.js; `calcs()` sends `canEdit`,
+  `editorOfMe`, `canShare`, and to the owner / author `sharedWith` +
+  `editorsList`, shown as "Can edit: … / Can view: …"); only whoever saved it
+  or an owner removes it or changes who has access. GET /api/toolkit sends
+  `people` (active teammates, no owners / TV) for the picker — one small users
+  read per Toolkit load.
 - **Ask Claude about these numbers** (`CalcAsk.jsx`, both calculators): a
   private thread per person (`chat_messages` thread `calc:<email>`),
   `edge/calcChat.js` — a briefing with VPG's formulas plus the open

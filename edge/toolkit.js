@@ -78,27 +78,40 @@ const parse = (s) => { try { return JSON.parse(s); } catch { return null; } };
 // calculations that i did") = the emails an owner shared a calculation with;
 // it then sits in their own My Calculations. Added to the table on first use
 // (one pragma read per worker).
+// `editors` (Luke, Nov 8: "a way to add editors to saved calculations so they
+// can also see them and edit them") = emails that may also save changes to it
+// (never remove it); set with `shared` by an owner or whoever saved it.
 let sharedChecked = false;
 export async function ensureShared(db) {
   if (sharedChecked) return;
   const cols = (await db.prepare("SELECT name FROM pragma_table_info('calcs')").all()).results.map((r) => r.name);
   if (!cols.includes('shared')) await db.prepare('ALTER TABLE calcs ADD COLUMN shared TEXT').run();
+  if (!cols.includes('editors')) await db.prepare('ALTER TABLE calcs ADD COLUMN editors TEXT').run();
   sharedChecked = true;
 }
+const emailsOf = (s) => (parse(s) || []).filter((e) => typeof e === 'string');
+export const calcEditor = (row, u) => !!row && (row.by_email === u.email || u.role === 'owner' || emailsOf(row.editors).includes(String(u.email || '').toLowerCase()));
 export async function calcs(db, u) {
   await ensureShared(db);
   const sc = await scope(db, u);
   // Commission reviews (kind 'comm') are owners-only and never in My Calculations.
   const rows = (await db.prepare("SELECT * FROM calcs WHERE deleted = 0 AND kind != 'comm' ORDER BY updated_at DESC").all()).results;
   const me = String(u.email || '').toLowerCase();
-  return rows.map((r) => ({ r, shared: (parse(r.shared) || []).filter((e) => typeof e === 'string') }))
-    .filter(({ r, shared }) => !sc || sc.emails.has(r.by_email) || (r.rep_id && sc.reps.has(r.rep_id)) || shared.includes(me))
-    .map(({ r, shared }) => ({
-      ...r, shared: undefined, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email,
-      sharedWithMe: r.by_email !== u.email && shared.includes(me),
-      // Who it's shared with — owners and whoever saved it only.
-      sharedWith: u.role === 'owner' || r.by_email === u.email ? shared : undefined,
-    }));
+  return rows.map((r) => ({ r, shared: emailsOf(r.shared), editors: emailsOf(r.editors) }))
+    .filter(({ r, shared, editors }) => !sc || sc.emails.has(r.by_email) || (r.rep_id && sc.reps.has(r.rep_id)) || shared.includes(me) || editors.includes(me))
+    .map(({ r, shared, editors }) => {
+      const manage = u.role === 'owner' || r.by_email === u.email;
+      return {
+        ...r, shared: undefined, editors: undefined, inputs: parse(r.inputs) || {}, summary: parse(r.summary), opp: parse(r.opp), mine: r.by_email === u.email,
+        sharedWithMe: r.by_email !== u.email && (shared.includes(me) || editors.includes(me)),
+        editorOfMe: r.by_email !== u.email && editors.includes(me),
+        canEdit: manage || editors.includes(me),
+        // Who it's shared with / who can edit — owners and whoever saved it only.
+        sharedWith: manage ? shared : undefined,
+        editorsList: manage ? editors : undefined,
+        canShare: manage,
+      };
+    });
 }
 
 // Saved commission reviews (Toolkit › Commission Calculator, Luke Nov 3:
@@ -129,9 +142,15 @@ export async function contractTerms(db) {
   return { ...DEFAULT_TERMS, updatedAt: null, updatedBy: null };
 }
 
+// The people a calculation can be shared with (Nov 8: whoever saved it shares
+// it too, not only owners) — active teammates, no owners (they see every
+// calculation already), no TV. One small read per Toolkit load.
+async function people(db) {
+  return (await db.prepare("SELECT email, name, role FROM users WHERE role NOT IN ('tv', 'owner') AND COALESCE(status, 'active') != 'inactive' ORDER BY name").all()).results;
+}
 export async function load(db, u) {
-  const [pofs, list, mine, terms, docs, comm] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db), docList(db), commReviews(db, u)]);
-  return { pofs, pof: pofs[0] || null, docs, agencies: list, calcs: mine, comm, terms, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), docs: canUploadPof(u), terms: canEditTerms(u) } };
+  const [pofs, list, mine, terms, docs, comm, team] = await Promise.all([pofList(db), agencies(db), calcs(db, u), contractTerms(db), docList(db), commReviews(db, u), people(db)]);
+  return { pofs, pof: pofs[0] || null, docs, agencies: list, calcs: mine, comm, terms, people: team, can: { agencies: canEditAgencies(u), pof: canUploadPof(u), docs: canUploadPof(u), terms: canEditTerms(u) } };
 }
 
 // The offer message's text fields are longer than a number.
@@ -253,7 +272,7 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
     const opp = cleanOpp(b.opp);
     if (b.id) {
       if (!CID.test(String(b.id)) || !existing || existing.deleted) return { error: 'That calculation is gone' };
-      if (existing.by_email !== u.email && u.role !== 'owner') return { error: 'Only whoever saved it (or an owner) can change it — save a copy instead' };
+      if (!calcEditor(existing, u)) return { error: 'Only whoever saved it, an editor or an owner can change it — save a copy instead' };
       if (existing.kind !== kind) return { error: 'Unknown calculator' };
       return { id: b.id, run: [['UPDATE calcs SET title = ?, inputs = ?, summary = ?, opp = ?, updated_at = ? WHERE id = ?', [title, JSON.stringify(inputs), summary, opp ? JSON.stringify(opp) : null, now, b.id]]] };
     }
@@ -262,13 +281,19 @@ export function plan(b, u, now = new Date().toISOString(), existing = null) {
       [id, kind, title, JSON.stringify(inputs), summary, opp ? JSON.stringify(opp) : null, u.rep_id || null, u.name, u.email, now, now]]] };
   }
   if (a === 'calcShare') {
-    if (u.role !== 'owner' || u.viewAs) return { error: 'Only owners share calculations' };
     if (!CID.test(String(b.id || '')) || !existing || existing.deleted || existing.kind === 'comm') return { error: 'That calculation is gone' };
-    const list = Array.isArray(b.emails) ? b.emails : [];
-    if (list.length > 40) return { error: 'Share with up to 40 people' };
-    const emails = [...new Set(list.map((e) => String(e || '').trim().toLowerCase()))].filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-    if (emails.length !== list.length) return { error: 'Pick people from the list' };
-    return { id: b.id, run: [['UPDATE calcs SET shared = ? WHERE id = ?', [emails.length ? JSON.stringify(emails) : null, b.id]]] };
+    if (u.viewAs || (u.role !== 'owner' && existing.by_email !== u.email)) return { error: 'Only whoever saved it (or an owner) can share it' };
+    const clean = (v) => {
+      const list = [...new Set((Array.isArray(v) ? v : []).map((e) => String(e || '').trim().toLowerCase()))];
+      if (list.some((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) return null;
+      return list.filter((e) => e !== existing.by_email); // whoever saved it always can
+    };
+    const editors = clean(b.editors);
+    const viewers = clean(b.emails);
+    if (!editors || !viewers) return { error: 'Pick people from the list' };
+    const view = viewers.filter((e) => !editors.includes(e)); // an editor can see it too
+    if (view.length + editors.length > 40) return { error: 'Share with up to 40 people' };
+    return { id: b.id, run: [['UPDATE calcs SET shared = ?, editors = ? WHERE id = ?', [view.length ? JSON.stringify(view) : null, editors.length ? JSON.stringify(editors) : null, b.id]]] };
   }
   if (a === 'commSave') {
     if (!canComm(u)) return { error: 'Only owners save commission reviews' };

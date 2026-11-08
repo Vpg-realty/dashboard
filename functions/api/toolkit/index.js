@@ -32,9 +32,11 @@ export async function onRequestPost(context) {
   const db = context.env.DB;
   const a = b?.action;
   const id = String(b?.id || '');
+  const calcAct = ['calcSave', 'calcRemove', 'calcShare', 'commSave', 'commRemove'].includes(a);
+  if (calcAct && id) await ensureShared(db); // the editors column must exist before it's read
   const existing = !id ? null
     : ['agency', 'agencyRemove', 'prefer'].includes(a) ? await db.prepare('SELECT * FROM title_agencies WHERE id = ?').bind(id).first()
-    : ['calcSave', 'calcRemove', 'calcShare', 'commSave', 'commRemove'].includes(a) ? await db.prepare('SELECT id, kind, by_email, deleted FROM calcs WHERE id = ?').bind(id).first() : null;
+    : calcAct ? await db.prepare('SELECT id, kind, by_email, deleted, editors FROM calcs WHERE id = ?').bind(id).first() : null;
   const slot = ['pof', 'pofExpires', 'pofLabel', 'pofRemove'].includes(a) ? String(b?.slot || (a === 'pof' ? '' : 'pof'))
     : ['doc', 'docEdit', 'docRemove'].includes(a) ? String(b?.slot || '') : '';
   const letter = slot ? await db.prepare('SELECT name, label, states, note FROM toolkit_files WHERE name = ?').bind(slot).first() : null;
@@ -42,7 +44,7 @@ export async function onRequestPost(context) {
   const p = plan(b, user, now, letter || existing);
   if (p.error) return json({ error: p.error }, 400);
   if (a === 'calcShare') await ensureShared(db);
-  const detail = a === 'terms' ? { terms: (b.terms || []).length, states: Object.keys(b.states || {}).length } : a.startsWith('pof') || a.startsWith('doc') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires, states: b.states } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name, emails: b.emails };
+  const detail = a === 'terms' ? { terms: (b.terms || []).length, states: Object.keys(b.states || {}).length } : a.startsWith('pof') || a.startsWith('doc') ? { slot: p.id || slot, label: b.label, filename: b.filename, expires: b.expires, states: b.states } : { id: p.id || b.id, kind: b.kind, state: b.state, name: b.name, emails: b.emails, editors: b.editors };
   await db.batch([
     ...p.run.map(([sql, args]) => db.prepare(sql).bind(...args)),
     db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, `toolkit.${a}`, JSON.stringify(detail)),

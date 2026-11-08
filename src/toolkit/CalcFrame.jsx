@@ -72,7 +72,7 @@ export function CalcBar({ c, kind, onPdf }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-zinc-500 mr-auto">
-          {c.saved ? <>Saved by {c.saved.by_name} · {new Date(c.saved.updated_at).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{c.dirty ? ' · unsaved changes' : ''}{!c.canEdit ? ' · view only — save a copy to change it' : ''}</> : c.dirty ? 'Not saved yet — kept on this device until you save or discard' : 'Fill in the fields — results update as you type'}
+          {c.saved ? <>Saved by {c.saved.by_name} · {new Date(c.saved.updated_at).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{c.dirty ? ' · unsaved changes' : ''}{!c.canEdit ? ' · view only — save a copy to change it' : c.saved.editorOfMe ? ' · you can edit this' : ''}</> : c.dirty ? 'Not saved yet — kept on this device until you save or discard' : 'Fill in the fields — results update as you type'}
         </span>
         {msg && <span className={`text-[13px] ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</span>}
         {(c.saved || c.dirty) && <button type="button" onClick={c.startNew} className="h-9 px-3 rounded-lg ring-1 ring-zinc-200 bg-white text-[13.5px] text-zinc-700 hover:bg-zinc-50">New</button>}
