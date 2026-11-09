@@ -16,6 +16,7 @@ import { StatusChip, GhlChip, Notice, StepPill } from './ui.jsx';
 import { nextStep, TONES, daysBetween } from './status.js';
 import { money, shortDate, btnCls, primaryCls, NEEDS_BUYER, noBuyer } from './format.js';
 import { laToday } from '../utils/historyRange.js';
+import { viewingAs } from '../utils/dashApi.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
 import { needsInfo } from './required.js';
@@ -34,6 +35,7 @@ import { reasonList } from './fieldLib.js';
 import { stageOf } from './math.js';
 import MismatchList from './Mismatch.jsx';
 import DealFiles from './DealFiles.jsx';
+import DealNotes from './DealNotes.jsx';
 import { mismatchRow } from './mismatchRow.js';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
@@ -809,7 +811,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
           </div>
           {!isNew && (
             <nav className="flex gap-5 mt-4 relative">
-              {[['details', 'Details'], ...(ro ? [] : [['tc', 'TC Checklist']]), ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History']].map(([k, l]) => (
+              {[['details', 'Details'], ...(ro ? [] : [['tc', 'TC Checklist']]), ['files', ro ? 'Files' : 'Files & Claude Review'], ['history', 'History'], ['notes', 'Notes']].map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`pb-2.5 border-b-[3px] font-medium ${tab === k ? 'border-tan-400 text-white' : 'border-transparent text-white/60 hover:text-white'}`}>{l}</button>
               ))}
               {!ro && <button type="button" onClick={() => setFlagging(true)} title="Flag an issue on this deal — it goes to Alerts and stays on the deal until it’s resolved" className="ml-auto mb-2 self-center h-7 rounded-lg bg-tan-500 px-2.5 text-[12.5px] font-semibold text-navy-900 hover:bg-tan-400">⚑ Flag an Issue</button>}
@@ -861,7 +863,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
         )}
 
         <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'tc' && !ro ? <DealTcTab id={id} /> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
+          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'notes' ? <DealNotes id={id} deal={merged} readOnlyView={!!viewingAs()} /> : tab === 'tc' && !ro ? <DealTcTab id={id} /> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
             <div className="flex flex-col gap-4">
               {claudeKeys.length > 0 && (
                 <div className="rounded-xl border-2 border-navy-700 bg-navy-50 px-4 py-2.5 text-[13.5px] text-navy-900">
