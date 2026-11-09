@@ -14,8 +14,6 @@ import { RailButton as SharedRailButton } from '../shell/SideRail.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, setQuery, linkProps } from '../shell/router.js';
-import { useDeals } from '../deals/store.js';
-import { isOpen } from '../deals/math.js';
 import { azDate } from '../../scripts/scorecard-lib.mjs';
 import TimePicker from '../deals/TimePicker.jsx';
 import { REPS } from '../data/config.js';
@@ -272,14 +270,6 @@ function RailButton({ n, red, ...p }) {
   return <SharedRailButton {...p} count={n} tone={red ? 'red' : 'navy'} />;
 }
 
-// The open deals, for a task on a property (only loaded when the TC is picked).
-function DealPick({ value, onChange }) {
-  const s = useDeals();
-  const options = (s.deals || []).filter(isOpen).map((d) => ({ value: d.id, label: d.address || d.id }));
-  return <SearchSelect className="w-64" value={value} onChange={onChange} sort searchable placeholder={s.status === 'ready' ? 'No property (just a task)' : 'Loading properties…'}
-    pinned={[{ value: '', label: 'No property (just a task)' }]} options={options} />;
-}
-
 function AddTask({ assignable, me, act, busy, cat: startCat = '' }) {
   const [title, setTitle] = useState('');
   const [cat, setCat] = useState(startCat);
@@ -287,15 +277,13 @@ function AddTask({ assignable, me, act, busy, cat: startCat = '' }) {
   const [due, setDue] = useState('');
   const [time, setTime] = useState('');
   const [to, setTo] = useState(me);
-  const [deal, setDeal] = useState('');
-  // A task for the TC can sit on a property (Luke, Oct 28): it goes on that
-  // property's checklist in the TC List and she gets a note here.
-  const forTc = !!assignable.find((p) => p.id === to)?.tc;
+  // A task on a property is added from the deal panel's Notes tab (Luke,
+  // Nov 9: "the only place i want to see tasks for each deal").
   const add = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const body = forTc && deal ? { action: 'add', title, due: due || null, dealId: deal } : { action: 'add', title, due: due || null, dueTime: (due && time) || null, to, cat: cat || null, recur: recur || null };
-    if (await act(body)) { setTitle(''); setDue(''); setTime(''); setDeal(''); setRecur(''); }
+    const body = { action: 'add', title, due: due || null, dueTime: (due && time) || null, to, cat: cat || null, recur: recur || null };
+    if (await act(body)) { setTitle(''); setDue(''); setTime(''); setRecur(''); }
   };
   return (
     <form onSubmit={add} className="flex flex-wrap gap-2 px-4 md:px-5 py-3 border-t border-tan-100 bg-tan-50/60">
@@ -305,8 +293,7 @@ function AddTask({ assignable, me, act, busy, cat: startCat = '' }) {
         <SearchSelect className="w-48" value={to} onChange={(v) => v && setTo(v)} clearable={false} sort={false}
           options={assignable.map((p) => ({ value: p.id, label: p.id === me ? 'For me' : `For ${p.name}` }))} />
       )}
-      {forTc && <DealPick value={deal} onChange={(v) => setDeal(v || '')} />}
-      {!(forTc && deal) && (
+      {(
         <>
           <SearchSelect className="w-52" value={cat} onChange={(v) => setCat(v || '')} clearable={false} sort={false}
             options={[{ value: '', label: 'To-do' }, ...Object.entries(TASK_CAT).map(([v, c]) => ({ value: v, label: c.label }))]} />
@@ -316,7 +303,7 @@ function AddTask({ assignable, me, act, busy, cat: startCat = '' }) {
       )}
       <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13.5px]" aria-label="Due date" />
       {/* A due time (Luke, Oct 22): the alert rings when it comes. */}
-      {due && !(forTc && deal) && <div className="w-36"><TimePicker value={time} onChange={setTime} placeholder="Time (optional)" /></div>}
+      {due && <div className="w-36"><TimePicker value={time} onChange={setTime} placeholder="Time (optional)" /></div>}
       <button type="submit" disabled={busy || !title.trim()} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold text-[13.5px] hover:bg-navy-800 disabled:opacity-50">Add task</button>
     </form>
   );

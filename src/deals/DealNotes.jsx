@@ -96,7 +96,7 @@ function Tasks({ tasks, people, readOnlyView, busy, send }) {
       <div className="min-w-0 flex-1">
         <div className={`text-[13.5px] ${x.doneAt ? 'text-zinc-400 line-through' : 'text-zinc-800'}`}>{x.text}</div>
         <div className="text-[11.5px] text-zinc-500 flex flex-wrap gap-x-2">
-          <span className={x.forMe ? 'font-semibold text-navy-800' : ''}>For {x.forMe ? 'you' : x.for}{x.tc ? ' · on the TC checklist' : ''}</span>
+          <span className={x.forMe ? 'font-semibold text-navy-800' : ''}>For {x.forMe ? 'you' : x.for}{x.tc ? ' · also on the TC List’s My Day' : ''}</span>
           {x.due && <span className={dueTone(x.due, x.doneAt)}>Due {dueWord(x.due)}</span>}
           <span>Added by {x.by}</span>
           {x.doneAt && <span>✓ {x.doneBy} · {when(x.doneAt)}</span>}
