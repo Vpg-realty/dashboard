@@ -8,7 +8,7 @@
 // `ig` = [ignored, past lead] per agent), and a sub-account opens its agents
 // on the right (`?sub=<location>`), with search and its own CSV.
 import { useEffect, useMemo, useState } from 'react';
-import { loadLowResp, loadLowRespSub, lowRespCsv } from '../utils/dashApi.js';
+import { loadLowResp, loadLowRespSub, pauseLowResp, lowRespCsv } from '../utils/dashApi.js';
 import { setQuery, useLocation } from '../shell/router.js';
 import Panel from '../shell/Panel.jsx';
 import BandMark from '../shell/BandMark.jsx';
@@ -117,7 +117,16 @@ function Agents({ sub, min }) {
   const [q, setQ] = useState('');
   const [all, setAll] = useState(false);
   const [kind, setKind] = useState('');
+  const [busy, setBusy] = useState(null);
   useEffect(() => { loadLowRespSub(sub.loc).then(setD).catch((e) => setErr(e.message)); }, [sub.loc]);
+  // Stop Automations (Luke, Nov 9): one click tags the agent "internal - do
+  // not automate" in GHL with the next refresh; Undo takes the tag off.
+  const pause = async (a, on) => {
+    if (on && !window.confirm(`Stop automations for ${a.name || 'this agent'}? This adds the “internal - do not automate” tag in GHL with the next refresh (~15 min).`)) return;
+    setBusy(a.id); setErr(null);
+    try { const r = await pauseLowResp(sub.loc, a.id, on); setD((x) => ({ ...x, paused: r.paused })); } catch (e) { setErr(e.message); } finally { setBusy(null); }
+  };
+  const stopped = Object.values(d?.paused || {}).filter((p) => p.on).length;
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
     const digits = t.replace(/\D/g, '');
@@ -136,6 +145,7 @@ function Agents({ sub, min }) {
     <Panel title={`${sub.label} · Agents`} right={<a href={lowRespCsv(min, sub.loc)} className="text-[12.5px] font-semibold">CSV ↓</a>}>
       <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b border-tan-100">
         {chip('', 'All', sub.c.agents)}{chip('never', 'Never a lead', sub.c.never)}{chip('past', 'Past leads', sub.c.past)}
+        {stopped > 0 && <span className="text-[12.5px] font-semibold text-emerald-800">⏸ {num(stopped)} stopped</span>}
         <div className="ml-auto w-full sm:w-72"><SearchBox className="w-full" value={q} onChange={setQ} placeholder="Search name, phone, email" /></div>
       </div>
       {err && <p className="px-4 py-4 text-rose-700 text-[13.5px]">{err}</p>}
@@ -144,7 +154,7 @@ function Agents({ sub, min }) {
         <div className="overflow-x-auto">
           <table className="w-full text-[13.5px]">
             <thead><tr className="text-left text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50">
-              <th className={cell}>Agent</th><th className={cell}>Phone</th><th className={`${cell} text-right`}>Ignored</th><th className={`${cell} whitespace-nowrap`}>Last Reply</th><th className={`${cell} text-right`}>Replies</th><th className={`${cell} whitespace-nowrap`}>Last Auto</th><th className={cell}>Tier</th><th className={cell}>Past Lead</th><th className={cell} />
+              <th className={cell}>Agent</th><th className={cell}>Phone</th><th className={`${cell} text-right`}>Ignored</th><th className={`${cell} whitespace-nowrap`}>Last Reply</th><th className={`${cell} text-right`}>Replies</th><th className={`${cell} whitespace-nowrap`}>Last Auto</th><th className={cell}>Tier</th><th className={cell}>Past Lead</th><th className={cell}>Automations</th><th className={cell} />
             </tr></thead>
             <tbody>
               {list.map((a) => (
@@ -157,15 +167,30 @@ function Agents({ sub, min }) {
                   <td className={`${cell} whitespace-nowrap text-zinc-700`}>{day(a.lastAuto)}</td>
                   <td className={`${cell} whitespace-nowrap`}>{a.tier || '—'}</td>
                   <td className={`${cell} whitespace-nowrap`}>{a.leads ? `${a.leads} · ${day(a.lastLead)}` : '—'}</td>
+                  <td className={`${cell} whitespace-nowrap`}><PauseCell p={d.paused?.[a.id]} busy={busy === a.id} onStop={() => pause(a, true)} onUndo={() => pause(a, false)} /></td>
                   <td className={`${cell} text-right`}><a href={`https://app.gohighlevel.com/v2/location/${sub.loc}/contacts/detail/${a.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center h-8 px-2.5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white text-[12.5px] font-semibold whitespace-nowrap">GHL ↗</a></td>
                 </tr>
               ))}
-              {!list.length && <tr><td colSpan={9} className="px-4 py-6 text-zinc-500">No agents match.</td></tr>}
+              {!list.length && <tr><td colSpan={10} className="px-4 py-6 text-zinc-500">No agents match.</td></tr>}
             </tbody>
           </table>
           {rows.length > SHOW && !all && <button type="button" onClick={() => setAll(true)} className="w-full py-3 text-[13px] font-semibold text-navy-700 hover:bg-tan-50 border-t border-tan-100">Show all {num(rows.length)}</button>}
         </div>
       )}
     </Panel>
+  );
+}
+
+function PauseCell({ p, busy, onStop, onUndo }) {
+  if (!p?.on) {
+    return <button type="button" disabled={busy} onClick={onStop} title="Adds the “internal - do not automate” tag in GHL"
+      className="h-8 px-2.5 rounded-lg border border-rose-300 bg-white text-rose-800 text-[12.5px] font-semibold hover:bg-rose-50 disabled:opacity-50">{busy ? 'Saving…' : 'Stop Automations'}</button>;
+  }
+  const state = p.status === 'done' ? (p.error ? 'failed' : 'tagged in GHL') : p.status === 'failed' ? 'failed' : 'sends next refresh';
+  return (
+    <div className="leading-tight">
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ring-1 ring-inset ${state === 'failed' ? 'bg-rose-50 text-rose-800 ring-rose-200' : 'bg-emerald-50 text-emerald-800 ring-emerald-200'}`} title={p.error || `${p.by} · ${new Date(p.at).toLocaleString()}`}>⏸ Stopped</span>
+      <div className="text-[11.5px] text-zinc-500">{state} · <button type="button" disabled={busy} onClick={onUndo} className="underline hover:text-navy-800">Undo</button></div>
+    </div>
   );
 }
