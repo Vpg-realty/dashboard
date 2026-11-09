@@ -2254,11 +2254,18 @@ same endpoint: GET adds `tasks` and `people`; POST `taskAdd` {text, due, to} /
 `taskTick` {id, done} / `taskRemove` {id}, logged `dealtask.*`). A task is an
 Alerts task for the person it's for (kind `task`, ext_id `dealtask:<id>`,
 `opp` = the deal, title "<street>: <task>"), so it's on their Alerts list
-(with **Open deal**) and one tick counts in both places; a task for the TC goes
-through `addTcTask` (tc_tasks), so it's on the deal's TC checklist and My
-Day too. For: owners / TC anyone active, a pod lead themself + their pod,
+(with **Open deal**) and one tick counts in both places.
+**The only place a deal's tasks live (Luke, Nov 9: "the only place i want to
+see tasks for each deal … remove it from the TC section"; tc_tasks had 0
+rows)**: the TC Checklist tab's Tasks for This Deal / Add a Task became a line
+pointing to Notes ("Open Notes → Tasks"), Alerts' add form lost its property
+picker (POST /api/alerts `dealId` is ignored), and /api/tc's `tasks` are now
+the TC's deal tasks (`tcDealTasks`, shaped like the old rows) — so they still
+show in the TC List's My Day (Luke: "keep them in my day"), ticked there with
+action `task` (`tickTcDealTask`); /api/tc `add` / `remove` are gone. tc_tasks
+and edge/tcTasks.js stay only for older `tctask:` alerts. For: owners / TC anyone active, a pod lead themself + their pod,
 everyone else themself. Tick: whoever it's for, whoever added it or an owner
-(TC tasks: owners / TC); remove: whoever added it or an owner. Open first by
+; remove: whoever added it or an owner. Open first by
 due date (late red, today amber), Done folded. Index `alerts_opp` made on
 first use. Usage: one indexed alerts read + one tc_tasks read + the users list
 per Notes tab open.

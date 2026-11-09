@@ -863,7 +863,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
         )}
 
         <div ref={bodyRef} onScroll={(e) => { const box = e.currentTarget; const secs = [...box.querySelectorAll('[data-sec]')]; let cur = null; for (const el of secs) { if (el.offsetTop - 40 <= box.scrollTop) cur = el.dataset.sec; } if (secs.length && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) cur = secs[secs.length - 1].dataset.sec; setOnSec(cur); }} className="relative flex-1 overflow-y-auto px-6 py-5">
-          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'notes' ? <DealNotes id={id} deal={merged} readOnlyView={!!viewingAs()} /> : tab === 'tc' && !ro ? <DealTcTab id={id} /> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
+          {tab === 'history' ? <div className="rounded-xl border border-tan-200 bg-white px-4"><History id={id} /></div> : tab === 'notes' ? <DealNotes id={id} deal={merged} readOnlyView={!!viewingAs()} /> : tab === 'tc' && !ro ? <DealTcTab id={id} onNotes={() => setTab('notes')} /> : tab === 'files' ? <DealFiles id={id} deal={merged} owner={owner} onFill={fillFromClaude} /> : (
             <div className="flex flex-col gap-4">
               {claudeKeys.length > 0 && (
                 <div className="rounded-xl border-2 border-navy-700 bg-navy-50 px-4 py-2.5 text-[13.5px] text-navy-900">

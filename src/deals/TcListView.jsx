@@ -285,23 +285,6 @@ function IssuesView({ cards, post, onCard }) {
   );
 }
 
-function AddTask({ onAdd }) {
-  const [text, setText] = useState('');
-  const [due, setDue] = useState('');
-  const [busy, setBusy] = useState(false);
-  const add = async () => { if (!text.trim()) return; setBusy(true); const ok = await onAdd(text, due || null); setBusy(false); if (ok) { setText(''); setDue(''); } };
-  return (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-      <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder="Add a task for this deal…" maxLength={200}
-        className="flex-1 min-w-[220px] h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-[13px] focus:outline-none focus:ring-2 focus:ring-navy-100" />
-      <label className="flex items-center gap-1.5 text-[12.5px] text-zinc-500">due
-        <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]" />
-      </label>
-      <button type="button" onClick={add} disabled={busy || !text.trim()} className={primaryCls}>Add Task</button>
-    </div>
-  );
-}
-
 // The deal's timeline under its header.
 function Timeline({ d, c, today }) {
   const em = c.steps.find((s) => s.id === 'em');
@@ -370,7 +353,7 @@ function StepLine({ it, d, post, today }) {
 }
 
 // The deal's checklist in the side panel.
-function DealChecklist({ c, today, post, onFlag }) {
+function DealChecklist({ c, today, post, onFlag, onNotes }) {
   const d = c.deal;
   // The phases with something open now (late, today, next 7 days) start open.
   const weekOut = new Date(Date.parse(`${today}T12:00:00Z`) + 7 * 86400000).toISOString().slice(0, 10);
@@ -431,23 +414,13 @@ function DealChecklist({ c, today, post, onFlag }) {
             </section>
           );
         })}
-        <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
-          <div className="px-4 py-2.5 bg-navy-700 text-white text-[14px] font-semibold">Tasks for This Deal</div>
-          {c.tasks.length === 0 && <div className="px-4 py-2.5 text-[12.5px] text-zinc-400">No extra tasks yet.</div>}
-          <ul>
-            {c.tasks.map((t) => (
-              <li key={t.id} className="flex items-start gap-3 px-4 py-2.5 border-t border-tan-100 text-[13.5px]">
-                <input type="checkbox" checked={!!t.done_at} onChange={(e) => post({ action: 'task', id: t.id, done: e.target.checked })} aria-label={t.text} className="mt-0.5 w-[18px] h-[18px] accent-[#1b385f]" />
-                <span className="min-w-0 flex-1">
-                  <span className={t.done_at ? 'text-zinc-400 line-through' : 'text-navy-900 font-semibold'}>{t.text}</span>
-                  <span className="block text-[12px] text-zinc-500">{t.due ? `due ${shortDate(t.due)} · ` : ''}added by {t.created_by} {when(t.created_at)}{t.done_at ? ` · done by ${t.done_by} ${when(t.done_at)}` : ''}</span>
-                </span>
-                <button type="button" onClick={() => { if (window.confirm(`Delete the task “${t.text}”?`)) post({ action: 'remove', id: t.id }); }} className="text-[12px] text-zinc-400 hover:text-red-700" aria-label="Delete task">✕</button>
-              </li>
-            ))}
-          </ul>
-          <AddTask onAdd={(text, due) => post({ action: 'add', dealId: d.id, text, due })} />
-        </section>
+        {/* Deal tasks live on the deal panel's Notes tab (Luke, Nov 9: "the only
+            place i want to see tasks for each deal"); the TC's due ones still
+            show in My Day. */}
+        <div className="rounded-xl border border-tan-200 bg-white px-4 py-3 flex flex-wrap items-center gap-2 text-[13.5px] text-zinc-600">
+          <span>Tasks for this deal are on the <b className="text-navy-800">Notes</b> tab{c.tasks.filter((t) => !t.done_at).length ? ` — ${c.tasks.filter((t) => !t.done_at).length} open for the TC` : ''}.</span>
+          {onNotes && <button type="button" onClick={onNotes} className="ml-auto h-8 px-3 rounded-lg bg-navy-700 text-white text-[12.5px] font-semibold hover:bg-navy-800">Open Notes → Tasks</button>}
+        </div>
       </div>
     </div>
   );
@@ -455,7 +428,7 @@ function DealChecklist({ c, today, post, onFlag }) {
 
 // The deal panel's TC Checklist tab (owners and the TC): the deal's checklist,
 // warnings, open issues and tasks, from the same store as the TC List page.
-export function DealTcTab({ id }) {
+export function DealTcTab({ id, onNotes }) {
   const s = useDeals();
   const { st, err, post } = useTc();
   const [flagging, setFlagging] = useState(null);
@@ -467,7 +440,7 @@ export function DealTcTab({ id }) {
   return (
     <>
       {err && <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
-      <DealChecklist c={c} today={today} post={post} onFlag={setFlagging} />
+      <DealChecklist c={c} today={today} post={post} onFlag={setFlagging} onNotes={onNotes} />
       {flagging && <FlagDialog d={flagging} post={post} onClose={() => setFlagging(null)} />}
     </>
   );

@@ -4,9 +4,9 @@
 //   GET  /api/tc → { checks, tasks, issues, assigned: {dealId: when it was set to Assigned} }
 //   POST /api/tc { action: 'check', dealId, item, done }      tick a step (`<id>~na` = not needed,
 //                                                             `mon:<date>` = Monday update sent)
-//                { action: 'add', dealId, text, due? }         add a task for the deal
-//                { action: 'task', id, done }                  tick a task
-//                { action: 'remove', id }                      delete a task
+//                { action: 'task', id, done }                  tick one of the TC's deal tasks
+//   (tasks = the TC's deal tasks from the deal panel's Notes tab — the only
+//   place they're added since Nov 9, edge/dealTasks.js)
 //                { action: 'flag', dealId, kind, text? }       Flag an Issue (→ Alerts)
 //                { action: 'resolve', id }                     the issue is sorted (closes its alerts)
 //   → the same as GET
@@ -14,7 +14,7 @@ import { currentUser, json } from '../../../edge/auth.js';
 import { canEditDeals } from '../../../edge/deals.js';
 import { granted } from '../../../edge/access.js';
 import { holderOf } from '../../../edge/alerts.js';
-import { addTcTask, tickTcTask, removeTcTask } from '../../../edge/tcTasks.js';
+import { tcDealTasks, tickTcDealTask } from '../../../edge/dealTasks.js';
 import { okItem, ISSUE_KINDS, issueLabel } from '../../../src/deals/tcList.js';
 import roster from '../../../subaccounts.json' with { type: 'json' };
 
@@ -25,12 +25,12 @@ const newId = (p) => `${p}${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
 async function state(db) {
   const [c, t, i, a] = await Promise.all([
     db.prepare('SELECT deal_id, item, done_by, done_at FROM tc_checks').all(),
-    db.prepare('SELECT * FROM tc_tasks ORDER BY created_at').all(),
+    tcDealTasks(db),
     db.prepare('SELECT * FROM tc_issues ORDER BY created_at DESC').all().catch(() => ({ results: [] })),
     // When each deal last moved to Assigned (the Assigned steps count from it).
     db.prepare("SELECT deal_id, MAX(at) AS at FROM deal_log WHERE field = 'status' AND new = '\"ASSIGNED\"' GROUP BY deal_id").all(),
   ]);
-  return { checks: c.results, tasks: t.results, issues: i.results, assigned: Object.fromEntries(a.results.map((r) => [r.deal_id, r.at])) };
+  return { checks: c.results, tasks: t, issues: i.results, assigned: Object.fromEntries(a.results.map((r) => [r.deal_id, r.at])) };
 }
 
 // Who an issue alerts (Luke, Oct 26: "all members get the alerts but only if
@@ -67,16 +67,9 @@ export async function onRequestPost(context) {
     if (!ID.test(String(b.dealId || '')) || !okItem(b.item)) return json({ error: 'unknown item' }, 400);
     if (b.done) await db.prepare('INSERT INTO tc_checks (deal_id, item, done_by, done_at) VALUES (?, ?, ?, ?) ON CONFLICT (deal_id, item) DO UPDATE SET done_by = excluded.done_by, done_at = excluded.done_at').bind(b.dealId, b.item, user.name, now).run();
     else await db.prepare('DELETE FROM tc_checks WHERE deal_id = ? AND item = ?').bind(b.dealId, b.item).run();
-  } else if (b?.action === 'add') {
-    // Also lets the TC know in Alerts when someone else adds it (edge/tcTasks.js).
-    const r = await addTcTask(db, user, { dealId: b.dealId, text: b.text, due: b.due }, now);
-    if (r.error) return json({ error: r.error }, 400);
   } else if (b?.action === 'task') {
-    if (!ID.test(String(b.id || ''))) return json({ error: 'unknown task' }, 400);
-    await db.batch(tickTcTask(b.id, !!b.done, user.name, now).map(([sql, args]) => db.prepare(sql).bind(...args)));
-  } else if (b?.action === 'remove') {
-    if (!ID.test(String(b.id || ''))) return json({ error: 'unknown task' }, 400);
-    await db.batch(removeTcTask(b.id).map(([sql, args]) => db.prepare(sql).bind(...args)));
+    const r = await tickTcDealTask(db, user, b.id, !!b.done, now);
+    if (r.error) return json({ error: r.error }, r.status || 400);
   } else if (b?.action === 'flag') {
     if (!ID.test(String(b.dealId || ''))) return json({ error: 'unknown deal' }, 400);
     if (!ISSUE_KINDS.some(([k]) => k === b.kind)) return json({ error: 'pick what kind of issue it is' }, 400);
