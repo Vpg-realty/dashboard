@@ -1696,6 +1696,13 @@ Overrides older sidebar-order notes.
   lead gets their pod's progress and lists (Luke: "pod leads can see their
   pod too"). Usage: a rep's load reads their own rows; an owner's reads the
   table (~1.9k rows).
+  **Simplified (Luke, Nov 9: "a super simple process")** — overrides the
+  buttons above: every agent has **Open in GHL ↗**, then **✓ Complete**
+  (Call Back) or **★ Tag as Tier 1** (Make Tier 1), and **Ignore**; Done
+  keeps Undo. No note box, no No-answer / tries. Only Tag as Tier 1 writes
+  to GHL (the tag swap, reversed by Undo); Complete and Ignore write
+  nothing. Older answers stay done: working / unreached read as Completed,
+  skip / keep / notfit as Ignored (193 rows were checked off before this).
 - **Settings › Backups & Usage** (Luke: "a usage section in the settings …
   backups & usage"): the rail group holds **GHL Backups** and **Site
   Usage** (`/settings/usage`, `src/settings/UsageView.jsx`, GET /api/usage,
