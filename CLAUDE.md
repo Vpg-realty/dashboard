@@ -1647,6 +1647,16 @@ at 0 — GHL's message export had answered empty (Axel AL, 13.6k messages, was
 "done" in 7 seconds). `messagesOf` now asks an empty page again twice, the
 index row keeps `messages`, and a sub-account with 50+ contacts and no
 messages is an error (retried, 3 tries) instead of an empty list.
+**Page, Nov 9** (Luke: "the filter … doesn't change any of the numbers …
+i can't click into the accounts to view a list of agents"): GET
+/api/agent-lists sends each sub-account's `ig` ([ignored, past lead] per
+agent, ~20 KB), so the **Ignored at least 4+ … 8+** switch in the band
+(`?min=`) recounts the counters and the By Rep · State table (picks stop at
+8 — on Nov 9 only one agent was past 8: 4 = 847, 5 = 1,022, 7 = 569, 8 =
+100). A row opens that sub-account's agents on the right (`?sub=<location>`,
+GET `?loc=`): All / Never a lead / Past leads chips, search (name, phone,
+email), most ignored first, GHL ↗ per agent, first 150 then Show all, its own
+CSV (`?csv=1&loc=`). Usage: one read of the job's ~50 settings rows per load.
 
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 

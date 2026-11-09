@@ -1,9 +1,12 @@
 // Low-response agents (Luke, Nov 8) — owners only, never while viewing as.
-// GET → { status, subs: [{ loc, label, count, rows }] } from the deploy's
-// agent_lowresp job (scripts/agent-report.mjs); GET ?csv=1 → every row as a
-// CSV (rep · state first, a GHL contact link last), ?min=N keeps agents with
-// N+ texts ignored (default 4, the list's own cutoff). Reads one settings
-// row per sub-account (+ its chunks for the CSV).
+// GET → { status, subs: [{ loc, label, rows, ig: [[ignored, pastLead 0|1], …] }] }
+// from the deploy's agent_lowresp job (scripts/agent-report.mjs) — `ig` lets
+// the page recount for any "N+ ignored" pick (Luke, Nov 9: "the filter …
+// doesn't change any of the numbers"); GET ?loc=<id> → that sub-account's
+// agents (Luke: "i can't click into the accounts to view a list of agents");
+// GET ?csv=1 → every row as a CSV (rep · state first, a GHL contact link
+// last), ?min=N keeps agents with N+ texts ignored (default 4), ?loc= one
+// sub-account. Reads the job's settings rows (~50).
 import { currentUser, json } from '../../edge/auth.js';
 
 const KEY = 'agent_lowresp';
@@ -18,16 +21,36 @@ export async function onRequestGet(context) {
   const st = await db.prepare('SELECT value FROM settings WHERE key = ?').bind(KEY).first();
   const idx = (await db.prepare("SELECT key, value FROM settings WHERE key LIKE ? AND key NOT LIKE ?").bind(`${KEY}:%`, `${KEY}:%:%`).all()).results || [];
   const subs = idx.map((r) => ({ loc: r.key.slice(KEY.length + 1), ...JSON.parse(r.value) })).sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-  if (!url.searchParams.get('csv')) return json({ status: st ? JSON.parse(st.value) : null, subs: subs.map((s) => ({ loc: s.loc, label: s.label, count: s.count, rows: s.rows, at: s.at })) });
-  const min = Math.max(1, Number(url.searchParams.get('min')) || 4);
-  const lines = [['Rep · State', 'Agent', 'Phone', 'Email', 'Automation', 'Replies Ever', 'Last Reply', 'Texts Ignored Since', 'Last Automated Text', 'Tier', 'Past Leads', 'Last Lead', 'Open in GHL'].join(',')];
-  for (const s of subs) {
-    const parts = (await db.prepare('SELECT key, value FROM settings WHERE key LIKE ?').bind(`${KEY}:${s.loc}:%`).all()).results || [];
+  const loc = url.searchParams.get('loc');
+  const rowsOf = async (l) => {
+    const parts = (await db.prepare('SELECT key, value FROM settings WHERE key LIKE ?').bind(`${KEY}:${l}:%`).all()).results || [];
     parts.sort((a, b) => Number(a.key.split(':').pop()) - Number(b.key.split(':').pop()));
-    for (const p of parts) for (const r of JSON.parse(p.value)) {
-      if (r[7] < min) continue;
-      lines.push([s.label, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10] || '', r[11] || '', `https://app.gohighlevel.com/v2/location/${s.loc}/contacts/detail/${r[0]}`].map(cell).join(','));
+    return parts.flatMap((p) => JSON.parse(p.value));
+  };
+  if (url.searchParams.get('csv')) {
+    const min = Math.max(1, Number(url.searchParams.get('min')) || 4);
+    const lines = [['Rep · State', 'Agent', 'Phone', 'Email', 'Automation', 'Replies Ever', 'Last Reply', 'Texts Ignored Since', 'Last Automated Text', 'Tier', 'Past Leads', 'Last Lead', 'Open in GHL'].join(',')];
+    for (const s of subs) {
+      if (loc && s.loc !== loc) continue;
+      for (const r of await rowsOf(s.loc)) {
+        if (r[7] < min) continue;
+        lines.push([s.label, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10] || '', r[11] || '', `https://app.gohighlevel.com/v2/location/${s.loc}/contacts/detail/${r[0]}`].map(cell).join(','));
+      }
     }
+    return new Response(lines.join('\n'), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="low-response-agents.csv"`, 'cache-control': 'no-store' } });
   }
-  return new Response(lines.join('\n'), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="low-response-agents.csv"`, 'cache-control': 'no-store' } });
+  if (loc) {
+    const s = subs.find((x) => x.loc === loc);
+    if (!s) return json({ error: 'not found' }, 404);
+    const cols = s.cols || [];
+    return json({ loc, label: s.label, agents: (await rowsOf(loc)).map((r) => Object.fromEntries(cols.map((c, i) => [c, r[i]]))) });
+  }
+  // One read of every chunk (a few dozen rows) for the counts per pick.
+  const all = (await db.prepare('SELECT key, value FROM settings WHERE key LIKE ?').bind(`${KEY}:%:%`).all()).results || [];
+  const ig = {};
+  for (const p of all) {
+    const l = p.key.split(':')[1];
+    for (const r of JSON.parse(p.value)) (ig[l] ||= []).push([r[7], r[10] ? 1 : 0]);
+  }
+  return json({ status: st ? JSON.parse(st.value) : null, subs: subs.map((s) => ({ loc: s.loc, label: s.label, count: s.count, rows: s.rows, at: s.at, ig: ig[s.loc] || [] })) });
 }
