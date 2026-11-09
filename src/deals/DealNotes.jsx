@@ -5,13 +5,16 @@
 // the tracker's own EMD pill beside the EMD note; then Add a Note (kind,
 // text, for a walkthrough who walked it and when, "Owners & TC only" for
 // those two roles); then every note, newest first, with Edit / Remove for
-// whoever wrote it (or an owner). Server: functions/api/deal-notes,
-// edge/dealNotes.js.
+// whoever wrote it (or an owner). Under the notes, Tasks (Nov 9): a to-do on
+// the property for someone, with a due date — also on their Alerts list (the
+// TC's on her checklist). Server: functions/api/deal-notes, edge/dealNotes.js,
+// edge/dealTasks.js.
 import { useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
 import { NOTE_KINDS, NOTE_KIND, STANDS } from './notes.js';
 import { EmdPill } from './pills.jsx';
 import { ALL_REPS } from '../data/config.js';
+import SearchSelect from './SearchSelect.jsx';
 
 const api = (id, body) => call(`deal-notes/${id}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
 const azToday = () => new Date(Date.now() - 7 * 3600000).toISOString().slice(0, 10);
@@ -63,6 +66,79 @@ function Form({ value, onChange, onSave, onCancel, busy, seesPrivate, saveLabel 
         </div>
       </div>
     </div>
+  );
+}
+
+const dueTone = (due, done) => {
+  if (!due || done) return 'text-zinc-500';
+  const t = azToday();
+  return due < t ? 'text-rose-700 font-semibold' : due === t ? 'text-amber-700 font-semibold' : 'text-zinc-500';
+};
+const dueWord = (due) => {
+  const t = azToday();
+  if (due < t) return `${day(due)} · late`;
+  if (due === t) return 'Today';
+  return day(due);
+};
+
+function Tasks({ tasks, people, readOnlyView, busy, send }) {
+  const me = people.find((p) => p.me)?.id || '';
+  const [t, setT] = useState({ text: '', due: '', to: '' });
+  const [showDone, setShowDone] = useState(false);
+  const open = tasks.filter((x) => !x.doneAt);
+  const done = tasks.filter((x) => x.doneAt);
+  const input = 'h-9 rounded-lg border border-tan-200 bg-white px-2.5 text-[13.5px] text-zinc-800 focus:outline-none focus:ring-2 focus:ring-navy-200';
+  const add = () => send({ action: 'taskAdd', text: t.text, due: t.due || null, to: t.to || me }, () => setT({ text: '', due: '', to: t.to }));
+  const row = (x) => (
+    <div key={x.id} className="flex items-start gap-3 px-4 py-2.5">
+      <input type="checkbox" className="mt-1 h-4 w-4 accent-navy-700" checked={!!x.doneAt} disabled={!x.canTick || busy}
+        onChange={(e) => send({ action: 'taskTick', id: x.id, done: e.target.checked })} title={x.canTick ? '' : 'Only whoever it’s for, whoever added it or an owner can tick it'} />
+      <div className="min-w-0 flex-1">
+        <div className={`text-[13.5px] ${x.doneAt ? 'text-zinc-400 line-through' : 'text-zinc-800'}`}>{x.text}</div>
+        <div className="text-[11.5px] text-zinc-500 flex flex-wrap gap-x-2">
+          <span className={x.forMe ? 'font-semibold text-navy-800' : ''}>For {x.forMe ? 'you' : x.for}{x.tc ? ' · on the TC checklist' : ''}</span>
+          {x.due && <span className={dueTone(x.due, x.doneAt)}>Due {dueWord(x.due)}</span>}
+          <span>Added by {x.by}</span>
+          {x.doneAt && <span>✓ {x.doneBy} · {when(x.doneAt)}</span>}
+        </div>
+      </div>
+      {x.canRemove && <button type="button" onClick={() => window.confirm('Remove this task?') && send({ action: 'taskRemove', id: x.id })} className="text-[12px] text-zinc-500 hover:text-rose-700 hover:underline">Remove</button>}
+    </div>
+  );
+  return (
+    <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
+      <div className="bg-navy-700 px-4 py-2 text-[13px] font-semibold text-white flex items-center">
+        Tasks{open.length ? <span className="ml-2 rounded-full bg-tan-500 text-navy-900 px-2 text-[11.5px]">{open.length} open</span> : null}
+      </div>
+      {!readOnlyView && people.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-tan-100">
+          <label className="grid gap-1 text-[12px] font-semibold text-zinc-500 flex-1 min-w-[220px]">Task
+            <input value={t.text} maxLength={200} onChange={(e) => setT({ ...t, text: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && t.text.trim() && add()} placeholder="e.g. Get the lockbox code to the inspector" className={input} />
+          </label>
+          {people.length > 1 && (
+            <div className="grid gap-1 text-[12px] font-semibold text-zinc-500">For
+              <SearchSelect className="w-48" value={t.to || me} onChange={(v) => v && setT({ ...t, to: v })} clearable={false} sort={false}
+                options={people.map((p) => ({ value: p.id, label: p.me ? `Me (${p.name})` : p.tc ? `${p.name} (TC)` : p.name }))} />
+            </div>
+          )}
+          <label className="grid gap-1 text-[12px] font-semibold text-zinc-500">Due
+            <input type="date" value={t.due} onChange={(e) => setT({ ...t, due: e.target.value })} className={`${input} w-40`} />
+          </label>
+          <button type="button" disabled={busy || !t.text.trim()} onClick={add} className="h-9 px-4 rounded-lg bg-navy-700 text-white text-[13px] font-semibold hover:bg-navy-800 disabled:opacity-50">Add Task</button>
+        </div>
+      )}
+      <div className="divide-y divide-tan-100">
+        {open.map(row)}
+        {!open.length && <p className="px-4 py-4 text-[13px] text-zinc-500">{done.length ? 'Nothing open — all done.' : 'No tasks on this property yet.'}</p>}
+      </div>
+      {done.length > 0 && (
+        <>
+          <button type="button" onClick={() => setShowDone(!showDone)} className="w-full text-left px-4 py-2 text-[12.5px] font-semibold text-navy-700 border-t border-tan-100 hover:bg-tan-50">{showDone ? '▾' : '▸'} Done · {done.length}</button>
+          {showDone && <div className="divide-y divide-tan-100 border-t border-tan-100">{done.map(row)}</div>}
+        </>
+      )}
+      <p className="px-4 py-2 text-[11.5px] text-zinc-400 border-t border-tan-100">Each task also shows on that person’s Alerts list; ticking it there ticks it here.</p>
+    </section>
   );
 }
 
@@ -153,6 +229,8 @@ export default function DealNotes({ id, deal, readOnlyView }) {
           </div>
         ))}
       </section>
+
+      <Tasks tasks={d.tasks || []} people={d.people || []} readOnlyView={readOnlyView} busy={busy} send={send} />
     </div>
   );
 }

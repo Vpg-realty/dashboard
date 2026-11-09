@@ -2248,6 +2248,21 @@ while viewing as (the tab is read only then); every write in edit_log
 Links), which stays as it was. Usage: one indexed read per Notes tab open,
 one write per save.
 
+**Tasks (Luke, Nov 9: "add a task section under the notes section")**: under
+All Notes, a **Tasks** card (`Tasks` in DealNotes.jsx, `edge/dealTasks.js`,
+same endpoint: GET adds `tasks` and `people`; POST `taskAdd` {text, due, to} /
+`taskTick` {id, done} / `taskRemove` {id}, logged `dealtask.*`). A task is an
+Alerts task for the person it's for (kind `task`, ext_id `dealtask:<id>`,
+`opp` = the deal, title "<street>: <task>"), so it's on their Alerts list
+(with **Open deal**) and one tick counts in both places; a task for the TC goes
+through `addTcTask` (tc_tasks), so it's on the deal's TC checklist and My
+Day too. For: owners / TC anyone active, a pod lead themself + their pod,
+everyone else themself. Tick: whoever it's for, whoever added it or an owner
+(TC tasks: owners / TC); remove: whoever added it or an owner. Open first by
+due date (late red, today amber), Done folded. Index `alerts_opp` made on
+first use. Usage: one indexed alerts read + one tc_tasks read + the users list
+per Notes tab open.
+
 ## Assigned / Closed pop-ups (Luke, Oct 26)
 
 "a similar popup as we created for cancelled … when the deal is marked as
