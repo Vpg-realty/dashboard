@@ -167,7 +167,13 @@ async function main() {
   const file = path.join(ROOT, '.cache', 'ghl-fields.json');
   const { fields } = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { fields: null };
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'subaccounts.json'), 'utf8'));
-  const locationOf = (loc) => { const [rep, market] = String(loc).split('|'); return cfg.subaccounts.find((x) => x.repId === rep && x.marketId === market)?.locationId || null; };
+  // "<repId>|<marketId>", or a GHL location id as it is (Low-Response Agents' tags).
+  const locationOf = (loc) => {
+    const s = String(loc || '');
+    if (!s.includes('|')) return cfg.subaccounts.some((x) => x.locationId === s) ? s : null;
+    const [rep, market] = s.split('|');
+    return cfg.subaccounts.find((x) => x.repId === rep && x.marketId === market)?.locationId || null;
+  };
   const query = async (sql, params) => {
     const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${D1_DATABASE}/query`, {
       method: 'POST', headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },

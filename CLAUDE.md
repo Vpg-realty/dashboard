@@ -1657,6 +1657,20 @@ agent, ~20 KB), so the **Ignored at least 4+ … 8+** switch in the band
 GET `?loc=`): All / Never a lead / Past leads chips, search (name, phone,
 email), most ignored first, GHL ↗ per agent, first 150 then Show all, its own
 CSV (`?csv=1&loc=`). Usage: one read of the job's ~50 settings rows per load.
+**Stop Automations (Luke, Nov 9: "a button to add the internal do not
+automate tag so then they get marked accordingly in ghl")**: each agent row
+in the panel has **Stop Automations** (a confirm) → POST /api/agent-lists
+{loc, contact, on} (owners, not while viewing as; only an agent on that
+sub-account's list) queues `tag:internal - do not automate` add / remove in
+ghl_push (location = the GHL location id — scripts/push-ghl.mjs `locationOf`
+now takes one as it is; deal_id `lowresp:<loc>:<contact>`; edit_log
+`lowresp.pause` / `unpause`), sent with the next refresh. The row then reads
+"⏸ Stopped · sends next refresh / tagged in GHL / failed" with Undo; GET
+?loc= sends `paused` (the latest tag row per contact). **One click per
+agent — nothing is tagged automatically.** Luke wants automatic tagging
+later, but only once the rules for who qualifies are agreed and checked
+(Nov 9: "we need to figure out how to do that first and ensure you are
+adding it to the correct people") — don't build it without that.
 
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 
