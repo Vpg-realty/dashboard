@@ -2225,6 +2225,29 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   both ("You are here", `HERE` lists a stage's sections). Folds are kept under
   `vpg.deal.open2.<id>` (the old key's lists held the combined card).
 
+## Property notes — the deal panel's Notes tab (Luke, Nov 9)
+
+"a notes section per property … a tab at the end … a place to track status
+of the property based on findings, em status, who walked it, etc." The deal
+panel's last tab, **Notes** (`?tab=notes`, `src/deals/DealNotes.jsx`; kinds
+in `src/deals/notes.js`; server `edge/dealNotes.js`, API
+`functions/api/deal-notes/[id].js`, D1 `deal_notes` made on first use with an
+index on deal_id). A dated log per tracker deal — each entry a kind
+(`NOTE_KINDS`: Status Update, Walkthrough, Findings / Repairs, Earnest Money,
+Title / Escrow, Seller / Agent, Buyer / Dispo, Other), the text and, for a
+Walkthrough, **walked by** (typed, the reps' names suggested) and the date.
+On top, **Where It Stands**: the latest Status Update, Walkthrough (who and
+when), Findings and Earnest Money note, with the tracker's own EMD pill next
+to the EMD note. Then Add a Note, then All Notes newest first with chips per
+kind. **Who**: everyone who can open the deal (owners, the TC, reps /
+managers on open deals) reads and adds; an entry ticked **Owners & TC
+only** (those two roles only) is never sent to anyone else; only whoever
+wrote an entry, or an owner, edits / removes it (soft delete). Never written
+while viewing as (the tab is read only then); every write in edit_log
+`dealnote.*`. Separate from the sheet's one-box `notes` field (Notes &
+Links), which stays as it was. Usage: one indexed read per Notes tab open,
+one write per save.
+
 ## Assigned / Closed pop-ups (Luke, Oct 26)
 
 "a similar popup as we created for cancelled … when the deal is marked as
