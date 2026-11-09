@@ -44,7 +44,15 @@ async function oppsOf(loc, pit) {
 async function messagesOf(loc, pit, since = 0) {
   const out = []; let cursor;
   for (let i = 0; i < 600; i++) {
-    const d = await ghlFetch('/conversations/messages/export', pit, { params: { locationId: loc, startDate: new Date(since || Date.parse('2015-01-01T00:00:00Z')).toISOString(), endDate: new Date().toISOString(), limit: 1000, sortBy: 'createdAt', sortOrder: 'asc', ...(cursor ? { cursor } : {}) } });
+    // GHL's export sometimes answers an empty page for a location that has
+    // messages (seen Nov 8: 25 of 35 sub-accounts came back with none), so
+    // an empty page is asked again twice before it's taken as the end.
+    let d;
+    for (let t = 0; t < 3; t++) {
+      d = await ghlFetch('/conversations/messages/export', pit, { params: { locationId: loc, startDate: new Date(since || Date.parse('2015-01-01T00:00:00Z')).toISOString(), endDate: new Date().toISOString(), limit: 1000, sortBy: 'createdAt', sortOrder: 'asc', ...(cursor ? { cursor } : {}) } });
+      if (d?.messages?.length) break;
+      await new Promise((r) => setTimeout(r, 2000 * (t + 1)));
+    }
     out.push(...(d?.messages || []).map((m) => ({ contactId: m.contactId, direction: m.direction, dateAdded: m.dateAdded, body: m.body, messageType: m.messageType, source: m.source, userId: m.userId })));
     cursor = d?.nextCursor;
     if (!cursor || !d?.messages?.length) break;
@@ -123,10 +131,13 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
       const messages = await messagesOf(loc, pit, since);
       const data = { contacts, opps, pipelines, messages };
       if (kind === 'lowresp') {
+        // A sub-account with agents but no message history is a failed
+        // export, not an empty list — retried on the next run (3 tries).
+        if (!messages.length && contacts.length > 50) throw new Error(`no messages came back for ${contacts.length} contacts`);
         const r = lowResponseLocation({ ...data, label: labels[loc] || loc });
         const CH = 350; const parts = Math.ceil(r.rows.length / CH);
         for (let i = 0; i < parts; i++) await put(`${key}:${loc}:${i}`, r.rows.slice(i * CH, (i + 1) * CH));
-        await put(`${key}:${loc}`, { label: r.label, count: r.count, rows: r.rows.length, parts, cols: ROW_COLS, at: new Date().toISOString() });
+        await put(`${key}:${loc}`, { label: r.label, count: r.count, rows: r.rows.length, parts, messages: messages.length, cols: ROW_COLS, at: new Date().toISOString() });
         st.done.push(loc); delete st.errors[loc];
         log(`${key} ${r.label}: ${r.rows.length} agents`);
         await save();

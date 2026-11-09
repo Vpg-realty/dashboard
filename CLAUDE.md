@@ -1642,6 +1642,11 @@ same day, Luke: "under my work for owners only, not hidden away in settings";
 15+ ignored pick and Download CSV) from `GET /api/agent-lists` (owners only,
 never while viewing as; `?csv=1&min=N` = every row with a GHL contact link).
 Read only — nothing is tagged in GHL until Luke approves a count.
+**Empty exports (Nov 9)**: the first run finished with 25 of 35 sub-accounts
+at 0 — GHL's message export had answered empty (Axel AL, 13.6k messages, was
+"done" in 7 seconds). `messagesOf` now asks an empty page again twice, the
+index row keeps `messages`, and a sub-account with 50+ contacts and no
+messages is an error (retried, 3 tries) instead of an empty list.
 
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 
