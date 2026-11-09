@@ -1642,6 +1642,21 @@ same day, Luke: "under my work for owners only, not hidden away in settings";
 15+ ignored pick and Download CSV) from `GET /api/agent-lists` (owners only,
 never while viewing as; `?csv=1&min=N` = every row with a GHL contact link).
 Read only — nothing is tagged in GHL until Luke approves a count.
+**Empty exports (Nov 9)**: the first run finished with 25 of 35 sub-accounts
+at 0 — GHL's message export had answered empty (Axel AL, 13.6k messages, was
+"done" in 7 seconds). `messagesOf` now asks an empty page again twice, the
+index row keeps `messages`, and a sub-account with 50+ contacts and no
+messages is an error (retried, 3 tries) instead of an empty list.
+**Page, Nov 9** (Luke: "the filter … doesn't change any of the numbers …
+i can't click into the accounts to view a list of agents"): GET
+/api/agent-lists sends each sub-account's `ig` ([ignored, past lead] per
+agent, ~20 KB), so the **Ignored at least 4+ … 8+** switch in the band
+(`?min=`) recounts the counters and the By Rep · State table (picks stop at
+8 — on Nov 9 only one agent was past 8: 4 = 847, 5 = 1,022, 7 = 569, 8 =
+100). A row opens that sub-account's agents on the right (`?sub=<location>`,
+GET `?loc=`): All / Never a lead / Past leads chips, search (name, phone,
+email), most ignored first, GHL ↗ per agent, first 150 then Show all, its own
+CSV (`?csv=1&loc=`). Usage: one read of the job's ~50 settings rows per load.
 
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 
@@ -1691,6 +1706,13 @@ Overrides older sidebar-order notes.
   lead gets their pod's progress and lists (Luke: "pod leads can see their
   pod too"). Usage: a rep's load reads their own rows; an owner's reads the
   table (~1.9k rows).
+  **Simplified (Luke, Nov 9: "a super simple process")** — overrides the
+  buttons above: every agent has **Open in GHL ↗**, then **✓ Complete**
+  (Call Back) or **★ Tag as Tier 1** (Make Tier 1), and **Ignore**; Done
+  keeps Undo. No note box, no No-answer / tries. Only Tag as Tier 1 writes
+  to GHL (the tag swap, reversed by Undo); Complete and Ignore write
+  nothing. Older answers stay done: working / unreached read as Completed,
+  skip / keep / notfit as Ignored (193 rows were checked off before this).
 - **Settings › Backups & Usage** (Luke: "a usage section in the settings …
   backups & usage"): the rail group holds **GHL Backups** and **Site
   Usage** (`/settings/usage`, `src/settings/UsageView.jsx`, GET /api/usage,

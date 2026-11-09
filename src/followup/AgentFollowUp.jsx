@@ -1,6 +1,8 @@
 // My Work › Agent Follow-Up (Luke, Nov 8 — from the approved mock-up): each
 // rep works through their Nov 6 work lists — parked agents to call back, and
-// agents who should be Tier 1 — with one tap and an optional one-line note.
+// agents who should be Tier 1. Luke, Nov 9: "a super simple process" — each
+// agent has three buttons: Open in GHL, then ✓ Complete (or ★ Tag as Tier 1)
+// or Ignore; Done keeps an Undo.
 // Owners see the team's progress and open any rep's list (read only); a pod
 // lead their pod's. Server: functions/api/agent-work.js, edge/agentWork.js.
 import { useEffect, useMemo, useState } from 'react';
@@ -15,17 +17,11 @@ import SearchSelect from '../deals/SearchSelect.jsx';
 import { ALL_REPS } from '../data/config.js';
 
 const api = (q, body) => call(`agent-work${q ? `?${q}` : ''}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
-const DONE = new Set(['working', 'skip', 'unreached', 'tier1', 'keep', 'notfit']);
-const BUTTONS = {
-  parked: [['working', '✓ Reached · working them', 'g'], ['noanswer', '↻ No answer', 'y'], ['skip', '✗ Not worth it', 'x']],
-  tier1: [['tier1', '★ Make Tier 1', 'g'], ['keep', 'Keep their tier', 'x'], ['notfit', '✗ Not a fit', 'x']],
-};
-const WORD = { working: 'Reached · working them', skip: 'Not worth it', unreached: 'Couldn’t reach (3 tries)', tier1: 'Made Tier 1', keep: 'Kept their tier', notfit: 'Not a fit' };
-const BTN = {
-  g: 'bg-emerald-50 text-emerald-800 ring-emerald-200 hover:bg-emerald-100',
-  y: 'bg-amber-50 text-amber-800 ring-amber-200 hover:bg-amber-100',
-  x: 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50',
-};
+// Older answers (Nov 8 – 9) still read as done.
+const DONE = new Set(['complete', 'ignore', 'tier1', 'working', 'skip', 'unreached', 'keep', 'notfit']);
+const MAIN = { parked: ['complete', '✓ Complete'], tier1: ['tier1', '★ Tag as Tier 1'] };
+const WORD = { complete: 'Completed', working: 'Completed', unreached: 'Completed', tier1: 'Tagged Tier 1', ignore: 'Ignored', skip: 'Ignored', keep: 'Ignored', notfit: 'Ignored' };
+const isIgnored = (o) => WORD[o] === 'Ignored';
 const money = (v) => `$${Math.round(Number(v) || 0).toLocaleString('en-US')}`;
 const phone = (p) => { const d = String(p || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : p || ''; };
 const day = (s) => (s ? new Date(`${String(s).slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null);
@@ -54,7 +50,6 @@ export default function AgentFollowUp() {
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(null);
   const [st, setSt] = useState(null);
-  const [notes, setNotes] = useState({});
   useEffect(() => {
     let live = true;
     api(rep ? `rep=${encodeURIComponent(rep)}` : '').then((r) => { if (live) { setD(r); setErr(null); } }).catch((e) => live && setErr(e.message));
@@ -71,12 +66,12 @@ export default function AgentFollowUp() {
   const states = [...new Set(rows.map((r) => d.markets[r.loc]).filter(Boolean))];
   const list = st ? shown.filter((r) => d.markets[r.loc] === st) : shown;
   const monday = useMemo(() => { const n = new Date(); const az = new Date(n.getTime() - 7 * 3600000); const dow = (az.getUTCDay() + 6) % 7; return new Date(Date.UTC(az.getUTCFullYear(), az.getUTCMonth(), az.getUTCDate() - dow, 7)).toISOString(); }, []);
-  const week = rows.filter((r) => r.at && r.at >= monday && (DONE.has(r.outcome) || r.outcome === 'noanswer')).length;
+  const week = rows.filter((r) => r.at && r.at >= monday && DONE.has(r.outcome)).length;
 
   async function act(r, action, outcome) {
     setBusy(key(r)); setErr(null);
     try {
-      const res = await api('', { action, loc: r.loc, list: r.list, contact: r.contact, outcome, note: notes[key(r)] ?? r.note ?? null });
+      const res = await api('', { action, loc: r.loc, list: r.list, contact: r.contact, outcome });
       setD(res);
     } catch (e) { setErr(e.message); } finally { setBusy(null); }
   }
@@ -141,52 +136,45 @@ export default function AgentFollowUp() {
           })()}
           {states.length > 1 && <MarketChips value={st} onChange={setSt} options={states.map((s) => ({ id: s, label: s, count: shown.filter((r) => d.markets[r.loc] === s).length }))} />}
           {!list.length && <div className="rounded-xl border border-tan-200 bg-white px-5 py-6 text-[14px] text-zinc-600">{pick === 'done' ? 'Nothing checked off yet.' : '✓ All done on this list.'}</div>}
-          {list.map((r) => <AgentRow key={key(r)} r={r} st={d.markets[r.loc]} canEdit={d.mine} busy={busy === key(r)} note={notes[key(r)] ?? r.note ?? ''}
-            setNote={(v) => setNotes((m) => ({ ...m, [key(r)]: v }))} act={(a, o) => act(r, a, o)} />)}
-          <p className="text-[12.5px] text-zinc-500 pt-2">From the Nov 6 report (texts and calls since May 5, every opportunity on file). <b>Make Tier 1</b> puts the “tier 1” tag on in GHL and takes the old tier tag off; <b>Reached</b> adds a note on the contact in GHL — both with the next refresh (about 15 minutes). No answer three times moves an agent to Done as “Couldn’t reach”.</p>
+          {list.map((r) => <AgentRow key={key(r)} r={r} st={d.markets[r.loc]} canEdit={d.mine} busy={busy === key(r)} act={(a, o) => act(r, a, o)} />)}
+          <p className="text-[12.5px] text-zinc-500 pt-2">Open the agent in GHL, reach out there, then come back and tap <b>Complete</b> — or <b>Ignore</b> to take them off your list. <b>Tag as Tier 1</b> puts the “tier 1” tag on in GHL and takes the old tier tag off with the next refresh (about 15 minutes). Anything can be undone from Done. From the Nov 6 report (texts and calls since May 5, every opportunity on file).</p>
         </div>
       </div>
     )}
   </>);
 }
 
-function AgentRow({ r, st, canEdit, busy, note, setNote, act }) {
+function AgentRow({ r, st, canEdit, busy, act }) {
   const finished = DONE.has(r.outcome);
   const copy = (t) => { try { navigator.clipboard?.writeText(t); } catch { /* ignore */ } };
+  const ghl = `https://app.gohighlevel.com/v2/location/${r.loc}/contacts/detail/${r.contact}`;
+  const [main, mainLabel] = MAIN[r.list];
+  const btn = 'h-9 px-3.5 rounded-lg text-[13.5px] font-semibold inline-flex items-center disabled:opacity-50';
   return (
-    <div className={`rounded-xl border border-tan-200 bg-white px-4 py-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 ${finished ? 'opacity-75' : ''}`}>
-      <div className="min-w-0">
+    <div className={`rounded-xl border border-tan-200 bg-white px-4 py-3 flex flex-col md:flex-row md:items-center gap-x-4 gap-y-2 ${finished ? 'opacity-75' : ''}`}>
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-[15px] font-semibold text-navy-800">{r.name || 'No name in GHL'}</span>
           <span className="text-[12.5px] text-zinc-500">{st}{r.tier && r.tier !== 'no tier' ? ` · ${r.tier}` : ''}</span>
+          {r.phone && <button type="button" onClick={() => copy(r.phone)} className="text-[12.5px] text-zinc-500 hover:text-navy-700" title="Copy the number">{phone(r.phone)}</button>}
         </div>
         <div className="text-[13.5px] text-zinc-700">{why(r)}</div>
-        <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[12.5px] text-zinc-500">
-          {r.phone && <button type="button" onClick={() => copy(r.phone)} className="hover:text-navy-700" title="Copy">{phone(r.phone)} · Copy</button>}
-          {r.email && <span className="truncate max-w-[260px]">{r.email}</span>}
-          <a href={`https://app.gohighlevel.com/v2/location/${r.loc}/contacts/detail/${r.contact}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-navy-700 hover:underline">Open in GHL ↗</a>
-          {(r.lastIn || r.lastLead) && <span>{r.lastIn ? `Last reply ${day(r.lastIn)}` : ''}{r.lastIn && r.lastLead ? ' · ' : ''}{r.lastLead ? `last lead ${day(r.lastLead)}` : ''}</span>}
-          {r.outcome === 'noanswer' && <span className="text-amber-700 font-medium">Tried {r.tries}× · last {day(r.at)}</span>}
-        </div>
+        {(r.lastIn || r.lastLead) && <div className="text-[12.5px] text-zinc-500">{r.lastIn ? `Last reply ${day(r.lastIn)}` : ''}{r.lastIn && r.lastLead ? ' · ' : ''}{r.lastLead ? `last lead ${day(r.lastLead)}` : ''}</div>}
       </div>
-      <div className="flex flex-wrap items-start md:justify-end gap-1.5 md:row-span-2">
+      <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <a href={ghl} target="_blank" rel="noopener noreferrer" className={`${btn} bg-navy-700 text-white hover:bg-navy-800`}>Open in GHL ↗</a>
         {finished ? (
           <>
-            <span className="h-8 inline-flex items-center rounded-lg px-2.5 text-[13px] font-semibold bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200">✓ {WORD[r.outcome]}{r.at ? ` · ${day(r.at)}` : ''}</span>
-            {canEdit && <button type="button" disabled={busy} onClick={() => act('undo')} className="h-8 px-2.5 rounded-lg text-[13px] font-semibold text-zinc-600 hover:bg-zinc-50 ring-1 ring-inset ring-zinc-200 disabled:opacity-50">Undo</button>}
+            <span className={`${btn} ring-1 ring-inset ${isIgnored(r.outcome) ? 'bg-zinc-50 text-zinc-600 ring-zinc-200' : 'bg-emerald-50 text-emerald-800 ring-emerald-200'}`}>{isIgnored(r.outcome) ? '' : '✓ '}{WORD[r.outcome]}{r.at ? ` · ${day(r.at)}` : ''}{r.by && !canEdit ? ` · ${r.by}` : ''}</span>
+            {canEdit && <button type="button" disabled={busy} onClick={() => act('undo')} className={`${btn} text-zinc-600 hover:bg-zinc-50 ring-1 ring-inset ring-zinc-200`}>Undo</button>}
           </>
-        ) : canEdit ? BUTTONS[r.list].map(([o, label, tone]) => (
-          <button key={o} type="button" disabled={busy} onClick={() => act('mark', o)} className={`h-8 px-2.5 rounded-lg text-[13px] font-semibold ring-1 ring-inset disabled:opacity-50 ${BTN[tone]}`}>
-            {o === 'noanswer' && r.tries ? `↻ No answer · ${r.tries}` : label}
-          </button>
-        )) : <span className="text-[12.5px] text-zinc-400">Not checked off yet</span>}
+        ) : canEdit ? (
+          <>
+            <button type="button" disabled={busy} onClick={() => act('mark', main)} className={`${btn} bg-emerald-600 text-white hover:bg-emerald-700`}>{mainLabel}</button>
+            <button type="button" disabled={busy} onClick={() => act('mark', 'ignore')} className={`${btn} bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50`}>Ignore</button>
+          </>
+        ) : <span className="text-[12.5px] text-zinc-400">Not checked off yet</span>}
       </div>
-      {canEdit ? (
-        <input id={`note-${r.loc}-${r.list}-${r.contact}`} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)}
-          onBlur={() => finished && note !== (r.note || '') && act('note')}
-          placeholder="Optional one-line note, e.g. “has 2 off-market in Mesa, call Friday”"
-          className="md:col-span-1 h-8 rounded-lg border border-tan-200 bg-tan-50/50 px-2.5 text-[13px] text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-navy-200" />
-      ) : r.note ? <p className="text-[13px] text-zinc-600">“{r.note}”{r.by ? ` — ${r.by}` : ''}</p> : null}
     </div>
   );
 }

@@ -4,27 +4,28 @@
 // Nov 6 work lists (settings agent_lists:<location> — scripts/agent-report.mjs
 // listsLocation: parked agents to call back, agents who should be Tier 1) are
 // copied once into D1 agent_work; each rep works their own sub-accounts' rows
-// with one tap, an optional one-line note.
+// with one tap (Luke, Nov 9: "a super simple process" — Open in GHL, then
+// Complete / Tag as Tier 1, or Ignore).
 //
 // Who: reps (and managers / trainees with a rep) their own list; owners every
 // rep's list and the team's progress; a pod lead their pod's (Luke, Nov 8:
 // "pod leads can see their pod too"). Only the rep marks their own rows.
-// GHL (Luke: "ok to push the one tag and add a note"): Make Tier 1 puts the
-// "tier 1" tag on the contact and takes the old tier tag off; Reached adds a
-// note on the contact. Both ride ghl_push (scripts/push-ghl.mjs).
+// GHL: Tag as Tier 1 puts the "tier 1" tag on the contact and takes the old
+// tier tag off (ghl_push → scripts/push-ghl.mjs); Undo reverses it. Complete
+// and Ignore write nothing to GHL.
 import roster from '../subaccounts.json' with { type: 'json' };
 import { refreshPods } from './pods.js';
 import { podMates } from '../src/shell/access.js';
 
 export const OUTCOMES = {
-  parked: ['working', 'noanswer', 'skip'],
-  tier1: ['tier1', 'keep', 'notfit'],
+  parked: ['complete', 'ignore'],
+  tier1: ['tier1', 'ignore'],
 };
-export const MAX_TRIES = 3; // "No answer" three times → Couldn't reach
-const DONE = new Set(['working', 'skip', 'unreached', 'tier1', 'keep', 'notfit']);
+// Older answers (Nov 8 – 9) still count as done: working / unreached read as
+// Complete, skip / keep / notfit as Ignored.
+const DONE = new Set(['complete', 'ignore', 'tier1', 'working', 'skip', 'unreached', 'keep', 'notfit']);
 export const isDone = (o) => DONE.has(o);
 const TIER_TAGS = ['tier 1', 'tier 2', 'tier 3', 'tier 4'];
-const clip = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 const subOf = (loc) => (roster.subaccounts || []).find((s) => s.locationId === loc) || null;
 const repName = (id) => (roster.reps || []).find((r) => r.id === id)?.name || id;
@@ -118,7 +119,7 @@ function mondayIso() {
   return m.toISOString();
 }
 
-// One tap. b = { action: 'mark' | 'undo' | 'note', loc, list, contact, outcome?, note? }
+// One tap. b = { action: 'mark' | 'undo', loc, list, contact, outcome? }
 // → { run: [[sql, params], …] } or { error }.
 export async function mark(db, user, b) {
   await ensure(db);
@@ -131,7 +132,6 @@ export async function mark(db, user, b) {
   const now = new Date().toISOString();
   const name = user.name || user.email.split('@')[0];
   const d = shape(row);
-  const note = b.note == null ? row.note : clip(b.note, 300) || null;
   const pushes = [];
   const where = `${sub.repId}|${sub.marketId}`;
   const push = (field, value) => pushes.push(['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -139,26 +139,15 @@ export async function mark(db, user, b) {
   const oldTier = TIER_TAGS.includes(d.tier) && d.tier !== 'tier 1' ? d.tier : null;
   const tierOn = () => { push('tag:tier 1', 'add'); if (oldTier) push(`tag:${oldTier}`, 'remove'); };
   const tierOff = () => { push('tag:tier 1', 'remove'); if (oldTier) push(`tag:${oldTier}`, 'add'); };
+  const save = (outcome) => ['UPDATE agent_work SET outcome = ?, tries = 0, by_email = ?, by_name = ?, at = ? WHERE loc = ? AND list = ? AND contact = ?',
+    [outcome, user.email, name, now, b.loc, b.list, row.contact]];
 
-  if (b.action === 'note') {
-    return { run: [['UPDATE agent_work SET note = ?, by_email = ?, by_name = ?, at = COALESCE(at, ?) WHERE loc = ? AND list = ? AND contact = ?', [note, user.email, name, now, b.loc, b.list, row.contact]]] };
-  }
   if (b.action === 'undo') {
-    // Back to the list. A "no answer" take-back counts one try fewer.
-    const tries = row.outcome === 'noanswer' || row.outcome === 'unreached' ? Math.max(0, (row.tries || 0) - 1) : row.tries || 0;
     if (row.outcome === 'tier1') tierOff();
-    return { run: [['UPDATE agent_work SET outcome = ?, tries = ?, by_email = ?, by_name = ?, at = ? WHERE loc = ? AND list = ? AND contact = ?',
-      [tries ? 'noanswer' : null, tries, user.email, name, now, b.loc, b.list, row.contact]], ...pushes] };
+    return { run: [save(null), ...pushes] };
   }
   if (b.action !== 'mark' || !OUTCOMES[b.list].includes(b.outcome)) return { error: 'Pick one of the buttons' };
-  let outcome = b.outcome;
-  let tries = row.tries || 0;
-  if (outcome === 'noanswer') { tries += 1; if (tries >= MAX_TRIES) outcome = 'unreached'; }
-  if (outcome === 'tier1' && row.outcome !== 'tier1') tierOn();
-  if (row.outcome === 'tier1' && outcome !== 'tier1') tierOff();
-  if (outcome === 'working' && row.outcome !== 'working') {
-    push(`note:${now}`, `Agent Follow-Up (VPG dashboard): reached — working them.${note ? `\n${note}` : ''}\n— ${name}`);
-  }
-  return { run: [['UPDATE agent_work SET outcome = ?, tries = ?, note = ?, by_email = ?, by_name = ?, at = ? WHERE loc = ? AND list = ? AND contact = ?',
-    [outcome, tries, note, user.email, name, now, b.loc, b.list, row.contact]], ...pushes] };
+  if (b.outcome === 'tier1' && row.outcome !== 'tier1') tierOn();
+  if (row.outcome === 'tier1' && b.outcome !== 'tier1') tierOff();
+  return { run: [save(b.outcome), ...pushes] };
 }

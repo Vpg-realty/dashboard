@@ -2,9 +2,10 @@
 //   GET  [?rep=<repId>] → the person's own list (or a rep's they may see:
 //        owners anyone, a pod lead their pod), plus the team's / pod's
 //        progress for owners and pod leads.
-//   POST { action: mark | undo | note, loc, list, contact, outcome?, note? }
-//        — only the rep whose list it is; never while viewing as. Make Tier 1
-//        and Reached queue their GHL tag / note in ghl_push.
+//   POST { action: mark | undo, loc, list, contact, outcome? } — outcome
+//        complete | ignore (Call Back) or tier1 | ignore (Make Tier 1); only
+//        the rep whose list it is; never while viewing as. Tag as Tier 1
+//        queues the tag swap in ghl_push.
 // Usage: a rep's load reads their own rows (~50–200); an owner's progress
 // reads the whole table once (~1.9k rows) per load — a few dozen loads a day.
 import { currentUser, json } from '../../edge/auth.js';
