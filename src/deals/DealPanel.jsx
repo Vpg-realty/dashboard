@@ -562,6 +562,13 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const dash = <span className="text-zinc-300">—</span>;
   const ts = tileStatus(merged);
   const grossOk = typeof merged.grossAssign === 'number' && !noBuyer(merged);
+  // A cancel where our EM is lost (EMD returned? No / Lost, no buyer's EMD
+  // kept) shows the loss as the gross (Luke, Nov 10: "need gross to reflect
+  // … when the em is lost") — the gross profit when the person receives it,
+  // else minus the EMD.
+  const emLost = !grossOk && stageOf(merged) === 'CANCELLED' && !keptMoney(merged)
+    && ['NO', 'LOST'].includes(String(merged.emdReturned || '').toUpperCase()) && Number(merged.emd) > 0;
+  const emLoss = emLost ? (typeof merged.grossProfit === 'number' ? merged.grossProfit : -Number(merged.emd)) : null;
   // Sections (S2): which are visible to this person, which is "you are here",
   // which are open.
   const secs = SECTIONS.map((x) => ({ ...x, groups: x.groups.filter((gid) => groups.some(([g2]) => g2 === gid)) })).filter((x) => x.groups.length);
@@ -838,7 +845,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
               <div className="grid grid-cols-3 gap-2">
                 <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
                 <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
-                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : 'plain'}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : dash}</StatusTile>
+                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : emLost ? 'bad' : 'plain'} word={emLost ? 'EM lost' : undefined}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : emLost ? <span className="text-[#B42318]">{money(emLoss)}</span> : dash}</StatusTile>
                 <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
                 <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
                 <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
