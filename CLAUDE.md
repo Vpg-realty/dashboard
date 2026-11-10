@@ -1697,8 +1697,13 @@ settings `agent_pause:<location>:<n>` (+ index), and only tags once
 settings `agent_pause`.apply is set to true by hand after the numbers are
 checked; tags go straight to GHL (POST /contacts/:id/tags), each row marked
 tagged, edit_log `agentpause.tag`. Resumable (`agent_pause_wip:<loc>`),
-4-minute budget, 6 sub-accounts at a time. Not repeated: a later run needs
-VERSION bumped and Luke's say-so.
+4 sub-accounts at a time (2 calls each; a GHL 429 waits and retries and
+doesn't use up a try). Not repeated: a later run needs VERSION bumped and
+Luke's say-so (a new VERSION deletes the old lists and starts over).
+**VERSION 2 (same day, Luke):** the accidental "mistake message" blast
+("Closing funds are in so everything should be set…" / "so sorry, wrong
+person") doesn't count toward the 5 (`MISTAKE`) — in Cayden TX 619 of 620
+flagged agents had exactly 5 with it.
 
 **Automated texts by wording (Luke, Nov 10: "a spreadsheet … all automated
 messages … initial cash outreach, and any of the engaged follow ups … ranked

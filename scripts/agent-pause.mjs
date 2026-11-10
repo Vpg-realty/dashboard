@@ -20,7 +20,7 @@ import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
 import { eligible, countIgnored, PAUSE_TAG, PAUSE_IGNORED } from '../server/agentPause.js';
 
-const VERSION = 1;
+const VERSION = 2; // 2: the mistake-message blast no longer counts (Nov 10)
 const KEY = 'agent_pause';
 const D1_DATABASE = '9c2aec75-3ad8-4eb0-9ca9-4b061c25677a';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -119,7 +119,11 @@ async function main() {
   const get = async (k) => JSON.parse((await d1('SELECT value FROM settings WHERE key = ?', [k]))[0]?.value || 'null');
 
   let st = (await get(KEY)) || {};
-  if (st.version !== VERSION) st = { version: VERSION, started: new Date().toISOString(), apply: false, done: [], applied: [], errors: {} };
+  if (st.version !== VERSION) {
+    // A new rule set starts over: the last version's lists and resume points go.
+    await d1('DELETE FROM settings WHERE key LIKE ? OR key LIKE ?', [`${KEY}:%`, `${KEY}_wip:%`]);
+    st = { version: VERSION, started: new Date().toISOString(), apply: false, done: [], applied: [], errors: {} };
+  }
   if (st.finished) return;
   const pits = tokensFrom(secrets, process.env.GHL_TOKENS);
   const locs = Object.keys(pits).sort();
