@@ -7,6 +7,7 @@
 //   - 5+ automated texts since their last reply — or ever, when they never
 //     replied (a burst within 30 min counts once; texts a person typed and
 //     calls don't count, and don't reset it);
+//   - the accidental "mistake message" blast (Sept 17) doesn't count;
 //   - left alone when their last lead (an opportunity on the contact) opened
 //     in the last 4 months.
 // The count is read from the contact's own conversation (newest first), not
@@ -19,6 +20,9 @@ export const PAUSE_IGNORED = 5;
 export const PAUSE_LEAD_DAYS = 122; // ~4 months
 const DAY = 86400_000;
 const BURST_MS = 30 * 60_000;
+// The accidental "mistake message" blast (Luke, Nov 10: not to count —
+// "Closing funds are in…" then "so sorry, wrong person, please ignore").
+export const MISTAKE = /closing funds are in so everything should be set|so sorry,? wrong person/i;
 const AUTO = /workflow|bulk|campaign|automation|trigger|drip|api|integration|zapier/i;
 const isTapback = (b) => /^\s*(liked|loved|laughed at|emphasized|disliked|questioned|reacted [^ ]+ to) ["“'‘]/i.test(b || '');
 
@@ -47,6 +51,7 @@ export function countIgnored(msgs, { ignored = 0, last = 0, enough = PAUSE_IGNOR
     }
     if (m.direction !== 'outbound' || !/SMS/i.test(type)) continue;
     if (m.userId && !AUTO.test(m.source || '')) continue; // typed by a person
+    if (MISTAKE.test(m.body || '')) continue;
     if (!last || last - at > BURST_MS) ignored++;
     last = at;
     if (ignored >= enough) return { ignored, last, lastReply: 0, done: true };
