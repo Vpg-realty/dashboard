@@ -460,3 +460,85 @@ export function lowResponseLocation({ contacts, opps, messages, label, now = Dat
   rows.sort((a, b) => b[7] - a[7]);
   return { label, count, rows };
 }
+
+// Automated texts by full wording (Luke, Nov 10: "a spreadsheet … all
+// automated messages … in initial cash outreach, and any of the engaged
+// follow ups … ranked … best to worst"). One sub-account's whole message
+// history in; every text we start (not the 2nd part of a burst) from `from`
+// on, grouped by its wording with the agent's name, the rep's name, links and
+// property addresses replaced, split by whether the agent had written back
+// before it (i = initial outreach, e = after a reply). Per group and side:
+// [sent, replied in 3 days, replied the same day, STOP, lead in 14 days].
+// Texts typed by a person are kept too (`m`), so the wording that gets
+// answers can be compared. Rows: [kind 'a' | 'm', sample, i, e, first, last,
+// contacts].
+const ADDR = /\b\d{2,6}\s+(?:[nsew]{1,2}\.?\s+)?(?:[\w'.-]+\s+){0,4}?(?:st|street|ave|avenue|rd|road|dr|drive|ln|lane|ct|court|blvd|boulevard|way|pl|place|ter|terrace|cir|circle|pkwy|parkway|hwy|highway|trl|trail|loop|run|pt|point|sq|row|xing|pass|path|walk|aly|cv|cove)\b\.?(?:\s+(?:[nsew]{1,2}|ne|nw|se|sw)\b)?(?:\s*(?:#|unit|apt|ste)\s*[\w-]+)?/gi;
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function textSample(body, c, repNames) {
+  let t = String(body || '').replace(/\s+/g, ' ').trim();
+  t = t.replace(/https?:\/\/\S+/g, '{link}');
+  t = t.replace(/(looking at|following up on|follow up on|about|on|at|for) (.{4,80}?)(?= and i'?m| in case|[.,?!]| -|$)/gi, (all, w, a) => (/\d/.test(a) && /[a-z]{2}/i.test(a) ? `${w} {address}` : all));
+  t = t.replace(ADDR, '{address}');
+  for (const n of repNames) if (n && n.length > 2) t = t.replace(new RegExp(`\\b${esc(n)}\\b`, 'gi'), '{rep}');
+  for (const n of [c.firstName, c.lastName]) if (n && n.length > 1) t = t.replace(new RegExp(`\\b${esc(n)}\\b`, 'gi'), '{agent}');
+  t = t.replace(/\{rep\}( \{rep\})+/g, '{rep}').replace(/\{agent\}( \{agent\})+/g, '{agent}');
+  return t.slice(0, 700);
+}
+const textKey = (s) => s.toLowerCase().replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/\d+/g, '#').replace(/[^\w{}#' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+export function textsLocation({ contacts, opps, messages, label, from = 0, repNames = [], minA = 5 }) {
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId) continue;
+    if (!byContact.has(m.contactId)) byContact.set(m.contactId, []);
+    byContact.get(m.contactId).push(m);
+  }
+  const oppAt = new Map();
+  for (const o of opps) {
+    const cid = o.contactId; const t = Date.parse(o.createdAt || o.dateAdded);
+    if (!cid || !t) continue;
+    if (!oppAt.has(cid)) oppAt.set(cid, []);
+    oppAt.get(cid).push(t);
+  }
+  const groups = new Map();
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    if (!tags.some((t) => AGENT_TAG.test(t))) continue;
+    const msgs = (byContact.get(c.id) || []).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+    const leads = oppAt.get(c.id) || [];
+    let prevOut = 0; let replies = 0; let lastWasIn = false;
+    msgs.forEach((m, i) => {
+      if (m.direction === 'inbound') { if (realReply(m) && !lastWasIn) { replies++; lastWasIn = true; } return; }
+      if (m.direction !== 'outbound') return;
+      lastWasIn = false;
+      const at = Date.parse(m.dateAdded);
+      const starts = at - prevOut > 30 * 60_000;
+      prevOut = at;
+      if (!starts || at < from || isCall(m) || !m.body) return;
+      const sample = textSample(m.body, c, repNames);
+      const kind = isManual(m) ? 'm' : 'a';
+      const k = `${kind}|${textKey(sample)}`;
+      let g = groups.get(k);
+      if (!g) groups.set(k, (g = { kind, sample, i: [0, 0, 0, 0, 0], e: [0, 0, 0, 0, 0], first: at, last: at, who: new Set() }));
+      const side = replies ? g.e : g.i;
+      let reply = null; let stop = false;
+      for (let j = i + 1; j < msgs.length; j++) {
+        const x = msgs[j]; const t = Date.parse(x.dateAdded);
+        if (t - at > 3 * DAY) break;
+        if (isStop(x)) { stop = true; break; }
+        if (realReply(x)) { reply = t; break; }
+      }
+      side[0]++;
+      if (reply != null) side[1]++;
+      if (reply != null && reply - at <= DAY) side[2]++;
+      if (stop) side[3]++;
+      if (leads.some((t) => t > at && t - at <= 14 * DAY)) side[4]++;
+      g.first = Math.min(g.first, at); g.last = Math.max(g.last, at); g.who.add(c.id);
+    });
+  }
+  const day = (t) => new Date(t).toISOString().slice(0, 10);
+  const rows = [...groups.values()]
+    .filter((g) => g.i[0] + g.e[0] >= (g.kind === 'a' ? minA : 4) || (g.kind === 'm' && g.i[1] + g.e[1] >= 2))
+    .map((g) => [g.kind, g.sample, g.i, g.e, day(g.first), day(g.last), g.who.size]);
+  return { label, rows };
+}

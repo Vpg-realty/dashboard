@@ -9,7 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
-import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
+import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, textsLocation, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
 import { MARKET_TZ } from '../server/messaging.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -78,6 +78,10 @@ const JOBS = [
   // chunks (agent_lowresp:<location>:<n>), the index per sub-account in
   // agent_lowresp:<location>.
   { key: 'agent_lowresp', since: 0, kind: 'lowresp' },
+  // Automated texts by full wording (Luke, Nov 10): whole history read (to
+  // know who had replied before), texts counted from May 5. Rows in chunks
+  // (agent_texts:<location>:<n>), the index in agent_texts:<location>.
+  { key: 'agent_texts', since: 0, kind: 'texts', from: Date.parse('2026-05-05T07:00:00Z') },
 ];
 
 async function main() {
@@ -99,7 +103,7 @@ async function main() {
   }
 }
 
-async function runJob({ key, since, kind, also }, d1, secrets) {
+async function runJob({ key, since, kind, also, from }, d1, secrets) {
   let st = JSON.parse((await d1('SELECT value FROM settings WHERE key = ?', [key]))[0]?.value || '{}');
   if (st.version !== REPORT_VERSION) st = { version: REPORT_VERSION, started: new Date().toISOString(), since: since ? new Date(since).toISOString() : null, done: [], errors: {} };
   if (st.finished) return;
@@ -130,6 +134,25 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
       const [contacts, opps, pipelines] = await Promise.all([contactsOf(loc, pit), oppsOf(loc, pit), ghlFetch('/opportunities/pipelines', pit, { params: { locationId: loc } }).then((d) => d?.pipelines || [])]);
       const messages = await messagesOf(loc, pit, since);
       const data = { contacts, opps, pipelines, messages };
+      if (kind === 'texts') {
+        if (!messages.length && contacts.length > 50) throw new Error(`no messages came back for ${contacts.length} contacts`);
+        const repNames = (subs.reps || []).flatMap((r) => String(r.name || '').split(/\s+/)).filter((n) => n.length > 2);
+        const r = textsLocation({ ...data, from, repNames, label: labels[loc] || loc });
+        const parts = [];
+        let cur = []; let size = 0;
+        for (const row of r.rows) {
+          const n = JSON.stringify(row).length;
+          if (size + n > 80_000 && cur.length) { parts.push(cur); cur = []; size = 0; }
+          cur.push(row); size += n;
+        }
+        if (cur.length) parts.push(cur);
+        for (let i = 0; i < parts.length; i++) await put(`${key}:${loc}:${i}`, parts[i]);
+        await put(`${key}:${loc}`, { label: r.label, rows: r.rows.length, parts: parts.length, messages: messages.length, at: new Date().toISOString() });
+        st.done.push(loc); delete st.errors[loc];
+        log(`${key} ${r.label}: ${r.rows.length} wordings`);
+        await save();
+        continue;
+      }
       if (kind === 'lowresp') {
         // A sub-account with agents but no message history is a failed
         // export, not an empty list — retried on the next run (3 tries).
@@ -157,7 +180,7 @@ async function runJob({ key, since, kind, also }, d1, secrets) {
     }
     await save();
   }
-  if ((kind === 'lists' || kind === 'lowresp') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+  if ((kind === 'lists' || kind === 'lowresp' || kind === 'texts') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
     st.finished = new Date().toISOString(); await save(); log(`${key} finished`); return;
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {

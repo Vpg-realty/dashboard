@@ -1672,6 +1672,19 @@ later, but only once the rules for who qualifies are agreed and checked
 (Nov 9: "we need to figure out how to do that first and ensure you are
 adding it to the correct people") — don't build it without that.
 
+**Automated texts by wording (Luke, Nov 10: "a spreadsheet … all automated
+messages … initial cash outreach, and any of the engaged follow ups … ranked
+… 3 options"):** a sixth job `agent_texts` (`textsLocation`,
+server/agentReport.js; all history read, texts counted from May 5) — every
+text we start, grouped by its full wording with the agent's name, the rep's
+name, links and addresses replaced (`textSample` / `textKey`), split by
+whether the agent had replied before (i = initial, e = after a reply):
+[sent, replied in 3 days, same day, STOP, lead in 14 days]; automated (`a`,
+5+ sent) and typed by a person (`m`). Rows in chunks `agent_texts:<location>:
+<n>` + an index per sub-account. Read once into a spreadsheet for Luke (the
+workflow builder API is closed for these sub-accounts, so the sent texts are
+the only record of the wording).
+
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 
 From the approved proposal page (owners / managers / reps / TC sidebars).
