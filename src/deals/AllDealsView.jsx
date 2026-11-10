@@ -40,6 +40,7 @@ import { Person } from './people.jsx';
 import Floating from '../shell/Floating.jsx';
 import { cellStyle, headStyle, BAND_COLOR, GROUP_SEP, SHEET_LEGEND, BORDER, HEAD_RULE } from './sheet.js';
 import { laToday } from '../utils/historyRange.js';
+import { XIcon } from '../shell/CloseButton';
 
 const F = Object.fromEntries(FIELDS.map((f) => [f.key, f]));
 const OVERVIEW = ['address', 'status', 'acq', 'coe', 'accepted', 'state', 'price', 'vpgAssign', 'finalAssign', 'grossAssign', 'netAssign', 'netProfit', 'commPaid'];
@@ -364,7 +365,7 @@ export default function AllDealsView() {
         {custom && (
           <span className="inline-flex items-center gap-1 h-8 rounded-lg bg-navy-700 text-white pl-2.5 pr-1 text-[13px] font-medium">
             Sorted by {sortLabel} {sort.startsWith('-') ? '↓' : '↑'}
-            <button type="button" onClick={() => setQuery({ sort: null })} aria-label="Clear the sort" title="Back to the default order (newest COE first)" className="grid place-items-center w-6 h-6 rounded-md hover:bg-white/15">×</button>
+            <button type="button" onClick={() => setQuery({ sort: null })} aria-label="Clear the sort" title="Back to the default order (newest COE first)" className="grid place-items-center w-6 h-6 rounded-full hover:bg-white/15"><XIcon size={13} /></button>
           </span>
         )}
         <span className="ml-auto"><ResortBar stale={stale} onResort={resort} quiet /></span>

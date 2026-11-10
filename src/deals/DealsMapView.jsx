@@ -19,6 +19,7 @@ import { useLocation, setQuery } from '../shell/router.js';
 import { PANEL_HEAD } from '../shell/panelStyle.js';
 import { laToday } from '../utils/historyRange.js';
 import BandCounter from '../shell/BandCounter.jsx';
+import CloseButton from '../shell/CloseButton';
 
 // The same projection the state shapes were made with (us-atlas
 // states-albers-10m: 975 × 610).
@@ -47,7 +48,7 @@ function Tip({ p, pinned, onClose, box }) {
       style={{ left: `${(p.x - box.x) / box.w * 100}%`, top: `${(p.y - box.y) / box.h * 100}%`, transform: `translate(${left ? 'calc(-100% - 12px)' : '12px'}, ${up ? 'calc(-100% + 8px)' : '-8px'})` }}>
       <div className={`flex items-start gap-2 px-3 py-2 rounded-t-xl ${PANEL_HEAD}`}>
         <span className="font-semibold leading-snug flex-1">{p.address}</span>
-        {pinned && <button type="button" onClick={onClose} aria-label="Close" className="text-white/70 hover:text-white">×</button>}
+        {pinned && <CloseButton onClick={onClose} />}
       </div>
       <div className="px-3 py-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <span className="text-zinc-500">Sold</span><span className="font-medium text-zinc-900">{fullDate(p.sold)}</span>

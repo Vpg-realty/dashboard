@@ -13,6 +13,7 @@ import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
 import { useTraining, testScores, topicScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, dayLabel } from './api.js';
 import BandMark from '../shell/BandMark.jsx';
+import CloseButton from '../shell/CloseButton';
 
 const repName = (id) => REPS.find((r) => r.id === id)?.name || id || '—';
 const PHASE_CHIP = { paper: 'bg-zinc-100 text-zinc-700', onboard: 'bg-sky-50 text-sky-800', shadow: 'bg-tan-100 text-tan-800', guided: 'bg-violet-50 text-violet-800', full: 'bg-emerald-50 text-emerald-800', done: 'bg-emerald-50 text-emerald-800' };
@@ -87,7 +88,7 @@ function TraineeFile({ t, program, phases, me, run, busy, onClose }) {
             <div className="text-white/75 text-[13.5px]">{person.email} · pod lead {repName(person.trainer)}{person.start_date ? ` · started ${dayLabel(`${person.start_date}T12:00:00Z`)}` : ''}{person.graduated_at ? ` · graduated ${dayLabel(person.graduated_at)}` : ''}</div>
             <div className="mt-2 flex flex-wrap gap-2 text-[13px]"><span className={`rounded-md px-2 py-0.5 font-semibold ${PHASE_CHIP[status?.phase] || ''}`}>{phases.find((p) => p.id === status?.phase)?.name || 'Graduated'}</span><span className="rounded-md px-2 py-0.5 bg-white/10">{status?.done} of {status?.total} steps</span></div>
           </div>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white text-2xl leading-none" aria-label="Close">×</button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-5 grid gap-5">
           <section className="rounded-xl border border-tan-200 overflow-hidden">

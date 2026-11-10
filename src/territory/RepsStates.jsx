@@ -14,6 +14,7 @@ import { StatusChip, SeasonChip } from './badges.jsx';
 import { SEASON_LOOK, seasonOf, statusOf } from './status.js';
 import { money } from '../deals/format.js';
 import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
+import { XIcon } from '../shell/CloseButton';
 
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
@@ -50,7 +51,7 @@ function Review({ items, focus, setFocus }) {
   // Every rule both lists check, once.
   const allRules = [...STRUCTURE_RULES, ...FLAG_RULES.filter(([k]) => !['quiet', 'winter', 'crowded', 'dispo', 'open', 'paused'].includes(k))];
   return (
-    <Panel title="What to Review" sub={`${shown.length} item${shown.length === 1 ? '' : 's'} from this month's numbers and the territory sheet`} right={<span className="flex items-center gap-3">{focus && <button onClick={() => setFocus(null)} className="text-[12.5px]">Show everyone ×</button>}<button onClick={() => setRules((v) => !v)} className="text-[12.5px]">{rules ? 'Hide' : 'What we check'}</button></span>}>
+    <Panel title="What to Review" sub={`${shown.length} item${shown.length === 1 ? '' : 's'} from this month's numbers and the territory sheet`} right={<span className="flex items-center gap-3">{focus && <button onClick={() => setFocus(null)} className="inline-flex items-center gap-1 text-[12.5px]">Show everyone <XIcon size={12} /></button>}<button onClick={() => setRules((v) => !v)} className="text-[12.5px]">{rules ? 'Hide' : 'What we check'}</button></span>}>
       <div className="flex flex-wrap items-center gap-1.5 px-5 py-2.5 border-b border-tan-100">
         {[[null, 'All', byRep.length], ['high', SEVERITY.high.label, count('high')], ['med', SEVERITY.med.label, count('med')], ['info', SEVERITY.info.label, count('info')]].map(([k, l, n]) => (
           <button key={l} onClick={() => setSev(k)} aria-pressed={sev === k} className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12.5px] font-medium ring-1 ring-inset ${sev === k ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-700 ring-zinc-200 hover:bg-tan-50'}`}>

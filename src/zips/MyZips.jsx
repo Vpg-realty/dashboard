@@ -15,6 +15,7 @@ import { useManyCounties } from '../territory/store.js';
 import CopyButton from '../territory/CopyButton.jsx';
 import { STATUS_LOOK } from '../territory/status.js';
 import BandMark from '../shell/BandMark.jsx';
+import CloseButton from '../shell/CloseButton';
 
 // Search the rep's states: a county or city name, or a zip (or its start).
 // Many states (an owner's list): search one state at a time, so the page
@@ -236,7 +237,7 @@ function RulesDrawer({ items, onClose }) {
       <aside role="dialog" aria-label="Zip rules" onClick={(e) => e.stopPropagation()} className="h-full w-full max-w-[440px] overflow-y-auto bg-white shadow-2xl">
         <div className="sticky top-0 flex items-center bg-navy-700 text-white px-5 py-3.5">
           <h2 className="text-[16px] font-semibold">How Zips Are Handed Out</h2>
-          <button type="button" autoFocus onClick={onClose} aria-label="Close" className="ml-auto grid place-items-center w-8 h-8 rounded-full hover:bg-white/15 text-lg">×</button>
+          <CloseButton autoFocus onClick={onClose} className="ml-auto" />
         </div>
         {groups.map((g) => (
           <div key={g.name} className="px-5 py-4 border-b border-tan-100">

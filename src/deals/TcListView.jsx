@@ -33,6 +33,7 @@ import { shortDate, primaryCls, btnCls } from './format.js';
 import useDealPanel from './useDealPanel.jsx';
 import { useLocation, setQuery } from '../shell/router.js';
 import { laToday } from '../utils/historyRange.js';
+import { XIcon } from '../shell/CloseButton';
 
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const up = (x) => String(x ?? '').trim().toUpperCase();
@@ -544,7 +545,7 @@ export default function TcListView() {
           {/* The search sits at the head of the list it searches (Luke, Oct 28). */}
           <div className="flex flex-wrap items-center gap-2">
             <SearchBox value={q} onChange={setQ} placeholder="Search properties — address, escrow #, rep, title" className="w-full sm:w-[380px]" />
-            {view === 'all' && filter && <button type="button" onClick={() => setQuery({ f: null })} className="inline-flex items-center gap-1.5 h-8 rounded-md bg-navy-700 px-2.5 text-[12.5px] font-semibold text-white hover:bg-navy-800">{FILTERS[filter]} <span className="text-white/70">×</span></button>}
+            {view === 'all' && filter && <button type="button" onClick={() => setQuery({ f: null })} className="inline-flex items-center gap-1.5 h-8 rounded-md bg-navy-700 px-2.5 text-[12.5px] font-semibold text-white hover:bg-navy-800">{FILTERS[filter]} <XIcon size={12} className="text-white/70" /></button>}
             <span className="text-[12.5px] text-zinc-500">{listCount} {filter === 'issues' ? (listCount === 1 ? 'issue' : 'issues') : listCount === 1 ? 'property' : 'properties'}{needle ? ` matching “${q.trim()}”` : ''}</span>
             {view === 'day' && day.length > 0 && <span className="ml-auto flex gap-2"><button type="button" onClick={() => foldAll(true)} className={btnCls}>Fold All</button><button type="button" onClick={() => foldAll(false)} className={btnCls}>Open All</button></span>}
           </div>

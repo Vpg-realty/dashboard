@@ -14,6 +14,7 @@ import OfferMessage from './OfferMessage.jsx';
 import ClaudeTake from './ClaudeTake.jsx';
 import { printCalc } from './print.js';
 import { multifamily, solveMf, notesFor, MF_DEFAULTS, MF_HINTS, COC_TARGET, CAP_TARGET, DSCR_MIN, cocTone, num } from './calc.js';
+import { XIcon } from '../shell/CloseButton';
 
 const UNIT_COLS = [['unit', 'Unit', 'w-12'], ['bed', 'Bed', 'w-11'], ['bath', 'Bath', 'w-11'], ['rent', 'Rent now', 'w-24', '$'], ['market', 'Market rent', 'w-24', '$'], ['sf', 'Sq ft', 'w-16']];
 const EXP = [['taxYear', 'Property tax', '$', '/ yr'], ['taxRate', 'Or tax rate after sale', null, '% of price'], ['ins', 'Insurance', '$', '/ mo'], ['hoa', 'HOA', '$', '/ mo'], ['gas', 'Gas & electric', '$', '/ mo'], ['water', 'Water', '$', '/ mo'], ['sewer', 'Sewer', '$', '/ mo'], ['garbage', 'Garbage', '$', '/ mo'], ['lawn', 'Lawn & snow', '$', '/ mo'], ['capex', 'Repair reserve', '$', '/ unit / yr'], ['mgmt', 'Management', null, '% of rent'], ['vacancy', 'Vacancy', null, '% of rent'], ['maint', 'Maintenance', null, '% of rent']];
@@ -115,7 +116,7 @@ export default function Multifamily() {
                     ))}
                     <td className="px-2"><input type="checkbox" disabled={ro} checked={u.vacant === 'yes'} onChange={(e) => setUnit(n, 'vacant', e.target.checked ? 'yes' : '')} className="w-4 h-4 accent-navy-700" /></td>
                     <td className="px-2 text-zinc-500 tabular-nums">{num(u.sf) ? `$${((num(u.market) || num(u.rent)) / num(u.sf)).toFixed(2)}` : '—'}</td>
-                    <td className="pr-4 text-right">{!ro && units.length > 1 && <button type="button" onClick={() => dropUnit(n)} className="text-zinc-400 hover:text-red-700 text-lg leading-none" aria-label="Remove unit">×</button>}</td>
+                    <td className="pr-4 text-right">{!ro && units.length > 1 && <button type="button" onClick={() => dropUnit(n)} className="text-zinc-400 hover:text-red-700 text-lg leading-none" aria-label="Remove unit"><XIcon size={15} /></button>}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-tan-200 bg-tan-50 font-semibold text-navy-800">

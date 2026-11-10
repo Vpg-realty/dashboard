@@ -7,6 +7,7 @@ import { BOARD_PAIRS } from '../data/board.js';
 import { formatCurrency } from '../utils/format.js';
 import { laToday, addDays, daysInclusive, shortDate } from '../utils/historyRange.js';
 import { titleCase } from '../shell/titleCase.js';
+import CloseButton from '../shell/CloseButton';
 
 // Pipeline tab (Luke, Sept 29): every deal currently in Under Contract, Dispo
 // Active or Assigned, plus deals that reached Closed this month. Cards show
@@ -866,7 +867,7 @@ function DayPanel({ day, today, events, onClose }) {
             <h2 className="text-[20px] font-semibold tracking-tight">{dayLong(day)}</h2>
             <p className="text-[12.5px] text-white/70">{ips.length} IP end{ips.length === 1 ? '' : 's'} · {coes.length} closing{coes.length === 1 ? '' : 's'}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="ml-auto w-8 h-8 rounded-full grid place-items-center text-[20px] text-white/80 hover:bg-white/10">×</button>
+          <CloseButton onClick={onClose} className="ml-auto" />
         </div>
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
           {events.length === 0 && <div className="rounded-xl border border-dashed border-tan-200 bg-white text-zinc-500 text-[14px] text-center py-10">Nothing on this day.</div>}

@@ -7,6 +7,7 @@
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useState } from 'react';
 import { useTraining, KIND_LABEL } from './api.js';
+import { XIcon } from '../shell/CloseButton';
 
 const inputCls = 'w-full h-9 rounded-lg border border-zinc-200 px-2.5 bg-white';
 const KINDS = ['paper', 'video', 'test', 'session', 'log', 'signoff'];
@@ -24,7 +25,7 @@ function Questions({ step, set }) {
           <div className="flex gap-2 items-center"><span className="font-semibold text-zinc-500">{i + 1}.</span>
             <input className={inputCls} value={q.q} onChange={(e) => put(i, { ...q, q: e.target.value })} placeholder="The question" aria-label={`Question ${i + 1}`} />
             <input className="w-24 h-9 rounded-lg border border-zinc-200 px-2" value={q.at || ''} onChange={(e) => put(i, { ...q, at: e.target.value })} placeholder="06:40" title="Where the answer is in the video" aria-label="Video time" />
-            <button type="button" onClick={() => set({ ...step, questions: qs.filter((_, k) => k !== i) })} className="text-zinc-400 hover:text-red-700 px-1" aria-label="Remove question">×</button>
+            <button type="button" onClick={() => set({ ...step, questions: qs.filter((_, k) => k !== i) })} className="text-zinc-400 hover:text-red-700 px-1" aria-label="Remove question"><XIcon size={14} /></button>
           </div>
           {q.options.map((o, j) => (
             <label key={j} className="flex gap-2 items-center pl-6">
@@ -110,7 +111,7 @@ export default function ProgramBuilder() {
                   {s.who === 'owners' && <span className="text-[12.5px] text-zinc-500">Jack or Luke</span>}
                   {s.graduate && <span className="text-[12.5px] font-semibold text-emerald-700">Graduation</span>}
                   <button type="button" onClick={() => setEditing(s.id)} className="h-7 px-2.5 rounded-md border border-zinc-200 text-[13px] font-semibold text-navy-700">Edit</button>
-                  <button type="button" onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) setSteps(prog.steps.filter((x) => x.id !== s.id)); }} className="text-zinc-400 hover:text-red-700" aria-label="Remove step">×</button>
+                  <button type="button" onClick={() => { if (window.confirm(`Remove “${s.title}”?`)) setSteps(prog.steps.filter((x) => x.id !== s.id)); }} className="text-zinc-400 hover:text-red-700" aria-label="Remove step"><XIcon size={14} /></button>
                 </div>
               )}
             </div>

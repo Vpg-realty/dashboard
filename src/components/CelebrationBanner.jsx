@@ -5,6 +5,7 @@ import { BOARD_PAIRS as PAIRS } from '../data/board.js';
 import { formatCompactCurrency } from '../utils/format.js';
 import { shortDate } from '../utils/historyRange.js';
 import Fireworks from './Fireworks.jsx';
+import CloseButton from '../shell/CloseButton';
 
 // Celebration banners on the TV (Luke, Oct 7):
 //   - NEW DEAL — once per deal, the first time it reaches Under Contract
@@ -114,8 +115,7 @@ export default function CelebrationBanner() {
   // any, shows straight after).
   const dismiss = () => setQueue((q) => q.slice(1));
   const closeBtn = (
-    <button type="button" onClick={dismiss} aria-label="Close" title="Close"
-      className="pointer-events-auto absolute top-3 right-3 w-11 h-11 grid place-items-center rounded-full bg-black/35 text-white text-3xl leading-none hover:bg-black/55 ring-2 ring-white/70">×</button>
+    <CloseButton onClick={dismiss} tone="glass" size="lg" className="pointer-events-auto absolute top-4 right-4" />
   );
   const rep = REPS.find((r) => r.id === current.repId);
   const market = MARKETS.find((m) => m.id === current.marketId);

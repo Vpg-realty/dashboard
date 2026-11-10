@@ -4,6 +4,7 @@
 // health list is on its Overview). Owners edit the numbers.
 import { useState } from 'react';
 import { zipAction } from './store.js';
+import CloseButton from '../shell/CloseButton';
 
 const FIELDS = {
   perRequest: { label: 'Zips per request', unit: 'zips' },
@@ -68,7 +69,7 @@ export default function ZipRulesDrawer({ data: d, owner, onClose }) {
         <div className="sticky top-0 z-10 flex items-center gap-3 bg-navy-700 text-white px-5 py-3.5">
           <h2 className="text-[16px] font-semibold">How Zips Are Handed Out</h2>
           {owner && !edit && <button onClick={() => setEdit(true)} className="ml-auto h-8 px-3 rounded-md bg-tan-500 text-navy-900 text-[12.5px] font-semibold hover:bg-tan-400">Edit the numbers</button>}
-          <button type="button" autoFocus onClick={onClose} aria-label="Close" className={`${owner && !edit ? '' : 'ml-auto '}grid place-items-center w-8 h-8 rounded-full hover:bg-white/15 text-lg`}>×</button>
+          <CloseButton autoFocus onClick={onClose} className={owner && !edit ? '' : 'ml-auto'} />
         </div>
         {edit ? <RulesEditor rules={d.rules} onDone={() => setEdit(false)} /> : groups.map((g) => (
           <div key={g.name} className="px-5 py-4 border-b border-tan-100">
