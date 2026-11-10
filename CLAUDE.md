@@ -2143,6 +2143,11 @@ points at comes first. Replaces "or use GHL's date here" / "Set to X".
   N days ── End, `IpSpan`), COE — each with a line icon whose square takes
   the tile's status colour (green / amber / red / grey) and a status word
   ("In · VPG + Buyer", "Ended · buyer in", "in 18 days", "2 days late").
+  **EM lost on a cancel** (Luke, Nov 10: "need gross to reflect on this too
+  when the em is lost"): a cancelled deal with EMD returned? No / Lost (and no
+  buyer's EMD kept) shows the loss on the Gross tile in red — the deal's gross
+  profit when the person receives it, else minus the EMD — with an "EM lost"
+  word (`emLost` in DealPanel.jsx), instead of "—".
 
 ## A cancel that still makes money (Luke, Oct 23)
 
