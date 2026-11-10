@@ -23,6 +23,7 @@ import { STATUS_LOOK, statusOf } from './status.js';
 import StateControls from './StateControls.jsx';
 import { money } from '../deals/format.js';
 import { closeRateTone, CLOSE_RATE_CLS } from '../deals/summaryStats.js';
+import { XIcon } from '../shell/CloseButton';
 
 const LEGAL_CHIP = { Clear: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Caution: 'bg-amber-50 text-amber-900 ring-amber-200', 'High Risk': 'bg-red-50 text-red-800 ring-red-200' };
 const chip = 'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap';
@@ -225,7 +226,7 @@ export default function WhoWorksWhere() {
           <UsMap byAbbr={m.byAbbr} mode={mode} focusRep={focusRep} selected={selected} onSelect={(id) => setQuery({ state: id === selected ? null : id })} />
           <div className="mt-3 pt-3 border-t border-tan-100"><MapLegend mode={mode} focusRep={focusRep} /></div>
         </Panel>
-        <Panel title={st ? 'State' : focusRep ? 'Rep' : 'Pick a state'} right={st && <button onClick={() => setQuery({ state: null })} className="text-[12.5px] text-zinc-500 hover:text-navy-700">Close ×</button>}>
+        <Panel title={st ? 'State' : focusRep ? 'Rep' : 'Pick a state'} right={st && <button onClick={() => setQuery({ state: null })} className="inline-flex items-center gap-1 text-[12.5px] text-zinc-500 hover:text-navy-700">Close <XIcon size={12} /></button>}>
           {!st && focusRep ? <RepDetail row={m.reps.find((x) => x.rep.id === focusRep)} flags={flags} onState={(id) => setQuery({ state: id })} /> : <StateDetail st={st} tracker={tracker} owner={owner} />}
         </Panel>
       </div>

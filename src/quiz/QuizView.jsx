@@ -13,6 +13,7 @@ import BandMark from '../shell/BandMark.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
 import { inputCls } from '../settings/ui.jsx';
 import { PROP_FIELDS, fieldPoints, propMax, num } from './score.js';
+import { XIcon } from '../shell/CloseButton';
 
 const api = (body, host, practice) => call(body ? 'comp-quiz' : `comp-quiz${host ? '?host=1' : practice ? '?practice=1' : ''}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
 const btn = 'h-10 px-4 rounded-lg text-[14px] font-semibold disabled:opacity-50';
@@ -579,7 +580,7 @@ function Mover({ i, n, set }) {
     <>
       <button type="button" title="Move up" disabled={i === 0} onClick={() => swap(i, i - 1)} className={sm}>↑</button>
       <button type="button" title="Move down" disabled={i === n - 1} onClick={() => swap(i, i + 1)} className={sm}>↓</button>
-      <button type="button" title="Remove" onClick={() => { if (window.confirm('Remove this?')) set((l) => l.filter((_, j) => j !== i)); }} className={`${sm} text-rose-700`}>×</button>
+      <button type="button" title="Remove" onClick={() => { if (window.confirm('Remove this?')) set((l) => l.filter((_, j) => j !== i)); }} className={`${sm} text-rose-700`}><XIcon size={14} /></button>
     </>
   );
 }
@@ -611,7 +612,7 @@ function McEditor({ title, note, list, set, move, part }) {
                   onChange={(e) => edit(i, { options: q.options.map((x, m) => (m === k ? e.target.value : x)) })} />
                 <button type="button" title="Remove this choice" disabled={q.options.length <= 2}
                   onClick={() => edit(i, { options: q.options.filter((_, m) => m !== k), answer: q.answer === k ? 0 : q.answer > k ? q.answer - 1 : q.answer })}
-                  className="h-8 w-8 rounded-md text-zinc-400 hover:text-rose-700 disabled:opacity-30 shrink-0">×</button>
+                  className="h-8 w-8 rounded-md text-zinc-400 hover:text-rose-700 disabled:opacity-30 shrink-0"><XIcon size={14} /></button>
               </div>
             ))}
             {q.options.length < 6 && <div><button type="button" onClick={() => edit(i, { options: [...q.options, ''] })} className="text-[13px] text-navy-700 underline">+ Add a choice</button></div>}
@@ -791,7 +792,7 @@ function Present({ quiz, answers, names, scores, max, onClose }) {
           <div className="flex gap-2">
             <button type="button" onClick={() => setI(Math.max(0, i - 1))} className={quiet}>←</button>
             <button type="button" onClick={() => setI(Math.min(slides.length - 1, i + 1))} className={quiet}>→</button>
-            <button type="button" onClick={onClose} className={quiet}>Close ✕</button>
+            <button type="button" onClick={onClose} className={`${quiet} inline-flex items-center gap-1`}>Close <XIcon size={12} /></button>
           </div>
         </div>
         <div className="rounded-2xl border border-tan-200 bg-white overflow-hidden shadow-sm">

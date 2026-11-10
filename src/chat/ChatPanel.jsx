@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMe, chatLoad, chatAsk, chatSetCap, chatRemember, chatForget } from '../utils/dashApi.js';
 import Markdown from './Markdown.jsx';
+import CloseButton, { XIcon } from '../shell/CloseButton';
 
 const SUGGEST = {
   territory: [
@@ -79,7 +80,7 @@ function Panel({ page, onClose }) {
               <h2 className="mt-1 text-[19px] font-semibold">{isRep ? 'Your Zips' : page === 'zips' ? 'Territory & Zip Questions' : 'Territory Questions'}</h2>
               <div className="text-[12.5px] text-navy-100 mt-0.5">{isRep ? 'Look up your zips and what’s available in your states. To get or release zips, use the buttons on My zips.' : 'One shared conversation for Luke and Jack. Answers come from today’s dashboard data and live zip holds.'}</div>
             </div>
-            <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+            <CloseButton onClick={onClose} />
           </div>
           <div className="flex items-end gap-5 mt-3">
             {tabs.map(([k, l]) => (
@@ -93,7 +94,7 @@ function Panel({ page, onClose }) {
                 ) : (
                   <span className="inline-flex items-center gap-1">cap $<input autoFocus value={capEdit} onChange={(e) => setCapEdit(e.target.value)} className="w-16 rounded bg-white/10 px-1 text-white outline-none" />
                     <button onClick={async () => { try { const r = await chatSetCap(Number(capEdit)); setS((x) => ({ ...x, month: r.month })); setCapEdit(null); } catch (e) { setErr(e.message); } }} className="font-semibold text-white">Save</button>
-                    <button onClick={() => setCapEdit(null)} className="text-white/60">×</button></span>
+                    <button onClick={() => setCapEdit(null)} aria-label="Cancel" className="text-white/60 hover:text-white"><XIcon size={14} /></button></span>
                 )}
               </span>
             )}
@@ -177,7 +178,7 @@ function Preview({ name, onClose }) {
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400"><Spark />Ask Claude · only they see this</div>
             <h2 className="mt-1 text-[19px] font-semibold">Their Zips</h2>
           </div>
-          <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+          <CloseButton onClick={onClose} />
         </header>
         <div className="p-6 text-[14px] text-zinc-700 leading-relaxed">
           <p><b>{name}</b> gets this button on the Territory pages: a private conversation with Claude about their own zips and what's free in their states (25 questions a day).</p>

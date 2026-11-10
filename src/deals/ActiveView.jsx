@@ -38,6 +38,7 @@ import { showEndTime } from './ddTime.js';
 import { personColor } from './personColor.js';
 import { titleCase } from '../shell/titleCase.js';
 import BandCounter from '../shell/BandCounter.jsx';
+import { XIcon } from '../shell/CloseButton';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const first = (n) => String(n || '').trim().split(' ')[0];
@@ -276,7 +277,7 @@ export default function ActiveView() {
         {only && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-700 text-white pl-3 pr-1 h-7 font-medium">
             {ONLY[only]} only
-            <button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20">×</button>
+            <button type="button" onClick={() => setQuery({ only: null })} aria-label="Clear the filter" className="grid place-items-center w-5 h-5 rounded-full hover:bg-white/20"><XIcon size={12} /></button>
           </span>
         )}
         <span className="ml-auto flex items-center gap-3">{!s.readOnly && <SyncNote sync={s.sync} />}<ResortBar stale={frozen.stale || needFrozen.stale} onResort={() => { frozen.resort(); needFrozen.resort(); }} /></span>

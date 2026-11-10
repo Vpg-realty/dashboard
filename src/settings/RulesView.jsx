@@ -21,6 +21,7 @@ import { toTimelines, entryAt, applyChange, TRACKER_START, rulesAt } from '../de
 import { laToday } from '../utils/historyRange.js';
 import { money } from '../deals/format.js';
 import { Section, Field, Pct, Money, inputCls } from './ui.jsx';
+import { XIcon } from '../shell/CloseButton';
 
 const signed = (x) => `${x >= 0 ? '+' : '−'}${money(Math.abs(x))}`;
 const STATUSES = RULE_STATUSES;
@@ -88,7 +89,7 @@ function Names({ value, onChange, people }) {
     <div className="flex flex-wrap items-center gap-1.5">
       {value.map((x) => (
         <span key={x} className="inline-flex items-center gap-1 rounded-md bg-tan-100 px-2 py-1 text-[13px]">{x}
-          <button type="button" onClick={() => onChange(value.filter((y) => y !== x))} className="text-zinc-400 hover:text-red-600" aria-label={`Remove ${x}`}>×</button></span>
+          <button type="button" onClick={() => onChange(value.filter((y) => y !== x))} className="text-zinc-400 hover:text-red-600" aria-label={`Remove ${x}`}><XIcon size={12} /></button></span>
       ))}
       <SearchSelect className="w-44" value={pick || ''} onChange={(v) => { if (v) onChange([...value, v]); setPick(''); }} clearable={false} pinned={[{ value: '', label: '+ add' }]} options={people.filter((p) => !value.includes(p)).map((p) => ({ value: p, label: p }))} />
     </div>

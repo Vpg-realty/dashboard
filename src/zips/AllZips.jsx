@@ -12,6 +12,7 @@ import { useZips, zipAction, daysLeft, shortDate } from './store.js';
 import { BrandTile } from '../shell/BrandTile.jsx';
 import SheetView from '../territory/SheetView.jsx';
 import ZipRulesDrawer from './RulesHealth.jsx';
+import { XIcon } from '../shell/CloseButton';
 
 const LEVEL = {
   now: { dot: 'bg-red-600', label: 'Fix now', cls: 'text-red-800' },
@@ -165,7 +166,7 @@ export default function ZipCenter({ view: tabView }) {
                       {list.map((h) => (
                         <span key={h.zip} title={`${h.county}, ${h.state} · tier ${h.tier} · since ${shortDate(h.assigned_at)}${h.via === 'owner' ? ` (assigned by ${h.by_name})` : ''} · ${daysLeft(h.expires_at)} days left`} className="inline-flex items-center gap-1 rounded-md bg-zinc-50 px-1.5 py-0.5 text-[12.5px] tabular-nums ring-1 ring-inset ring-zinc-200">
                           {h.zip}<span className="text-[10.5px] text-zinc-400">{daysLeft(h.expires_at)}d</span>
-                          {owner && <button onClick={() => window.confirm(`Release ${h.zip} from ${r?.name}?`) && zipAction('release', { zips: [h.zip], reason: 'released by owner' })} className="text-zinc-400 hover:text-red-700" aria-label={`Release ${h.zip}`}>×</button>}
+                          {owner && <button onClick={() => window.confirm(`Release ${h.zip} from ${r?.name}?`) && zipAction('release', { zips: [h.zip], reason: 'released by owner' })} className="text-zinc-400 hover:text-red-700" aria-label={`Release ${h.zip}`}><XIcon size={12} /></button>}
                         </span>
                       ))}
                     </div>

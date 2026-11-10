@@ -40,6 +40,7 @@ import { weekSeries, avgOf, crmTenths, teamScore } from './trends.js';
 import TrendsView from './TrendsView.jsx';
 import { titleCase } from '../../shell/titleCase.js';
 import BandMark from '../../shell/BandMark.jsx';
+import CloseButton from '../../shell/CloseButton';
 
 const repOf = (id) => REPS.find((r) => r.id === id) || { id, name: id, color: '#a1a1aa' };
 const first = (id) => repOf(id).name.split(' ')[0];
@@ -566,7 +567,7 @@ function RepDrawer({ id, ids, onPick, onClose, crm }) {
           <span className="ml-auto flex items-center gap-1">
             <button className={btn} disabled={i <= 0} onClick={() => onPick(ids[i - 1])}>← Prev</button>
             <button className={btn} disabled={i < 0 || i >= ids.length - 1} onClick={() => onPick(ids[i + 1])}>Next →</button>
-            <button onClick={onClose} className="text-white/70 hover:text-white text-2xl leading-none px-2" aria-label="Close">×</button>
+            <CloseButton onClick={onClose} />
           </span>
         </header>
         <div className="flex-1 min-h-0 overflow-auto p-4">

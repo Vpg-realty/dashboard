@@ -209,6 +209,14 @@ one can't fit a page, tell Luke instead of making a one-off.
   Team Scorecards › Scorecard, TC List and Alerts (their buttons are its
   `RailButton`). Settings / Territory keep their Frame rail (the section's
   own tabs, links). Panels (the deal panel, Ask Claude) may keep tabs.
+- **Close / clear mark** = `CloseButton` / `XIcon` (`src/shell/CloseButton.jsx`;
+  Luke, Nov 10: "make it more modern and carry that type of x throughout the
+  whole site") — a thin SVG cross with rounded ends. `CloseButton` closes a
+  panel, pop-up or banner: a round button, tone `dark` (navy band / header,
+  soft white glass), `light` (white card) or `glass` (coloured pop-ups — the
+  celebration banners, frosted, size `lg`). `XIcon` is the inline cross on
+  chips ("Urgent ×", "Whole year ×"), remove buttons and search boxes
+  (ClearX). Never type a "×" / "✕" for a close or clear again.
 - **Page title** = Home's size: `text-2xl md:text-[30px] font-semibold`
   (every page band's h1, ManagerFrame, Settings / Territory Frame).
 - **Page width** = Deals › Active's: `max-w-[1720px] mx-auto` on every page

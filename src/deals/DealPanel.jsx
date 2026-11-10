@@ -37,6 +37,7 @@ import MismatchList from './Mismatch.jsx';
 import DealFiles from './DealFiles.jsx';
 import DealNotes from './DealNotes.jsx';
 import { mismatchRow } from './mismatchRow.js';
+import CloseButton from '../shell/CloseButton';
 
 // Finance's state on a commission (owners): Paid Oct 13 · Zelle / Approved /
 // To approve — Finance › Money In & Out is where it changes.
@@ -814,7 +815,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                 )}
               </div>
             </div>
-            <button onClick={close} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+            <CloseButton onClick={close} />
           </div>
           {!isNew && (
             <nav className="flex gap-5 mt-4 relative">

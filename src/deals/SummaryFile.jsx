@@ -16,6 +16,7 @@ import { StatusChip } from './ui.jsx';
 import { money, shortDate, btnCls, downloadCsv } from './format.js';
 import { stats, groupStats, KINDS, titleCase, pctTxt, n } from './summaryStats.js';
 import { Stat, Delta } from './summaryUi.jsx';
+import CloseButton from '../shell/CloseButton';
 
 const FILTERS = [['all', 'All'], ['open', 'Open'], ['COMPLETE', 'Closed'], ['CANCELLED', 'Cancelled']];
 const isOpenStatus = (s) => isOpen({ status: s });
@@ -80,7 +81,7 @@ export default function SummaryFile({ file, deals, owner, onOpenDeal }) {
                 {data.rank > 0 && <> · <b className="text-white">#{data.rank}</b> of {data.of} {kind === 'state' ? 'states' : KINDS[kind].label.toLowerCase()} by net</>}
               </div>
             </div>
-            <button type="button" onClick={close} aria-label="Close" className="ml-auto w-9 h-9 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 text-xl leading-none">×</button>
+            <CloseButton onClick={close} className="ml-auto" />
           </div>
           <div className="mt-3 inline-flex"><PeriodBar deals={deals} defaultKey="y:2026" /></div>
         </header>

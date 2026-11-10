@@ -5,6 +5,7 @@ import { money, shortDate, primaryCls } from './format.js';
 import { CoeChip } from './ui.jsx';
 import MismatchList from './Mismatch.jsx';
 import { mismatchRow } from './mismatchRow.js';
+import CloseButton from '../shell/CloseButton';
 
 export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) {
   const facts = [
@@ -25,7 +26,7 @@ export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) 
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-tan-400">Deal · {g.repName || 'GHL'}</div>
               <h2 className="mt-1 text-[22px] font-semibold tracking-tight truncate">{g.address || g.name}</h2>
             </div>
-            <button onClick={onClose} className="text-white/60 hover:text-white text-2xl leading-none px-1" aria-label="Close">×</button>
+            <CloseButton onClick={onClose} />
           </div>
         </header>
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">

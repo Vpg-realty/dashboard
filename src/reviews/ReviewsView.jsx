@@ -18,6 +18,7 @@ import BandMark from '../shell/BandMark.jsx';
 import BandCounter from '../shell/BandCounter.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { money } from '../deals/format.js';
+import { XIcon } from '../shell/CloseButton';
 
 const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthName = (m) => `${MON[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}`;
@@ -147,7 +148,7 @@ export default function ReviewsView() {
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorOf(rep) }} />
                     <span className="font-semibold text-navy-800 truncate">{nameOf(rep)}</span>
                     {ok ? <span className={`${chip} ${TONE[t?.tone || 'amber']}`}>{money(REVIEW_PAY)} · {t?.text || 'To approve'}</span> : <span className={`${chip} bg-zinc-50 text-zinc-500 ring-zinc-200`}>over the cap · not paid</span>}
-                    {(!l || l.status === 'owed') && <button type="button" disabled={busy} onClick={() => run({ action: 'edit', id: r.id, reps: r.reps.filter((x) => x !== rep), month })} className="ml-auto text-zinc-400 hover:text-red-700" title="Take them off this review">×</button>}
+                    {(!l || l.status === 'owed') && <button type="button" disabled={busy} onClick={() => run({ action: 'edit', id: r.id, reps: r.reps.filter((x) => x !== rep), month })} className="ml-auto text-zinc-400 hover:text-red-700" title="Take them off this review"><XIcon size={12} /></button>}
                   </div>
                 );
               })}

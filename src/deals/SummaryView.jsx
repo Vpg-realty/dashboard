@@ -23,6 +23,7 @@ import SummaryFile from './SummaryFile.jsx';
 import useDealPanel from './useDealPanel.jsx';
 import { stats, groupStats, KINDS, MONTH, titleCase, pctTxt } from './summaryStats.js';
 import { Delta, RateCell, Band, BandStat } from './summaryUi.jsx';
+import { XIcon } from '../shell/CloseButton';
 
 const VIEWS = [
   ['overview', 'Company overview', 'The period at a glance'],
@@ -116,7 +117,7 @@ function MonthClosings({ month, deals, owner, onOpenDeal }) {
   const tot = (k) => list.reduce((t, d) => t + (Number(d[k]) || 0), 0);
   const isMoneyCol = (k) => ['grossAssign', 'netAssign', 'netProfit'].includes(k);
   return (
-    <Card title={`Closed in ${month.name} ${month.key.slice(0, 4)}`} sub={`${list.length} propert${list.length === 1 ? 'y' : 'ies'} · click one to open the deal`} right={<button type="button" onClick={() => setQuery({ p: `y:${month.key.slice(0, 4)}` })} className="text-[12.5px] font-medium px-2">Whole year ×</button>}>
+    <Card title={`Closed in ${month.name} ${month.key.slice(0, 4)}`} sub={`${list.length} propert${list.length === 1 ? 'y' : 'ies'} · click one to open the deal`} right={<button type="button" onClick={() => setQuery({ p: `y:${month.key.slice(0, 4)}` })} className="inline-flex items-center gap-1 text-[12.5px] font-medium px-2">Whole year <XIcon size={12} /></button>}>
       {!list.length ? <div className="px-5 py-8 text-center text-zinc-500">Nothing closed in {month.name}.</div> : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[14px]">
@@ -231,7 +232,7 @@ function Cancels({ list, reason, onOpenDeal, lists }) {
         </table>
       </Card>
       <Card title={reason ? `Cancelled · ${reasonLabel(reason)}` : 'Every Cancelled Deal'} sub={`${shown.length} deal${shown.length === 1 ? '' : 's'}`}
-        right={<span className="flex items-center gap-3">{reason && <button type="button" onClick={() => setQuery({ reason: null })} className="font-semibold">All reasons ×</button>}<a {...linkProps(`/deals/all?status=CANCELLED${reason ? `&reason=${reason}` : ''}`)} className="font-semibold">Open in All Deals →</a></span>}>
+        right={<span className="flex items-center gap-3">{reason && <button type="button" onClick={() => setQuery({ reason: null })} className="inline-flex items-center gap-1 font-semibold">All reasons <XIcon size={12} /></button>}<a {...linkProps(`/deals/all?status=CANCELLED${reason ? `&reason=${reason}` : ''}`)} className="font-semibold">Open in All Deals →</a></span>}>
         <table className="w-full text-[13.5px]">
           <thead className="bg-navy-50/60 text-navy-800"><tr>{['Property', 'Acq. manager', 'State', 'Reason', 'Our EMD', "Buyer's EMD kept"].map((c, i) => <th key={c} className={`${i > 3 ? 'text-right' : 'text-left'} ${i ? '' : 'pl-5'} px-3 py-2.5 font-medium whitespace-nowrap`}>{c}</th>)}</tr></thead>
           <tbody>

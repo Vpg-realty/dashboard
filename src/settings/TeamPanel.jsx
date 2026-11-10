@@ -29,6 +29,7 @@ import { linkProps } from '../shell/router.js';
 import { inputCls } from './ui.jsx';
 import SearchBox from '../shell/SearchBox.jsx';
 import { ROLE_OPTS, keyName } from './team.js';
+import CloseButton from '../shell/CloseButton';
 
 const repIn = (reps, id) => reps.find((r) => r.id === id) || null;
 const marketName = (id) => ALL_MARKETS.find((m) => m.id === id)?.name || id;
@@ -180,7 +181,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, offTeam = [],
             <div className="text-[20px] font-semibold leading-tight">{`${d.name} ${d.last}`.trim() || 'Add a Team Member'}</div>
             {!isNew && <div className="text-[12.5px] text-white/70">{u.email}</div>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-white/60 hover:text-white text-2xl leading-none px-1">×</button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="flex-1 overflow-y-auto">
           {self && <div className="mx-5 mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[13px] text-amber-900">That’s you — another owner changes your own access.</div>}

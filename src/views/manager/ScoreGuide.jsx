@@ -11,6 +11,7 @@ import { STALE_DAYS, FOLLOWUP_BUSINESS_DAYS, MESSAGE_LOOKBACK_DAYS } from '../..
 import { ANSWER_WITHIN_MIN, SPEED_TARGET, NEVER_SEND, QUESTION_MIN_WORDS } from '../../../server/messaging.js';
 import { STANDARD_RULES, OK_CASES, MISSES, NEEDS_REPLY, NO_REPLY_NEEDED } from '../../../scripts/messaging-standard.mjs';
 import { usePods } from '../../shell/pods.js';
+import CloseButton from '../../shell/CloseButton';
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 
@@ -243,7 +244,7 @@ export default function ScoreGuide({ onClose }) {
             <div className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Weekly scorecard</div>
             <div className="text-2xl font-extrabold">How the score works</div>
           </div>
-          <button onClick={onClose} className="text-2xl leading-none text-zinc-400 hover:text-zinc-700">×</button>
+          <CloseButton onClick={onClose} tone="light" />
         </div>
         <div className="flex gap-1 px-6 mt-3 border-b border-zinc-200">
           {TABS.map(([k, label]) => (

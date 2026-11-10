@@ -10,6 +10,7 @@ import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
 import { useTraining, testScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, youTubeId } from './api.js';
 import BandMark from '../shell/BandMark.jsx';
+import CloseButton from '../shell/CloseButton';
 
 const firstName = (n) => String(n || '').split(' ')[0];
 const repName = (id) => REPS.find((r) => r.id === id)?.name || id;
@@ -168,7 +169,7 @@ function Passed({ last, onClose }) {
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-full border-[5px] border-emerald-600 grid place-items-center text-lg font-bold text-emerald-700">{pct(result.score)}</div>
         <div className="flex-1 min-w-0"><div className="text-[16px] font-semibold text-emerald-800">Passed {step.title} · {result.correct} of {result.total}</div><div className="text-[13.5px] text-zinc-600">Saved to your file. Your next step is below.</div></div>
-        <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-800 text-xl leading-none" aria-label="Close">×</button>
+        <CloseButton onClick={onClose} tone="light" />
       </div>
       {result.wrong.length > 0 && result.answers && (
         <ul className="mt-3 space-y-1 text-[14px]">
