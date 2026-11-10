@@ -9,7 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
-import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, textsLocation, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
+import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, textsLocation, closersLocation, CLOSER_COLS, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
 import { MARKET_TZ } from '../server/messaging.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -82,6 +82,10 @@ const JOBS = [
   // know who had replied before), texts counted from May 5. Rows in chunks
   // (agent_texts:<location>:<n>), the index in agent_texts:<location>.
   { key: 'agent_texts', since: 0, kind: 'texts', from: Date.parse('2026-05-05T07:00:00Z') },
+  // How each agent's first conversation was closed and whether they came
+  // back with deals (Luke, Nov 10) — all history. Rows in chunks
+  // (agent_closers:<location>:<n>), the index in agent_closers:<location>.
+  { key: 'agent_closers', since: 0, kind: 'closers' },
 ];
 
 async function main() {
@@ -134,10 +138,10 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
       const [contacts, opps, pipelines] = await Promise.all([contactsOf(loc, pit), oppsOf(loc, pit), ghlFetch('/opportunities/pipelines', pit, { params: { locationId: loc } }).then((d) => d?.pipelines || [])]);
       const messages = await messagesOf(loc, pit, since);
       const data = { contacts, opps, pipelines, messages };
-      if (kind === 'texts') {
+      if (kind === 'texts' || kind === 'closers') {
         if (!messages.length && contacts.length > 50) throw new Error(`no messages came back for ${contacts.length} contacts`);
         const repNames = (subs.reps || []).flatMap((r) => String(r.name || '').split(/\s+/)).filter((n) => n.length > 2);
-        const r = textsLocation({ ...data, from, repNames, label: labels[loc] || loc });
+        const r = kind === 'closers' ? closersLocation({ ...data, repNames, label: labels[loc] || loc }) : textsLocation({ ...data, from, repNames, label: labels[loc] || loc });
         const parts = [];
         let cur = []; let size = 0;
         for (const row of r.rows) {
@@ -147,9 +151,9 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
         }
         if (cur.length) parts.push(cur);
         for (let i = 0; i < parts.length; i++) await put(`${key}:${loc}:${i}`, parts[i]);
-        await put(`${key}:${loc}`, { label: r.label, rows: r.rows.length, parts: parts.length, messages: messages.length, at: new Date().toISOString() });
+        await put(`${key}:${loc}`, { label: r.label, rows: r.rows.length, parts: parts.length, messages: messages.length, ...(kind === 'closers' ? { cols: CLOSER_COLS } : {}), at: new Date().toISOString() });
         st.done.push(loc); delete st.errors[loc];
-        log(`${key} ${r.label}: ${r.rows.length} wordings`);
+        log(`${key} ${r.label}: ${r.rows.length} rows`);
         await save();
         continue;
       }
@@ -180,7 +184,7 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
     }
     await save();
   }
-  if ((kind === 'lists' || kind === 'lowresp' || kind === 'texts') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+  if ((kind === 'lists' || kind === 'lowresp' || kind === 'texts' || kind === 'closers') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
     st.finished = new Date().toISOString(); await save(); log(`${key} finished`); return;
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {

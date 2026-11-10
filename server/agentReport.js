@@ -542,3 +542,84 @@ export function textsLocation({ contacts, opps, messages, label, from = 0, repNa
     .map((g) => [g.kind, g.sample, g.i, g.e, day(g.first), day(g.last), g.who.size]);
   return { label, rows };
 }
+
+// How the first conversation was closed, and whether the agent came back
+// (Luke, Nov 10: "what message works the best when closing out the first
+// conversation that will result in them sending more opportunities … even
+// the chances of all reps"). One sub-account's whole history in; one row per
+// agent who ever wrote back. The first conversation runs from the first
+// text that got a real reply until 3 days pass with nobody writing (an
+// automated text doesn't keep it open). Row (`CLOSER_COLS`): phone (last 10
+// digits — to find agents several reps work), the last text a person on our
+// side typed in it (≤ 400 chars, names replaced like textSample), who wrote
+// last (rep / agent / auto), the agent's last text, when it ended, how many
+// texts each side typed, days until the agent next wrote on their own
+// (nothing from us in the 3 days before; null = never), opportunities
+// opened in the 90 days after / ever after, and days to the first of them.
+export const CLOSER_COLS = ['phone', 'closer', 'lastFrom', 'agentLast', 'ended', 'repMsgs', 'agentMsgs', 'cameBackDays', 'opps90', 'oppsAfter', 'firstOppDays', 'contact'];
+const GAP = 3 * DAY;
+export function closersLocation({ contacts, opps, messages, label, repNames = [] }) {
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId || isCall(m) && m.direction === 'outbound' && !isManual(m)) continue;
+    if (!byContact.has(m.contactId)) byContact.set(m.contactId, []);
+    byContact.get(m.contactId).push(m);
+  }
+  const oppAt = new Map();
+  for (const o of opps) {
+    const t = Date.parse(o.createdAt || o.dateAdded);
+    if (!o.contactId || !t) continue;
+    if (!oppAt.has(o.contactId)) oppAt.set(o.contactId, []);
+    oppAt.get(o.contactId).push(t);
+  }
+  const rows = [];
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    if (!tags.some((t) => AGENT_TAG.test(t))) continue;
+    const msgs = (byContact.get(c.id) || []).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+    const first = msgs.findIndex((m) => realReply(m));
+    if (first < 0) continue;
+    // Walk forward until a 3-day silence (automated texts don't count as
+    // someone writing).
+    let end = first; let lastAt = Date.parse(msgs[first].dateAdded);
+    for (let i = first + 1; i < msgs.length; i++) {
+      const m = msgs[i]; const t = Date.parse(m.dateAdded);
+      if (t - lastAt > GAP) break;
+      if (m.direction === 'outbound' && !isManual(m)) continue;
+      end = i; lastAt = t;
+    }
+    const convo = msgs.slice(0, end + 1);
+    const typed = convo.filter((m) => m.direction === 'outbound' && isManual(m) && !isCall(m) && m.body);
+    const closerMsg = typed[typed.length - 1];
+    const lastMsg = msgs[end];
+    const lastFrom = lastMsg.direction === 'inbound' ? 'agent' : isManual(lastMsg) ? 'rep' : 'auto';
+    const agentLast = [...convo].reverse().find((m) => m.direction === 'inbound' && m.body);
+    // The agent writing on their own later: an inbound real text with
+    // nothing from us in the 3 days before it.
+    let came = null;
+    for (let i = end + 1; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (!realReply(m)) continue;
+      const t = Date.parse(m.dateAdded);
+      const prevOut = [...msgs.slice(0, i)].reverse().find((x) => x.direction === 'outbound');
+      if (!prevOut || t - Date.parse(prevOut.dateAdded) > GAP) { came = Math.round((t - lastAt) / DAY); break; }
+    }
+    const after = (oppAt.get(c.id) || []).filter((t) => t > lastAt).sort((a, b) => a - b);
+    const clean = (b, n) => (b ? textSample(b, c, repNames).slice(0, n) : '');
+    rows.push([
+      String(c.phone || '').replace(/\D/g, '').slice(-10),
+      clean(closerMsg?.body, 400),
+      lastFrom,
+      clean(agentLast?.body, 160),
+      new Date(lastAt).toISOString().slice(0, 10),
+      typed.length,
+      convo.filter((m) => m.direction === 'inbound').length,
+      came,
+      after.filter((t) => t - lastAt <= 90 * DAY).length,
+      after.length,
+      after.length ? Math.round((after[0] - lastAt) / DAY) : null,
+      c.id,
+    ]);
+  }
+  return { label, rows };
+}

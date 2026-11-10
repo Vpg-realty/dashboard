@@ -1695,6 +1695,20 @@ whether the agent had replied before (i = initial, e = after a reply):
 workflow builder API is closed for these sub-accounts, so the sent texts are
 the only record of the wording).
 
+**How the first conversation is closed (Luke, Nov 10: "what message works
+the best when closing out the first conversation that will result in them
+sending more opportunities … Derone Fagan … sends deals to Danni even when
+Axel follows up … even the chances of all reps"):** a seventh job
+`agent_closers` (`closersLocation`, server/agentReport.js; all history) —
+one row per agent who ever wrote back (`CLOSER_COLS`): phone (to find agents
+several reps work), the last text a person on our side typed in the first
+conversation (from the first reply until 3 days of nobody writing; automated
+texts don't keep it open), who wrote last, the agent's last text, days until
+the agent next wrote on their own (nothing from us in the 3 days before),
+opportunities in the 90 days after / ever. Rows in chunks
+`agent_closers:<location>:<n>`. Read once for Luke's closing-message
+recommendation.
+
 ## Sidebar headers, Team Quizzes, Agent Follow-Up, Site Usage (Luke, Nov 8)
 
 From the approved proposal page (owners / managers / reps / TC sidebars).
