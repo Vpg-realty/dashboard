@@ -79,10 +79,20 @@ async function conversationsOf(loc, pit) {
   }
   return out;
 }
+// GHL allows ~100 calls / 10 s per sub-account, shared with the rest of the
+// deploy and the alerts worker: a 429 waits and tries again (up to ~45 s).
+async function patient(path, pit, opts) {
+  for (let t = 0; ; t++) {
+    try { return await ghlFetch(path, pit, opts); } catch (e) {
+      if (!/GHL 429/.test(e.message) || t >= 5) throw e;
+      await new Promise((r) => setTimeout(r, 2000 * (t + 1) + Math.random() * 1000));
+    }
+  }
+}
 async function ignoredOf(convId, pit) {
   let state = { ignored: 0, last: 0 }; let lastMessageId;
   for (let p = 0; p < 4; p++) {
-    const d = await ghlFetch(`/conversations/${convId}/messages`, pit, { params: { limit: 100, ...(lastMessageId ? { lastMessageId } : {}) } });
+    const d = await patient(`/conversations/${convId}/messages`, pit, { params: { limit: 100, ...(lastMessageId ? { lastMessageId } : {}) } });
     const box = d?.messages || {};
     const r = countIgnored(box.messages || [], { ...state, enough: Infinity });
     if (r.done) return r;
@@ -151,21 +161,22 @@ async function main() {
     // last text, so not 5 ignored; no conversation → never texted.
     const all = pool0.filter((c) => convs.get(c.id)?.lastDir === 'outbound').sort((a, b) => (a.id < b.id ? -1 : 1));
     const todo = all.filter((c) => c.id > wip.after);
-    let stopped = false;
-    for (let i = 0; i < todo.length; i += 30) {
+    let stopped = false; let failed = null;
+    for (let i = 0; i < todo.length && !failed; i += 30) {
       if (left() < 25_000) { stopped = true; break; }
       const chunk = todo.slice(i, i + 30);
-      await pool(chunk, 3, async (c) => {
+      try { await pool(chunk, 2, async (c) => {
         const r = await ignoredOf(convs.get(c.id).id, pit);
         if (r.ignored >= PAUSE_IGNORED) {
           const tags = (c.tags || []).map((t) => String(t).toLowerCase());
           wip.rows.push([c.id, c.name, c.phone, r.ignored, r.last ? new Date(r.last).toISOString().slice(0, 10) : '', leads.n.get(c.id) || 0, ['tier 2', 'tier 3', 'tier 4'].find((t) => tags.includes(t)) || '', 0]);
         }
-      });
+      }); } catch (e) { failed = e; stopped = true; break; }
       wip.after = chunk[chunk.length - 1].id; wip.checked += chunk.length;
     }
+    wip.rows = [...new Map(wip.rows.map((r) => [r[0], r])).values()];
     const idx = { label: labels[loc] || loc, contacts: contacts.length, eligible: pool0.length, toCheck: all.length };
-    if (stopped) { await saveRows(loc, { ...idx, partial: true, checked: wip.checked }, wip.rows); await put(`${KEY}_wip:${loc}`, { after: wip.after, checked: wip.checked, rows: [] }); log(`${idx.label}: ${wip.checked} of ${all.length} checked so far`); return; }
+    if (stopped) { await saveRows(loc, { ...idx, partial: true, checked: wip.checked }, wip.rows); await put(`${KEY}_wip:${loc}`, { after: wip.after, checked: wip.checked, rows: [] }); log(`${idx.label}: ${wip.checked} of ${all.length} checked so far`); if (failed) throw failed; return; }
     wip.rows.sort((a, b) => b[3] - a[3]);
     await saveRows(loc, idx, wip.rows);
     await d1('DELETE FROM settings WHERE key = ?', [`${KEY}_wip:${loc}`]);
@@ -177,9 +188,9 @@ async function main() {
     const pit = pits[loc];
     const { idx, rows } = await loadRows(loc);
     let n = 0; const fails = [];
-    await pool(rows.filter((r) => !r[7]), 3, async (r) => {
+    await pool(rows.filter((r) => !r[7]), 2, async (r) => {
       if (left() < 20_000) return;
-      try { await ghlFetch(`/contacts/${r[0]}/tags`, pit, { method: 'POST', body: { tags: [PAUSE_TAG] } }); r[7] = 1; n++; } catch (e) { fails.push(String(e.message).slice(0, 120)); }
+      try { await patient(`/contacts/${r[0]}/tags`, pit, { method: 'POST', body: { tags: [PAUSE_TAG] } }); r[7] = 1; n++; } catch (e) { fails.push(String(e.message).slice(0, 120)); }
     });
     if (n || fails.length) {
       await saveRows(loc, { ...idx, tagged: rows.filter((r) => r[7]).length }, rows);
@@ -190,9 +201,11 @@ async function main() {
     log(`${idx?.label || loc}: tagged ${n}${fails.length ? `, ${fails.length} failed` : ''}`);
   };
 
-  const step = async (fn, list) => pool(list, 6, async (loc) => {
+  const step = async (fn, list) => pool(list, 4, async (loc) => {
     if (left() < 40_000) return;
-    try { await fn(loc); } catch (err) { st.errors[loc] = { msg: String(err.message).slice(0, 200), tries: (st.errors[loc]?.tries || 0) + 1 }; log(`${loc}: ${err.message}`); }
+    // GHL being busy (429) isn't the sub-account's fault: it resumes next
+    // run without using up one of its 3 tries.
+    try { await fn(loc); } catch (err) { const busy = /GHL 429/.test(err.message); st.errors[loc] = { msg: String(err.message).slice(0, 200), tries: (st.errors[loc]?.tries || 0) + (busy ? 0 : 1) }; log(`${loc}: ${err.message}`); }
   });
   const gaveUp = (l) => (st.errors[l]?.tries || 0) >= 3;
   await step(plan, locs.filter((l) => !st.done.includes(l) && !gaveUp(l)));
