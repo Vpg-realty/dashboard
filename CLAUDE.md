@@ -212,9 +212,11 @@ one can't fit a page, tell Luke instead of making a one-off.
 - **Close / clear mark** = `CloseButton` / `XIcon` (`src/shell/CloseButton.jsx`;
   Luke, Nov 10: "make it more modern and carry that type of x throughout the
   whole site") — a thin SVG cross with rounded ends. `CloseButton` closes a
-  panel, pop-up or banner: a round button, tone `dark` (navy band / header,
-  soft white glass), `light` (white card) or `glass` (coloured pop-ups — the
-  celebration banners, frosted, size `lg`). `XIcon` is the inline cross on
+  panel, pop-up or banner — a plain × (no circle), one size everywhere, tone
+  `dark` (navy band / header, white) or `light` (white card, grey); only the
+  celebration banners get `glass` (a frosted round button, size `lg` — Luke,
+  Nov 10: "the celebration popup … what you proposed. the others should be a
+  simple x, but they all need to match"). `XIcon` is the inline cross on
   chips ("Urgent ×", "Whole year ×"), remove buttons and search boxes
   (ClearX). Never type a "×" / "✕" for a close or clear again.
 - **Page title** = Home's size: `text-2xl md:text-[30px] font-semibold`

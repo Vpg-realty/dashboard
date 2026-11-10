@@ -48,7 +48,7 @@ function Tip({ p, pinned, onClose, box }) {
       style={{ left: `${(p.x - box.x) / box.w * 100}%`, top: `${(p.y - box.y) / box.h * 100}%`, transform: `translate(${left ? 'calc(-100% - 12px)' : '12px'}, ${up ? 'calc(-100% + 8px)' : '-8px'})` }}>
       <div className={`flex items-start gap-2 px-3 py-2 rounded-t-xl ${PANEL_HEAD}`}>
         <span className="font-semibold leading-snug flex-1">{p.address}</span>
-        {pinned && <CloseButton onClick={onClose} size="sm" />}
+        {pinned && <CloseButton onClick={onClose} />}
       </div>
       <div className="px-3 py-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <span className="text-zinc-500">Sold</span><span className="font-medium text-zinc-900">{fullDate(p.sold)}</span>
