@@ -1682,6 +1682,24 @@ later, but only once the rules for who qualifies are agreed and checked
 (Nov 9: "we need to figure out how to do that first and ensure you are
 adding it to the correct people") — don't build it without that.
 
+**Bulk Stop Automations (Luke, Nov 10: "auto apply the do not automate to
+any agent that hasn't responded to 5 or more automated texts as of now")**
+— the rules he confirmed: in an automation now (nurture / engaged tag), not
+already do-not-automate / DNC / any DND channel, **not tier 1**, no lead
+opened in the last 4 months, and 5+ automated texts (bursts within 30 min
+count once; typed texts and calls neither count nor reset) since their last
+reply — **or ever, when they never replied**. A one-off:
+`scripts/agent-pause.mjs` (after agent-report in `npm run snapshot`, rules
+in server/agentPause.js) reads each candidate's own conversation newest
+first (the location-wide export came back partial for 20 sub-accounts on
+Nov 9, so the Low-Response list isn't used), stores who qualifies in
+settings `agent_pause:<location>:<n>` (+ index), and only tags once
+settings `agent_pause`.apply is set to true by hand after the numbers are
+checked; tags go straight to GHL (POST /contacts/:id/tags), each row marked
+tagged, edit_log `agentpause.tag`. Resumable (`agent_pause_wip:<loc>`),
+4-minute budget, 6 sub-accounts at a time. Not repeated: a later run needs
+VERSION bumped and Luke's say-so.
+
 **Automated texts by wording (Luke, Nov 10: "a spreadsheet … all automated
 messages … initial cash outreach, and any of the engaged follow ups … ranked
 … 3 options"):** a sixth job `agent_texts` (`textsLocation`,
