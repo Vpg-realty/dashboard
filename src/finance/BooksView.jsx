@@ -17,6 +17,7 @@ import { PanelHead } from '../shell/Panel.jsx';
 import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
 import { laToday } from '../utils/historyRange.js';
 import { FinanceHead, MoneyTile } from './ui.jsx';
+import { makeZip, zipName } from '../utils/zip.js';
 
 const BASE = import.meta.env.BASE_URL || '/';
 const fileUrl = (dealId, fid, inline) => `${BASE}api/deal-files/${dealId}?file=${fid}${inline ? '&inline=1' : ''}`;
@@ -53,6 +54,7 @@ export default function BooksView() {
   const { query } = useLocation();
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState('');
+  const [zipNote, setZipNote] = useState('');
   const today = laToday();
 
   const closed = useMemo(() => (s.deals || []).filter((d) => up(d.status) === 'COMPLETE' && ISO.test(d.coe || '') && d.coe <= today), [s.deals, today]);
@@ -70,6 +72,34 @@ export default function BooksView() {
   const sent = rows.filter((d) => marks.has(d.id));
   const left = rows.filter((d) => !marks.has(d.id));
   const noHud = rows.filter((d) => !b.huds?.[d.id]?.length);
+
+  // Every HUD on file for the month as one zip (Luke, Nov 11: "can i
+  // download all the HUDs for a month at once"), built in the browser from
+  // the same file links as the rows — named "<COE> <address>.pdf".
+  const withHud = rows.filter((d) => b.huds?.[d.id]?.length);
+  const downloadAll = async () => {
+    setBusy('zip'); setErr('');
+    try {
+      const used = new Set();
+      const files = [];
+      for (const d of withHud) {
+        for (const f of b.huds[d.id]) {
+          setZipNote(`Getting ${files.length + 1} of ${hudCount}…`);
+          const r = await fetch(fileUrl(d.id, f.id, false), { credentials: 'same-origin' });
+          if (!r.ok) throw new Error(`${d.address || d.name}: ${r.status}`);
+          const ext = (/\.[a-z0-9]{2,5}$/i.exec(f.name) || ['.pdf'])[0].toLowerCase();
+          files.push({ name: zipName(`${d.coe} ${d.address || d.name}`, ext, used), bytes: new Uint8Array(await r.arrayBuffer()) });
+        }
+      }
+      const url = URL.createObjectURL(makeZip(files));
+      const a = document.createElement('a');
+      a.href = url; a.download = `VPG HUD Statements - ${monthName(mo)}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) { setErr(`Download stopped — ${e.message}`); }
+    setZipNote(''); setBusy(null);
+  };
+  const hudCount = withHud.reduce((t, d) => t + b.huds[d.id].length, 0);
 
   const tick = async (ids, on, key) => {
     setBusy(key); setErr('');
@@ -95,9 +125,18 @@ export default function BooksView() {
           }) }]} />
         <section className="min-w-0 rounded-xl border border-tan-200 bg-white overflow-hidden">
           <PanelHead title="HUD Statements to the CPA" sub={`${sent.length} of ${rows.length} uploaded`}
-            right={left.length > 0 && (
-              <button type="button" disabled={busy != null} onClick={() => { if (window.confirm(`Mark all ${left.length} as uploaded to the CPA?`)) tick(left.map((d) => d.id), true, 'all'); }}
-                className="h-7 px-2.5 rounded-md text-[12.5px] font-semibold text-navy-900 disabled:opacity-50">✓ Mark all {left.length} uploaded</button>
+            right={(hudCount > 0 || left.length > 0) && (
+              <div className="flex items-center gap-1">
+                {hudCount > 0 && (
+                  <button type="button" disabled={busy != null} onClick={downloadAll}
+                    className="h-7 px-2.5 rounded-md text-[12.5px] font-semibold text-navy-900 disabled:opacity-50">{zipNote || `⬇ Download all ${hudCount} HUD${hudCount === 1 ? '' : 's'}`}</button>
+                )}
+                {hudCount > 0 && left.length > 0 && <span className="h-4 w-px bg-navy-900/25" />}
+                {left.length > 0 && (
+                  <button type="button" disabled={busy != null} onClick={() => { if (window.confirm(`Mark all ${left.length} as uploaded to the CPA?`)) tick(left.map((d) => d.id), true, 'all'); }}
+                    className="h-7 px-2.5 rounded-md text-[12.5px] font-semibold text-navy-900 disabled:opacity-50">✓ Mark all {left.length} uploaded</button>
+                )}
+              </div>
             )} />
           {b.status === 'error' && <div className="px-5 py-3 text-[13px] text-[#B42318]">Couldn’t load the check-offs: {b.error}</div>}
           {err && <div className="px-5 py-3 text-[13px] text-[#B42318]">Couldn’t save: {err}</div>}
@@ -141,7 +180,7 @@ export default function BooksView() {
             </table>
           </div>
           <div className="px-5 py-3 border-t border-tan-100 text-[12.5px] text-zinc-500">
-            A HUD shows here once it’s on the deal’s Files tab as “Settlement Statement (HUD)”. Unticking takes the check back.
+            A HUD shows here once it’s on the deal’s Files tab as “Settlement Statement (HUD)”. “Download all” saves the month’s HUDs as one zip, each named by closing date and address. Unticking takes the check back.
           </div>
         </section>
       </div>
