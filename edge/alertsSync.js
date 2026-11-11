@@ -52,16 +52,47 @@ const newId = () => `a${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 // null keeps the day's few texts.
 export async function historyOf(token, locationId, conv, beforeMs) {
   if (!token || !conv) return null;
-  try {
-    const q = new URLSearchParams({ locationId, conversationId: conv, channel: 'SMS', startDate: new Date(beforeMs - HISTORY_DAYS * DAY).toISOString(), endDate: new Date(beforeMs + 1000).toISOString(), limit: '100' });
+  // Texts and calls (Nov 11: Amy Crawford sent a bare address right after two
+  // calls with Axel — the judge saw only the texts, all about an earlier deal's
+  // move-out, and passed on it). A call reads "rep called agent · connected 2m".
+  const pull = async (channel) => {
+    const q = new URLSearchParams({ locationId, conversationId: conv, channel, startDate: new Date(beforeMs - HISTORY_DAYS * DAY).toISOString(), endDate: new Date(beforeMs + 1000).toISOString(), limit: '100' });
     const r = await fetch(`${GHL}/conversations/messages/export?${q}`, { headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28', Accept: 'application/json' } });
-    if (!r.ok) return null;
-    const list = ((await r.json())?.messages || []).filter((x) => Date.parse(x.dateAdded) <= beforeMs).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+    if (!r.ok) return channel === 'SMS' ? null : [];
+    return (await r.json())?.messages || [];
+  };
+  try {
+    const [texts, calls] = await Promise.all([pull('SMS'), pull('Call').catch(() => [])]);
+    if (!texts) return null;
+    const list = [...texts, ...calls].filter((x) => Date.parse(x.dateAdded) <= beforeMs).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
     // Drop the run being judged (the agent's texts at the end).
-    while (list.length && list[list.length - 1].direction === 'inbound') list.pop();
-    return list.slice(-HISTORY_MAX).map((x) => ({ from: x.direction === 'inbound' ? 'agent' : isManualOutbound(x) ? 'rep' : 'automated', body: String(x.body || '').slice(0, 300) }));
+    while (list.length && list[list.length - 1].direction === 'inbound' && !isCallMsg(list[list.length - 1])) list.pop();
+    return list.slice(-HISTORY_MAX).map((x) => (isCallMsg(x) ? { from: 'call', body: callLine(x) } : { from: x.direction === 'inbound' ? 'agent' : isManualOutbound(x) ? 'rep' : 'automated', body: String(x.body || '').slice(0, 300) }));
   } catch { return null; }
 }
+const isCallMsg = (x) => /CALL/i.test(String(x.messageType || '')) || x.type === 1;
+function callLine(x) {
+  const c = x.meta?.call || {};
+  const who = x.direction === 'inbound' ? 'agent called rep' : 'rep called agent';
+  const ok = c.status === 'completed' && c.duration > 0;
+  return `(${who} · ${ok ? `connected ${Math.max(1, Math.round(c.duration / 60))}m` : c.status || 'no answer'})`;
+}
+
+// A street address in a text (Nov 11 safety net): a number, a street name
+// and a street word — "6390 N Elm Rd", "405 Elmhurst Ave".
+const STREET = /\b\d{2,6}\s+(?:[nsew]\.?\s+|north\s+|south\s+|east\s+|west\s+)?(?:[a-z][a-z0-9'.-]*\s+){0,4}?(?:st|street|ave|avenue|rd|road|dr|drive|ln|lane|ct|court|blvd|boulevard|way|pl|place|ter|terrace|cir|circle|pkwy|parkway|hwy|highway|trl|trail|loop|cv|cove)\b/i;
+const COMP = /\b(sold|comps?|comparables?|closed at|went for)\b/i;
+// An address the judge passed on that is new to this conversation: not in
+// the history, not this agent's earlier lead, and not shown as a comp.
+export function missedAddress(m) {
+  const hit = String(m.body || '').match(STREET);
+  if (!hit || COMP.test(m.body || '')) return null;
+  const k = addrKey(hit[0]);
+  if (!k) return null;
+  const seen = [...(m.before || []).map((x) => x.body), m.earlier?.addr, m.earlier?.quote].filter(Boolean).some((t) => addrKey(String(t).match(STREET)?.[0] || '') === k || String(t).toLowerCase().includes(hit[0].toLowerCase()));
+  return seen ? null : hit[0];
+}
+
 export async function contactName(token, contactId) {
   if (!token || !contactId) return null;
   try {
@@ -150,6 +181,8 @@ Not a lead:
 - an address the agent sends as a comp, comparable or recent sale ("here is a recent sale", "comps", "this one sold for …") — they're showing other properties, not offering one,
 - an address this agent already sent this rep before (in the history or the EARLIER LEAD shown),
 - small talk, scheduling, thanks, "no deals right now", "sold", questions about VPG or our buy box (budget, price range, cash or finance), or anything vague with no property and no promise of one.
+
+Calls show in the history as "(rep called agent · connected 2m)" — you can't hear them. A bare address (just a street address, maybe with a photo) sent right after a call or chat with the rep is the agent bringing a property — a lead — unless that same address was already talked about in the history. Talking about an earlier deal (closing, keys, move-out, belongings, a trailer) doesn't make a NEW address part of that deal. When you can't tell whether a new address is a lead, flag it (type "not" if you doubt it): a missed lead costs far more than an extra alert.
 
 When the team has answered earlier alerts, follow those examples: they show what this team counts as a lead and how good each kind of lead is.
 
@@ -469,7 +502,14 @@ export async function runAlerts({ query, feed, subs, tokens, searchTasks, judge,
           if (r[0]?.meta?.changes) status.dnc = (status.dnc || 0) + 1;
           continue;
         }
-        if (!v.lead) continue;
+        if (!v.lead) {
+          // Safety net (Nov 11): a street address new to the conversation is
+          // never dropped — it comes in with Claude's doubt shown ("not").
+          const a = missedAddress(m);
+          if (!a) continue;
+          Object.assign(v, { lead: true, kind: 'address', address: a, summary: v.summary || 'Agent sent an address new to this conversation', type: null });
+          status.safetyNet = (status.safetyNet || 0) + 1;
+        }
         if (isRepeat(v, m, m.earlier)) { status.repeats = (status.repeats || 0) + 1; continue; }
         const addr = v.kind === 'address' && v.address ? clip(v.address, 160) : null;
         const at = new Date(m.at).toISOString();

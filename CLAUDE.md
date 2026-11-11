@@ -2077,6 +2077,20 @@ as 100+ "leads" a day. Now:
   (`HISTORY_DAYS` / `HISTORY_MAX`, was 30 / 15) — expected to roughly halve
   the lead judge's cost. The model is unchanged.
 
+**Calls in the history + a safety net for new addresses (Nov 11 — Luke:
+"Amy Crawford in Axel's AZ account sent an address at 6:31 pm … the
+dashboard didn't catch it")**: she texted "6390 N Elm Rd" right after two
+calls with Axel; the judge saw only the texts (all about an earlier deal's
+move-out — keys, her husband's trailer, "our house around the corner") and
+passed. Now `historyOf` also reads the conversation's calls ("(rep called
+agent · connected 2m)", one more GHL export call per judged text), the prompt
+says a bare address after a call / chat is a lead unless that address was
+already talked about, and when unsure to flag it; and `missedAddress`
+(edge/alertsSync.js) — a street address (`STREET`) in the text that isn't in
+the history or the agent's earlier lead and isn't shown as a comp / sale —
+turns a "not a lead" into a lead anyway (no Claude hint; counted as
+`safetyNet` in the run status). No new Claude cost.
+
 ## Deals › Active, Option C (Luke, Nov 4)
 
 "very confusing and hard to read and doesn't tell me the story i need to
