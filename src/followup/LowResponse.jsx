@@ -118,7 +118,8 @@ function Agents({ sub, min }) {
   const [all, setAll] = useState(false);
   const [kind, setKind] = useState('');
   const [busy, setBusy] = useState(null);
-  useEffect(() => { loadLowRespSub(sub.loc).then(setD).catch((e) => setErr(e.message)); }, [sub.loc]);
+  const [sel, setSel] = useState(() => new Set());
+  useEffect(() => { loadLowRespSub(sub.loc).then((r) => { setSel(new Set()); setD(r); }).catch((e) => setErr(e.message)); }, [sub.loc]);
   // Stop Automations (Luke, Nov 9): one click tags the agent "internal - do
   // not automate" in GHL with the next refresh; Undo takes the tag off.
   const pause = async (a, on) => {
@@ -127,6 +128,16 @@ function Agents({ sub, min }) {
     try { const r = await pauseLowResp(sub.loc, a.id, on); setD((x) => ({ ...x, paused: r.paused })); } catch (e) { setErr(e.message); } finally { setBusy(null); }
   };
   const stopped = Object.values(d?.paused || {}).filter((p) => p.on).length;
+  // Several at once (Luke, Nov 11: "select multiple … and stop automations").
+  const isOn = (id) => !!d?.paused?.[id]?.on;
+  const toggle = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const pauseMany = async () => {
+    const ids = [...sel].filter((id) => !isOn(id));
+    if (!ids.length) return;
+    if (!window.confirm(`Stop automations for ${ids.length} agent${ids.length === 1 ? '' : 's'}? This adds the “internal - do not automate” tag in GHL with the next refresh (~15 min).`)) return;
+    setBusy('many'); setErr(null);
+    try { const r = await pauseLowResp(sub.loc, ids, true); setD((x) => ({ ...x, paused: r.paused })); setSel(new Set()); } catch (e) { setErr(e.message); } finally { setBusy(null); }
+  };
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
     const digits = t.replace(/\D/g, '');
@@ -137,6 +148,10 @@ function Agents({ sub, min }) {
       .sort((a, b) => b.ignored - a.ignored);
   }, [d, q, min, kind]);
   const list = all ? rows : rows.slice(0, SHOW);
+  const pickable = list.filter((a) => !isOn(a.id));
+  const allPicked = pickable.length > 0 && pickable.every((a) => sel.has(a.id));
+  const pickAll = () => setSel((x) => { const n = new Set(x); pickable.forEach((a) => (allPicked ? n.delete(a.id) : n.add(a.id))); return n; });
+  const picked = [...sel].filter((id) => !isOn(id)).length;
   const cell = 'px-3 py-2';
   const chip = (id, label, n) => (
     <button type="button" onClick={() => setKind(id)} className={`h-8 px-3 rounded-full text-[13px] font-semibold ring-1 ring-inset ${kind === id ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-navy-800 ring-tan-200 hover:bg-tan-50'}`}>{label} <span className="opacity-70 tabular-nums">{num(n)}</span></button>
@@ -148,17 +163,26 @@ function Agents({ sub, min }) {
         {stopped > 0 && <span className="text-[12.5px] font-semibold text-emerald-800">⏸ {num(stopped)} stopped</span>}
         <div className="ml-auto w-full sm:w-72"><SearchBox className="w-full" value={q} onChange={setQ} placeholder="Search name, phone, email" /></div>
       </div>
+      {picked > 0 && (
+        <div className="sticky top-0 z-10 px-4 py-2.5 flex flex-wrap items-center gap-3 bg-navy-700 text-white">
+          <span className="text-[13.5px] font-semibold">{num(picked)} selected</span>
+          <button type="button" disabled={busy === 'many'} onClick={pauseMany} className="h-8 px-3 rounded-lg bg-tan-500 text-navy-900 text-[13px] font-semibold hover:bg-tan-400 disabled:opacity-50">{busy === 'many' ? 'Saving…' : `Stop Automations for ${num(picked)}`}</button>
+          <button type="button" onClick={() => setSel(new Set())} className="text-[12.5px] text-white/80 underline hover:text-white">Clear</button>
+        </div>
+      )}
       {err && <p className="px-4 py-4 text-rose-700 text-[13.5px]">{err}</p>}
       {!err && !d && <p className="px-4 py-4 text-zinc-500 text-[13.5px]">Loading agents…</p>}
       {d && (
         <div className="overflow-x-auto">
           <table className="w-full text-[13.5px]">
             <thead><tr className="text-left text-[12px] uppercase tracking-wide text-zinc-500 bg-tan-50">
+              <th className={`${cell} w-8`}><input type="checkbox" checked={allPicked} disabled={!pickable.length} onChange={pickAll} aria-label="Select every agent shown" title={allPicked ? 'Clear the agents shown' : `Select the ${pickable.length} agents shown (not already stopped)`} className="w-4 h-4 accent-navy-700" /></th>
               <th className={cell}>Agent</th><th className={cell}>Phone</th><th className={`${cell} text-right`}>Ignored</th><th className={`${cell} whitespace-nowrap`}>Last Reply</th><th className={`${cell} text-right`}>Replies</th><th className={`${cell} whitespace-nowrap`}>Last Auto</th><th className={cell}>Tier</th><th className={cell}>Past Lead</th><th className={cell}>Automations</th><th className={cell} />
             </tr></thead>
             <tbody>
               {list.map((a) => (
-                <tr key={a.id} className="border-t border-tan-100 hover:bg-tan-50/60">
+                <tr key={a.id} className={`border-t border-tan-100 hover:bg-tan-50/60 ${sel.has(a.id) && !isOn(a.id) ? 'bg-navy-50/60' : ''}`}>
+                  <td className={cell}><input type="checkbox" checked={sel.has(a.id) && !isOn(a.id)} disabled={isOn(a.id)} onChange={() => toggle(a.id)} aria-label={`Select ${a.name || 'agent'}`} className="w-4 h-4 accent-navy-700 disabled:opacity-30" /></td>
                   <td className={`${cell} font-semibold text-navy-800`}>{a.name || 'No name in GHL'}<div className="text-[12px] font-normal text-zinc-500 truncate max-w-[200px]">{a.automation}{a.email ? ` · ${a.email}` : ''}</div></td>
                   <td className={`${cell} whitespace-nowrap text-zinc-700`}>{phone(a.phone)}</td>
                   <td className={`${cell} text-right font-semibold tabular-nums ${a.ignored >= 10 ? 'text-rose-700' : 'text-navy-800'}`}>{a.ignored}</td>
@@ -171,7 +195,7 @@ function Agents({ sub, min }) {
                   <td className={`${cell} text-right`}><a href={`https://app.gohighlevel.com/v2/location/${sub.loc}/contacts/detail/${a.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center h-8 px-2.5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white text-[12.5px] font-semibold whitespace-nowrap">GHL ↗</a></td>
                 </tr>
               ))}
-              {!list.length && <tr><td colSpan={10} className="px-4 py-6 text-zinc-500">No agents match.</td></tr>}
+              {!list.length && <tr><td colSpan={11} className="px-4 py-6 text-zinc-500">No agents match.</td></tr>}
             </tbody>
           </table>
           {rows.length > SHOW && !all && <button type="button" onClick={() => setAll(true)} className="w-full py-3 text-[13px] font-semibold text-navy-700 hover:bg-tan-50 border-t border-tan-100">Show all {num(rows.length)}</button>}

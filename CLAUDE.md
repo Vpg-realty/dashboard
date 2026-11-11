@@ -1681,6 +1681,13 @@ agent — nothing is tagged automatically.** Luke wants automatic tagging
 later, but only once the rules for who qualifies are agreed and checked
 (Nov 9: "we need to figure out how to do that first and ensure you are
 adding it to the correct people") — don't build it without that.
+**Select several (Luke, Nov 11: "select multiple … and stop
+automations")**: the agents panel has a tick box per agent and one in the
+header (every agent shown that isn't already stopped); a navy bar "N selected
+· Stop Automations for N · Clear" sends them in one POST
+`{loc, contacts: [...], on: true}` (≤ 500; every one must be on that
+sub-account's list, else nothing is queued), each its own ghl_push row as
+before, one edit_log `lowresp.pause` with the list. Still a person's click.
 
 **Bulk Stop Automations (Luke, Nov 10: "auto apply the do not automate to
 any agent that hasn't responded to 5 or more automated texts as of now")**
