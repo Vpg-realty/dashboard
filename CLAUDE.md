@@ -3948,6 +3948,31 @@ Cameron Rd changed (kept-EMD cancels netting $0 that showed acq −$18 and
 manager −$7.50; their net profit moved from $5.50 to −$20, the TC's flat
 $20 still paid).
 
+**Paid receipts (Luke, Nov 11: "an option to drop in a receipt when marking
+something as paid … stored in the paid receipts section … on the finance tab
+and … a link to paid receipts under each deal['s] files"; reps never see them,
+bonuses included)**: the Mark paid box (every place it opens — a deal card, one
+line, part payments, TC Monthly, Bonuses, Other Payments) ends with an
+optional **Receipt** drop area (`ReceiptDrop`, src/finance/Receipts.jsx; PDF /
+photo / screenshot, up to 20 MB, several files); once the payment saves, each
+file uploads linked to every line paid (`sendReceipts` in store.js) — a failed
+upload leaves the payment paid and says so. Files in R2 `receipts/<id>`, D1
+`fin_receipts (id, name, mime, size, keys JSON, items JSON snapshot, paid_on,
+uploaded_*)` made by `ensure` (edge/finance.js) and sent with GET /api/finance
+(`receipts`). API `functions/api/finance/receipts.js` (owners only, never
+while viewing as): POST `?name=&keys=&paidOn=` (every line must have money
+paid on it), GET `?id=[&inline=1]`, DELETE `?id=`; logged
+`finance.receipt` / `receiptRemove`. **Money In & Out › Paid Receipts**
+(`?tab=receipts`, `ReceiptsView`): tiles Receipts on File / **Paid · No
+Receipt** (`?show=missing` — each payment there has Attach), month pick
+(`?mo=`), the page's person / search filters, `?deal=` ("Only <address> ×").
+The Paid tab has a Receipt column (📎 Receipt, or 📎 Attach). The deal panel:
+the Files tab ends with **Payout Receipts** (owners only, "See all in Paid
+Receipts →"), and the Commissions table / other payments show 📎 Receipt next
+to the paid tag. The TC, managers and reps never get them (the TC's Files tab
+has no section; /api/finance is owners only). Usage: one small table read per
+Finance load; storage is the existing R2 bucket.
+
 Sidebar **Finance** (owners only; `src/finance/`). Luke: commissions are
 paid per deal at closing, and Luke or Jack approves payouts (either one —
 the approval records who).

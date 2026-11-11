@@ -17,6 +17,8 @@ import { FILE_KINDS, KIND_LABEL, guessKind, MAX_FILE, fileSize, readable, propos
 import { FIELD } from './math.js';
 import { show } from './fieldLib.js';
 import SearchSelect from './SearchSelect.jsx';
+import { DealReceipts } from '../finance/Receipts.jsx';
+import { useReceipts } from '../finance/store.js';
 
 const BASE = import.meta.env.BASE_URL || '/';
 const when = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -37,6 +39,8 @@ function Icon({ kind }) {
 
 export default function DealFiles({ id, deal, owner, onFill }) {
   const [data, setData] = useState(null); // { files, review, claude }
+  // Payout receipts (owners only — Finance › Paid Receipts, Nov 11).
+  const receipts = useReceipts(!!owner);
   const [err, setErr] = useState(null);
   const [work, setWork] = useState(null); // what's running now, in words
   const [over, setOver] = useState(false);
@@ -358,6 +362,7 @@ export default function DealFiles({ id, deal, owner, onFill }) {
           </ul>
         )}
       </section>
+      {owner && <DealReceipts dealId={id} receipts={receipts} />}
     </div>
   );
 }

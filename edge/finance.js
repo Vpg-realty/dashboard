@@ -24,6 +24,10 @@ export async function ensure(db) {
     // Bonuses (Nov 4): contest awards and Google reviews — `ref` says what
     // each one is for (award:<month>:<first|most>:<rep>, review:<id>:<rep>),
     // so the same award or review is never paid twice.
+    // Paid receipts (Luke, Nov 11): a file in R2 (receipts/<id>) that shows
+    // money went out, linked to the payout lines it covers (`keys`, JSON) with
+    // a snapshot of them (`items`) so the list still reads if a line changes.
+    db.prepare('CREATE TABLE IF NOT EXISTS fin_receipts (id TEXT PRIMARY KEY, name TEXT NOT NULL, mime TEXT, size INTEGER NOT NULL, keys TEXT NOT NULL, items TEXT NOT NULL, paid_on TEXT, uploaded_by TEXT, uploaded_email TEXT, uploaded_at TEXT NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS fin_bonuses (id TEXT PRIMARY KEY, kind TEXT NOT NULL, month TEXT NOT NULL, rep_id TEXT, who TEXT NOT NULL, amount REAL NOT NULL, note TEXT NOT NULL, ref TEXT NOT NULL UNIQUE, on_day TEXT NOT NULL, created_by TEXT, created_at TEXT NOT NULL)'),
   ]);
   made = true;
@@ -32,13 +36,16 @@ export async function ensure(db) {
 // What the pages need: { rows, payments, extras } (extras with `on` = on_day).
 export async function loadRows(db) {
   await ensure(db);
-  const [rows, payments, extras, bonuses] = await Promise.all([
+  const [rows, payments, extras, bonuses, receipts] = await Promise.all([
     db.prepare('SELECT * FROM fin_payouts').all(),
     db.prepare('SELECT * FROM fin_payments').all(),
     db.prepare('SELECT * FROM fin_extras').all(),
     db.prepare('SELECT * FROM fin_bonuses').all(),
+    db.prepare('SELECT id, name, mime, size, keys, items, paid_on, uploaded_by, uploaded_at FROM fin_receipts ORDER BY uploaded_at DESC').all(),
   ]);
-  return { rows: rows.results, payments: payments.results, extras: extras.results.map((x) => ({ ...x, on: x.on_day })), bonuses: bonuses.results };
+  const parse = (s) => { try { return JSON.parse(s); } catch { return []; } };
+  return { rows: rows.results, payments: payments.results, extras: extras.results.map((x) => ({ ...x, on: x.on_day })), bonuses: bonuses.results,
+    receipts: receipts.results.map((r) => ({ ...r, keys: parse(r.keys), items: parse(r.items) })) };
 }
 
 export async function loadAll(db) {

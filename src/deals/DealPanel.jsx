@@ -24,7 +24,8 @@ import { editFields } from './edits.js';
 import { PANEL_HEAD, PANEL_NUM } from '../shell/panelStyle.js';
 import { netLossHigh, ALERT } from './sheet.js';
 import { showEndTime, ipEndAlert } from './ddTime.js';
-import { useDealPay } from '../finance/store.js';
+import { useDealPay, useReceipts, receiptsByKey } from '../finance/store.js';
+import { ReceiptChips } from '../finance/Receipts.jsx';
 import { partOfField, payText, PART_FIELD } from '../finance/lines.js';
 import PayoutEditor from '../finance/PayoutEditor.jsx';
 import { PILL_TONE, pretty } from './values.js';
@@ -368,6 +369,8 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const [pushes, setPushes] = useState(null);
   useEffect(() => { if (isNew || !id) return undefined; let on = true; dealHistory(id).then((r) => on && setPushes(r.pushes || [])).catch(() => {}); return () => { on = false; }; }, [id, isNew, base]);
   const fin = useDealPay(!!owner && !isNew).get(id) || null;
+  // Paid receipts on this deal's payouts (owners — Finance › Paid Receipts).
+  const recByKey = receiptsByKey(useReceipts(!!owner && !isNew));
   // "Doesn't match the tracker" fixes (Luke, Oct 23): which row is busy.
   const [fixing, setFixing] = useState(null);
   // The cancel pop-up (Luke, Oct 25): open while the stage is being set to Cancelled.
@@ -766,7 +769,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                         <td className="px-4 py-1.5 font-medium">{label}</td>
                         <td className="px-2 py-1.5">{who ? first(who) : '—'}{pp?.movedTo && pp.rule && <span className="ml-1 text-[11.5px] text-violet-700" title="Handed over on this deal (Payouts › Edit)">· instead of {first(pp.rule)}</span>}{pp?.typed && <span className="ml-1 text-[11.5px] text-violet-700">· typed</span>}</td>
                         <td className="px-2 py-1.5 text-right font-semibold">{v ? money(v) : '—'}</td>
-                        <td className="px-4 py-1.5">{line ? <PayTag line={line} /> : isBlank(merged[on]) ? '—' : show(FIELD[on], merged[on])}</td>
+                        <td className="px-4 py-1.5">{line ? <span className="inline-flex flex-wrap items-center gap-1"><PayTag line={line} /><ReceiptChips list={recByKey.get(line.key)} /></span> : isBlank(merged[on]) ? '—' : show(FIELD[on], merged[on])}</td>
                         {owner && !s.readOnly && <td className="pr-4 py-1.5 text-right">{line?.status === 'paid' ? <span className="text-[11.5px] text-zinc-400" title="Undo the payment in Finance first">paid</span> : <button type="button" onClick={() => setPayEdit(partOfField(amt))} className="text-[12px] text-zinc-500 hover:text-navy-800 hover:underline">Edit</button>}</td>}
                       </tr>
                     );
@@ -778,7 +781,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
               // Other payments that name this deal (Finance › Other Payments) —
               // paid on their own, they don't change the deal's numbers.
               <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] grid gap-1">
-                {fin.extras.map((x) => <div key={x.key} className="flex flex-wrap items-center gap-x-2"><b className="font-semibold text-navy-800">Other payment:</b><span>{first(x.who)} · <b className="font-semibold tabular-nums">{money(x.amount)}</b> · {x.note}</span><PayTag line={x} /></div>)}
+                {fin.extras.map((x) => <div key={x.key} className="flex flex-wrap items-center gap-x-2"><b className="font-semibold text-navy-800">Other payment:</b><span>{first(x.who)} · <b className="font-semibold tabular-nums">{money(x.amount)}</b> · {x.note}</span><PayTag line={x} /><ReceiptChips list={recByKey.get(x.key)} /></div>)}
               </div>
             )}
             {c.table && merged.payNote && <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] text-zinc-700"><b className="font-semibold text-navy-800">Payout note:</b> {merged.payNote}</div>}

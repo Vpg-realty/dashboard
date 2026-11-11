@@ -22,6 +22,8 @@ import { StatusPill, Trail, MoneyTile, FinanceHead } from './ui.jsx';
 import CompanyOutlook from './CompanyOutlook.jsx';
 import PayoutEditor from './PayoutEditor.jsx';
 import BonusesView from './BonusesView.jsx';
+import ReceiptsView, { ReceiptDrop, AttachReceipt, ReceiptChips } from './Receipts.jsx';
+import { receiptsByKey, sendReceipts } from './store.js';
 import { Loading, Search, StatusChip } from '../deals/ui.jsx';
 import { money, shortDate, btnCls, primaryCls, selectCls } from '../deals/format.js';
 import { Person } from '../deals/people.jsx';
@@ -52,16 +54,22 @@ function PayDialog({ lines, title, onClose, onDone }) {
   const [amt, setAmt] = useState(left.toFixed(2));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
+  const [files, setFiles] = useState([]);
   const sent = Math.round(Number(String(amt).replace(/[$,\s]/g, '')) * 100) / 100;
   const partial = one && sent > 0 && sent < left - 0.005;
   const tooMuch = one && sent > left + 0.005;
   async function go() {
     setBusy(true); setErr(null);
-    try { await act({ action: 'pay', keys: lines.map((l) => l.key), paidOn, method, ref, ...(one ? { amount: sent } : {}) }); onDone(); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+    try { await act({ action: 'pay', keys: lines.map((l) => l.key), paidOn, method, ref, ...(one ? { amount: sent } : {}) }); } catch (e) { setErr(e.message); setBusy(false); return; }
+    // The payment is saved; then the receipt(s), linked to every line paid.
+    const failed = files.length ? await sendReceipts(files, lines.map((l) => l.key), paidOn) : [];
+    setBusy(false);
+    if (failed.length) { setFiles([]); setErr(`Paid — but the receipt didn't upload (${failed.join(' · ')}). Attach it from Paid Receipts › Paid · No Receipt.`); return; }
+    onDone();
   }
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-navy-900/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label="Mark paid" className="w-full max-w-md rounded-xl bg-white shadow-xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="Mark paid" className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-xl bg-white shadow-xl">
         <div className={`px-5 py-3 ${PANEL_HEAD}`}><h2 className="font-semibold">{title || `Mark ${lines.length} payout${lines.length === 1 ? '' : 's'} paid`} · {money(left)}{one && lines[0].paidSoFar > 0 ? ' left' : ''}</h2></div>
         <div className="p-5 grid gap-3 text-[13.5px]">
           <ul className="rounded-lg bg-tan-50 px-3 py-2 grid gap-1 max-h-40 overflow-auto">
@@ -79,10 +87,11 @@ function PayDialog({ lines, title, onClose, onDone }) {
             <SearchSelect value={method} onChange={(v) => v && setMethod(v)} clearable={false} sort={false} options={Object.entries(METHODS).map(([k, v]) => ({ value: k, label: v }))} />
           </label>
           <label className="grid gap-1"><span className="text-zinc-600">Reference <span className="text-zinc-400">(optional — check #, batch, confirmation)</span></span><input value={ref} onChange={(e) => setRef(e.target.value)} maxLength={120} className={selectCls} /></label>
+          <ReceiptDrop files={files} onChange={setFiles} disabled={busy} />
           {err && <div className="text-red-700">{err}</div>}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className={btnCls}>Cancel</button>
-            <button type="button" onClick={go} disabled={busy || !paidOn || (one && (!(sent > 0) || tooMuch))} className={primaryCls}>{busy ? 'Saving…' : partial ? `Record part payment · ${money(sent)}` : 'Mark paid'}</button>
+            <button type="button" onClick={onClose} className={btnCls}>{err && err.startsWith('Paid') ? 'Close' : 'Cancel'}</button>
+            <button type="button" onClick={go} disabled={busy || !paidOn || (one && (!(sent > 0) || tooMuch))} className={primaryCls}>{busy ? (files.length ? 'Saving & uploading…' : 'Saving…') : partial ? `Record part payment · ${money(sent)}` : 'Mark paid'}</button>
           </div>
         </div>
       </div>
@@ -285,7 +294,8 @@ function OtherPayments({ lines, onAdd, onEdit, pay, run, busy, onOpen, undoPart 
 }
 
 // Every payment that went out, newest first — a part payment is its own row.
-function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
+function PaymentsTable({ rows, onOpen, run, undoPart, busy, receipts }) {
+  const byKey = receiptsByKey(receipts);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-[13.5px]">
@@ -297,6 +307,7 @@ function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
             <th className="px-2.5 py-2">For</th>
             <th className="px-2.5 py-2 text-right">Amount</th>
             <th className="px-2.5 py-2 w-full">How</th>
+            <th className="px-2.5 py-2">Receipt</th>
             <th className="px-2.5 py-2" />
           </tr>
         </thead>
@@ -312,6 +323,7 @@ function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
                 <td className="px-2.5 py-2 text-zinc-700">{isExtra(l) ? <span title={l.note}>Other · {l.note}</span> : isBonus(l) ? <span title={l.note}>{BONUS_KIND[l.kind] || 'Bonus'}</span> : partLabel(l.part)}{isTcLine(l) ? <span className="text-zinc-400"> · monthly</span> : ''}{partly && <span className="ml-1.5 rounded bg-violet-50 px-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">{p.final ? 'paid off' : 'part'}</span>}</td>
                 <td className="px-2.5 py-2 text-right tabular-nums font-semibold whitespace-nowrap">{money(p.amount)}</td>
                 <td className="px-2.5 py-2 text-[12.5px] text-zinc-500 whitespace-nowrap">{METHODS[p.method] || p.method}{p.ref ? ` · ${p.ref}` : ''}{p.by ? ` · ${p.by}` : ''}</td>
+                <td className="px-2.5 py-2 whitespace-nowrap">{byKey.has(l.key) ? <ReceiptChips list={byKey.get(l.key)} /> : <AttachReceipt keys={[l.key]} paidOn={p.paidOn} label="📎 Attach" />}</td>
                 <td className="px-2.5 py-2 text-right">
                   {p.final && l.status === 'paid' && <button type="button" disabled={busy} onClick={() => run('unpay', [l])} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button>}
                   {!p.final && l.status !== 'paid' && <button type="button" disabled={busy} onClick={() => undoPart(l, p)} className="text-[12.5px] text-zinc-500 hover:underline">Undo</button>}
@@ -320,7 +332,7 @@ function PaymentsTable({ rows, onOpen, run, undoPart, busy }) {
             );
           })}
         </tbody>
-        <tfoot><tr className="border-t-2 border-navy-100 bg-navy-50/60 font-semibold"><td colSpan={4} className="pl-4 px-2.5 py-2 text-navy-800">Total · {rows.length}</td><td className="px-2.5 py-2 text-right tabular-nums">{money(rows.reduce((t, p) => t + p.amount, 0))}</td><td colSpan={2} /></tr></tfoot>
+        <tfoot><tr className="border-t-2 border-navy-100 bg-navy-50/60 font-semibold"><td colSpan={4} className="pl-4 px-2.5 py-2 text-navy-800">Total · {rows.length}</td><td className="px-2.5 py-2 text-right tabular-nums">{money(rows.reduce((t, p) => t + p.amount, 0))}</td><td colSpan={3} /></tr></tfoot>
       </table>
     </div>
   );
@@ -474,9 +486,10 @@ export default function PayoutsView({ embedded = false }) {
       {tab === 'paid' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
           <PanelHead title="Paid" sub="every payment made here, newest first — a part payment is its own row (ones marked paid in the tracker aren't listed)" />
-          {paidRows.length ? <PaymentsTable rows={paidRows} onOpen={open} run={run} undoPart={undoPart} busy={busy} /> : <div className="px-5 py-8 text-center text-zinc-500">No payments recorded yet.</div>}
+          {paidRows.length ? <PaymentsTable rows={paidRows} onOpen={open} run={run} undoPart={undoPart} busy={busy} receipts={f.receipts} /> : <div className="px-5 py-8 text-center text-zinc-500">No payments recorded yet.</div>}
         </section>
       )}
+      {tab === 'receipts' && <ReceiptsView lines={f.lines} receipts={f.receipts} match={match} onOpen={open} />}
       {tab === 'coming' && (
         <section className="rounded-xl border border-tan-200 bg-white overflow-hidden">
           <PanelHead title="Coming due" sub="commissions on open deals that are assigned with a price — owed when they close (amounts can still change)" />
