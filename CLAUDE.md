@@ -3988,7 +3988,12 @@ first use; API `functions/api/finance/books.js` (owners only, never while
 viewing as): GET → `{marks, huds}` (one read of fin_hud + the HUD rows of
 deal_files), POST `{deals, on}` (≤ 300), logged `finance.hudSent` /
 `hudUnsent`. Nothing is uploaded to the CPA by the site. Usage: two small
-reads per page load.
+reads per page load. **Download all HUDs** (Luke, Nov 11: "can i download
+all the HUDs for a month at once"): a button in the card's tan corner saves
+the month's HUDs as one zip, "VPG HUD Statements - <Month Year>.zip", each
+file named "<COE> <address>.pdf" — built in the browser from the same file
+links (`src/utils/zip.js`: a small stored-zip writer, no library), so no new
+server code; R2 reads = one per HUD.
 
 **Paid receipts (Luke, Nov 11: "an option to drop in a receipt when marking
 something as paid … stored in the paid receipts section … on the finance tab
