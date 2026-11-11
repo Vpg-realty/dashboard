@@ -6,8 +6,8 @@ import { call } from '../utils/dashApi.js';
 import { useDeals, loadDeals } from '../deals/store.js';
 import { buildLines, upcoming, payByDeal } from './lines.js';
 
-let state = { status: 'idle', rows: [], payments: [], extras: [], bonuses: [], error: null };
-const got = (r) => ({ rows: r.rows || [], payments: r.payments || [], extras: r.extras || [], bonuses: r.bonuses || [] });
+let state = { status: 'idle', rows: [], payments: [], extras: [], bonuses: [], receipts: [], error: null };
+const got = (r) => ({ rows: r.rows || [], payments: r.payments || [], extras: r.extras || [], bonuses: r.bonuses || [], receipts: r.receipts || [] });
 const listeners = new Set();
 const emit = (patch) => { state = { ...state, ...patch }; listeners.forEach((f) => f(state)); };
 
@@ -29,6 +29,39 @@ export async function act(body) {
   // Paying can change the deal's "Commission paid" — refresh the tracker.
   loadDeals();
   return r;
+}
+
+// Paid receipts (Nov 11, owners only — functions/api/finance/receipts.js).
+const BASE = import.meta.env.BASE_URL || '/';
+export const receiptUrl = (id, inline) => `${BASE}api/finance/receipts?id=${id}${inline ? '&inline=1' : ''}`;
+export async function uploadReceipt(file, keys, paidOn) {
+  const r = await call(`finance/receipts?name=${encodeURIComponent(file.name)}&keys=${encodeURIComponent(keys.join(','))}${paidOn ? `&paidOn=${paidOn}` : ''}`, { method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file });
+  emit({ status: 'ready', ...got(r) });
+  return r;
+}
+// Upload each file for these payout lines; errors are collected, not thrown.
+export async function sendReceipts(files, keys, paidOn) {
+  const failed = [];
+  for (const f of files) {
+    try { await uploadReceipt(f, keys, paidOn); } catch (e) { failed.push(`${f.name}: ${e.message}`); }
+  }
+  return failed;
+}
+
+export async function removeReceipt(id) {
+  const r = await call(`finance/receipts?id=${id}`, { method: 'DELETE' });
+  emit({ status: 'ready', ...got(r) });
+}
+// line key → [receipt] (newest first).
+export function receiptsByKey(receipts) {
+  const m = new Map();
+  for (const r of receipts || []) for (const k of r.keys || []) m.set(k, [...(m.get(k) || []), r]);
+  return m;
+}
+// The receipts that cover a deal's payouts (the deal panel's Files tab).
+export function useReceipts(enabled) {
+  const f = useFinanceRows(enabled);
+  return enabled ? f.receipts : [];
 }
 
 function useFinanceRows(enabled = true) {
@@ -61,5 +94,5 @@ export function useFinance() {
   const payees = useMemo(() => [...new Set([...people, ...(d.lists?.acqTeam || []), ...(d.lists?.dispoMembers || [])].filter(Boolean))].sort(), [people, d.lists]);
   const status = d.status === 'error' || f.status === 'error' ? 'error'
     : (d.status === 'ready' || d.status === 'refreshing') && (f.status === 'ready' || f.status === 'refreshing') ? 'ready' : 'loading';
-  return { status, error: d.error || f.error, deals: d.deals, rules: d.rules, owner: d.owner, lines, coming, people, payees };
+  return { status, error: d.error || f.error, deals: d.deals, rules: d.rules, owner: d.owner, lines, coming, people, payees, receipts: f.receipts };
 }
