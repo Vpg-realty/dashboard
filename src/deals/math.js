@@ -347,10 +347,14 @@ export function compute(deal, rules, lists) {
   const ofNet = own('acqOfNet', d.acq);
   const acqRate = own('acqOf', d.acq) ?? r.acqRate;
   const dispoRate = own('dispoOf', d.dispoMember) ?? r.dispoRate;
-  set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : ofNet != null ? num(d.netAssign) * ofNet : num(d.commBase) * num(acqRate));
+  // A commission is never below 0 (Luke, Nov 11: "if it is 0 or negative
+  // there should be no payout … always") — a deal that lost money pays no
+  // percentage commission.
+  const pos = (v) => Math.max(0, num(v));
+  set('acqComm', cancelled || waiting || noComm(d.acq) ? 0 : pos(ofNet != null ? num(d.netAssign) * ofNet : num(d.commBase) * num(acqRate)));
   set('dispoComm', waiting || noComm(d.dispoMember) ? 0
-    : (r.dispoAfterAcq || []).some((n) => is(n, d.acq)) ? (num(d.netAssign) - num(d.acqComm) - num(d.tcFee)) * num(dispoRate)
-      : !d.dispoMember ? 0 : num(d.commBase) * num(dispoRate));
+    : (r.dispoAfterAcq || []).some((n) => is(n, d.acq)) ? pos((num(d.netAssign) - num(d.acqComm) - num(d.tcFee)) * num(dispoRate))
+      : !d.dispoMember ? 0 : pos(num(d.commBase) * num(dispoRate)));
 
   const m = r.manager || {};
   // The manager is paid on the deals of the reps listed — on the acquisition
@@ -366,10 +370,10 @@ export function compute(deal, rules, lists) {
     && (!x.coeBefore || (isDate(d.coe) && d.coe < x.coeBefore))
     && (!x.coeFrom || (isDate(d.coe) && d.coe >= x.coeFrom)));
   const mgrRep = listed(d.acq) || (m.side === 'both' && d.dispoMember ? listed(d.dispoMember) : null);
-  set('mgrComm', mgrRep && !waiting ? num(d.commBase) * num(m.rate) : 0);
+  set('mgrComm', mgrRep && !waiting ? pos(num(d.commBase) * num(m.rate)) : 0);
   const o = r.override || {};
   const reportsTo = Object.entries(lists?.reportsTo || {}).find(([n]) => is(n, d.acq))?.[1];
-  set('override', !waiting && o.name && statusMatches(asDone, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? num(d.netAssign) * num(o.rate) : 0);
+  set('override', !waiting && o.name && statusMatches(asDone, o.status || 'COMPLETE') && isDate(d.coe) && d.coe >= (o.from || '') && !is(d.acq, o.name) && is(reportsTo, o.name) ? pos(num(d.netAssign) * num(o.rate)) : 0);
   set('tcComm', statusIn(asDone, r.tcCommStatuses) ? num(r.tcComm) : 0);
 
   const paid = num(d.acqComm) + num(d.dispoComm) + num(d.mgrComm) + num(d.override) + num(d.tcComm);
@@ -398,7 +402,9 @@ export function payoutParts(d, rules) {
   });
 }
 export function payouts(d, rules) {
-  return payoutParts(d, rules).filter((p) => p.who && typeof p.amount === 'number' && p.amount !== 0);
+  // Only a payout above $0 is a payout (Luke, Nov 11) — a typed 0 or a
+  // negative amount never shows up to approve or pay.
+  return payoutParts(d, rules).filter((p) => p.who && typeof p.amount === 'number' && p.amount > 0);
 }
 
 // Reps and managers (Luke, Oct 14) see only Contract, Title, EMD, Due
