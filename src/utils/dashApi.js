@@ -108,6 +108,6 @@ export const chatForget = (id) => call(`chat/memory?id=${id}`, { method: 'DELETE
 export const loadBackups = () => call('backups');
 export const loadLowResp = () => call('agent-lists');
 export const loadLowRespSub = (loc) => call(`agent-lists?loc=${encodeURIComponent(loc)}`);
-export const pauseLowResp = (loc, contact, on) => call('agent-lists', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ loc, contact, on }) });
+export const pauseLowResp = (loc, contact, on) => call('agent-lists', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Array.isArray(contact) ? { loc, contacts: contact, on } : { loc, contact, on }) });
 export const lowRespCsv = (min, loc) => `${BASE}api/agent-lists?csv=1&min=${min}${loc ? `&loc=${encodeURIComponent(loc)}` : ''}`;
 export const backupUrl = (key) => `${BASE}api/backups?key=${encodeURIComponent(key)}`;

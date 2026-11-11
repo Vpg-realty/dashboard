@@ -76,17 +76,21 @@ export async function onRequestPost(context) {
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad request' }, 400); }
   const db = context.env.DB;
-  const loc = String(b?.loc || ''), contact = String(b?.contact || '');
-  if (!/^[\w-]{5,40}$/.test(loc) || !/^[\w-]{5,40}$/.test(contact)) return json({ error: 'bad agent' }, 400);
-  // Only an agent on this sub-account's low-response list.
+  // One agent ({contact}) or several at once ({contacts: [...]}, Luke Nov 11:
+  // "select multiple … and stop automations"), ≤ 500 a click.
+  const loc = String(b?.loc || '');
+  const list = [...new Set((Array.isArray(b?.contacts) ? b.contacts : [b?.contact]).map((c) => String(c || '')))];
+  if (!/^[\w-]{5,40}$/.test(loc) || !list.length || list.length > 500 || !list.every((c) => /^[\w-]{5,40}$/.test(c))) return json({ error: 'bad agent' }, 400);
+  // Only agents on this sub-account's low-response list.
   const parts = (await db.prepare('SELECT value FROM settings WHERE key LIKE ?').bind(`${KEY}:${loc}:%`).all()).results || [];
-  if (!parts.some((p) => JSON.parse(p.value).some((r) => r[0] === contact))) return json({ error: 'That agent isn’t on the list' }, 404);
+  const onList = new Set(parts.flatMap((p) => JSON.parse(p.value).map((r) => r[0])));
+  const off = list.filter((c) => !onList.has(c));
+  if (off.length) return json({ error: off.length === 1 && list.length === 1 ? 'That agent isn’t on the list' : `${off.length} of those agents aren’t on the list` }, 404);
   const now = new Date().toISOString();
   const name = user.name || user.email.split('@')[0];
   const on = !!b.on;
-  await db.batch([
-    db.prepare('INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(`lowresp:${loc}:${contact}`, contact, loc, `tag:${PAUSE_TAG}`, on ? 'add' : 'remove', name, now, 'pending'),
-    db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, on ? 'lowresp.pause' : 'lowresp.unpause', JSON.stringify({ loc, contact })),
-  ]);
+  const st = list.map((contact) => db.prepare('INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(`lowresp:${loc}:${contact}`, contact, loc, `tag:${PAUSE_TAG}`, on ? 'add' : 'remove', name, now, 'pending'));
+  st.push(db.prepare('INSERT INTO edit_log (at, email, action, detail) VALUES (?, ?, ?, ?)').bind(now, user.email, on ? 'lowresp.pause' : 'lowresp.unpause', JSON.stringify(list.length === 1 ? { loc, contact: list[0] } : { loc, contacts: list })));
+  for (let i = 0; i < st.length; i += 90) await db.batch(st.slice(i, i + 90));
   return json({ paused: await pausedOf(db, loc) });
 }
