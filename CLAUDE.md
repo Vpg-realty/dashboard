@@ -3938,6 +3938,16 @@ the server strips them (`forTc`) and refuses edits to them.
 
 ## Finance (Luke, Oct 15)
 
+**No payout at $0 or below (Luke, Nov 11: "if it is 0 or negative there
+should be no payout … always")**: compute() clamps the acq, dispo, manager
+and override commissions at 0 (`pos` in math.js — a deal that nets 0 or
+less pays no percentage commission), and `payouts()` keeps only parts above
+$0, so a typed 0 / negative never reaches Payouts, Statements or the deal's
+Commissions. Checked on all 189 deals: only 1216 Martindale Dr and 4796
+Cameron Rd changed (kept-EMD cancels netting $0 that showed acq −$18 and
+manager −$7.50; their net profit moved from $5.50 to −$20, the TC's flat
+$20 still paid).
+
 Sidebar **Finance** (owners only; `src/finance/`). Luke: commissions are
 paid per deal at closing, and Luke or Jack approves payouts (either one —
 the approval records who).
