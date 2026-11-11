@@ -9,9 +9,9 @@ import CloseButton from '../shell/CloseButton';
 
 // Celebration banners on the TV (Luke, Oct 7):
 //   - NEW DEAL — once per deal, the first time it reaches Under Contract
-//     ("✍️ … got one under contract!") or, if it skipped Under Contract,
-//     DISPO Active ("🚀 … got one to DISPO!"). Moving on from Under Contract
-//     to DISPO doesn't fire again. No value (only set once assigned); shows
+//     or, if it skipped Under Contract, Dispo Active — both read "✍️ … got one
+//     under contract!" (Luke, Nov 11). Moving on from Under Contract to Dispo
+//     doesn't fire again. No value (only set once assigned); shows
 //     IP end / COE. Driven by deal.startedAt, which the snapshot keeps in
 //     opp-state.json (server/stickyCounts.js), so it's right even on a
 //     screen that wasn't open when the deal first went under contract.
@@ -61,13 +61,16 @@ function takeFreshMoves() {
   return fresh;
 }
 
-// Wording and accent per event. A start is usually Under Contract, or DISPO
-// when Under Contract was skipped (Assigned only if it jumped straight there).
+// Wording and accent per event. A start (Under Contract or Dispo Active,
+// whichever came first) always reads "under contract" — Assigned only if it
+// jumped straight there.
 function lookFor(deal, first) {
   if (deal.kind === 'closed') return { icon: '🎉', label: 'Closed', line: `${first} closed one!`, accent: '#10b981' };
-  if (deal.stage === 'under_contract') return { icon: '✍️', label: 'Under contract', line: `${first} got one under contract!`, accent: '#2563eb' };
   if (deal.stage === 'assigned') return { icon: '🤝', label: 'New deal assigned', line: `${first} got one assigned!`, accent: '#8b5cf6' };
-  return { icon: '🚀', label: 'New deal in DISPO', line: `${first} got one to DISPO!`, accent: '#f59e0b' };
+  // Under Contract and Dispo Active read the same (Luke, Nov 11: "instead of
+  // DISPO!, it should say Under Contract!") — one banner per deal, whichever
+  // stage it reaches first (the `:start` key).
+  return { icon: '✍️', label: 'Under contract', line: `${first} got one under contract!`, accent: '#2563eb' };
 }
 
 // Test link (Luke, Oct 8): open the dashboard with ?celebrate (or
