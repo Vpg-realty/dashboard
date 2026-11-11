@@ -90,6 +90,16 @@ html, body, #root {
 
 /* Welcome splash (src/shell/Welcome.jsx): the V mark sweeps in, text rises. */
 @keyframes ipPop { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* IP-ends-today pop-ups (src/shell/IpPopups.jsx; Luke, Nov 11: "a border of
+   glowing red … to match the alerts"): a red border whose glow breathes like
+   the Alerts badge's pulse; faster in the last hour. */
+@keyframes ip-glow {
+  0%, 100% { box-shadow: 0 6px 12px -6px rgba(0,0,0,.25), 0 0 6px 1px rgba(225,29,72,.35); }
+  50% { box-shadow: 0 6px 12px -6px rgba(0,0,0,.25), 0 0 13px 3px rgba(225,29,72,.7); }
+}
+.ip-glow { animation: ipPop .25s ease-out, ip-glow 2s ease-in-out .25s infinite; }
+.ip-glow-fast { animation: ipPop .25s ease-out, ip-glow 1.1s ease-in-out .25s infinite; }
+@media (prefers-reduced-motion: reduce) { .ip-glow, .ip-glow-fast { animation: none; box-shadow: 0 0 10px 2px rgba(225,29,72,.5); } }
 @keyframes vpg-sweep-a { from { transform: translateY(-40%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vpg-sweep-b { from { transform: translateX(35%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes vpg-rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }

@@ -21,6 +21,7 @@ import CancelReasonsView from '../settings/CancelReasonsView.jsx';
 import BackupsView from '../settings/BackupsView.jsx';
 import DevPlanView from '../devplan/DevPlanView.jsx';
 import ReviewsView from '../reviews/ReviewsView.jsx';
+import BooksView from '../finance/BooksView.jsx';
 import PastQuizzes from '../quiz/PastQuizzes.jsx';
 import AgentFollowUp from '../followup/AgentFollowUp.jsx';
 import LowResponse from '../followup/LowResponse.jsx';
@@ -79,7 +80,7 @@ const ZipHolds = () => <AllZips view="holds" />;
 const VIEWS = {
   master: MasterView, pipeline: PipelineView, conversations: ConversationsView, agents: AgentsView, opportunities: OpportunitiesView,
   'deals-active': ActiveView, 'deals-all': AllDealsView, 'deals-summary': SummaryView, 'deals-tc': TcListView, 'deals-map': DealsMapView, 'deals-sync': SyncReviewView,
-  suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView, 'fin-em': EmView,
+  suggestions: SuggestionsView, alerts: AlertsPage, 'my-training': MyTraining, 'mgr-training': TrainingBoard, 'settings-training': ProgramBuilder, 'fin-statements': StatementsView, 'fin-money': MoneyView, 'fin-em': EmView, 'fin-books': BooksView,
   'my-scorecard': MyScorecardView, 'team-pipeline': PipelinePage, 'team-pipeline-opps': PipelineOpps, 'team-pipeline-cal': PipelineCalendar,
   'terr-who': WhoWorksWhere, 'terr-reps': RepsStates,
   'zips-mine': MyZips, 'zips-all': AllZips, 'zips-browse': ZipBrowse, 'zips-holds': ZipHolds,

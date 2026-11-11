@@ -112,6 +112,8 @@ export const SECTIONS = [
       // Where VPG's earnest money is (Luke, Oct 22): out, at risk, closed not returned.
       { id: 'em', label: 'Earnest Money', view: 'fin-em', scroll: true },
       { id: 'statements', label: 'Statements', view: 'fin-statements', scroll: true },
+      // Month-end HUDs to the CPA (Luke, Nov 11): a check-off per closing.
+      { id: 'books', label: 'Bookkeeping', view: 'fin-books', scroll: true },
       // Google reviews (Luke, Nov 4): $20 a review to the rep it names, 5 a
       // month — they make payments, so they sit in Finance since Nov 5
       // (Luke: "move them to the finance tab"; /team/reviews redirects).
