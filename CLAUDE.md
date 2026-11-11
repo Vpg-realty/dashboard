@@ -2146,6 +2146,10 @@ before a buyer (`isPending`, not Assigned / Closed in GHL) whose IP end
   winter, 1:00 / 1:45 PM in summer).
 - **No end time**: 4:00 PM with the confirm-the-time note.
 Only the latest slot that has come shows, and none after the IP has ended.
+**Glowing red border** (Luke, Nov 11: "a border of glowing red … to match
+the alerts"): each pop-up has a 2px red border with a breathing red glow
+(`.ip-glow` in index.css; `.ip-glow-fast` in the last hour, still under
+reduced motion); the stack has padding so the glow isn't clipped.
 "Got it" / Open deal hides that slot on the device (localStorage
 `vpg.ipPop.<email>`, today's keys only); the next slot brings it back. Who
 (Luke, same day): owners and the TC every deal; reps their own (acq. manager
@@ -3968,6 +3972,23 @@ Commissions. Checked on all 189 deals: only 1216 Martindale Dr and 4796
 Cameron Rd changed (kept-EMD cancels netting $0 that showed acq −$18 and
 manager −$7.50; their net profit moved from $5.50 to −$20, the TC's flat
 $20 still paid).
+
+**Bookkeeping — HUDs to the CPA (Luke, Nov 11: "at the end of the month i
+have to upload all HUD statements to our CPA's website … easily check off
+each property once the HUD statement is added")**: Finance tab
+**Bookkeeping** (`/finance/books`, `src/finance/BooksView.jsx`). One month at
+a time by COE (`?mo=YYYY-MM`; opens on last month until the 10th, then this
+month; the rail lists the months with "N of M to upload"): every deal Closed
+that month with its title / escrow #, its HUD from the deal's files (kind
+Settlement Statement (HUD) — Open / Download, or "Not on file · add it →" =
+the deal panel's Files tab) and an **Uploaded** tick showing who and when;
+tiles Closed / Uploaded to CPA / Still to upload / HUD not on file; "Mark all
+N uploaded". D1 `fin_hud (deal_id, done_by, done_email, done_at)` made on
+first use; API `functions/api/finance/books.js` (owners only, never while
+viewing as): GET → `{marks, huds}` (one read of fin_hud + the HUD rows of
+deal_files), POST `{deals, on}` (≤ 300), logged `finance.hudSent` /
+`hudUnsent`. Nothing is uploaded to the CPA by the site. Usage: two small
+reads per page load.
 
 **Paid receipts (Luke, Nov 11: "an option to drop in a receipt when marking
 something as paid … stored in the paid receipts section … on the finance tab

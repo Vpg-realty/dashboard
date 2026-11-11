@@ -60,13 +60,13 @@ export default function IpPopups({ me }) {
   return (
     <>
       {pops.length > 0 && (
-        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-3 w-[380px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div className="fixed top-0 right-0 z-[60] flex flex-col gap-4 p-4 w-[412px] max-w-[100vw] max-h-screen overflow-y-auto">
           {pops.map((p) => {
             const { d, em } = p;
             const tag = dealTag(d);
             const urgent = p.slot === '15m' || p.slot === '1h';
             return (
-              <div key={p.key} role="alert" className="rounded-xl bg-white shadow-xl ring-1 ring-[#7f1d1d]/30 overflow-hidden animate-[ipPop_.25s_ease-out]">
+              <div key={p.key} role="alert" className={`ip-glow rounded-xl bg-white overflow-hidden border-2 ${urgent ? 'border-[#e11d48] ip-glow-fast' : 'border-[#f43f5e]'}`}>
                 <div className={`flex items-center gap-2 px-4 py-2.5 text-white ${urgent ? 'bg-[#4c0519]' : 'bg-[#7f1d1d]'}`}>
                   <span className="text-[11px] font-bold uppercase tracking-[0.08em]">IP ends today</span>
                   <span className="text-[11px] text-white/70">· {p.label}</span>
