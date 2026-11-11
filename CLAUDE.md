@@ -5166,8 +5166,9 @@ TV-wide extras (Luke, Oct 7), rendered in `App.jsx` above every view:
   after 10am Arizona). Hidden when there's nothing to flag.
 - **Celebration banners** (`components/CelebrationBanner.jsx`): once per
   deal when it first goes Under Contract ("got one under contract!"), or
-  straight to DISPO Active if Under Contract was skipped ("got one to
-  DISPO"); Under Contract → DISPO does NOT fire again (Luke, Oct 7). No
+  straight to DISPO Active if Under Contract was skipped — since Nov 11
+  (Luke: "instead of DISPO!, it should say Under Contract!") both read "got
+  one under contract!"; Under Contract → DISPO does NOT fire again (Luke, Oct 7). No
   value on these (value only exists once assigned); shows IP end / COE.
   Driven by `deal.startedAt`, which `server/stickyCounts.js` keeps per opp
   in `opp-state.json` (`started`): set the first run an opp is seen in the
