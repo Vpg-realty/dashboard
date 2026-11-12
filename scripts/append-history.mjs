@@ -131,3 +131,16 @@ const trimmed = existing.slice(-KEEP_DAYS);
 fs.writeFileSync(HISTORY_PATH, JSON.stringify({ entries: trimmed }));
 console.log(`[history] wrote ${HISTORY_PATH} — ${trimmed.length} day(s) of history`);
 console.log(`[history] oldest: ${trimmed[0]?.date}, newest: ${trimmed[trimmed.length - 1]?.date}`);
+
+// Agents added per day, last 14 days, in the deploy log (Luke, Nov 12: "how
+// many agents were added last week at this time" — history.json is behind
+// the login, so the log is where a Claude Code session can read it). One
+// line per day: the day's last snapshot of "Added This Week" (team total)
+// and "Added Today", then the pairs that added any.
+for (const e of trimmed.slice(-14)) {
+  const ps = e.pairs || [];
+  const wk = ps.reduce((t, p) => t + (p.agentsAddedWeek || 0), 0);
+  const td = ps.reduce((t, p) => t + (p.agentsAddedToday || 0), 0);
+  const by = ps.filter((p) => p.agentsAddedWeek).map((p) => `${p.repId}/${p.marketId} ${p.agentsAddedWeek}`).join(', ');
+  console.log(`[history] agents ${e.date} (${(e.generatedAt || '').slice(11, 16)}Z) week ${wk} · today ${td}${by ? ` · ${by}` : ''}`);
+}
