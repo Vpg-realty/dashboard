@@ -3,6 +3,7 @@
 // POST /api/alerts { action: 'add', title, body?, due?, dueTime?, to?, cat?, recur? }   a task (pod leads / owners can assign; cat dev | improve, recur weekdays | weekly | biweekly | monthly)
 //                  { action: 'done', id, done }                 tick / untick
 //                  { action: 'doneMany', ids, done }            tick / untick several (not leads)
+//                  { action: 'dncMany', ids, answer }           answer several Do Not Contact alerts
 //                  { action: 'verdict', id, verdict }           a spotted lead: hot | warm | cold | wholesale | not | null
 //                  { action: 'due', id, due, dueTime? }               move a date (not GHL tasks)
 //                  { action: 'remove', id }                     a site task
@@ -50,13 +51,13 @@ export async function onRequestPost(context) {
   if (!canUse(user)) return json({ error: 'not set up yet' }, 403);
   const db = context.env.DB;
   let existing = b?.id ? await db.prepare('SELECT * FROM alerts WHERE id = ?').bind(String(b.id)).first() : null;
-  if (b?.action === 'doneMany') {
+  if (b?.action === 'doneMany' || b?.action === 'dncMany') {
     const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).filter((x) => /^a[a-f0-9]{12}$/.test(x)).slice(0, MANY_MAX);
     existing = [];
     // D1 takes at most 100 values per query.
     for (let i = 0; i < ids.length; i += 90) {
       const part = ids.slice(i, i + 90);
-      existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, done_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+      existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, verdict, done_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
     }
   }
   // An owner's tick on a duplicate covers every pod's copy (owners see one —

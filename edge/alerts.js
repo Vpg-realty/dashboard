@@ -117,6 +117,19 @@ const KEEP_DONE_MS = 7 * 86400000;
 // A Do Not Contact alert's answers and the GHL tag each puts on the contact
 // (edge/alertsSync.js DNC_TAG / PAUSE_TAG).
 export const DNC_ANSWERS = ['dnc', 'pause', 'none'];
+// One Do Not Contact answer: close (or reopen) the alert and swap its GHL tag.
+function dncAnswer(existing, v, user, now) {
+  const was = { yes: 'dnc', no: 'none' }[existing.verdict] || existing.verdict || null;
+  const push = (tag, op) => ['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [`alert:${existing.id}`, existing.contact, existing.sub, `tag:${tag}`, op, user.name, now, 'pending']];
+  const tags = [];
+  if (existing.contact && existing.sub && was !== v) {
+    if (DNC_TAGS[was]) tags.push(push(DNC_TAGS[was], 'remove'));
+    if (DNC_TAGS[v]) tags.push(push(DNC_TAGS[v], 'add'));
+  }
+  return [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_at = ?, done_by = ? WHERE id = ?',
+    [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, existing.id]], ...tags];
+}
 const DNC_TAGS = { dnc: 'agent - dnc', pause: 'internal - do not automate' };
 export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
 const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
@@ -338,6 +351,15 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (!list.length) return { error: 'Pick the alerts to tick off' };
     return { ids: list.map((x) => x.id), check: b.done ? list.filter((x) => personal(x, scope)) : [], run: list.flatMap((x) => tick(x, !!b.done, user, scope, now)) };
   }
+  // Answer several Do Not Contact alerts at once (Luke, Nov 12: "the select
+  // all does not work here") — the same answer for each, tags as below.
+  if (a === 'dncMany') {
+    const v = b.answer ?? null;
+    if (![null, ...DNC_ANSWERS].includes(v)) return { error: 'Pick Do Not Contact, Stop Automations or No Action' };
+    const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind === 'dnc');
+    if (!list.length) return { error: 'Pick the Do Not Contact alerts to answer' };
+    return { ids: list.map((x) => x.id), run: list.flatMap((x) => dncAnswer(x, v, user, now)) };
+  }
   if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
   if (a === 'done') {
     // A lead is reviewed by picking its type (Luke, Oct 22: "complete button
@@ -374,16 +396,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (existing.kind !== 'dnc') return { error: 'Only Do Not Contact alerts take this answer' };
     const v = b.answer ?? null;
     if (![null, ...DNC_ANSWERS].includes(v)) return { error: 'Pick Do Not Contact, Stop Automations or No Action' };
-    const was = { yes: 'dnc', no: 'none' }[existing.verdict] || existing.verdict || null;
-    const push = (tag, op) => ['INSERT INTO ghl_push (deal_id, ghl_id, location, field, value, by_name, at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [`alert:${b.id}`, existing.contact, existing.sub, `tag:${tag}`, op, user.name, now, 'pending']];
-    const tags = [];
-    if (existing.contact && existing.sub && was !== v) {
-      if (DNC_TAGS[was]) tags.push(push(DNC_TAGS[was], 'remove'));
-      if (DNC_TAGS[v]) tags.push(push(DNC_TAGS[v], 'add'));
-    }
-    return { run: [['UPDATE alerts SET verdict = ?, verdict_by = ?, verdict_at = ?, done_at = ?, done_by = ? WHERE id = ?',
-      [v, v ? user.name : null, v ? now : null, v ? now : null, v ? user.name : null, b.id]], ...tags] };
+    return { run: dncAnswer(existing, v, user, now) };
   }
   if (a === 'due') {
     if (b.due && !DATE.test(b.due)) return { error: 'Pick a due date' };
