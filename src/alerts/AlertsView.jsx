@@ -407,6 +407,12 @@ export default function AlertsView() {
   const tickMany = async () => {
     if (await act({ action: 'doneMany', ids: [...sel], done: tab !== 'done' })) setSel(null);
   };
+  // Do Not Contact alerts take an answer, not a tick (Luke, Nov 12: "the
+  // select all does not work here") — the same answer for every one picked.
+  const dncView = view === 'dnc';
+  const answerMany = async (answer) => {
+    if (await act({ action: 'dncMany', ids: [...sel], answer })) setSel(null);
+  };
 
   return (
     <div className="max-w-[1720px] mx-auto">
@@ -480,7 +486,16 @@ export default function AlertsView() {
                 </label>
                 {sel && <>
                   <span className="text-zinc-500">{sel.size} selected</span>
-                  <button type="button" disabled={busy || !sel.size} onClick={tickMany} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">{tab === 'done' ? 'Mark not done' : 'Mark done'}</button>
+                  {dncView ? (tab === 'done'
+                    ? <button type="button" disabled={busy || !sel.size} onClick={() => answerMany(null)} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">Reopen</button>
+                    : <>
+                      {[['dnc', 'Do Not Contact'], ['pause', 'Stop Automations'], ['none', 'No Action']].map(([k, l]) => (
+                        <button key={k} type="button" disabled={busy || !sel.size}
+                          onClick={() => { if (k === 'none' || window.confirm(`${l} for ${sel.size} agent${sel.size === 1 ? '' : 's'}? This adds the "${k === 'dnc' ? 'agent - dnc' : 'internal - do not automate'}" tag in GHL with the next refresh.`)) answerMany(k); }}
+                          className={`h-8 px-3 rounded-lg font-semibold disabled:opacity-50 ${k === 'none' ? 'border border-zinc-200 bg-white text-navy-800 hover:bg-zinc-50' : 'bg-navy-700 text-white hover:bg-navy-800'}`}>{l} · {sel.size}</button>
+                      ))}
+                    </>)
+                    : <button type="button" disabled={busy || !sel.size} onClick={tickMany} className="h-8 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">{tab === 'done' ? 'Mark not done' : 'Mark done'}</button>}
                   <button type="button" onClick={() => setSel(null)} className="h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-600 font-semibold hover:bg-zinc-50">Cancel</button>
                 </>}
                 {!sel && <button type="button" onClick={() => setSel(new Set())} className="text-navy-700 font-semibold hover:underline">Select some…</button>}

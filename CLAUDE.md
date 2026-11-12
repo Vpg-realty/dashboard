@@ -2049,6 +2049,15 @@ suggests: …") and learns from the answers as DNC / STOP AUTOMATIONS / NOT
 DNC examples. An open alert also closes "Tagged do not automate in GHL" when
 someone adds that tag in GHL directly (`dncState().pause`).
 
+**Answer several at once (Luke, Nov 12: "the select all does not work
+here" — Mark done refuses Do Not Contact alerts, they take an answer)**: on
+the Do Not Contact list the selection bar offers **Do Not Contact · N / Stop
+Automations · N / No Action · N** (the first two confirm, naming the tag) and
+**Reopen** on the Reviewed tab, in place of Mark done. POST /api/alerts
+`{action: 'dncMany', ids, answer}` (≤ 300, only dnc alerts in the person's
+scope) runs the same answer per alert as `dnc` (`dncAnswer` in
+edge/alerts.js: closes / reopens it, swaps its GHL tag in ghl_push).
+
 ## Lead judge — what counts as a lead (Luke, Oct 23)
 
 Overrides older lead-spotting notes where they differ (edge/alertsSync.js,
