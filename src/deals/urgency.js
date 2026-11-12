@@ -61,7 +61,11 @@ export function urgency(d, today, now = Date.now()) {
   }
   if (!emdIn(d)) {
     return r('act', 'red', 'EMD not placed — no one listed as paying it',
-      'Confirm the EMD went to title and set “EMD paid by”.', { why: 'A late EMD can put the contract in default.', action: 'Set EMD…', focus: 'emdPaidBy', date: d.coe });
+      'Confirm the EMD went to title and set “EMD paid by”.', { why: 'A late EMD can put the contract in default.', action: 'Set EMD…', focus: 'emdPaidBy',
+        // Before a buyer the deal runs on its IP end (Luke, Nov 12: "since these are
+        // all dispo active, isn't the most important date the IP end date"); the COE
+        // once it's assigned.
+        date: asg ? d.coe : (d.ddEnd || d.coe) });
   }
   if (asg && String(d.emdPaidBy).toUpperCase() === 'VPG') {
     return r('act', 'red', 'Only VPG’s EMD is in — the buyer hasn’t put theirs up',

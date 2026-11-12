@@ -2126,6 +2126,12 @@ differ.
   rep, the blank fields as chips. The old big / slim cards, MiniFacts and the
   EMD chip row are gone; folds per device `vpg.active.folds3` (only the GHL
   list starts folded).
+- **The date before a buyer is the IP end** (Luke, Nov 12: "some of these
+  deals have a COE marked and not an IP … since these are all dispo active,
+  isn't the most important date the IP end date"): the "EMD not placed" rule
+  in `urgency()` dated its row by the COE; before a buyer it now uses the IP
+  end (the COE only when there's no IP end), once assigned the COE. Every
+  other pre-buyer row already used the IP end; "COE passed" keeps the COE.
 - **No We Make / What's Next columns** (Luke, Nov 4: "what happens and
   what's next tell the same story … remove what's next as well as we make …
   i can click the deal and it'll tell me the fee"): a row is date · mark ·
