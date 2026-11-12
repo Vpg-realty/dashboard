@@ -3222,6 +3222,24 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   `optional` term (`closing`) — never ticked by itself — with a `hint` ("only
   include it if we already offered it") shown in amber on the offer's
   checklist and on Contract Terms (any term can carry a `hint`).
+- **One card + live message (Luke, Nov 12: "too many areas to enter
+  information … spread out in strange places … should not be two separate
+  tiles … anything that is key for the state/contract … a more noticeable
+  color vs. the current yellow")** — overrides the layout notes above:
+  `OfferMessage.jsx` is one **Offer Details** card (Offer Templates; "Offer
+  Terms" under the calculators) in groups The Deal (State first, Listed /
+  Off market, the property) → The Agent → The Offer (price, EMD, IP, COE,
+  title; creative financing row) → Additional Terms (each term with its full
+  wording, Luke: "i'd like to be able to see each term and what it says";
+  "anything else" box), beside a burnt-orange **⚑ Required for <state>**
+  checklist (signer line, the state's terms, its contract notes, off-market,
+  its documents with Download / Open) and the message, which builds live as
+  you type (no Create button; "✎ Edit before sending" freezes an editable
+  copy, "↺ Back to the live message" undoes it). Everything the state sets is
+  in one orange (`ST` in OfferMessage.jsx): the box, the terms tagged "<ST>
+  REQUIRED", the signer / state / off-market lines in the message. No
+  per-state table on this page (Luke: it stays on Contract Terms). Offer
+  Templates passes the property, price, financing and extra box as `lead`.
 - **Offer message** (`OfferMessage.jsx`, `offer.js`, under both calculators;
   Luke's two templates): Market, EMD, Inspection period (days), COE (a date
   or words) and Title company (the state's ★ agency by default, else "All
