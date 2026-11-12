@@ -3212,8 +3212,9 @@ Settings). D1 tables in `edge/toolkit.sql`, logic `edge/toolkit.js`, API
   `contract_terms` (`contractTerms` / action `terms` in edge/toolkit.js,
   `checkTerms`, owners only); until an owner saves, the starting set in
   `src/toolkit/terms.js` (`DEFAULT_TERMS`) — Luke's investor / weekend /
-  off-market / informal-inspection terms (IN, OH, TN, AL, NV, OK, MO, marked
-  to confirm), the assignment term for NC and GA, and state notes from his
+  off-market / informal-inspection terms (IN, OH, TN, NV, OK, MO, marked
+  to confirm — Alabama left out, Luke Nov 12: its contract already lets us
+  cancel for any reason), the assignment term for NC and GA, and state notes from his
   contract-review skill (AL ¶30 assignment box, NC consent of all parties,
   GA consent / F255–F259, SC Form 120 / 136, NM addenda, no "and/or
   Assigns" in AZ / AL / FL / OK). Usage: one settings row per Toolkit load.

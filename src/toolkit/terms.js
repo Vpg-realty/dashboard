@@ -37,7 +37,7 @@ export const DEFAULT_TERMS = {
       text: 'Seller agrees that the Property shall remain off-market and shall not be listed, marketed, advertised, shown, or otherwise offered for sale through the MLS or any other public or private marketing channel during the mutually agreed-upon Inspection/Due Diligence Period. Seller shall not solicit or accept backup offers during such period without Buyer’s prior written consent.',
     },
     {
-      id: 'informal', when: 'states', states: ['IN', 'OH', 'TN', 'AL', 'NV', 'OK', 'MO'], confirm: true, title: 'Informal inspection',
+      id: 'informal', when: 'states', states: ['IN', 'OH', 'TN', 'NV', 'OK', 'MO'], confirm: true, title: 'Informal inspection',
       text: 'Seller hereby accepts that Buyer may evaluate the Property through an informal inspection process, which may include a drive-by, visual inspection from the exterior or through windows, entry into the Property, and/or evaluation by Buyer’s contractor or representative. Buyer is not required to obtain a professional inspection or provide a written list of defects, repairs, or disapproved items. Buyer may terminate this Agreement during the Inspection/Due Diligence Period if, in Buyer’s judgment, the Property does not meet Buyer’s investment criteria, and such termination shall not require Buyer to identify or document any specific defect or condition.',
     },
     {
