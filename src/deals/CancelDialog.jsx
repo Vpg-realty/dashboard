@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { CANCEL_REASONS } from './fieldLib.js';
 import { vpgPlaced, cancelFields } from './cancel.js';
+import Switch from './Switch.jsx';
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 const up = (v) => String(v ?? '').trim().toUpperCase();
@@ -84,17 +85,18 @@ export default function CancelDialog({ deal: d, busy, err, onBack, onConfirm, pa
             ) : <button type="button" onClick={() => setTyping(true)} className="rounded-lg px-3 py-1.5 text-[13px] font-semibold text-navy-700 ring-1 ring-inset ring-dashed ring-tan-400 hover:bg-tan-50">+ Add a reason</button>}
           </Q>
           <Q n={2} title="In GHL, mark it">
-            <Choice on={a.ghl === 'LOST'} onClick={() => set('ghl', 'LOST')}>Lost · not coming back</Choice>
-            <Choice on={a.ghl === 'ABANDONED'} onClick={() => set('ghl', 'ABANDONED')}>Abandoned · may come back</Choice>
+            <Switch value={a.ghl} clearable={false} label="In GHL, mark it" onChange={(v) => set('ghl', v)}
+              options={[{ value: 'LOST', label: 'Lost · not coming back' }, { value: 'ABANDONED', label: 'Abandoned · may come back' }]} />
           </Q>
           <Q n={3} title={placed && ours ? `Our ${money(ours)} EMD` : 'Our EMD'}
             note={!placed ? `Set automatically: EMD paid by is ${d.emdPaidBy ? pretty('emdPaidBy', d.emdPaidBy) : 'empty'}.` : a.our === 'LOST' ? `Saved as lost · ${a.reason === 'BUYER_DEFAULT' ? 'buyer default' : 'past inspection period'}.` : null}>
-            {OUR.map(([k, l]) => <Choice key={k} on={a.our === k} disabled={!placed && k !== 'NONE'} onClick={() => set('our', k)}>{l}</Choice>)}
+            <Switch value={a.our} clearable={false} label="Our EMD" onChange={(v) => set('our', v)}
+              options={OUR.map(([k, l]) => ({ value: k, label: l, disabled: !placed && k !== 'NONE' }))} />
           </Q>
           {askKeep && (
             <Q n={4} title="Are we keeping the buyer's EMD?">
-              <Choice on={!a.keep} onClick={() => set('keep', false)}>No</Choice>
-              <Choice on={a.keep} onClick={() => set('keep', true)}>Yes</Choice>
+              <div className="w-48"><Switch value={a.keep ? 'Y' : 'N'} clearable={false} label="Keeping the buyer's EMD?" onChange={(v) => set('keep', v === 'Y')}
+                options={[{ value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]} /></div>
               {a.keep && (
                 <label className="inline-flex items-center gap-1.5 text-[13px] text-zinc-600">
                   <span>$</span>

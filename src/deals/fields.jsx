@@ -9,8 +9,13 @@ import { isBlank } from './math.js';
 import { endTimeOf, parseEndTime, zoneLabel } from './ddTime.js';
 import SearchSelect from './SearchSelect.jsx';
 import TimePicker from './TimePicker.jsx';
+import Switch from './Switch.jsx';
+import { vpgPlaced } from './cancel.js';
 
 const CUSTOM = '__custom';
+// Fields drawn as a switch in the deal panel and pop-ups (Luke, Nov 16).
+const SWITCH_KEYS = new Set(['retrade', 'listing', 'cfar', 'emdReturned', 'cancelAs']);
+const SWITCH_WORD = { retrade: { Y: 'Yes', N: 'No' }, listing: { 'ON-MARKET': 'On market', 'OFF-MARKET': 'Off market' }, cancelAs: { LOST: 'Lost', ABANDONED: 'Abandoned' } };
 const dashToNull = (v) => (isBlank(v) ? null : v);
 
 // Buyer and title agency: a past entry, or "✎ Custom — type it in".
@@ -114,6 +119,18 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     );
   }
   const opts = FIXED_LISTS[f.key] || lists?.[LIST_OF[f.key]];
+  // 2–4 fixed choices outside a table cell → a Yes / No style switch (Luke,
+  // Nov 16). N/A shows only when it's on the deal already, or — EMD
+  // returned? — when VPG didn't put up EMD.
+  if (opts && !inline && SWITCH_KEYS.has(f.key)) {
+    const naOk = (o) => o !== 'NA' || v === 'NA' || (f.key === 'emdReturned' && deal && !vpgPlaced(deal));
+    const shown = opts.filter(naOk);
+    if (shown.length >= 2 && shown.length <= 4) {
+      const all = v && !shown.includes(v) ? [...shown, v] : shown;
+      return <Switch value={v || null} disabled={disabled} label={f.label} onChange={(x) => onChange(x)}
+        options={all.map((o) => ({ value: o, label: SWITCH_WORD[f.key]?.[o] || pretty(f.key, o) }))} />;
+    }
+  }
   if (opts) {
     const all = v && !opts.includes(v) ? [...opts, v] : opts;
     // Time zone: empty → the deal's state's zone (shown as the default).
