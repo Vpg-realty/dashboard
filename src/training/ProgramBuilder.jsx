@@ -89,7 +89,10 @@ export default function ProgramBuilder() {
     a.splice(last + 1, 0, { id, phase, kind: 'signoff', title: 'New step', who: 'trainer' });
     setSteps(a); setEditing(id);
   };
-  const save = async () => { if (await run({ action: 'program', program: prog })) setSaved(true); };
+  // After a save the server's tidied copy (trimmed text, blank answers dropped)
+  // becomes the page's copy, so "Unsaved changes" clears (Luke, Nov 16: it
+  // stayed up after every save).
+  const save = async () => { if (await run({ action: 'program', program: prog })) { setDraft(null); setSaved(true); } };
   return (
     <div className="grid gap-4 max-w-[1100px]">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-tan-200 bg-tan-50/50 px-4 py-3">
