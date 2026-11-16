@@ -16,13 +16,20 @@ const slug = (t) => String(t || 'step').toLowerCase().replace(/[^a-z0-9]+/g, '-'
 function Questions({ step, set }) {
   const qs = step.questions || [];
   const put = (i, q) => set({ ...step, questions: qs.map((x, k) => (k === i ? q : x)) });
+  // Reorder (Luke, Nov 16): swap a question with the one above / below.
+  const move = (i, d) => { const j = i + d; if (j < 0 || j >= qs.length) return; const a = [...qs]; [a[i], a[j]] = [a[j], a[i]]; set({ ...step, questions: a }); };
   return (
     <div className="grid gap-3">
       <div className="flex items-center"><b className="text-navy-800">Test questions · {qs.length}</b>
         <button type="button" onClick={() => set({ ...step, questions: [...qs, { q: '', options: ['', '', '', ''], answer: 0 }] })} className="ml-auto h-8 px-3 rounded-lg border border-navy-700 text-navy-700 font-semibold text-[13px]">+ Add a question</button></div>
       {qs.map((q, i) => (
         <div key={i} className="rounded-lg border border-tan-200 p-3 grid gap-2">
-          <div className="flex gap-2 items-center"><span className="font-semibold text-zinc-500">{i + 1}.</span>
+          <div className="flex gap-2 items-center">
+            <span className="flex flex-col">
+              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-zinc-400 hover:text-navy-700 disabled:opacity-30 leading-none" aria-label={`Move question ${i + 1} up`}>▲</button>
+              <button type="button" onClick={() => move(i, 1)} disabled={i === qs.length - 1} className="text-zinc-400 hover:text-navy-700 disabled:opacity-30 leading-none" aria-label={`Move question ${i + 1} down`}>▼</button>
+            </span>
+            <span className="font-semibold text-zinc-500">{i + 1}.</span>
             <input className={inputCls} value={q.q} onChange={(e) => put(i, { ...q, q: e.target.value })} placeholder="The question" aria-label={`Question ${i + 1}`} />
             <input className="w-24 h-9 rounded-lg border border-zinc-200 px-2" value={q.at || ''} onChange={(e) => put(i, { ...q, at: e.target.value })} placeholder="06:40" title="Where the answer is in the video" aria-label="Video time" />
             <button type="button" onClick={() => set({ ...step, questions: qs.filter((_, k) => k !== i) })} className="text-zinc-400 hover:text-red-700 px-1" aria-label="Remove question"><XIcon size={14} /></button>
