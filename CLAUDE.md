@@ -1197,7 +1197,9 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   `who: 'owners'` = Jack or Luke only (Week 2 one-on-ones); else the
   trainee's pod lead or an owner (Luke: "either can"). Edited by owners in
   **Settings › Training Program** (`ProgramBuilder.jsx`, `checkProgram`);
-  steps keep their ids, so progress stays attached. Drafted Oct 19 by
+  steps keep their ids, so progress stays attached. Questions reorder with
+  ▲ / ▼ in a step's editor (Luke, Nov 16; saved with the program's Save).
+  Drafted Oct 19 by
   Claude (31 steps, 67 questions, answers shuffled) for Luke to review; the
   video links are his to add.
 - **Order**: steps run strictly in order (`statusOf` — the first not done).
