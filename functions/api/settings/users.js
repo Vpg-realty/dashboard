@@ -88,7 +88,7 @@ export async function onRequestPost(context) {
   if (p.role === 'trainee') {
     const program = await loadProgram(db);
     if (program) {
-      const progress = (await db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(p.email).all()).results;
+      const progress = (await db.prepare('SELECT step, done_at, status, reviewed_at FROM training_progress WHERE email = ?').bind(p.email).all()).results;
       await db.batch(alertOps({ email: p.email, name: p.name, trainer }, program, progress, now).map(([sql, args]) => db.prepare(sql).bind(...args)));
     }
   }

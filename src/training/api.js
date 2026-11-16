@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { call } from '../utils/dashApi.js';
 
+// A paperwork step's document (functions/api/training/doc.js).
+export const docUrl = (stepId, inline) => `${import.meta.env.BASE_URL}api/training/doc?step=${encodeURIComponent(stepId)}${inline ? '&inline=1' : ''}`;
 export const loadTraining = () => call('training');
 export const postTraining = (body) => call('training', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 

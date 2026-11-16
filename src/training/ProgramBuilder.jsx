@@ -6,7 +6,8 @@
 // moved, so trainees' progress stays with it.
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { useState } from 'react';
-import { useTraining, KIND_LABEL } from './api.js';
+import { useTraining, KIND_LABEL, docUrl } from './api.js';
+import { call } from '../utils/dashApi.js';
 import { XIcon } from '../shell/CloseButton';
 
 const inputCls = 'w-full h-9 rounded-lg border border-zinc-200 px-2.5 bg-white';
@@ -47,6 +48,42 @@ function Questions({ step, set }) {
   );
 }
 
+// Paperwork: the document the trainee downloads and reviews before it goes
+// out by DocuSign (Luke, Nov 16). Uploading stores the file; the step keeps
+// it once the program is saved.
+function DocUpload({ step, set }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true); setErr(null);
+    try {
+      const { doc } = await call(`training/doc?name=${encodeURIComponent(file.name)}`, { method: 'POST', headers: { 'content-type': file.type || 'application/pdf' }, body: file });
+      set({ ...step, doc });
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-lg border border-tan-200 bg-tan-50/50 p-3 grid gap-2">
+      <b className="text-navy-800 text-[14px]">Document for them to review</b>
+      <span className="text-[12.5px] text-zinc-600">They download it, click “I’ve reviewed it”, and you get a task to send it by DocuSign. Leave it empty to skip the review.</span>
+      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+        {step.doc ? <>
+          <span className="font-semibold text-navy-800">{step.doc.name}</span>
+          {step.doc.size ? <span className="text-zinc-500">{(step.doc.size / 1024 / 1024).toFixed(1)} MB</span> : null}
+          <a href={docUrl(step.id, true)} target="_blank" rel="noreferrer" className="text-navy-700 underline">Open</a>
+          <button type="button" onClick={() => set({ ...step, doc: null })} className="text-zinc-500 hover:text-red-700 underline">Remove</button>
+        </> : <span className="text-zinc-500">No document yet</span>}
+        <label className={`h-8 px-3 rounded-lg border border-navy-700 text-navy-700 font-semibold grid place-items-center cursor-pointer ${busy ? 'opacity-50' : ''}`}>
+          {busy ? 'Uploading…' : step.doc ? 'Replace' : 'Upload a document'}
+          <input type="file" accept=".pdf,.doc,.docx,image/*" className="sr-only" disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+      </div>
+      {step.doc && <span className="text-[12px] text-amber-700">Press Save program to keep it. A new upload opens for trainees once saved.</span>}
+      {err && <span className="text-[12.5px] text-red-700">{err}</span>}
+    </div>
+  );
+}
+
 function StepEditor({ step, set, onClose }) {
   return (
     <div className="rounded-xl border-2 border-navy-700 p-4 grid gap-3 bg-white">
@@ -63,6 +100,7 @@ function StepEditor({ step, set, onClose }) {
         {step.kind === 'log' && <label className="grid gap-1 text-[13px] text-zinc-600">Messages required that day (blank = none)<input type="number" className={inputCls} value={step.messages || ''} onChange={(e) => set({ ...step, messages: e.target.value ? Number(e.target.value) : null })} /></label>}
         {step.kind === 'signoff' && <label className="flex gap-2 items-center text-[13px] text-zinc-600"><input type="checkbox" checked={!!step.graduate} onChange={(e) => set({ ...step, graduate: e.target.checked })} />This is the graduation (they become a rep)</label>}
       </div>
+      {step.kind === 'paper' && <DocUpload step={step} set={set} />}
       {(step.kind === 'video' || step.kind === 'test') && <Questions step={step} set={set} />}
     </div>
   );
@@ -118,6 +156,7 @@ export default function ProgramBuilder() {
                   <span className="rounded px-2 py-0.5 text-[12px] font-semibold bg-tan-100 text-tan-800">{KIND_LABEL[s.kind]}</span>
                   {s.kind === 'video' && <span className={`text-[12.5px] ${s.video ? 'text-emerald-700' : 'text-amber-700 font-semibold'}`}>{s.video ? 'Video linked' : 'Video link needed'}</span>}
                   {(s.kind === 'video' || s.kind === 'test') && <span className="text-[12.5px] text-zinc-500">{s.questions?.length || 0} questions</span>}
+                  {s.kind === 'paper' && <span className={`text-[12.5px] ${s.doc ? 'text-emerald-700' : 'text-zinc-500'}`}>{s.doc ? 'Document attached' : 'No document'}</span>}
                   {s.who === 'owners' && <span className="text-[12.5px] text-zinc-500">Jack or Luke</span>}
                   {s.graduate && <span className="text-[12.5px] font-semibold text-emerald-700">Graduation</span>}
                   <button type="button" onClick={() => setEditing(s.id)} className="h-7 px-2.5 rounded-md border border-zinc-200 text-[13px] font-semibold text-navy-700">Edit</button>

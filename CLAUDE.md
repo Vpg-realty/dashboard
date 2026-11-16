@@ -1202,6 +1202,24 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   Drafted Oct 19 by
   Claude (31 steps, 67 questions, answers shuffled) for Luke to review; the
   video links are his to add.
+- **Paperwork to review, then DocuSign (Luke, Nov 16**: "upload the
+  documents for them to review … download … once reviewed we receive a task to
+  send them the contracts via docusign"): a paper step can carry a document —
+  Settings › Training Program › Edit step › Upload a document (POST
+  /api/training/doc, owners; R2 `training/<id>`, the step keeps `doc` {id,
+  name, size, type} once the program is saved; `checkProgram` keeps it). My
+  Training shows Open / Download and **I've reviewed it — send it to me to
+  sign** (action `review`: `training_progress.status` 'reviewed' +
+  `reviewed_at`, column added Nov 16 with ALTER TABLE). `alertOps` then gives
+  whoever checks the step off an Alerts task "Send <name> the <step> by
+  DocuSign" (ext_id `train:<email>:<step>:send:<holder>` — each owner for
+  "Jack or Luke only", else the pod lead); **Mark sent** closes it and the
+  usual check-off task follows; Mark signed as before. Before the review no
+  task goes out; a step with no document works as it always did. The trainee
+  file shows "Waiting for them to review" / "Reviewed <date> · send by
+  DocuSign". GET /api/training/doc?step= streams it (trainees, owners, pod
+  leads). Sending through DocuSign itself is not built (needs their DocuSign
+  API access).
 - **Order**: steps run strictly in order (`statusOf` — the first not done).
   A video's test unlocks when the YouTube player reports the end (IFrame
   API; a "didn't unlock?" link after 2 minutes). Tests are graded on the
