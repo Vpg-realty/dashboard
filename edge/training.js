@@ -37,6 +37,7 @@ export const leads = () => getPods().map((p) => ({ id: p.lead, pod: p.title }));
 export const isLead = (id) => leads().some((l) => l.id === id);
 
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export const DOC_ID = /^[a-f0-9]{16}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const clip = (x, n) => String(x ?? '').trim().slice(0, n);
 const newId = (p) => `${p}${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
@@ -68,6 +69,9 @@ export function checkProgram(p) {
       step.video = v || null;
       step.minutes = Number(s.minutes) > 0 ? Math.min(240, Math.round(Number(s.minutes))) : null;
     }
+    // Paperwork: the document the trainee reviews first (Luke, Nov 16) — the
+    // file is in R2 (training/<id>), uploaded through /api/training/doc.
+    if (s.kind === 'paper' && s.doc && DOC_ID.test(String(s.doc.id || ''))) step.doc = { id: s.doc.id, name: clip(s.doc.name, 120) || 'Document', size: Number(s.doc.size) || 0, type: clip(s.doc.type, 80) || 'application/pdf' };
     if (s.kind === 'log') step.messages = Number(s.messages) > 0 ? Math.min(500, Math.round(Number(s.messages))) : null;
     if (s.graduate) step.graduate = true;
     if (s.kind === 'video' || s.kind === 'test') {
@@ -167,15 +171,30 @@ export async function load(db, user) {
 
 // The step that's waiting on a trainer gets an alert for the pod lead (and
 // shows on everyone's Training board); it closes when the step is done.
-export function alertOps(person, program, progress, now) {
+// Paperwork with a document (Luke, Nov 16): nothing until the trainee has
+// reviewed it; then a "send it by DocuSign" task for whoever checks the step
+// off (its pod lead, or each owner for "Jack or Luke only" — `owners` are
+// their alert holders); once it's marked sent, the usual check-off task.
+const azTime = (iso) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+export function alertOps(person, program, progress, now, owners = []) {
   const st = statusOf(program, progress);
   const step = program.steps.find((s) => s.id === st.current);
-  const ops = [["UPDATE alerts SET done_by = 'Training', done_at = ? WHERE ext_id LIKE ? AND done_at IS NULL AND ext_id <> ?", [now, `train:${person.email}:%`, step && !TRAINEE_DOES.includes(step.kind) ? `train:${person.email}:${step.id}` : '']]];
-  if (step && !TRAINEE_DOES.includes(step.kind) && person.trainer) {
-    ops.push([`INSERT INTO alerts (id, ext_id, holder, kind, title, body, created_by, created_at) VALUES (?, ?, ?, 'task', ?, ?, 'Training', ?) ON CONFLICT (ext_id) DO NOTHING`,
-      [newId('a'), `train:${person.email}:${step.id}`, person.trainer, `Training · ${person.name}: ${step.title}`, step.who === 'owners' ? 'Jack or Luke checks this off in Management › Training' : 'Check it off in Management › Training', now]]);
+  const base = `train:${person.email}`;
+  const waiting = step && !TRAINEE_DOES.includes(step.kind);
+  const prog = step && (progress || []).find((p) => p.step === step.id);
+  const docStep = waiting && step.kind === 'paper' && step.doc;
+  let keep = waiting ? `${base}:${step.id}` : '';
+  const ops = [];
+  const add = (ext, holder, title, body) => ops.push([`INSERT INTO alerts (id, ext_id, holder, kind, title, body, created_by, created_at) VALUES (?, ?, ?, 'task', ?, ?, 'Training', ?) ON CONFLICT (ext_id) DO NOTHING`, [newId('a'), ext, holder, title, body, now]]);
+  if (docStep && !prog?.status) keep = '';
+  else if (docStep && prog.status === 'reviewed') {
+    keep = `${base}:${step.id}:send:%`;
+    const holders = step.who === 'owners' && owners.length ? owners : [person.trainer].filter(Boolean);
+    for (const h of holders) add(`${base}:${step.id}:send:${h}`, h, `Send ${person.name} the ${step.title} by DocuSign`, `${person.name} reviewed it ${prog.reviewed_at ? azTime(prog.reviewed_at) : ''} · send it to ${person.email}, then Mark sent in Scorecards › Training`);
+  } else if (waiting && person.trainer) {
+    add(keep, person.trainer, `Training · ${person.name}: ${step.title}`, step.who === 'owners' ? 'Jack or Luke checks this off in Management › Training' : 'Check it off in Management › Training');
   }
-  return ops;
+  return [["UPDATE alerts SET done_by = 'Training', done_at = ? WHERE ext_id LIKE ? AND done_at IS NULL AND ext_id NOT LIKE ?", [now, `${base}:%`, keep || '~none~']], ...ops];
 }
 
 // body → { error } or { run: [[sql, params]], after?: 'alerts' }
@@ -214,6 +233,13 @@ export function plan(b, user, ctx, now = new Date().toISOString()) {
       ['INSERT INTO training_logs (email, step, text, messages, at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (email, step) DO UPDATE SET text = excluded.text, messages = excluded.messages, at = excluded.at', [person.email, step.id, text, messages, now]],
       ['INSERT INTO training_progress (email, step, done_by, done_at) VALUES (?, ?, ?, ?) ON CONFLICT (email, step) DO UPDATE SET done_by = excluded.done_by, done_at = excluded.done_at', [person.email, step.id, person.name, now]],
     ] };
+  }
+  // Paperwork: the trainee read the document → the send-by-DocuSign task.
+  if (a === 'review') {
+    if (user.role !== 'trainee' || !person) return { error: 'trainees only' };
+    if (!step || step.id !== st.current || step.kind !== 'paper') return { error: 'finish the steps before this one first' };
+    if (!step.doc) return { error: 'there’s no document on this step yet' };
+    return { after: 'alerts', run: [['INSERT INTO training_progress (email, step, status, reviewed_at) VALUES (?, ?, ?, ?) ON CONFLICT (email, step) DO UPDATE SET status = CASE WHEN training_progress.status IS NULL THEN excluded.status ELSE training_progress.status END, reviewed_at = COALESCE(training_progress.reviewed_at, excluded.reviewed_at)', [person.email, step.id, 'reviewed', now]]] };
   }
   if (a === 'ask') {
     if (user.role !== 'trainee' || !person?.trainer) return { error: 'trainees only' };

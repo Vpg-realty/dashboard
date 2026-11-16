@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMe } from '../utils/dashApi.js';
 import { REPS } from '../data/config.js';
-import { useTraining, testScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, youTubeId } from './api.js';
+import { useTraining, testScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, youTubeId, docUrl, dayLabel } from './api.js';
 import BandMark from '../shell/BandMark.jsx';
 import CloseButton from '../shell/CloseButton';
 
@@ -150,7 +150,26 @@ function Current({ step, program, data, run, busy, trainer, onPassed }) {
         </>}
         {(step.kind === 'test' || (step.kind === 'video' && testing)) && <Test key={step.id} step={step} passBar={program.passBar} run={run} busy={busy} onPassed={onPassed} />}
         {step.kind === 'log' && <Log key={step.id} step={step} run={run} busy={busy} saved={data.logs.find((l) => l.step === step.id)} />}
-        {!TRAINEE_DOES.includes(step.kind) && (
+        {step.kind === 'paper' && step.doc && prog?.status !== 'sent' && (
+          // Paperwork to review first (Luke, Nov 16): download, then "reviewed"
+          // gives whoever sends it a DocuSign task.
+          <div className="rounded-xl border border-tan-200 bg-white p-4 grid gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[15px] font-semibold text-navy-800">{step.doc.name}</span>
+              <a href={docUrl(step.id, true)} target="_blank" rel="noreferrer" className="h-9 px-3 rounded-lg border border-navy-700 text-navy-700 font-semibold grid place-items-center hover:bg-navy-50">Open</a>
+              <a href={docUrl(step.id)} className="h-9 px-3 rounded-lg border border-navy-700 text-navy-700 font-semibold grid place-items-center hover:bg-navy-50">Download</a>
+            </div>
+            {prog?.status === 'reviewed' ? (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-[14px] text-emerald-800">✓ You reviewed it{prog.reviewed_at ? ` on ${dayLabel(prog.reviewed_at)}` : ''}. {who} will send it to you by DocuSign to sign — watch your email.</div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" disabled={busy} onClick={() => run({ action: 'review', step: step.id })} className="h-10 px-5 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800 disabled:opacity-50">I’ve reviewed it — send it to me to sign</button>
+                <span className="text-[13px] text-zinc-500">Read it first. Questions? Ask {firstName(trainer)} before you click.</span>
+              </div>
+            )}
+          </div>
+        )}
+        {!TRAINEE_DOES.includes(step.kind) && !(step.kind === 'paper' && step.doc && prog?.status !== 'sent') && (
           <div className="rounded-xl bg-tan-50 border border-tan-200 px-4 py-3">
             <div className="font-semibold text-navy-800">Waiting on {who}</div>
             <div className="text-[14px] text-zinc-600">{step.kind === 'paper' ? (prog?.status === 'sent' ? 'Sent to you by DocuSign — check your email and sign it.' : 'They’ll send it to you by DocuSign.') : step.kind === 'session' ? 'A live session together. They check it off when it’s done.' : 'They check this off when you’re ready — then the next part opens.'}</div>

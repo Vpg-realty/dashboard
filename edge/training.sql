@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS training_progress (
   score REAL,                     -- tests: best passing score 0–1
   rating INTEGER,                 -- sessions: 1–5 (owners / managers only)
   note TEXT,                      -- sessions: trainer's note (owners / managers only)
+  reviewed_at TEXT,               -- paperwork: when the trainee reviewed the document (Nov 16; ALTER TABLE on live D1)
   PRIMARY KEY (email, step)
 );
 CREATE TABLE IF NOT EXISTS training_attempts (

@@ -15,6 +15,7 @@
 import { currentUser, json } from '../../../edge/auth.js';
 import { load, loadProgram, plan, trainee, alertOps, canTrain } from '../../../edge/training.js';
 import { refreshPods } from '../../../edge/pods.js';
+import { holderOf } from '../../../edge/alerts.js';
 
 const allowed = (u) => u?.role === 'trainee' || canTrain(u);
 
@@ -37,7 +38,7 @@ export async function onRequestPost(context) {
   const program = await loadProgram(db);
   const email = user.role === 'trainee' ? user.email : String(b?.email || '').toLowerCase();
   const person = email ? await trainee(db, email) : null;
-  const progress = person ? (await db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(email).all()).results : [];
+  const progress = person ? (await db.prepare('SELECT step, done_at, status, reviewed_at FROM training_progress WHERE email = ?').bind(email).all()).results : [];
   const now = new Date().toISOString();
   const p = plan(b, user, { program, person, progress }, now);
   if (p.error) return json({ error: p.error }, 400);
@@ -48,8 +49,9 @@ export async function onRequestPost(context) {
   // Keep the "waiting on you" alert for the pod lead in step with progress.
   const target = person;
   if (program && target && p.after === 'alerts') {
-    const fresh = (await db.prepare('SELECT step, done_at FROM training_progress WHERE email = ?').bind(target.email).all()).results;
-    await db.batch(alertOps(target, program, fresh, now).map(([sql, args]) => db.prepare(sql).bind(...args)));
+    const fresh = (await db.prepare('SELECT step, done_at, status, reviewed_at FROM training_progress WHERE email = ?').bind(target.email).all()).results;
+    const owners = (await db.prepare("SELECT email, rep_id FROM users WHERE role = 'owner' AND status != 'inactive'").all()).results.map(holderOf);
+    await db.batch(alertOps(target, program, fresh, now, owners).map(([sql, args]) => db.prepare(sql).bind(...args)));
   }
   return json({ ...(await load(db, user)), ...(p.result ? { result: p.result } : {}) });
 }

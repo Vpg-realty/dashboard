@@ -40,6 +40,8 @@ function StepRow({ step, prog, log, scores, me, run, busy, email, current }) {
         <span className={`w-5 h-5 shrink-0 rounded-full grid place-items-center text-[11px] font-bold ${done ? 'bg-emerald-600 text-white' : current ? 'bg-navy-700 text-white' : 'ring-2 ring-zinc-300'}`}>{done ? '✓' : current ? '•' : ''}</span>
         <span className={`min-w-0 flex-1 ${current ? 'font-semibold text-navy-800' : ''}`}>{step.title} <span className="text-[12px] text-zinc-500">· {KIND_LABEL[step.kind]}{step.who === 'owners' ? ' · Jack or Luke' : ''}</span></span>
         {sc && <span className={`rounded px-1.5 text-[12px] font-semibold ${scoreTone(sc.best)}`} title={`${sc.tries} attempt${sc.tries === 1 ? '' : 's'}`}>{pct(sc.best)}{sc.tries > 1 ? ` · ${sc.tries} tries` : ''}</span>}
+        {step.kind === 'paper' && step.doc && !done && !prog?.status && <span className="rounded px-1.5 text-[12px] font-semibold bg-zinc-100 text-zinc-600">Waiting for them to review</span>}
+        {prog?.status === 'reviewed' && !done && <span className="rounded px-1.5 text-[12px] font-semibold bg-sky-50 text-sky-800">Reviewed {dayLabel(prog.reviewed_at)} · send by DocuSign</span>}
         {prog?.status === 'sent' && !done && <span className="rounded px-1.5 text-[12px] font-semibold bg-amber-50 text-amber-800">Sent</span>}
         {done && <span className="text-[12px] text-zinc-500">{prog.done_by} · {dayLabel(prog.done_at)}{prog.rating ? ` · ${prog.rating}/5` : ''}</span>}
         {mine && !done && step.kind === 'paper' && <>
