@@ -19,6 +19,7 @@ import { laToday } from '../utils/historyRange.js';
 import { viewingAs } from '../utils/dashApi.js';
 import { PICK_FROM_PAST, pastValues, ISO, LABEL, show } from './fieldLib.js';
 import { Input } from './fields.jsx';
+import Switch from './Switch.jsx';
 import { needsInfo } from './required.js';
 import { editFields } from './edits.js';
 import { PANEL_HEAD, PANEL_NUM } from '../shell/panelStyle.js';
@@ -208,7 +209,12 @@ function summaryOf(sec, d, { owner, ro }) {
   const parts = {
     contract: [first(d.acq), has(d.dealType) && pretty('dealType', d.dealType), ISO.test(d.accepted || '') && `${shortDate(d.accepted)} → COE ${ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}`, typeof d.price === 'number' && d.price > 0 && money(d.price), has(d.title) && clip(d.title, 28)],
     ip: [typeof d.ddDays === 'number' && `${d.ddDays} days`, ISO.test(d.ddStart || '') && `starts ${shortDate(d.ddStart)}`, ISO.test(d.ddEnd || '') ? `ends ${shortDate(d.ddEnd)}` : 'No IP end yet'],
-    emd: [typeof d.emd === 'number' && d.emd > 0 ? `${money(d.emd)} EMD` : 'No EMD amount', has(d.emdPaidBy) && String(d.emdPaidBy).toUpperCase() !== 'PENDING' ? pretty('emdPaidBy', d.emdPaidBy) : 'not placed yet', ISO.test(d.emdSent || '') && `sent ${shortDate(d.emdSent)}`],
+    emd: (() => {
+      const pb = String(d.emdPaidBy || '').toUpperCase();
+      if (pb === 'NA' || pb === 'N/A') return ['No EMD on this deal'];
+      const side = (who, on, amt, sent) => `${who} ${typeof amt === 'number' && amt > 0 ? money(amt) : ''} ${on ? (ISO.test(sent || '') ? `paid ${shortDate(sent)}` : 'paid') : 'not paid'}`.replace(/\s+/g, ' ');
+      return [side('VPG', pb.includes('VPG'), d.emd, d.emdSent), side('Buyer', pb.includes('BUYER'), d.buyerEmd, d.buyerEmdSent)];
+    })(),
     dispo: [first(d.dispoMember), owner && has(d.buyer) && clip(d.buyer, 26), typeof d.vpgAssign === 'number' && d.vpgAssign > 0 ? `Assigned at ${money(d.vpgAssign)}` : 'No buyer yet'],
     money: noBuyer(d) && !keptMoney(d) ? ['No buyer yet'] : [typeof d.grossAssign === 'number' && `Gross ${money(d.grossAssign)}`, !ro && typeof d.netAssign === 'number' && `Net ${money(d.netAssign)}`, owner && typeof d.netProfit === 'number' && `Profit ${money(d.netProfit)}`],
     notes: [ro ? null : has(d.notes) ? clip(d.notes, 50) : 'No notes', has(d.links) && 'Zillow link'],
@@ -592,9 +598,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
     setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
   };
   // `only`: just these fields, in this order (The Money's categories).
-  const groupGrid = (gid, only) => (
-                  <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => (only ? only.includes(f.key) : f.group === gid) && visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null)).sort((a, b) => (only ? only.indexOf(a.key) - only.indexOf(b.key) : a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map((f) => {
+  const showF = (f) => visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null);
+  // One field's box (shared by the grids and the Earnest Money split).
+  const cell = (f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
                       // somewhere else"): the dates as one line on top, then the days
                       // and the end time with its zone side by side.
@@ -675,9 +681,63 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                           )}
                         </label>
                       );
-                    })}
+  };
+  // Earnest Money as two columns — VPG left, Buyer right (Luke, Nov 16). The
+  // two "paid?" switches write the one stored field, EMD paid by (both = VPG
+  // + Buyer, one = that side, neither = pending), so everything that reads it
+  // (Finance › Earnest Money, the TC List, IP pop-ups, Alerts) is unchanged.
+  const emdSplit = () => {
+    const pb = String(('emdPaidBy' in draft.fields ? draft.fields.emdPaidBy : raw.emdPaidBy) || '').toUpperCase();
+    const na = pb === 'NA' || pb === 'N/A';
+    const vpg = !na && pb.includes('VPG');
+    const buyer = !na && pb.includes('BUYER');
+    const combine = (v, b) => (v && b ? 'VPG + BUYER' : v ? 'VPG' : b ? 'BUYER' : null);
+    const canPb = visible(FIELD.emdPaidBy) && !fro('emdPaidBy');
+    const keys = (list) => list.map((k) => FIELD[k]).filter((f) => f && showF(f)).map(cell);
+    const sides = [['vpg', 'VPG', vpg, ['emd', 'optionFee', 'emdDue', 'emdSent']], ['buyer', 'Buyer', buyer, ['buyerEmd', 'buyerEmdSent']]];
+    return (
+      <div className="flex flex-col gap-2 px-2 py-2">
+        <div className="grid grid-cols-2 gap-3">
+          {sides.map(([side, label, on, ks]) => {
+            const tone = side === 'vpg' && need.has('emdPaidBy') ? 'need' : 'plain';
+            return (
+              <div key={side} className="min-w-0 rounded-lg ring-1 ring-inset ring-tan-200 p-1.5 flex flex-col gap-1">
+                <div className="flex items-center gap-2 px-1.5 pt-1">
+                  <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-navy-700">{label}</span>
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${na ? 'bg-zinc-100 text-zinc-500' : on ? 'bg-[#ECFDF3] text-[#15803d]' : 'bg-[#FEF6E7] text-[#B54708]'}`}>{na ? 'N/A' : on ? 'Paid' : 'Not paid'}</span>
+                </div>
+                <div id={side === 'vpg' ? 'deal-f-emdPaidBy' : undefined} className={`min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`}>
+                  <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
+                    {label} EMD paid?
+                    {'emdPaidBy' in draft.fields && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
+                    {tone === 'need' && <span className="rounded px-1 text-[10.5px] font-semibold bg-[#FDECEA] text-[#B42318]">needed</span>}
+                  </span>
+                  {canPb ? (
+                    <Switch value={na ? null : on ? 'Y' : 'N'} disabled={na} clearable={false} label={`${label} EMD paid?`}
+                      options={[{ value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
+                      onChange={(x) => setField('emdPaidBy', combine(side === 'vpg' ? x === 'Y' : vpg, side === 'buyer' ? x === 'Y' : buyer))} />
+                  ) : <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'}`}>{na ? 'N/A · no EMD' : on ? 'Yes' : 'No'}</div>}
+                </div>
+                {keys(ks)}
+              </div>
+            );
+          })}
+        </div>
+        {showF(FIELD.emdKept) && <div className="grid grid-cols-2 gap-3">{keys(['emdKept'])}</div>}
+        {canPb && (
+          <label className="flex items-center gap-2 px-1.5 text-[12.5px] text-zinc-600">
+            <input type="checkbox" checked={na} onChange={(e) => setField('emdPaidBy', e.target.checked ? 'NA' : null)} className="accent-navy-700" />
+            No EMD on this deal (N/A) — no EMD alerts or steps
+          </label>
+        )}
+      </div>
+    );
+  };
+  const groupGrid = (gid, only) => (gid === 'emd' && !only ? emdSplit() : (
+                  <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
+                    {FIELDS.filter((f) => (only ? only.includes(f.key) : f.group === gid) && showF(f)).sort((a, b) => (only ? only.indexOf(a.key) - only.indexOf(b.key) : a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map(cell)}
                   </div>
-  );
+  ));
   // The Money (owners / TC): from the price to the profit, top to bottom.
   const moneyRows = (() => {
     if (ro) return null;

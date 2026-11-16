@@ -14,7 +14,7 @@ export const STAGE_ASKS = {
     blurb: 'Fill in the sale. Anything you leave blank stays on Needs Info.',
     groups: [
       { label: 'Selling It', keys: ['dispoMember', 'buyer', 'asking', 'vpgAssign', 'finalAssign'] },
-      { label: "Buyer's Earnest Money", keys: ['emdPaidBy', 'buyerEmd'] },
+      { label: "Buyer's Earnest Money", keys: ['emdPaidBy', 'buyerEmd', 'buyerEmdSent'] },
       { label: 'Closing', keys: ['coe', 'title'] },
     ],
     need: ['dispoMember', 'buyer', 'vpgAssign', 'finalAssign', 'emdPaidBy', 'coe', 'title'],

@@ -2343,6 +2343,28 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   line; the status tiles read Inspection before EMD too. Under Contract opens
   both ("You are here", `HERE` lists a stage's sections). Folds are kept under
   `vpg.deal.open2.<id>` (the old key's lists held the combined card).
+- **Earnest Money = VPG | Buyer; switches (Luke, Nov 16** — from the mock-up:
+  "two columns - one specific to VPG and one specific to buyer … the cancel
+  for any reason needs to be up in the inspection area"): the Earnest Money
+  card (`emdSplit` in DealPanel.jsx) is two columns — **VPG**: VPG EMD paid?
+  Yes / No, EMD amount, option fee, EMD due date (auto), VPG EMD sent on
+  (`emdSent`, relabelled); **Buyer**: Buyer EMD paid? Yes / No, buyer's EMD,
+  **Buyer EMD sent on** (new field `buyerEmdSent`, also in All Deals' Key
+  Dates and the Assigned pop-up) — then buyer's EMD we kept (cancelled deals)
+  and a "No EMD on this deal (N/A)" tick. The two switches write the one
+  stored field `emdPaidBy` (both = VPG + Buyer, one = that side, neither =
+  empty / pending, the tick = NA), so every reader is unchanged. Needs info:
+  `emdSent` once VPG paid, `buyerEmdSent` once the buyer paid (required.js).
+  Buyer-only deals' old single sent date was moved to `buyerEmdSent` in D1
+  (logged in deal_log as "EMD split (Nov 16)"). **Cancel for any reason?**
+  (`cfar`) moved to group `dd` (the Inspection Period card). **Switches**
+  (`Switch.jsx`, Luke: "where else can we use the yes/no"): Retrade, Listing
+  type, Cancel for any reason, EMD returned? (Yes / No / Lost, N/A only when
+  VPG didn't place EMD) and In GHL mark it are drawn as switches by `Input`
+  (fields.jsx `SWITCH_KEYS`) in the deal panel and the stage pop-ups —
+  table cells keep their dropdowns; the cancel pop-up's In GHL / Our EMD /
+  keep the buyer's EMD questions use it too. Commission paid stays a
+  dropdown (Finance sets it).
 
 ## Property notes — the deal panel's Notes tab (Luke, Nov 9)
 

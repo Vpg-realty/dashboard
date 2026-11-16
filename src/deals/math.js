@@ -40,13 +40,15 @@ export const FIELDS = [
   // Luke, Oct 14: how much earnest money the buyer placed — reference only,
   // no formula uses it (shown right of EMD amount).
   ['buyerEmd', "Buyer's EMD", 'emd', 'money'],
+  // Luke, Nov 16: the Earnest Money card is VPG | Buyer — the buyer's side
+  // has its own sent date (VPG's stays emdSent).
+  ['buyerEmdSent', 'Buyer EMD sent on', 'emd', 'date'],
   // Luke, Oct 23: a cancel can still make money — the buyer defaulted and
   // their EMD comes to VPG (shown only on a cancelled deal; see keptMoney).
   ['emdKept', "Buyer's EMD we kept", 'emd', 'money'],
   ['optionFee', 'Option fee amount', 'emd', 'money'],
-  ['cfar', 'Cancel for any reason?', 'emd', 'list'],
   ['emdDue', 'EMD due date', 'emd', 'date', 'calc'],
-  ['emdSent', 'EMD sent on', 'emd', 'date'],
+  ['emdSent', 'VPG EMD sent on', 'emd', 'date'],
   ['emdPaidBy', 'EMD paid by', 'emd', 'list'],
   ['ddDays', 'IP days', 'dd', 'number'],
   ['ddStart', 'IP start', 'dd', 'date', 'calc'],
@@ -55,6 +57,9 @@ export const FIELDS = [
   // "HH:MM"; older free text ("5PM EDT") is read as it stands.
   ['ddEndTime', 'IP end time', 'dd', 'time'],
   ['ddEndTz', 'Time zone', 'dd', 'list'],
+  // Moved into the Inspection Period card (Luke, Nov 16: "the cancel for any
+  // reason needs to be up in the inspection area").
+  ['cfar', 'Cancel for any reason?', 'dd', 'list'],
   // "Dispo team" is gone (Luke, Oct 14: VPG always sells the deal) — the
   // stored value is only still read by compute() for closed deals.
   ['dispoMember', 'Dispo member', 'dispo', 'person'],

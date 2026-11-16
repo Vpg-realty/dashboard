@@ -53,7 +53,7 @@ const OVERVIEW = ['address', 'status', 'acq', 'coe', 'accepted', 'state', 'price
 // panel has them).
 const LAYOUT = [
   ['deal', 'Deal', ['address', 'status', 'acq', 'state']],
-  ['dates', 'Key Dates', ['accepted', 'emdDue', 'emdSent', 'ddEnd', 'ddEndTime', 'coe', 'wireDate']],
+  ['dates', 'Key Dates', ['accepted', 'emdDue', 'emdSent', 'buyerEmdSent', 'ddEnd', 'ddEndTime', 'coe', 'wireDate']],
   ['contract', 'Contract', ['dealType', 'listing', 'price', 'retrade', 'originalPrice', 'title', 'escrow']],
   ['emd', 'Earnest Money', ['emd', 'emdPaidBy', 'buyerEmd', 'optionFee', 'cfar']],
   ['dispo', 'Selling It', ['dispoMember', 'buyer', 'asking', 'vpgAssign', 'finalAssign', 'netLoss']],
