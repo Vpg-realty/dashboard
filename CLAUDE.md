@@ -4307,6 +4307,15 @@ the approval records who).
   TC List's "EM returned" ("EM lost — marked on the deal") and drops off
   Wires In's EMD to confirm. Locked until COE / closed / cancelled like the
   rest of bookkeeping.
+  **Returned asks for the date** (Luke, Nov 17: "if i click returned, i want
+  a popup so i can then enter the date it was received"): `EmdCell`'s
+  Returned (Earnest Money and Wires In) opens a pop-up (`Floating`) with the
+  date (today by default) → saves EMD returned? = Yes and the new deal field
+  `emdReturnedOn` ("EMD returned on", money group, not locked) together; the
+  button then reads "Returned · Nov 12", and clicking it again changes the
+  date or **Undo Returned**. Picking No / Lost clears the date. The deal
+  panel's Wire & EMD Return and the Mark Closed pop-up show the field once
+  EMD returned? is Yes.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)

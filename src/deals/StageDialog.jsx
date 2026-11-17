@@ -35,6 +35,7 @@ export default function StageDialog({ stage, deal: d, busy, err, onBack, onConfi
   const set = (k, v) => setVals((x) => {
     const next = { ...x, [k]: v };
     if (k === 'emdReturned' && up(v) !== 'LOST') next.emdLostWhy = null;
+    if (k === 'emdReturned' && up(v) !== 'YES') next.emdReturnedOn = null;
     return next;
   });
   const changed = Object.fromEntries(Object.entries(vals).filter(([k, v]) => (v ?? null) !== (d[k] ?? null)));

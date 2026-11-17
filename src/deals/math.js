@@ -86,6 +86,9 @@ export const FIELDS = [
   // Lost (Luke, Oct 22): EM kept by the seller — past the inspection period or
   // non-refundable. Counts as a loss like No; the reason is kept with it.
   ['emdLostWhy', 'EM lost because', 'money', 'list'],
+  // The day VPG's EMD came back (Luke, Nov 17: Finance › Earnest Money's
+  // Returned asks for it).
+  ['emdReturnedOn', 'EMD returned on', 'money', 'date'],
   ['commBase', 'Commission base', 'pay', 'money', 'calc', 'secret'],
   // Each commission's "Paid on" (Luke, Oct 19): written by Finance when the
   // payout is marked paid (cleared when it's undone) — read-only here ('fin').
