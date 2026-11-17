@@ -185,7 +185,7 @@ const SECTIONS = [
 const MONEY_CATS = [
   { id: 'costs', anchor: 'money', label: 'Costs', hint: 'taken out of the gross', group: 'money', keys: ['addlFees', 'closingCosts', 'tcFee'] },
   { id: 'made', label: 'What We Make', hint: 'worked out from the prices', group: 'money', keys: ['grossAssign', 'netAssign', 'emdReturn', 'wireExpected'] },
-  { id: 'wire', label: 'Wire & EMD Return', hint: 'fill in at closing', group: 'money', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy'] },
+  { id: 'wire', label: 'Wire & EMD Return', hint: 'fill in at closing', group: 'money', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy', 'emdReturnedOn'] },
   { id: 'comm', anchor: 'pay', label: 'Commissions', hint: 'each one and when Finance paid it', group: 'pay', keys: ['commBase', 'commPaid'],
     table: [['acqComm', 'acqPaidOn', 'Acq. manager'], ['dispoComm', 'dispoPaidOn', 'Dispo'], ['mgrComm', 'mgrPaidOn', 'Manager'], ['override', 'overridePaidOn', 'Mgmt override'], ['tcComm', 'tcPaidOn', 'TC']] },
   { id: 'profit', label: 'Profit', hint: 'what VPG keeps', group: 'pay', keys: ['grossProfit', 'netProfit'] },
@@ -598,7 +598,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
     setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
   };
   // `only`: just these fields, in this order (The Money's categories).
-  const showF = (f) => visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null);
+  const showF = (f) => visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdReturnedOn' || String(merged.emdReturned || '').toUpperCase() === 'YES' || merged.emdReturnedOn != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null);
   // One field's box (shared by the grids and the Earnest Money split).
   const cell = (f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time

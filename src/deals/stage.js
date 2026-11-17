@@ -25,7 +25,7 @@ export const STAGE_ASKS = {
     groups: [
       { label: 'The Sale', keys: ['coe', 'dispoMember', 'buyer', 'vpgAssign', 'finalAssign'] },
       { label: 'Costs', keys: ['addlFees', 'closingCosts'] },
-      { label: 'Money In', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy'] },
+      { label: 'Money In', keys: ['wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy', 'emdReturnedOn'] },
       { label: 'Commissions', keys: ['commPaid'] },
     ],
     need: ['coe', 'dispoMember', 'buyer', 'vpgAssign', 'finalAssign', 'wireReceived', 'wireDate', 'emdReturned', 'emdLostWhy', 'commPaid'],
@@ -33,6 +33,7 @@ export const STAGE_ASKS = {
       closingCosts: (d) => up(d.dealType) === 'DOUBLE CLOSE' || !isBlank(d.closingCosts),
       emdReturned: (d) => vpgPlaced(d),
       emdLostWhy: (d) => up(d.emdReturned) === 'LOST',
+      emdReturnedOn: (d) => up(d.emdReturned) === 'YES',
     },
   },
 };

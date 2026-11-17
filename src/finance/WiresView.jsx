@@ -7,7 +7,8 @@
 // date received" (logged in its history), and an edit in the tracker shows up
 // here the same way.
 import { WIRE_TABS } from './tabs.js';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import Floating from '../shell/Floating.jsx';
 import { useDeals, saveDeal } from '../deals/store.js';
 import { booksOpen, isBlank, keptMoney } from '../deals/math.js';
 import { Loading, StatusChip } from '../deals/ui.jsx';
@@ -34,14 +35,17 @@ const TABS = WIRE_TABS;
 // up earnest money; saved on the deal's own "EMD returned?".
 const vpgEmd = (d) => /VPG/.test(up(d.emdPaidBy));
 const emdOpen = (d) => vpgEmd(d) && !['YES', 'NO', 'LOST'].includes(up(d.emdReturned));
+const shortDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 export function EmdCell({ d, raw, lost = true }) {
   const [busy, setBusy] = useState(false);
   const [why, setWhy] = useState(false);
+  const [ret, setRet] = useState(null); // Returned → the date it came back (Luke, Nov 17)
+  const retBtn = useRef(null);
   if (!vpgEmd(d)) return <span className="text-[12px] text-zinc-400">buyer's EMD</span>;
   const v = up(d.emdReturned);
-  const save = async (fields) => { setBusy(true); setWhy(false); try { await saveDeal(d.id, { fields }, raw?.updatedAt); } catch (e) { window.alert(e.message); } finally { setBusy(false); } };
-  // Leaving Lost clears its reason too.
-  const set = (val) => save(v === 'LOST' || val === 'LOST' ? { emdReturned: val, emdLostWhy: null } : { emdReturned: val });
+  const save = async (fields) => { setBusy(true); setWhy(false); setRet(null); try { await saveDeal(d.id, { fields }, raw?.updatedAt); } catch (e) { window.alert(e.message); } finally { setBusy(false); } };
+  // Leaving Lost clears its reason too; leaving Returned clears its date.
+  const set = (val) => save({ emdReturned: val, ...(v === 'LOST' || val === 'LOST' ? { emdLostWhy: null } : {}), ...(val !== 'YES' && d.emdReturnedOn ? { emdReturnedOn: null } : {}) });
   const btn = (val, label, on, onClick) => <button type="button" disabled={busy} onClick={onClick || (() => set(v === val ? null : val))} className={`h-7 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${v === val ? on : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'}`}>{label}</button>;
   const RED = 'bg-[#FDF1F0] text-[#B42318] ring-[#F5C2BD]';
   // Lost (Luke, Oct 22): the seller keeps it — past the inspection period or
@@ -60,7 +64,16 @@ export function EmdCell({ d, raw, lost = true }) {
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       {!v && <span className="text-[12px] font-semibold text-[#B54708] mr-1">confirm</span>}
-      {btn('YES', 'Returned', 'bg-[#EEF8F1] text-[#14532D] ring-[#9FD4B1]')}
+      <span ref={retBtn} className="inline-flex">{btn('YES', v === 'YES' && d.emdReturnedOn ? `Returned · ${shortDay(d.emdReturnedOn)}` : 'Returned', 'bg-[#EEF8F1] text-[#14532D] ring-[#9FD4B1]', () => setRet(d.emdReturnedOn || laToday()))}</span>
+      <Floating anchor={retBtn} open={ret != null} className="z-50 w-64 rounded-xl border border-tan-200 bg-white p-3 shadow-lg">
+        <div className="text-[13px] font-semibold text-navy-800">EMD returned — when did it come in?</div>
+        <input type="date" value={ret || ''} max={laToday()} onChange={(e) => setRet(e.target.value)} className="mt-2 w-full h-9 rounded-lg border border-zinc-200 bg-white px-2 text-[13px]" aria-label="Date the EMD was received" autoFocus />
+        <div className="mt-3 flex items-center gap-2">
+          <button type="button" disabled={busy || !ISO.test(ret || '')} onClick={() => save({ emdReturned: 'YES', emdReturnedOn: ret, ...(v === 'LOST' ? { emdLostWhy: null } : {}) })} className="h-8 px-3 rounded-lg bg-navy-700 text-white text-[13px] font-semibold hover:bg-navy-800 disabled:opacity-50">Save</button>
+          {v === 'YES' && <button type="button" disabled={busy} onClick={() => set(null)} className="h-8 px-2 text-[12.5px] text-red-700 hover:underline">Undo Returned</button>}
+          <button type="button" onClick={() => setRet(null)} className="ml-auto h-8 px-2 text-[12.5px] text-zinc-500 hover:text-zinc-800">Cancel</button>
+        </div>
+      </Floating>
       {btn('NO', 'Not returned', RED)}
       {lost && btn('LOST', 'Lost', 'bg-[#B42318] text-white ring-[#B42318]', () => (v === 'LOST' ? set(null) : setWhy(true)))}
     </span>
