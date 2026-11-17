@@ -4315,7 +4315,11 @@ the approval records who).
   button then reads "Returned · Nov 12", and clicking it again changes the
   date or **Undo Returned**. Picking No / Lost clears the date. The deal
   panel's Wire & EMD Return and the Mark Closed pop-up show the field once
-  EMD returned? is Yes.
+  EMD returned? is Yes. **EM Returned** (Luke, Nov 17: "show the returned
+  date as a column on the EM table"): a sixth tile / rail entry
+  (`?view=returned`) — VPG's EM marked Yes, newest return first, with a
+  **Returned on** column (no date = "click Returned to add it") and the same
+  Returned button to change it.
 - Next: QuickBooks (export first), rep-facing statements if wanted.
 
 ## Territory (Luke, Oct 14)
