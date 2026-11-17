@@ -1220,6 +1220,19 @@ Program"). Role **`trainee`** (D1 `users`); `src/training/`, `edge/training.js`,
   DocuSign". GET /api/training/doc?step= streams it (trainees, owners, pod
   leads). Sending through DocuSign itself is not built (needs their DocuSign
   API access).
+- **Practice Run (Luke, Nov 17**: "a run through of the training to make sure
+  everything is working"): Settings › Training Program › **🧪 Practice Run**
+  (`?practice=1` on that page, `MyTraining practice`) — an owner takes the
+  saved program as a trainee would: videos, tests, the paperwork review, logs.
+  The owner plays the trainer for the rest (orange "Practice · you play the
+  trainer" box: Mark sent / Mark signed, Log the session, Check it off,
+  Graduate). Progress is kept under `practice~<owner email>` in
+  training_progress / attempts / logs (`loadPractice`, `practicePerson`,
+  `practiceReset` in edge/training.js; POST `{practice: true}` →
+  `practicePost` in functions/api/training) — no training_people row, so it
+  never shows on Management › Training; no Alerts (a question isn't sent);
+  graduating changes no role. ↺ Start Over clears it. Owners only, never while
+  viewing as. Test documents open through /api/training/doc as usual.
 - **Order**: steps run strictly in order (`statusOf` — the first not done).
   A video's test unlocks when the YouTube player reports the end (IFrame
   API; a "didn't unlock?" link after 2 minutes). Tests are graded on the

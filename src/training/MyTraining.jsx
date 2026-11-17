@@ -7,6 +7,7 @@
 // Trainer notes and session ratings never come here.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMe } from '../utils/dashApi.js';
+import { setQuery } from '../shell/router.js';
 import { REPS } from '../data/config.js';
 import { useTraining, testScores, pct, scoreTone, KIND_LABEL, TRAINEE_DOES, youTubeId, docUrl, dayLabel } from './api.js';
 import BandMark from '../shell/BandMark.jsx';
@@ -122,7 +123,32 @@ function Log({ step, run, busy, saved }) {
   );
 }
 
-function Current({ step, program, data, run, busy, trainer, onPassed }) {
+// Practice run: the owner plays the trainer for the steps that wait on one.
+function PracticeTrainer({ step, prog, run, busy }) {
+  const [rating, setRating] = useState('');
+  const btn = 'h-9 px-4 rounded-lg bg-[#c2410c] text-white font-semibold hover:bg-[#9a3412] disabled:opacity-50';
+  const check = (extra) => run({ action: 'check', step: step.id, done: true, ...extra });
+  return (
+    <div className="rounded-xl border-2 border-dashed border-[#c2410c] bg-orange-50/60 px-4 py-3 grid gap-2">
+      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#c2410c]">Practice · you play the trainer</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {step.kind === 'paper' && <>
+          {prog?.status !== 'sent' && <button type="button" disabled={busy} onClick={() => check({ status: 'sent' })} className={btn}>Mark sent by DocuSign</button>}
+          <button type="button" disabled={busy} onClick={() => check({ status: 'signed' })} className={btn}>Mark signed</button>
+        </>}
+        {step.kind === 'session' && <>
+          <select value={rating} onChange={(e) => setRating(e.target.value)} className="h-9 rounded-lg border border-zinc-200 px-2 bg-white" aria-label="Session rating">
+            <option value="">Rating (optional)</option>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button type="button" disabled={busy} onClick={() => check({ rating: rating || null })} className={btn}>Log the session</button>
+        </>}
+        {step.kind === 'signoff' && <button type="button" disabled={busy} onClick={() => check({})} className={btn}>{step.graduate ? 'Graduate (practice — no role changes)' : 'Check it off'}</button>}
+      </div>
+    </div>
+  );
+}
+
+function Current({ step, program, data, run, busy, trainer, onPassed, practice }) {
   const [watched, setWatched] = useState(false);
   const [testing, setTesting] = useState(false);
   const [trouble, setTrouble] = useState(false);
@@ -132,7 +158,7 @@ function Current({ step, program, data, run, busy, trainer, onPassed }) {
     return () => clearTimeout(t);
   }, [step.id]);
   const prog = data.progress.find((p) => p.step === step.id);
-  const who = step.who === 'owners' ? 'Jack or Luke' : `${firstName(trainer)} (or Jack / Luke)`;
+  const who = step.who === 'owners' || !firstName(trainer) ? 'Jack or Luke' : `${firstName(trainer)} (or Jack / Luke)`;
   return (
     <section className="rounded-2xl border-2 border-navy-700 overflow-hidden">
       <div className="bg-navy-700 text-white px-5 py-3 flex flex-wrap items-center gap-x-3">
@@ -175,6 +201,7 @@ function Current({ step, program, data, run, busy, trainer, onPassed }) {
             <div className="text-[14px] text-zinc-600">{step.kind === 'paper' ? (prog?.status === 'sent' ? 'Sent to you by DocuSign — check your email and sign it.' : 'They’ll send it to you by DocuSign.') : step.kind === 'session' ? 'A live session together. They check it off when it’s done.' : 'They check this off when you’re ready — then the next part opens.'}</div>
           </div>
         )}
+        {practice && !TRAINEE_DOES.includes(step.kind) && <PracticeTrainer step={step} prog={prog} run={run} busy={busy} />}
       </div>
     </section>
   );
@@ -199,7 +226,7 @@ function Passed({ last, onClose }) {
   );
 }
 
-function Ask({ run, busy, trainer }) {
+function Ask({ run, busy, trainer, practice }) {
   const [text, setText] = useState('');
   const [sent, setSent] = useState(false);
   return (
@@ -208,18 +235,31 @@ function Ask({ run, busy, trainer }) {
       <textarea value={text} onChange={(e) => { setText(e.target.value); setSent(false); }} rows={3} className="mt-2 block w-full rounded-lg border border-zinc-200 px-3 py-2 bg-white" placeholder="Stuck on something? Ask here." aria-label="Your question" />
       <div className="mt-2 flex items-center gap-3">
         <button type="button" disabled={busy || !text.trim()} onClick={async () => { if (await run({ action: 'ask', text })) { setText(''); setSent(true); } }} className="h-8 px-3 rounded-lg border border-navy-700 text-navy-700 font-semibold hover:bg-navy-50 disabled:opacity-50">Send</button>
-        {sent && <span className="text-[13px] text-emerald-700">Sent — it’s in their Alerts.</span>}
+        {sent && <span className="text-[13px] text-emerald-700">{practice ? 'Practice — nothing was sent. A real trainee’s question lands in their pod lead’s Alerts.' : 'Sent — it’s in their Alerts.'}</span>}
       </div>
     </div>
   );
 }
 
-export default function MyTraining() {
+// The banner over a practice run (Settings › Training Program › Practice Run).
+function PracticeBar({ run, busy }) {
+  return (
+    <div className="rounded-xl border-2 border-[#c2410c] bg-orange-50 px-4 py-3 flex flex-wrap items-center gap-3">
+      <span className="rounded-md bg-[#c2410c] px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-white">🧪 Practice Run</span>
+      <span className="text-[14px] text-zinc-700 flex-1 min-w-[260px]">You’re going through the program as a trainee would. Nothing here reaches the Training board, Alerts or anyone’s role — you check off the trainer steps yourself.</span>
+      <button type="button" disabled={busy} onClick={() => { if (window.confirm('Clear your practice progress and start over?')) run({ action: 'practiceReset' }); }} className="h-9 px-3 rounded-lg border border-[#c2410c] text-[#c2410c] font-semibold hover:bg-orange-100 disabled:opacity-50">↺ Start Over</button>
+      <button type="button" onClick={() => setQuery({ practice: null })} className="h-9 px-3 rounded-lg bg-navy-700 text-white font-semibold hover:bg-navy-800">← Back to the Program</button>
+    </div>
+  );
+}
+
+export default function MyTraining({ practice = false }) {
   const me = useMe();
-  const { data, err, busy, run } = useTraining();
+  const { data, err, busy, run } = useTraining(practice);
   const [last, setLast] = useState(null);
   if (err && !data) return <div className="max-w-xl mx-auto mt-10 text-center text-zinc-600">{err}</div>;
   if (!data) return <div className="text-zinc-500">Loading…</div>;
+  if (practice && !data.program) return <div className="space-y-4"><PracticeBar run={run} busy={busy} /><div className="text-zinc-600">Save the program first.</div></div>;
   if (!data.program || !data.person) return <div className="max-w-xl mx-auto mt-10 text-center text-zinc-600">Your training is being set up — check back soon.</div>;
   const { program, status, phases, progress } = data;
   const done = new Set(progress.filter((p) => p.done_at).map((p) => p.step));
@@ -232,12 +272,13 @@ export default function MyTraining() {
   const name = firstName(me?.name || data.person.name);
   return (
     <div className="max-w-[1720px] mx-auto space-y-5">
+      {practice && <PracticeBar run={run} busy={busy} />}
       <div className="relative isolate rounded-2xl bg-navy-700 text-white px-6 py-5 flex flex-wrap items-end gap-x-8 gap-y-3 shadow-sm">
         <BandMark />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tan-400">My Training · {phases.find((p) => p.id === status.phase)?.name || 'Done'}</div>
           <h1 className="mt-1 text-2xl md:text-[30px] font-semibold tracking-tight">{status.current ? `Welcome to VPG, ${name}` : `You’ve graduated, ${name}`}</h1>
-          <p className="mt-1 text-[14px] text-white/75">Your trainer is {trainer} — your pod lead and the rep you shadow in Week 1.{data.person.start_date ? ` Started ${new Date(`${data.person.start_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}.` : ''}</p>
+          <p className="mt-1 text-[14px] text-white/75">{practice ? 'Practice run — your own trainer.' : <>Your trainer is {trainer}</>}{practice ? '' : <> — your pod lead and the rep you shadow in Week 1.{data.person.start_date ? ` Started ${new Date(`${data.person.start_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}.` : ''}</>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[['Progress', `${Math.round((status.done / Math.max(1, status.total)) * 100)}%`], ['Avg test', pct(avg)], ['Steps left', status.total - status.done]].map(([l, v]) => (
@@ -266,7 +307,7 @@ export default function MyTraining() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
         <div className="min-w-0 space-y-5">
           {last && <Passed last={last} onClose={() => setLast(null)} />}
-          {step ? <Current key={step.id} step={step} program={program} data={data} run={run} busy={busy} trainer={trainer} onPassed={(st, result) => setLast({ step: st, result })} />
+          {step ? <Current key={step.id} step={step} program={program} data={data} run={run} busy={busy} trainer={trainer} practice={practice} onPassed={(st, result) => setLast({ step: st, result })} />
             : <div className="rounded-2xl border-2 border-emerald-600 p-6 text-center"><div className="text-[22px] font-semibold text-emerald-700">Training complete 🎉</div><p className="text-zinc-600">Welcome to the team. Your full dashboard opens the next time you sign in.</p></div>}
         </div>
         <aside className="space-y-4">
@@ -290,7 +331,7 @@ export default function MyTraining() {
               </div>
             ))}
           </div>
-          {data.person.trainer && <Ask run={run} busy={busy} trainer={trainer} />}
+          {(data.person.trainer || practice) && <Ask run={run} busy={busy} trainer={trainer} practice={practice} />}
         </aside>
       </div>
     </div>

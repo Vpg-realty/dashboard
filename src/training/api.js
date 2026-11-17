@@ -4,20 +4,21 @@ import { call } from '../utils/dashApi.js';
 
 // A paperwork step's document (functions/api/training/doc.js).
 export const docUrl = (stepId, inline) => `${import.meta.env.BASE_URL}api/training/doc?step=${encodeURIComponent(stepId)}${inline ? '&inline=1' : ''}`;
-export const loadTraining = () => call('training');
-export const postTraining = (body) => call('training', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+// practice: an owner's practice run (edge/training.js loadPractice).
+export const loadTraining = (practice) => call(practice ? 'training?practice=1' : 'training');
+export const postTraining = (body, practice) => call('training', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(practice ? { ...body, practice: true } : body) });
 
 // { data, err, busy, run(body) → result | null, reload }
-export function useTraining() {
+export function useTraining(practice = false) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
-  const reload = useCallback(() => loadTraining().then(setData).catch((e) => setErr(e.message)), []);
+  const reload = useCallback(() => loadTraining(practice).then(setData).catch((e) => setErr(e.message)), [practice]);
   useEffect(() => { reload(); }, [reload]);
   const run = useCallback(async (body) => {
     setBusy(true); setErr(null);
-    try { const d = await postTraining(body); setData(d); return d; } catch (e) { setErr(e.message); return null; } finally { setBusy(false); }
-  }, []);
+    try { const d = await postTraining(body, practice); setData(d); return d; } catch (e) { setErr(e.message); return null; } finally { setBusy(false); }
+  }, [practice]);
   return { data, err, busy, run, reload, setErr };
 }
 

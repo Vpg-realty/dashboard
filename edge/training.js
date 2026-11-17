@@ -120,7 +120,7 @@ export function grade(step, answers, passBar) {
 }
 
 // Owners every trainee; a manager the trainees they lead.
-export const isTrainer = (user, person) => user?.role === 'owner' || (user?.role === 'manager' && !!user.rep_id && person?.trainer === user.rep_id);
+export const isTrainer = (user, person) => (user?.role === 'owner' && (!person?.practice || person.email === `practice~${user.email}`)) || (user?.role === 'manager' && !!user.rep_id && person?.trainer === user.rep_id);
 export const canTrain = (u) => u?.role === 'owner' || (u?.role === 'manager' && isLead(u.rep_id));
 export const canSign = (user, person, step) => isTrainer(user, person) && (step.who !== 'owners' || user.role === 'owner');
 
@@ -150,6 +150,25 @@ async function personData(db, email, { trainer }) {
 export async function trainee(db, email) {
   return db.prepare('SELECT p.*, u.name, u.role, u.rep_id FROM training_people p JOIN users u ON u.email = p.email WHERE p.email = ?').bind(email).first();
 }
+
+// Practice run (Luke, Nov 17: "a run through of the training to make sure
+// everything is working"): an owner takes the program as a trainee under
+// their own login. Progress, tests and logs are kept under the key
+// practice~<email> in the same tables — no training_people row, so it never
+// shows on the Training board — and sends no alerts. The owner checks the
+// trainer steps off themself; graduating changes nobody's role.
+export const practiceKey = (email) => `practice~${email}`;
+export const practicePerson = (user) => ({ email: practiceKey(user.email), name: user.name, trainer: user.rep_id || null, start_date: null, practice: true });
+export const canPractice = (u) => u?.role === 'owner' && !u.viewAs;
+
+export async function loadPractice(db, user) {
+  const program = await loadProgram(db);
+  const person = practicePerson(user);
+  const data = await personData(db, person.email, { trainer: false });
+  return { mode: 'trainee', practice: true, person, program: program ? forTrainee(program) : null, ...data, status: program ? statusOf(program, data.progress) : null, phases: PHASES };
+}
+
+export const practiceReset = (email) => ['training_progress', 'training_attempts', 'training_logs'].map((t) => [`DELETE FROM ${t} WHERE email = ?`, [practiceKey(email)]]);
 
 // GET for this person: a trainee their own program and progress; owners and
 // pod leads the board.
