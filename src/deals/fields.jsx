@@ -14,8 +14,13 @@ import { vpgPlaced } from './cancel.js';
 
 const CUSTOM = '__custom';
 // Fields drawn as a switch in the deal panel and pop-ups (Luke, Nov 16).
-const SWITCH_KEYS = new Set(['retrade', 'listing', 'cfar', 'emdReturned', 'cancelAs']);
-const SWITCH_WORD = { retrade: { Y: 'Yes', N: 'No' }, listing: { 'ON-MARKET': 'On market', 'OFF-MARKET': 'Off market' }, cancelAs: { LOST: 'Lost', ABANDONED: 'Abandoned' } };
+// Nov 17 (the deal panel rework): also the Stage (a track of the five
+// stages), Deal type, Lost because, the IP end's time zone and the cancel
+// reason — each only while its list is short enough (`SWITCH_MAX`).
+const SWITCH_KEYS = new Set(['retrade', 'listing', 'cfar', 'emdReturned', 'cancelAs', 'status', 'dealType', 'emdLostWhy', 'ddEndTz', 'cancelReason']);
+const SWITCH_MAX = { status: 6, dealType: 5, ddEndTz: 5, cancelReason: 5 };
+const SWITCH_WORD = { retrade: { Y: 'Yes', N: 'No' }, listing: { 'ON-MARKET': 'On market', 'OFF-MARKET': 'Off market' }, cancelAs: { LOST: 'Lost', ABANDONED: 'Abandoned' },
+  ddEndTz: { ARIZONA: 'AZ', PACIFIC: 'PT', MOUNTAIN: 'MT', CENTRAL: 'CT', EASTERN: 'ET' } };
 const dashToNull = (v) => (isBlank(v) ? null : v);
 
 // Buyer and title agency: a past entry, or "✎ Custom — type it in".
@@ -125,10 +130,12 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
   if (opts && !inline && SWITCH_KEYS.has(f.key)) {
     const naOk = (o) => o !== 'NA' || v === 'NA' || (f.key === 'emdReturned' && deal && !vpgPlaced(deal));
     const shown = opts.filter(naOk);
-    if (shown.length >= 2 && shown.length <= 4) {
-      const all = v && !shown.includes(v) ? [...shown, v] : shown;
-      return <Switch value={v || null} disabled={disabled} label={f.label} onChange={(x) => onChange(x)}
-        options={all.map((o) => ({ value: o, label: SWITCH_WORD[f.key]?.[o] || pretty(f.key, o) }))} />;
+    const all = v && !shown.includes(v) ? [...shown, v] : shown;
+    if (shown.length >= 2 && all.length <= (SWITCH_MAX[f.key] || 4)) {
+      // Time zone: nothing stored = the state's zone, shown as picked.
+      const zone = f.key === 'ddEndTz' && !v && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
+      return <Switch value={v || zone || null} disabled={disabled} label={f.label} onChange={(x) => onChange(x)} clearable={f.key !== 'status' && f.key !== 'ddEndTz'}
+        options={all.map((o) => ({ value: o, label: SWITCH_WORD[f.key]?.[o] || pretty(f.key, o), title: f.key === 'ddEndTz' ? `${zoneLabel(o)}${zone === o ? ' · the state’s zone' : ''}` : undefined }))} />;
     }
   }
   if (opts) {

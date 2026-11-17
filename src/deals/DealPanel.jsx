@@ -111,11 +111,12 @@ const ICON = {
   shield: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>,
   search: <><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></>,
   cal: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></>,
+  doc: <><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M10 12h5M10 16h5" /></>,
 };
-function StatusTile({ icon, label, tone = 'plain', word, children }) {
+function StatusTile({ icon, label, tone = 'plain', word, children, onClick, title }) {
   const t = TILE_TONE[tone] || TILE_TONE.plain;
   return (
-    <div className="min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2 flex flex-col gap-1">
+    <div onClick={onClick} title={title} role={onClick ? 'button' : undefined} className={`min-w-0 rounded-xl border border-tan-200 bg-white px-3 py-2 flex flex-col gap-1 ${onClick ? 'cursor-pointer hover:border-navy-300' : ''}`}>
       <div className="flex items-center gap-2">
         <span className={`grid place-items-center w-6 h-6 rounded-md shrink-0 ${t.ico}`} aria-hidden="true">
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{ICON[icon]}</svg>
@@ -158,10 +159,13 @@ function tileStatus(d) {
   const coe = st === 'COMPLETE' ? ['done', 'Closed'] : st === 'CANCELLED' ? ['done', 'Cancelled']
     : coeN == null ? ['warn', 'Not set'] : coeN < 0 ? ['bad', `${-coeN} day${coeN === -1 ? '' : 's'} late`]
       : coeN === 0 ? ['bad', 'Closing today'] : coeN === 1 ? ['bad', 'Tomorrow'] : coeN <= 3 ? ['warn', `in ${coeN} days`] : ['ok', `in ${coeN} days`];
+  // Title (Nov 17): opened = a title company on the deal; escrow # once known.
+  const title = !String(d.title || '').trim() ? (finished ? ['done', 'None on file'] : ['warn', 'Not opened yet'])
+    : String(d.escrow || '').trim() ? ['ok', `Escrow # ${String(d.escrow).trim()}`] : ['warn', 'No escrow # yet'];
   const worst = [emd, ip, coe].reduce((w, x) => (RANK[x[0]] > RANK[w[0]] ? x : w), ['ok', '']);
   const band = finished ? ['done', st === 'COMPLETE' ? 'Closed' : 'Cancelled']
     : worst[0] === 'bad' ? ['bad', 'Needs attention'] : worst[0] === 'warn' ? ['warn', 'Coming up'] : ['ok', coeN != null && coeN >= 0 ? `All good · closing in ${coeN} day${coeN === 1 ? '' : 's'}` : 'All good'];
-  return { emd, ip, coe, band };
+  return { emd, ip, coe, title, band };
 }
 
 // The panel's sections in the order a deal moves (Luke, Oct 25 — option S2 of
@@ -170,14 +174,22 @@ function tileStatus(d) {
 // others fold to one line with what's in them and ✓ / "N missing". Any
 // section opens with a click and stays open; which ones are open is kept per
 // deal on this device (localStorage `vpg.deal.open2.<id>`).
+// Nov 17 (Luke, the approved redesign): Deal Basics (the stage as a track,
+// COE kept here) → Title & Closing → Inspection → Earnest Money → Selling It →
+// Money at Closing → Notes; Cancellation (reason, GHL outcome, buyer's EMD
+// kept) only on a cancelled deal. `keys` = these fields in this order;
+// `omit` = fields shown in another section.
+const CANCEL_KEYS = ['cancelReason', 'cancelAs', 'emdKept'];
 const SECTIONS = [
-  { id: 'contract', label: 'The Contract', short: 'Contract', groups: ['contract', 'title'] },
+  { id: 'contract', label: 'Deal Basics', short: 'Basics', groups: ['contract'], keys: ['status', 'ghlStage', 'address', 'acq', 'state', 'accepted', 'coe', 'price', 'retrade', 'originalPrice', 'dealType', 'listing'] },
+  { id: 'cancel', label: 'Cancellation', short: 'Cancellation', groups: ['contract'], keys: CANCEL_KEYS, cancelled: true },
+  { id: 'title', label: 'Title & Closing', short: 'Title', groups: ['title'] },
   // Inspection first, then earnest money — two cards (Luke, Nov 6: "too hard
   // to read … clear on what is what").
   { id: 'ip', label: 'Inspection Period', short: 'Inspection', groups: ['dd'] },
-  { id: 'emd', label: 'Earnest Money', short: 'EMD', groups: ['emd'] },
+  { id: 'emd', label: 'Earnest Money', short: 'EMD', groups: ['emd'], omit: ['emdKept'] },
   { id: 'dispo', label: 'Selling It', short: 'Selling It', groups: ['dispo'] },
-  { id: 'money', label: 'The Money', short: 'Money', groups: ['money', 'pay'] },
+  { id: 'money', label: 'Money at Closing', short: 'Money', groups: ['money', 'pay'] },
   { id: 'notes', label: 'Notes & Links', short: 'Notes', groups: ['notes'] },
 ];
 // The Money's fields in categories (Luke, Oct 26: "hard to read and
@@ -192,8 +204,10 @@ const MONEY_CATS = [
 ];
 const SUB_LABEL = { contract: 'Contract', title: 'Title', emd: 'Earnest Money', dd: 'Inspection Period', dispo: 'Dispositions', money: 'Financials', pay: 'Commissions & Profit', notes: 'Notes & Links' };
 // The stage's section(s) — open by themselves with "You are here".
-const HERE = { UNDER_CONTRACT: ['ip', 'emd'], DISPO_ACTIVE: ['dispo'], ASSIGNED: ['dispo'], COMPLETE: ['money'], CANCELLED: ['emd'] };
-const secOfGroup = (gid) => SECTIONS.find((x) => x.groups.includes(gid))?.id;
+const HERE = { UNDER_CONTRACT: ['ip', 'emd'], DISPO_ACTIVE: ['dispo'], ASSIGNED: ['dispo'], COMPLETE: ['money'], CANCELLED: ['cancel', 'emd'] };
+const secFields = (sec) => (sec.keys ? sec.keys.map((k) => FIELDS.find((f) => f.key === k)).filter(Boolean) : FIELDS.filter((f) => sec.groups.includes(f.group)))
+  .filter((f) => !sec.omit?.includes(f.key));
+const secOfField = (key) => SECTIONS.find((x) => secFields(x).some((f) => f.key === key))?.id;
 const openKey = (id) => `vpg.deal.open2.${id}`; // open2: Nov 6 split of EMD & Inspection
 function readOpen(id) {
   try { const v = JSON.parse(localStorage.getItem(openKey(id)) || 'null'); return Array.isArray(v) ? v : null; } catch { return null; }
@@ -207,7 +221,9 @@ const clip = (v, n) => { const t = String(v || '').split('\n')[0].trim(); return
 function summaryOf(sec, d, { owner, ro }) {
   const has = (v) => !isBlank(v);
   const parts = {
-    contract: [first(d.acq), has(d.dealType) && pretty('dealType', d.dealType), ISO.test(d.accepted || '') && `${shortDate(d.accepted)} → COE ${ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}`, typeof d.price === 'number' && d.price > 0 && money(d.price), has(d.title) && clip(d.title, 28)],
+    contract: [first(d.acq), has(d.dealType) && pretty('dealType', d.dealType), ISO.test(d.accepted || '') && `${shortDate(d.accepted)} → COE ${ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}`, typeof d.price === 'number' && d.price > 0 && money(d.price)],
+    title: has(d.title) ? [clip(d.title, 40), has(d.escrow) ? `Escrow # ${d.escrow}` : 'No escrow # yet'] : ['No title company yet'],
+    cancel: [has(d.cancelReason) ? pretty('cancelReason', d.cancelReason) : 'No reason given', has(d.cancelAs) && `${pretty('cancelAs', d.cancelAs)} in GHL`, Number(d.emdKept) > 0 && `${money(d.emdKept)} kept`],
     ip: [typeof d.ddDays === 'number' && `${d.ddDays} days`, ISO.test(d.ddStart || '') && `starts ${shortDate(d.ddStart)}`, ISO.test(d.ddEnd || '') ? `ends ${shortDate(d.ddEnd)}` : 'No IP end yet'],
     emd: (() => {
       const pb = String(d.emdPaidBy || '').toUpperCase();
@@ -417,7 +433,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   // Sections opened for a moment (a jump-bar click, a Needs info chip, ?focus=) — not remembered.
   const [forced, setForced] = useState([]);
   const goField = (key) => {
-    const sec = secOfGroup(FIELDS.find((f) => f.key === key)?.group);
+    const sec = secOfField(key);
     if (sec) setForced((x) => (x.includes(sec) ? x : [...x, sec]));
     setTimeout(() => jumpTo(key), 60);
   };
@@ -581,10 +597,12 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   const emLoss = emLost ? (typeof merged.grossProfit === 'number' ? merged.grossProfit : -Number(merged.emd)) : null;
   // Sections (S2): which are visible to this person, which is "you are here",
   // which are open.
-  const secs = SECTIONS.map((x) => ({ ...x, groups: x.groups.filter((gid) => groups.some(([g2]) => g2 === gid)) })).filter((x) => x.groups.length);
+  const cancelled = String(merged.status || '').toUpperCase() === 'CANCELLED';
+  const secs = SECTIONS.map((x) => ({ ...x, groups: x.groups.filter((gid) => groups.some(([g2]) => g2 === gid)) }))
+    .filter((x) => x.groups.length && secFields(x).some(visible) && (!x.cancelled || cancelled || CANCEL_KEYS.some((k) => !isBlank(merged[k]))));
   const hereIds = secs.filter((x) => (HERE[stageOf(merged)] || []).includes(x.id)).map((x) => x.id);
   const here = isNew ? [] : hereIds.length ? hereIds : secs.slice(0, 1).map((x) => x.id);
-  const missingIn = (sec) => FIELDS.filter((f) => sec.groups.includes(f.group) && need.has(f.key)).length;
+  const missingIn = (sec) => secFields(sec).filter((f) => need.has(f.key)).length;
   const defaultOpen = isNew ? secs.map((x) => x.id) : secs.filter((x) => here.includes(x.id) || missingIn(x) > 0).map((x) => x.id);
   const openList = [...new Set([...(userOpen || defaultOpen), ...forced])];
   const toggle = (sid) => {
@@ -598,7 +616,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
     setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
   };
   // `only`: just these fields, in this order (The Money's categories).
-  const showF = (f) => visible(f) && f.key !== 'ddEndTz' && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdReturnedOn' || String(merged.emdReturned || '').toUpperCase() === 'YES' || merged.emdReturnedOn != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'cancelAs' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelAs != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null) && (f.key !== 'cancelReason' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.cancelReason != null) && (f.key !== 'emdKept' || String(merged.status || '').toUpperCase() === 'CANCELLED' || merged.emdKept != null);
+  const showF = (f) => visible(f) && f.key !== 'ddEndTz' && (f.key !== 'ghlStage' || !isBlank(merged.ghlStage)) && f.key !== 'ddStart' && (f.key !== 'originalPrice' || String(merged.retrade || '').toUpperCase() === 'Y' || merged.originalPrice != null) && (f.key !== 'emdReturnedOn' || String(merged.emdReturned || '').toUpperCase() === 'YES' || merged.emdReturnedOn != null) && (f.key !== 'emdLostWhy' || String(merged.emdReturned || '').toUpperCase() === 'LOST' || merged.emdLostWhy != null) && (f.key !== 'closingCosts' || String(merged.dealType || '').toUpperCase() === 'DOUBLE CLOSE' || merged.closingCosts != null);
   // One field's box (shared by the grids and the Earnest Money split).
   const cell = (f) => {
                       // Due diligence (Luke, Oct 16: "start and end on same line. time
@@ -639,7 +657,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                       const check = !isNew && !ro && flagged.has(f.key) && step.tone !== 'green';
                       const tone = reprice ? (flash ? 'flash' : 'retrade') : need.has(f.key) ? 'need' : check ? 'check' : lossHigh ? 'alert' : 'plain';
                       return (
-                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || (ro && f.key === 'title') || f.key === 'ddEndTime' ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
+                        <label key={f.key} id={`deal-f-${f.key}`} className={`${wide || ['status', 'ghlStage', 'dealType', 'cancelReason'].includes(f.key) || (ro && f.key === 'title') || f.key === 'ddEndTime' ? 'col-span-2' : ''} min-w-0 scroll-mt-24 ${BOX} ${BOX_TONE[tone]}`} style={lossHigh ? { background: ALERT.background } : undefined}>
                           <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] font-medium text-zinc-500 mb-1">
                             {f.key === 'ddEndTime' ? 'End time & time zone' : f.key === 'ddDays' ? 'Length (days)' : f.label}
                             {changed && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Changed" />}
@@ -669,9 +687,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                               {f.key === 'ddEndTime' ? (
                                 // End time and its time zone on one line (Luke, Oct 15: the zone
                                 // fell to a row of its own and read as a separate field).
-                                <div className="flex gap-2">
-                                  <div className="flex-1 min-w-0"><Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} value={value} onChange={(v) => setField(f.key, v)} /></div>
-                                  <div className="w-40 shrink-0"><Input f={TZ_FIELD} lists={s.lists} disabled={fro('ddEndTz')} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} /></div>
+                                // Nov 17: the zone is a switch (AZ / PT / MT / CT / ET) under the time.
+                                <div className="flex flex-col gap-1.5">
+                                  <Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} value={value} onChange={(v) => setField(f.key, v)} />
+                                  <Input f={TZ_FIELD} lists={s.lists} disabled={fro('ddEndTz')} deal={merged} value={'ddEndTz' in draft.fields ? draft.fields.ddEndTz : raw.ddEndTz} onChange={(v) => setField('ddEndTz', v)} />
                                 </div>
                               ) : <Input f={f} lists={s.lists} disabled={fro(f.key)} deal={merged} past={PICK_FROM_PAST.has(f.key) ? past[f.key] : null} value={value} onChange={(v) => setField(f.key, v)} />}
                               {f.key === 'links' && <LinkList value={value} address={merged.address} onUse={(u) => setField('links', u)} small />}
@@ -723,7 +742,6 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
             );
           })}
         </div>
-        {showF(FIELD.emdKept) && <div className="grid grid-cols-2 gap-3">{keys(['emdKept'])}</div>}
         {canPb && (
           <label className="flex items-center gap-2 px-1.5 text-[12.5px] text-zinc-600">
             <input type="checkbox" checked={na} onChange={(e) => setField('emdPaidBy', e.target.checked ? 'NA' : null)} className="accent-navy-700" />
@@ -846,7 +864,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
             )}
             {c.table && merged.payNote && <div className="px-4 py-1.5 border-t border-tan-100 text-[12.5px] text-zinc-700"><b className="font-semibold text-navy-800">Payout note:</b> {merged.payNote}</div>}
           </div>
-        )) : sec.groups.map((gid) => (
+        )) : sec.keys ? (
+          <div id={`deal-g-${sec.id}`}>{groupGrid(sec.groups[0], sec.keys)}</div>
+        ) : sec.groups.map((gid) => (
           <div key={gid} id={`deal-g-${gid}`} className={sec.groups.length > 1 ? 'border-t border-tan-100 first-of-type:border-t-0' : ''}>
             {sec.groups.length > 1 && <div className="px-4 pt-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-tan-700">{SUB_LABEL[gid]}</div>}
             {groupGrid(gid)}
@@ -910,8 +930,12 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                 <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
                 <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
                 <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : emLost ? 'bad' : 'plain'} word={emLost ? 'EM lost' : undefined}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : emLost ? <span className="text-[#B42318]">{money(emLoss)}</span> : dash}</StatusTile>
+              </div>
+              {/* Row 2, in the order things happen (Nov 17): inspection, EMD, title, COE. */}
+              <div className="mt-2 grid grid-cols-4 gap-2">
                 <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
                 <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
+                <StatusTile icon="doc" label="Title" tone={ts.title[0]} word={ts.title[1]} onClick={() => showSec('title')} title={String(merged.title || '').trim() || 'No title company yet — open Title & Closing'}>{String(merged.title || '').trim() ? <span className="text-[14.5px]">{clip(merged.title, 26)}</span> : dash}</StatusTile>
                 <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
               </div>
             </div>
