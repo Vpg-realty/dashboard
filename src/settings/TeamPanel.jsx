@@ -103,6 +103,9 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, offTeam = [],
   const needLead = d.status === 'training' && !lead;
   const shown = others.filter((s) => !q.trim() || `${marketName(s.marketId)} ${s.marketId} ${s.who}`.toLowerCase().includes(q.trim().toLowerCase()));
   const ok = d.name.trim() && /@/.test(d.email) && !needLead && !self;
+  // Why the Save button is grey (Luke, Nov 17: "why is brandons button at the
+  // bottom grey?" — the email box had scrolled out of view).
+  const missing = self ? null : [!d.name.trim() && 'first name', !/@/.test(d.email) && 'company email', needLead && 'pod lead'].filter(Boolean);
 
   const save = async () => {
     if (!ok || busy) return;
@@ -268,6 +271,7 @@ export default function TeamPanel({ u, users, leads, lists, tvOff, offTeam = [],
           {!isNew && !self && (confirmDel
             ? <span className="mr-auto flex items-center gap-2 text-[13px]"><span className="text-red-700">Remove completely? Inactive keeps their history.</span><button type="button" onClick={remove} className="font-semibold text-red-700 underline">Remove</button><button type="button" onClick={() => setConfirmDel(false)} className="text-zinc-500 underline">Keep</button></span>
             : <button type="button" onClick={() => setConfirmDel(true)} className="mr-auto text-[13px] text-red-600 hover:underline">Remove</button>)}
+          {!log && missing?.length > 0 && <span className={`${isNew || self ? 'mr-auto' : ''} text-[12.5px] text-amber-800`}>Still needed: {missing.join(', ')}</span>}
           <button type="button" onClick={onClose} className="h-9 px-4 rounded-lg border border-zinc-200 bg-white font-medium text-zinc-700 hover:bg-zinc-50">{log ? 'Close' : 'Cancel'}</button>
           {!log && <button type="button" disabled={!ok || busy} onClick={save} className="h-9 px-5 rounded-lg bg-navy-700 hover:bg-navy-800 text-white font-semibold disabled:opacity-50">{busy ? 'Saving…' : isNew ? `Add ${first(d.name) || 'Them'}` : `Save ${first(d.name)}`}</button>}
         </div>
