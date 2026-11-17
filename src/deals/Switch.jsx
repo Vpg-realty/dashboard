@@ -5,7 +5,7 @@
 export default function Switch({ value, options, onChange, disabled, clearable = true, label, size = 'md' }) {
   const h = size === 'sm' ? 'h-8' : 'h-9';
   return (
-    <div role="group" aria-label={label} className={`flex ${h} w-full rounded-lg ring-1 ring-inset ring-zinc-200 bg-white p-[3px] gap-[3px] ${disabled ? 'opacity-60' : ''}`}>
+    <div role="group" aria-label={label} className={`flex ${h} w-full rounded-lg ring-1 ring-inset ring-[#e6ddcc] bg-white p-[3px] gap-[3px] ${disabled ? 'opacity-60' : ''}`}>
       {options.map((o) => {
         const on = value === o.value;
         return (

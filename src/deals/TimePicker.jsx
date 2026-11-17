@@ -60,7 +60,7 @@ export default function TimePicker({ value, onChange, disabled, autoFocus, place
   return (
     <>
       <button ref={anchor} type="button" disabled={disabled} autoFocus={autoFocus} onClick={() => setOpen((x) => !x)}
-        className="w-full h-8 flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500">
+        className="w-full h-8 flex items-center gap-1.5 rounded-md border border-[#e6ddcc] bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-tan-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500">
         <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
         <span className={`flex-1 min-w-0 truncate tabular-nums ${t ? '' : 'text-zinc-400'}`}>{t ? timeLabel(value) : placeholder}</span>
         <span className="text-[10px] text-zinc-400">▾</span>
@@ -70,7 +70,7 @@ export default function TimePicker({ value, onChange, disabled, autoFocus, place
           <div className="flex flex-wrap gap-1.5">
             {QUICK.map(([v, l]) => (
               <button key={v} type="button" onClick={() => { onChange(v); setOpen(false); }}
-                className={`rounded-full px-2.5 py-0.5 text-[12px] ring-1 ${value === v ? 'bg-navy-700 text-white ring-navy-700' : 'ring-zinc-200 text-zinc-700 hover:bg-navy-50'}`}>{l}</button>
+                className={`rounded-full px-2.5 py-0.5 text-[12px] ring-1 ${value === v ? 'bg-navy-700 text-white ring-navy-700' : 'ring-[#e6ddcc] text-zinc-700 hover:bg-navy-50'}`}>{l}</button>
             ))}
           </div>
           <div className="flex gap-1.5">

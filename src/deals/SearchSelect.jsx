@@ -88,13 +88,13 @@ export default function SearchSelect({
   };
 
   const list = (
-    <div ref={inline ? undefined : pop} className={`${inline ? 'w-full' : 'fixed z-[1000] min-w-[15rem] shadow-lg'} rounded-lg border border-zinc-200 bg-white overflow-hidden text-left`}
+    <div ref={inline ? undefined : pop} className={`${inline ? 'w-full' : 'fixed z-[1000] min-w-[15rem] shadow-lg'} rounded-lg border border-[#e6ddcc] bg-white overflow-hidden text-left`}
       style={inline ? undefined : { visibility: 'hidden' }}>
       {hasSearch && (
         <div className="p-1.5 border-b border-zinc-100">
           <span className="relative flex items-center">
             <input ref={search} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Search…" autoFocus={autoFocus || inline}
-              className="w-full h-7 rounded-md border border-zinc-200 pl-2 pr-7 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
+              className="w-full h-7 rounded-md border border-[#e6ddcc] pl-2 pr-7 text-[13px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200" />
             <ClearX value={q} onClear={() => { setQ(''); setActive(0); }} className="absolute right-1" />
           </span>
         </div>
@@ -116,7 +116,7 @@ export default function SearchSelect({
     <div ref={box} className={`relative ${className}`}>
       <button type="button" disabled={disabled} autoFocus={autoFocus} onClick={() => setOpen((x) => !x)}
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setOpen(true); } }}
-        className={buttonClass || 'w-full h-8 flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-zinc-200'}>
+        className={buttonClass || 'w-full h-8 flex items-center gap-1.5 rounded-md border border-[#e6ddcc] bg-white px-2 text-left text-[13px] text-zinc-900 hover:border-tan-300 focus:outline-none focus:ring-2 focus:ring-navy-100 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:border-[#e6ddcc]'}>
         <span className={`flex-1 min-w-0 truncate ${current ? '' : 'text-zinc-400'}`}>{renderValue ? renderValue(current) : current ? current.label : placeholder}</span>
         <span className={`text-[10px] ${buttonClass ? '' : 'text-zinc-400'}`}>▾</span>
       </button>

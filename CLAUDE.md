@@ -2418,6 +2418,10 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   IP end's time zone (AZ / PT / MT / CT / ET under the time; nothing stored =
   the state's zone shown as picked) and Cancellation reason while the list
   has ≤ 5. Table cells keep dropdowns.
+  **Tan boxes** (Luke, Nov 17: "the tan or beige surround … right now it is
+  grey"): every input, switch, dropdown and time picker in the deals pages
+  has the proposal's tan border `#e6ddcc` (hover tan-300) instead of grey —
+  fields.jsx `BASE`, Switch.jsx, SearchSelect.jsx, TimePicker.jsx.
 
 ## Property notes — the deal panel's Notes tab (Luke, Nov 9)
 

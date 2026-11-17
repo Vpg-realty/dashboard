@@ -81,7 +81,7 @@ function NumberInput({ f, value, onChange, base, autoFocus, disabled }) {
       {canUnknown(f) && !disabled && (
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { const next = unknown ? null : UNKNOWN; setText(next ? 'Unknown' : ''); onChange(next); }}
           title="We don't know the final assignment price — counts as filled in" aria-pressed={unknown}
-          className={`shrink-0 h-8 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${unknown ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50'}`}>Unknown</button>
+          className={`shrink-0 h-8 px-2 rounded-md text-[12px] font-semibold ring-1 ring-inset ${unknown ? 'bg-navy-700 text-white ring-navy-700' : 'bg-white text-zinc-600 ring-[#e6ddcc] hover:bg-tan-50'}`}>Unknown</button>
       )}
     </div>
   );
@@ -101,7 +101,7 @@ function TimeInput({ value, onChange, autoFocus, disabled, deal }) {
   );
 }
 
-const BASE = 'w-full h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
+const BASE = 'w-full h-8 rounded-md border border-[#e6ddcc] bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 hover:border-tan-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
 
 // `inline`: a dropdown opens in place (table cells). `deal`: the deal being
 // edited (for the end time / time zone defaults).
