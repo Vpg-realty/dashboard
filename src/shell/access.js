@@ -133,17 +133,18 @@ export const SCOPE_AREAS = [
   { id: 'pipeline', label: 'Pipeline · Contracted Deals', note: 'how far the Viewing switch reaches' },
   { id: 'opps', label: 'Pipeline · Opportunities', note: 'how far the Viewing switch reaches' },
   { id: 'calendar', label: 'Calendar', note: 'how far the Viewing switch reaches' },
-  { id: 'alerts', label: 'Alerts', note: 'whose alerts they can look at (ticking stays with their own and their pod’s)' },
+  { id: 'leads', label: 'Alerts · Leads Spotted', note: 'whose spotted leads and duplicate leads they see — and can grade' },
+  { id: 'alerts', label: 'Alerts · Everything Else', note: 'whose tasks, GHL tasks, check-ins and Do Not Contact alerts they can look at (ticking stays with their own and their pod’s)' },
   { id: 'scorecards', label: 'Team Scorecard', note: 'whose rows show, for anyone who has the page' },
 ];
 const AREA_IDS = SCOPE_AREAS.map((a) => a.id);
 // Today's rules, per grid column. "My Pod" for a rep = the pod they're in.
 const SCOPE_DEFAULT = {
-  team: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
-  trainee: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
-  manager: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', alerts: 'mine', scorecards: 'all' },
-  podlead: { home: 'pod', pipeline: 'all', opps: 'pod', calendar: 'pod', alerts: 'pod', scorecards: 'all' },
-  tc: { home: 'all', pipeline: 'all', opps: 'all', calendar: 'all', alerts: 'mine', scorecards: 'all' },
+  team: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', leads: 'mine', alerts: 'mine', scorecards: 'all' },
+  trainee: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', leads: 'mine', alerts: 'mine', scorecards: 'all' },
+  manager: { home: 'mine', pipeline: 'all', opps: 'mine', calendar: 'mine', leads: 'mine', alerts: 'mine', scorecards: 'all' },
+  podlead: { home: 'pod', pipeline: 'all', opps: 'pod', calendar: 'pod', leads: 'pod', alerts: 'pod', scorecards: 'all' },
+  tc: { home: 'all', pipeline: 'all', opps: 'all', calendar: 'all', leads: 'mine', alerts: 'mine', scorecards: 'all' },
 };
 export const scopeDefault = (role, area) => (role === 'owner' ? 'all' : SCOPE_DEFAULT[role]?.[area] || 'mine');
 export function roleScope(access, role, area) {

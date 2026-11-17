@@ -38,27 +38,39 @@ const podOf = (u) => (u?.role === 'manager' && u.rep_id ? getPods().find((p) => 
 export const OWNERS = 'owners';
 export function scopeOf(u) {
   const me = holderOf(u);
-  if (u.role === 'owner') return { me, see: null, own: null, leads: null, keys: [me, OWNERS], level: 'all' };
+  if (u.role === 'owner') return { me, see: null, own: null, leads: null, leadSee: null, keys: [me, OWNERS], level: 'all', leadLevel: 'all' };
   const pod = podOf(u);
   // `own` = what they may act on (tick, grade, hand tasks to): their own and,
   // for a pod lead, the pod's. `see` = what Settings › Access lets them look
   // at (Phase 2, Nov 3: Mine / My Pod / Everyone) — read only beyond `own`.
   const own = [me, ...(pod?.reps || [])];
+  const reach = (lvl) => (lvl === 'all' ? null : lvl === 'pod' ? [...new Set([...own, ...podMates(u.rep_id, getPods())])] : [me]);
   const level = u.scope?.alerts || (pod ? 'pod' : 'mine');
-  const see = level === 'all' ? null : level === 'pod' ? [...new Set([...own, ...podMates(u.rep_id, getPods())])] : [me];
-  // The red dot never counts what they can't open.
+  const see = reach(level);
+  // Spotted leads and duplicate leads have their own setting (Luke, Nov 17:
+  // Spencer sees and grades the whole team's) — `leadSee` is what they see
+  // of those kinds, and they may grade / tick every one they see.
+  const leadLevel = u.scope?.leads || (pod ? 'pod' : 'mine');
+  const leadSee = reach(leadLevel);
+  // The red dot never counts what they can't open (and only their own and
+  // their pod's spotted leads ring it, whatever they can see).
   const leads = (see || own).filter((id) => own.includes(id));
-  return { me, see, own, leads, keys: [me], level };
+  return { me, see, own, leads, leadSee, keys: [me], level, leadLevel };
 }
+// The kinds the Leads Spotted setting covers.
+export const LEAD_KINDS = new Set(['lead', 'dupe']);
 // The pod switch on the page: a lead's pod, or (My Pod given) the pod they're in.
 function podView(user, scope) {
-  if (scope.level === 'mine' || user.role === 'owner') return null;
+  if ((scope.level === 'mine' && scope.leadLevel === 'mine') || user.role === 'owner') return null;
   const p = podOf(user) || podFor(user.rep_id, getPods());
   return p ? { title: p.title, reps: podOf(user) ? p.reps : podMates(user.rep_id, getPods()) } : null;
 }
 // The alert_marks `who` this person's review is saved under.
 const markWho = (x, user, scope) => (user.role === 'owner' && SHARED.has(x.kind) ? OWNERS : scope.me);
 const inScope = (scope, holder) => !scope.own || scope.own.includes(holder);
+// May this person act on (tick / grade) this alert? Leads and duplicates
+// also as far as they see them.
+const canAct = (scope, x) => inScope(scope, x.holder) || (LEAD_KINDS.has(x.kind) && (!scope.leadSee || scope.leadSee.includes(x.holder)));
 
 const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -132,6 +144,24 @@ function dncAnswer(existing, v, user, now) {
 }
 const DNC_TAGS = { dnc: 'agent - dnc', pause: 'internal - do not automate' };
 export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
+// The WHERE part for what this person may look at: the Alerts setting for
+// most kinds, the Leads Spotted setting for leads and duplicates.
+const inList = (ids) => `holder IN (${ids.map(() => '?').join(', ')})`;
+const LEAD_SQL = "kind IN ('lead', 'dupe')";
+function whereSeen(scope) {
+  const { see, leadSee } = scope;
+  if (!see && !leadSee) return '';
+  if (see && leadSee && see.length === leadSee.length && see.every((x) => leadSee.includes(x))) return `AND ${inList(see)}`;
+  const leadPart = leadSee ? `(${LEAD_SQL} AND ${inList(leadSee)})` : `(${LEAD_SQL})`;
+  const restPart = see ? `(NOT ${LEAD_SQL} AND ${inList(see)})` : `(NOT ${LEAD_SQL})`;
+  return `AND (${leadPart} OR ${restPart})`;
+}
+function seenArgs(scope) {
+  const { see, leadSee } = scope;
+  if (!see && !leadSee) return [];
+  if (see && leadSee && see.length === leadSee.length && see.every((x) => leadSee.includes(x))) return see;
+  return [...(leadSee || []), ...(see || [])];
+}
 const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
 // Oct 19); everyone can turn it on or off for themself.
@@ -142,9 +172,9 @@ export const MANY_MAX = 300;
 export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
   const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
-  const where = (scope.see ? `AND holder IN (${scope.see.map(() => '?').join(', ')})` : '') + (tasksOnly(user) ? " AND kind = 'task'" : '');
+  const where = whereSeen(scope) + (tasksOnly(user) ? " AND kind = 'task'" : '');
   const [rows, seen, people, marks] = await Promise.all([
-    db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...(scope.see || [])).all(),
+    db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...seenArgs(scope)).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).
@@ -163,6 +193,7 @@ export async function load(db, user, now = new Date()) {
     tasksOnly: tasksOnly(user),
     pod: podView(user, scope),
     level: scope.level,
+    leadLevel: scope.leadLevel,
     owner: user.role === 'owner' || undefined,
     seenAt: seen?.seen_at || null,
     chime: seen ? !!seen.chime : chimeDefault(user),
@@ -347,7 +378,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
   // Tick (or untick) several at once (Luke, Oct 19: "select all"). Spotted
   // leads take a Real / Not a lead answer instead, so they're left out.
   if (a === 'doneMany') {
-    const list = (Array.isArray(existing) ? existing : []).filter((x) => inScope(scope, x.holder) && x.kind !== 'lead' && x.kind !== 'dnc');
+    const list = (Array.isArray(existing) ? existing : []).filter((x) => canAct(scope, x) && x.kind !== 'lead' && x.kind !== 'dnc');
     if (!list.length) return { error: 'Pick the alerts to tick off' };
     return { ids: list.map((x) => x.id), check: b.done ? list.filter((x) => personal(x, scope)) : [], run: list.flatMap((x) => tick(x, !!b.done, user, scope, now)) };
   }
@@ -360,7 +391,7 @@ export function plan(b, user, now = new Date().toISOString(), existing = null) {
     if (!list.length) return { error: 'Pick the Do Not Contact alerts to answer' };
     return { ids: list.map((x) => x.id), run: list.flatMap((x) => dncAnswer(x, v, user, now)) };
   }
-  if (!ID.test(String(b?.id || '')) || !existing || !inScope(scope, existing.holder)) return { error: 'That alert is gone' };
+  if (!ID.test(String(b?.id || '')) || !existing || !canAct(scope, existing)) return { error: 'That alert is gone' };
   if (a === 'done') {
     // A lead is reviewed by picking its type (Luke, Oct 22: "complete button
     // would not be needed anymore").
