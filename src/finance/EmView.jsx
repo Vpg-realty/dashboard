@@ -41,6 +41,9 @@ const EM_VIEWS = [
   // Luke, Oct 22: EM the seller kept (past the IP, or non-refundable) —
   // dismissed from the lists above and counted as a loss on the deal.
   ['lost', 'EM Lost', 'Past IP, non-refundable or buyer default', (d) => vpgIn(d) && up(d.emdReturned) === 'LOST'],
+  // Luke, Nov 17: VPG's EM marked returned, with the day it came back
+  // (emdReturnedOn, asked by Returned's pop-up).
+  ['returned', 'EM Returned', 'Back with VPG · with the date', (d) => vpgIn(d) && up(d.emdReturned) === 'YES'],
 ];
 
 export default function EmView() {
@@ -55,20 +58,21 @@ export default function EmView() {
   const sum = (ds) => ds.reduce((t, d) => t + n(d.emd), 0);
   const closed = view[0] !== 'out' && view[0] !== 'risk';
   const lostView = view[0] === 'lost';
-  const rows = [...lists[view[0]]].sort((a, b) => (closed ? String(a.coe || '').localeCompare(String(b.coe || '')) : String(a.ddEnd || a.coe || '9').localeCompare(String(b.ddEnd || b.coe || '9'))));
-  const heads = ['Property', 'Stage', 'Acq. manager', 'EMD paid by', 'EMD', closed ? null : 'Buyer’s EMD', 'Sent on', closed ? 'COE' : 'IP end', lostView ? 'Lost because' : closed ? 'Days since COE' : 'COE', closed ? 'EMD returned?' : null].filter(Boolean);
+  const retView = view[0] === 'returned';
+  const rows = [...lists[view[0]]].sort((a, b) => (retView ? String(b.emdReturnedOn || '').localeCompare(String(a.emdReturnedOn || '')) || String(b.coe || '').localeCompare(String(a.coe || '')) : closed ? String(a.coe || '').localeCompare(String(b.coe || '')) : String(a.ddEnd || a.coe || '9').localeCompare(String(b.ddEnd || b.coe || '9'))));
+  const heads = ['Property', 'Stage', 'Acq. manager', 'EMD paid by', 'EMD', closed ? null : 'Buyer’s EMD', 'Sent on', closed ? 'COE' : 'IP end', lostView ? 'Lost because' : retView ? 'Returned on' : closed ? 'Days since COE' : 'COE', closed ? 'EMD returned?' : null].filter(Boolean);
   return (
     <div className="max-w-[1720px] mx-auto">
-      <FinanceHead eyebrow="Earnest Money" title="EM Out" sub="Where VPG’s earnest money is right now, read from the deal sheet: out on open deals, at risk where it’s VPG’s alone, closed or cancelled deals that don’t say it came back, and EM lost (past the IP or non-refundable)." />
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      <FinanceHead eyebrow="Earnest Money" title="EM Out" sub="Where VPG’s earnest money is right now, read from the deal sheet: out on open deals, at risk where it’s VPG’s alone, closed or cancelled deals that don’t say it came back, EM lost (past the IP or non-refundable) and EM returned, with the day it came back." />
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
         {EM_VIEWS.map(([k, label, , ]) => (
-          <MoneyTile key={k} label={label} accent={k === 'out' ? 'navy' : k === 'risk' ? 'amber' : k === 'lost' ? 'grey' : 'red'}
+          <MoneyTile key={k} label={label} accent={k === 'out' ? 'navy' : k === 'risk' ? 'amber' : k === 'lost' ? 'grey' : k === 'returned' ? 'green' : 'red'}
             value={money(sum(lists[k]))} sub={`${lists[k].length} deal${lists[k].length === 1 ? '' : 's'}`} onClick={() => setQuery({ view: k === 'out' ? null : k })} active={view[0] === k} />
         ))}
       </div>
       <div className={RAIL_GRID}>
         <SideRail label="Earnest money" value={view[0]} onPick={(k) => setQuery({ view: k === 'out' ? null : k })}
-          groups={[{ title: 'Earnest money', items: EM_VIEWS.map(([k, label, sub]) => ({ id: k, label, sub, count: lists[k].length, tone: k === 'out' || k === 'lost' ? 'navy' : 'red' })) }]} />
+          groups={[{ title: 'Earnest money', items: EM_VIEWS.map(([k, label, sub]) => ({ id: k, label, sub, count: lists[k].length, tone: k === 'out' || k === 'lost' || k === 'returned' ? 'navy' : 'red' })) }]} />
         <section className="min-w-0 rounded-xl border border-tan-200 bg-white overflow-hidden">
           <PanelHead title={view[1]} sub={`${rows.length} deal${rows.length === 1 ? '' : 's'} · ${money(sum(rows))} EMD`} />
           <div className="overflow-x-auto">
@@ -91,7 +95,9 @@ export default function EmView() {
                       <td className="px-3 py-2 whitespace-nowrap">{ISO.test(d.emdSent || '') ? shortDate(d.emdSent) : '—'}</td>
                       {closed ? <>
                         <td className="px-3 py-2 whitespace-nowrap">{ISO.test(d.coe || '') ? shortDate(d.coe) : '—'}</td>
-                        {lostView
+                        {retView
+                          ? <td className="px-3 py-2 whitespace-nowrap font-semibold text-[#14532D]">{ISO.test(d.emdReturnedOn || '') ? shortDate(d.emdReturnedOn) : <span className="font-normal text-zinc-400">no date · click Returned to add it</span>}</td>
+                          : lostView
                           ? <td className="px-3 py-2 whitespace-nowrap font-semibold text-[#B42318]">{WHY[up(d.emdLostWhy)] || <span className="text-[#B54708]">pick a reason</span>}</td>
                           : <td className={`px-3 py-2 tabular-nums ${since > 30 ? 'text-[#B42318] font-semibold' : ''}`}>{since == null ? '—' : since < 0 ? `in ${-since}d` : `${since}d`}</td>}
                         <td className="px-3 py-2"><EmdCell d={d} raw={rawById.get(d.id)} /></td>
