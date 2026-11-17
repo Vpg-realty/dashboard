@@ -2399,6 +2399,26 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   keep the buyer's EMD questions use it too. Commission paid stays a
   dropdown (Finance sets it).
 
+- **Deal panel rework (Luke, Nov 17** — approved from the Design canvas, with
+  "keep COE under deal basics" and "inspection period should keep the same
+  look"): overrides the section order above. `SECTIONS` in DealPanel.jsx =
+  **Deal Basics** (Stage as a track of the five stages, the GHL stage under it
+  when known, address, acq, state, contract acceptance, COE, price, retrade,
+  deal type, listing — `keys` sets the order) → **Cancellation** (reason, In GHL
+  mark it, buyer's EMD kept; only on a cancelled deal or one holding those
+  values; "You are here" with EMD when cancelled) → **Title & Closing** (title
+  agency, escrow #) → Inspection Period (the Starts ── N days ── Ends timeline
+  kept) → Earnest Money → Selling It → **Money at Closing** → Notes. A section
+  can list `keys` / `omit` (`secFields`, `secOfField` for jumps). Deal Status
+  has two rows: Contracted · Assigned at · Gross, then Inspection · EMD ·
+  **Title** (new tile: the agency, "Escrow # …" / "No escrow # yet" / "Not
+  opened yet"; a click opens Title & Closing) · COE. More switches in the
+  panel (fields.jsx `SWITCH_KEYS`, `SWITCH_MAX`): Stage (changing it still
+  opens the Cancel / Assigned / Closed pop-ups), Deal type, Lost because, the
+  IP end's time zone (AZ / PT / MT / CT / ET under the time; nothing stored =
+  the state's zone shown as picked) and Cancellation reason while the list
+  has ≤ 5. Table cells keep dropdowns.
+
 ## Property notes — the deal panel's Notes tab (Luke, Nov 9)
 
 "a notes section per property … a tab at the end … a place to track status
