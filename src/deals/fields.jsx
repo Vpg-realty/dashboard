@@ -18,7 +18,7 @@ const CUSTOM = '__custom';
 // stages), Deal type, Lost because, the IP end's time zone and the cancel
 // reason — each only while its list is short enough (`SWITCH_MAX`).
 const SWITCH_KEYS = new Set(['retrade', 'listing', 'cfar', 'emdReturned', 'cancelAs', 'status', 'dealType', 'emdLostWhy', 'ddEndTz', 'cancelReason']);
-const SWITCH_MAX = { status: 6, dealType: 5, ddEndTz: 5, cancelReason: 5 };
+const SWITCH_MAX = { status: 6, dealType: 8, ddEndTz: 5, cancelReason: 5 }; // deal type: all 7 as tiles (Luke, Nov 17)
 const SWITCH_WORD = { retrade: { Y: 'Yes', N: 'No' }, listing: { 'ON-MARKET': 'On market', 'OFF-MARKET': 'Off market' }, cancelAs: { LOST: 'Lost', ABANDONED: 'Abandoned' },
   ddEndTz: { ARIZONA: 'AZ', PACIFIC: 'PT', MOUNTAIN: 'MT', CENTRAL: 'CT', EASTERN: 'ET' } };
 const dashToNull = (v) => (isBlank(v) ? null : v);

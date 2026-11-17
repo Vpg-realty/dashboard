@@ -181,7 +181,7 @@ function tileStatus(d) {
 // `omit` = fields shown in another section.
 const CANCEL_KEYS = ['cancelReason', 'cancelAs', 'emdKept'];
 const SECTIONS = [
-  { id: 'contract', label: 'Deal Basics', short: 'Basics', groups: ['contract'], keys: ['status', 'ghlStage', 'address', 'acq', 'state', 'accepted', 'coe', 'price', 'retrade', 'originalPrice', 'dealType', 'listing'] },
+  { id: 'contract', label: 'Deal Basics', short: 'Basics', groups: ['contract'], keys: ['status', 'ghlStage', 'dealType', 'address', 'acq', 'state', 'accepted', 'coe', 'price', 'listing', 'retrade', 'originalPrice'] },
   { id: 'cancel', label: 'Cancellation', short: 'Cancellation', groups: ['contract'], keys: CANCEL_KEYS, cancelled: true },
   { id: 'title', label: 'Title & Closing', short: 'Title', groups: ['title'] },
   // Inspection first, then earnest money — two cards (Luke, Nov 6: "too hard
@@ -753,7 +753,10 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
   };
   const groupGrid = (gid, only) => (gid === 'emd' && !only ? emdSplit() : (
                   <div className={`grid ${gid === 'dd' ? 'grid-cols-3' : 'grid-cols-2'} gap-x-3 ${ro ? 'gap-y-1.5' : 'gap-y-2'} px-2 py-2`}>
-                    {FIELDS.filter((f) => (only ? only.includes(f.key) : f.group === gid) && showF(f)).sort((a, b) => (only ? only.indexOf(a.key) - only.indexOf(b.key) : a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0)).map(cell)}
+                    {FIELDS.filter((f) => (only ? only.includes(f.key) : f.group === gid) && showF(f)).sort((a, b) => (only ? only.indexOf(a.key) - only.indexOf(b.key) : a.key === 'ddEnd' ? -1 : b.key === 'ddEnd' ? 1 : 0))
+                      // Deal Basics (Luke, Nov 17 — option A): Stage and Deal type rows, then
+                      // a small title over the property / contract boxes.
+                      .flatMap((f) => (f.key === 'address' && only ? [<div key="basics-title" className="col-span-2 mx-2 mt-1 border-b border-tan-100 pb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-tan-700">Property &amp; Contract</div>, cell(f)] : [cell(f)]))}
                   </div>
   ));
   // The Money (owners / TC): from the price to the profit, top to bottom.
