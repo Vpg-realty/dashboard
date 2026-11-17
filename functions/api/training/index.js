@@ -13,7 +13,7 @@
 // Logic in edge/training.js. Writes are logged in edit_log and refused while
 // viewing as someone.
 import { currentUser, json } from '../../../edge/auth.js';
-import { load, loadProgram, plan, trainee, alertOps, canTrain } from '../../../edge/training.js';
+import { load, loadProgram, plan, trainee, alertOps, canTrain, canPractice, loadPractice, practicePerson, practiceReset } from '../../../edge/training.js';
 import { refreshPods } from '../../../edge/pods.js';
 import { holderOf } from '../../../edge/alerts.js';
 
@@ -24,6 +24,10 @@ export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!allowed(user)) return json({ error: 'trainees, owners and pod leads only' }, 403);
+  if (new URL(context.request.url).searchParams.get('practice') === '1') {
+    if (!canPractice(user)) return json({ error: user.viewAs ? 'not while viewing as someone' : 'owners only' }, 403);
+    return json(await loadPractice(context.env.DB, user));
+  }
   return json(await load(context.env.DB, user));
 }
 
@@ -35,6 +39,7 @@ export async function onRequestPost(context) {
   let b;
   try { b = await context.request.json(); } catch { return json({ error: 'bad JSON' }, 400); }
   const db = context.env.DB;
+  if (b?.practice) return practicePost(db, user, b);
   const program = await loadProgram(db);
   const email = user.role === 'trainee' ? user.email : String(b?.email || '').toLowerCase();
   const person = email ? await trainee(db, email) : null;
@@ -54,4 +59,27 @@ export async function onRequestPost(context) {
     await db.batch(alertOps(target, program, fresh, now, owners).map(([sql, args]) => db.prepare(sql).bind(...args)));
   }
   return json({ ...(await load(db, user)), ...(p.result ? { result: p.result } : {}) });
+}
+
+// Practice run (owners): the owner is the trainee for the trainee's steps and
+// the trainer for the rest; nothing goes to Alerts or the Training board.
+const TRAINEE_ACTIONS = ['submit', 'log', 'review'];
+async function practicePost(db, user, b) {
+  if (!canPractice(user)) return json({ error: 'owners only' }, 403);
+  const person = practicePerson(user);
+  if (b.action === 'practiceReset') {
+    await db.batch(practiceReset(user.email).map(([sql, args]) => db.prepare(sql).bind(...args)));
+    return json(await loadPractice(db, user));
+  }
+  if (b.action === 'ask') return json({ ...(await loadPractice(db, user)), result: { practice: true } });
+  if (![...TRAINEE_ACTIONS, 'check'].includes(b.action)) return json({ error: 'not in a practice run' }, 400);
+  const program = await loadProgram(db);
+  const progress = (await db.prepare('SELECT step, done_at, status, reviewed_at FROM training_progress WHERE email = ?').bind(person.email).all()).results;
+  const actor = TRAINEE_ACTIONS.includes(b.action) ? { ...user, role: 'trainee' } : user;
+  const p = plan({ ...b, email: person.email }, actor, { program, person, progress });
+  if (p.error) return json({ error: p.error }, 400);
+  // Graduation would change a role — not in practice.
+  const run = p.run.filter(([sql]) => !/^UPDATE (users|training_people) /.test(sql));
+  await db.batch(run.map(([sql, args]) => db.prepare(sql).bind(...args)));
+  return json({ ...(await loadPractice(db, user)), ...(p.result ? { result: p.result } : {}) });
 }

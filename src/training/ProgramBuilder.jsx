@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { useTraining, KIND_LABEL, docUrl } from './api.js';
 import { call } from '../utils/dashApi.js';
 import { XIcon } from '../shell/CloseButton';
+import { useLocation, setQuery } from '../shell/router.js';
+import MyTraining from './MyTraining.jsx';
 
 const inputCls = 'w-full h-9 rounded-lg border border-zinc-200 px-2.5 bg-white';
 const KINDS = ['paper', 'video', 'test', 'session', 'log', 'signoff'];
@@ -106,7 +108,14 @@ function StepEditor({ step, set, onClose }) {
   );
 }
 
-export default function ProgramBuilder() {
+// Practice Run (Luke, Nov 17): ?practice=1 takes the saved program as a
+// trainee would, with progress that counts nowhere (edge/training.js).
+export default function ProgramPage() {
+  const { query } = useLocation();
+  return query.get('practice') === '1' ? <MyTraining practice /> : <ProgramBuilder />;
+}
+
+function ProgramBuilder() {
   const { data, err, busy, run } = useTraining();
   const [draft, setDraft] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -141,6 +150,7 @@ export default function ProgramBuilder() {
           {saved && !dirty && <span className="text-[13px] text-emerald-700">Saved</span>}
           {dirty && <span className="text-[13px] text-amber-700">Unsaved changes</span>}
           <button type="button" disabled={!dirty || busy} onClick={save} className="h-9 px-4 rounded-lg bg-navy-700 text-white font-semibold disabled:opacity-50">Save program</button>
+          <button type="button" onClick={() => { if (!dirty || window.confirm('The practice run uses the saved program — your unsaved changes won’t be in it. Go anyway?')) setQuery({ practice: '1' }); }} className="h-9 px-4 rounded-lg border-2 border-[#c2410c] text-[#c2410c] font-semibold hover:bg-orange-50" title="Go through the program as a trainee would — nothing counts">🧪 Practice Run</button>
         </div>
       </div>
       {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">{err}</div>}
