@@ -349,7 +349,7 @@ export default function AlertsView() {
   const pod = data?.pod;
   const owner = !!data?.owner;
   // Everyone: owners, or anyone Settings › Access gives it (Phase 2).
-  const everyone = owner || data?.level === 'all';
+  const everyone = owner || data?.level === 'all' || data?.leadLevel === 'all';
   // Owners open on Everyone (Luke, Oct 22: Mine only lists what's assigned
   // to them); everyone else on Mine.
   const defWho = owner ? 'all' : 'me';

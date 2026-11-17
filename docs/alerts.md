@@ -16,7 +16,7 @@ Where it lives:
 
 Sidebar section `alerts` right under Home (`solo`, everyone but the TV), `/alerts`.
 
-- **Navy band**: counters New / Due today / Overdue (open Leads / Tasks) and Leads; **Mine / <Pod> / Everyone** switch (+ Pick a person for pod leads / owners, `?who=`). Mine = only what's held by you; the pod's alerts are under the pod. Owners open on Everyone. Everyone shows for owners or anyone whose Alerts scope is Everyone (Settings › Access).
+- **Navy band**: counters New / Due today / Overdue (open Leads / Tasks) and Leads; **Mine / <Pod> / Everyone** switch (+ Pick a person for pod leads / owners, `?who=`). Mine = only what's held by you; the pod's alerts are under the pod. Owners open on Everyone. Everyone shows for owners or anyone whose Alerts or Leads Spotted scope is Everyone (Settings › Access; the server sends `level` / `leadLevel`).
 - **Top tabs**: **Active** / **Reviewed · last 7 days** (`?tab=done`; old `?view=done` lands there). The rail filters inside either tab.
 - **Rail** (`?view=`): Leads Spotted (default), Duplicate Leads, Do Not Contact (red count), Tasks, Check-ins, Development, Upcoming. No Today list.
 - **Add a task** sits on the Tasks view only; Development has its own add form starting on Development goal.
@@ -91,7 +91,7 @@ ext_id `deal:ip:<id>:<date>` / `deal:coe:<id>:<date>`, `opp` = tracker deal id, 
 
 ## Who sees what
 
-- **Scope** (`scopeOf` in edge/alerts.js, enforced on the server): `see` follows the person's Alerts level from Settings › Access (Mine / My Pod / Everyone; defaults: rep own, pod lead their pod, owners everyone, TC her own tasks). `own` (their own + a lead's pod) is still all they can tick, grade or hand tasks to; the red dot counts only what they can open.
+- **Scope** (`scopeOf` in edge/alerts.js, enforced on the server): two Settings › Access areas (Mine / My Pod / Everyone; defaults: rep own, pod lead their pod, owners everyone, TC her own tasks). **Alerts · Leads Spotted** (`leadSee`, `leadLevel`) covers spotted leads and duplicate leads (`LEAD_KINDS`): whatever they see of those they may also grade / tick (`canAct`) — Luke, Nov 17: Spencer sees and grades the whole team's leads. **Alerts · Everything Else** (`see`, `level`) covers the other kinds: `own` (their own + a lead's pod) is still all they can tick or hand tasks to, the rest is read only. The load query splits by kind (`whereSeen` / `seenArgs`). The red dot only counts their own and their pod's leads (`scope.leads`), never the wider set.
 - **The TC** gets only kind `task` (`tasksOnly` = role tc — load and poll): the page opens on Tasks, rail only Tasks / Upcoming, counters New / Due today / Overdue. Owners can hand her tasks; due-today TC checklist steps never go to Alerts (My Day has them).
 - **The TV** never sees Alerts.
 - **Viewing as**: owners can tick the viewed person's alerts (actions `done` / `doneMany` only — `TICKS` in functions/api/alerts; saved under the owner's own name). Every other write is refused while viewing as.
