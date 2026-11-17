@@ -52,10 +52,13 @@ export function scopeOf(u) {
   // of those kinds, and they may grade / tick every one they see.
   const leadLevel = u.scope?.leads || (pod ? 'pod' : 'mine');
   const leadSee = reach(leadLevel);
+  // Beyond their own / pod's, only leads from the day the wider view was
+  // given (Arizona midnight = 07:00 UTC).
+  const leadsFrom = u.leadsFrom && leadLevel !== (pod ? 'pod' : 'mine') ? `${u.leadsFrom}T07:00:00.000Z` : null;
   // The red dot never counts what they can't open (and only their own and
   // their pod's spotted leads ring it, whatever they can see).
   const leads = (see || own).filter((id) => own.includes(id));
-  return { me, see, own, leads, leadSee, keys: [me], level, leadLevel };
+  return { me, see, own, leads, leadSee, leadsFrom, keys: [me], level, leadLevel };
 }
 // The kinds the Leads Spotted setting covers.
 export const LEAD_KINDS = new Set(['lead', 'dupe']);
@@ -70,7 +73,7 @@ const markWho = (x, user, scope) => (user.role === 'owner' && SHARED.has(x.kind)
 const inScope = (scope, holder) => !scope.own || scope.own.includes(holder);
 // May this person act on (tick / grade) this alert? Leads and duplicates
 // also as far as they see them.
-const canAct = (scope, x) => inScope(scope, x.holder) || (LEAD_KINDS.has(x.kind) && (!scope.leadSee || scope.leadSee.includes(x.holder)));
+const canAct = (scope, x) => inScope(scope, x.holder) || (LEAD_KINDS.has(x.kind) && (!scope.leadSee || scope.leadSee.includes(x.holder)) && (!scope.leadsFrom || String(x.created_at || '') >= scope.leadsFrom));
 
 const ID = /^a[a-f0-9]{12}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -149,18 +152,19 @@ export const LEAD_TYPES = ['hot', 'warm', 'cold', 'wholesale', 'not'];
 const inList = (ids) => `holder IN (${ids.map(() => '?').join(', ')})`;
 const LEAD_SQL = "kind IN ('lead', 'dupe')";
 function whereSeen(scope) {
-  const { see, leadSee } = scope;
-  if (!see && !leadSee) return '';
-  if (see && leadSee && see.length === leadSee.length && see.every((x) => leadSee.includes(x))) return `AND ${inList(see)}`;
-  const leadPart = leadSee ? `(${LEAD_SQL} AND ${inList(leadSee)})` : `(${LEAD_SQL})`;
+  const { see, leadSee, leadsFrom, own } = scope;
+  const same = see && leadSee && see.length === leadSee.length && see.every((x) => leadSee.includes(x));
+  if (!leadsFrom) {
+    if (!see && !leadSee) return ['', []];
+    if (same) return [`AND ${inList(see)}`, see];
+  }
+  // Leads / duplicates: as far as Leads Spotted reaches — beyond their own
+  // and their pod's, only from `leadsFrom` on.
+  const reachSql = leadSee ? inList(leadSee) : '1 = 1';
+  const leadPart = leadsFrom ? `(${LEAD_SQL} AND (${inList(own)} OR (${reachSql} AND created_at >= ?)))` : `(${LEAD_SQL} AND ${reachSql})`;
+  const leadArgs = leadsFrom ? [...own, ...(leadSee || []), leadsFrom] : [...(leadSee || [])];
   const restPart = see ? `(NOT ${LEAD_SQL} AND ${inList(see)})` : `(NOT ${LEAD_SQL})`;
-  return `AND (${leadPart} OR ${restPart})`;
-}
-function seenArgs(scope) {
-  const { see, leadSee } = scope;
-  if (!see && !leadSee) return [];
-  if (see && leadSee && see.length === leadSee.length && see.every((x) => leadSee.includes(x))) return see;
-  return [...(leadSee || []), ...(see || [])];
+  return [`AND (${leadPart} OR ${restPart})`, [...leadArgs, ...(see || [])]];
 }
 const personal = (x, scope) => !(x.holder === scope.me && !SHARED.has(x.kind));
 // Sound starts off for owners and pod leads, who get the most alerts (Luke,
@@ -172,9 +176,10 @@ export const MANY_MAX = 300;
 export async function load(db, user, now = new Date()) {
   const scope = scopeOf(user);
   const since = new Date(now.getTime() - KEEP_DONE_MS).toISOString();
-  const where = whereSeen(scope) + (tasksOnly(user) ? " AND kind = 'task'" : '');
+  const [seenSql, seenArgs] = whereSeen(scope);
+  const where = seenSql + (tasksOnly(user) ? " AND kind = 'task'" : '');
   const [rows, seen, people, marks] = await Promise.all([
-    db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...seenArgs(scope)).all(),
+    db.prepare(`SELECT * FROM alerts WHERE (done_at IS NULL OR done_at >= ?) ${where} ORDER BY created_at DESC LIMIT 2000`).bind(since, ...seenArgs).all(),
     db.prepare('SELECT seen_at, chime FROM alert_seen WHERE email = ?').bind(user.email).first(),
     db.prepare("SELECT name, role, rep_id, email FROM users WHERE role IN ('owner', 'manager', 'tc', 'team') AND status != 'inactive'").all(),
     // Everyone's marks of the last two months (index alert_marks_at).

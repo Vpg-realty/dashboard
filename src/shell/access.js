@@ -103,6 +103,13 @@ export function checkAccess(v) {
   const pages = new Set(accessPages().map((p) => p.id));
   const okMap = (m) => m && typeof m === 'object' && !Array.isArray(m) && Object.entries(m).every(([k, b]) => pages.has(k) && !LOCKED.has(k) && typeof b === 'boolean');
   const bad = checkScope(v.scope) || checkFields(v.fields);
+  if (v.leadsFrom != null) {
+    if (typeof v.leadsFrom !== 'object' || Array.isArray(v.leadsFrom)) return 'Bad leads start dates';
+    for (const [email, d] of Object.entries(v.leadsFrom)) {
+      if (!/^[^@\s]+@[^@\s]+$/.test(email) || email !== email.toLowerCase()) return 'A person’s email is wrong';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d))) return 'A leads start date is wrong';
+    }
+  }
   if (bad) return bad;
   for (const [role, m] of Object.entries(v.roles || {})) {
     if (!ROLE_IDS.includes(role)) return `Unknown role ${role}`;
@@ -159,6 +166,11 @@ export function personScope(access, user, pods) {
   const mine = access?.scope?.people?.[String(user.email || '').toLowerCase()] || {};
   return Object.fromEntries(AREA_IDS.map((a) => [a, LEVEL_IDS.includes(mine[a]) ? mine[a] : roleScope(access, role, a)]));
 }
+// The day a person's wider Leads Spotted view starts (Luke, Nov 17: "start
+// Spencer fresh from today"): other reps' leads before it stay out of their
+// list; their own and their pod's are untouched. `leadsFrom: { email: date }`,
+// set by Settings › Access when the wider view is given (Arizona date).
+export const personLeadsFrom = (access, user) => access?.leadsFrom?.[String(user?.email || '').toLowerCase()] || null;
 // The pod a rep leads, else the one they're in.
 export const podFor = (repId, pods) => (repId ? (pods || []).find((p) => p.lead === repId) || (pods || []).find((p) => (p.reps || []).includes(repId)) || null : null);
 // Everyone in that pod but the person (a lead's pod = their reps).
