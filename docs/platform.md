@@ -115,7 +115,7 @@ The hand-kept lists `excluded-opps.json`, `manual-cancels.json`, `manual-contrac
 - Browser helpers: `src/utils/dashApi.js` (`useMe`, `loadMe`, `canGrade`, `meFailed`). On a local `vite preview` there's no /api, so everyone looks like a non-manager — mock `/api/me` with Playwright `page.route`.
 - Who-sees-what rule (Luke, Oct 14): non-managers / non-owners only see what's on the TV, plus what Settings › Access gives them. Hiding is navigation only; the server guards the data.
 - Every write is logged in D1 `edit_log`; nothing is written while viewing as (unless a doc says otherwise).
-- Tests: endpoints run in Node against `node:sqlite` with a locally signed JWT (forged / tampered / expired / wrong-app tokens rejected).
+- No automated test suite is checked into the repo; verify endpoints by hand (or a throwaway script) and pages with Playwright.
 
 ### Pods (Phase 6, Oct 20)
 

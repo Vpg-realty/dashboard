@@ -32,7 +32,6 @@ The TC List (also a Deals tab, and the deal panel's TC Checklist tab) is docs/tc
 - `PATCH /api/deals/:id` — changed fields only (`fields`, `fixed: {k: value | 'formula'}`, `base` = updatedAt the editor opened; a conflicting change since → 409 with their name). `{push: [...]}` queues the site's current value to GHL without changing the deal (see Fix a mismatch). A typed new cancel reason is appended to `deal_lists.cancelReasons`.
 - `DELETE /api/deals/:id` — owners; soft, logged.
 - `effectiveLists` (edge/deals.js): stored deal_lists + every active Acquisitions / Manager from the day they're added (rep name, else People name), minus inactive people, plus every state with a sub-account; always adds deal type `DOUBLE CLOSE`. Board names follow Settings › Team (`withPeopleNames`).
-- Tests: node:sqlite D1 shim + locally signed JWTs.
 
 ## Fields and formulas
 
@@ -189,7 +188,7 @@ Tab **Files & Claude Review** (`DealFiles.jsx`). Owners and the TC upload, chang
 
 `IpPopups` (`src/shell/IpPopups.jsx`, in AppShell, never on the TV), rules `src/deals/ipPopup.js` (`ipSlots`, `ipPopupNow`, `emAtRisk`). A deal before a buyer (`isPending`, not Assigned / Closed in GHL) whose IP end is today in Arizona pops up top right at (Arizona time):
 - 9:00 AM and 12:00 PM: address, rep · sub-account box, cancel-by time (IP end in its zone + Arizona), EM at risk (VPG or VPG + Buyer paid → "$X of our EM at risk"; else buyer only / not sent / no EMD). No end time on file → a confirm-the-time note.
-- End time on file: 1 hour and 15 minutes before the IP ends (two slots; `zonedMs` converts — a 5 PM Eastern end pops at 2:00 / 2:45 PM Arizona in winter). No end time: 4:00 PM with the note.
+- End time on file: two slots, 1 hour before and 15 minutes before the IP ends (`zonedMs` converts — a 5 PM Eastern end pops at 2:00 / 2:45 PM Arizona in winter). No end time: 4:00 PM with the note.
 - Only the latest slot that has come shows; none after the IP ended. 2px red border with a breathing glow (`.ip-glow`, `.ip-glow-fast` in the last hour, index.css).
 - "Got it" / Open deal hides that slot on the device (localStorage `vpg.ipPop.<email>`, today's keys).
 - Who: owners / TC every deal; reps their own (`mine`); pod leads own + pod reps' (`podsOf`, by name). Checked every 30 s while visible; deals reload every 5 min.

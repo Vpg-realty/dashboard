@@ -107,7 +107,6 @@ Flag reasons (`FLAG_REASONS`): Mostly landlines / DND, Few or no agents, Too rur
 - `GET ?state=`: a non-seesAll user only their own states; other holders shown as "someone".
 - POST (never while viewing as): `request`; `release` / `flag` (holders — own zips; owners any; `reuse` owners only); owners only: `assign` (no weekly limit), `status`, `area`, `newRound`, `rules`. Every change in `edit_log` (`zips.*`).
 - `health()` sorted Fix now (out of zips, flagged zip, 3+ flags in a county, short request, a rep's state with no zips) → Coming up (running low) → Edit over time (tier 3 mixing in, untiered / hand-picked, paused / excluded, recent sheet pulls, focus cities not set).
-- Tests: node:sqlite shim + signed JWTs.
 
 ## Ask Claude on Territory / Get Zips
 
