@@ -132,7 +132,7 @@ D1 `lead_addrs (k, addr, src, rep, sub, conv, who, at)` (made by the sync; `k` =
 ## Data and API
 
 - D1 (`edge/alerts.sql`): `alerts` (id, kind, ext_id, holder, title, body, sub, opp, contact, conv, due, due_time, cat, recur, verdict, hint, agent, agent_name, addr, prior, quote, done_at, done_by, …), `alert_seen` (seen_at, chime), `alert_marks`. Indexes `alerts_kind` / `alerts_done` (made by the sync), `alerts_opp` (made on first deal-tasks use).
-- `GET /api/alerts` (full list + `mine`, people, names, level) and `?count=1` (counts only). `POST` actions: `add` (`to`, `cat`, `recur`, due, due_time), `done`, `doneMany`, `grade` (leads), `dnc`, `dncMany`, edit / remove / date changes. Writes in `edit_log`; none while viewing as except ticks.
+- `GET /api/alerts` (full list + `mine`, people, names, level) and `?count=1` (counts only). `POST` actions (`plan` in edge/alerts.js): `seen`, `chime`, `add` (`to`, `cat`, `recur`, due, due_time), `done`, `doneMany`, `verdict` (a lead grade), `dnc`, `dncMany`, `due` (change date; not for GHL tasks), `remove`. Writes in `edit_log`; none while viewing as except ticks.
 
 ## Usage (keep it this way)
 
