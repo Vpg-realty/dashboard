@@ -5,7 +5,7 @@
 // the data endpoints use `granted` to let a given page's data through —
 // read-only; editing, grading and money stay with the roles that had them.
 import { refreshPods } from './pods.js';
-import { personAccess, personScope, personFields, foldSuggest } from '../src/shell/access.js';
+import { personAccess, personScope, personFields, personLeadsFrom, foldSuggest } from '../src/shell/access.js';
 
 const TTL = 60_000;
 let cache = { v: null, at: 0 };
@@ -31,7 +31,7 @@ export const forgetAccess = () => { cache = { ...cache, at: 0 }; };
 export async function accessFor(db, user) {
   if (!user || !['manager', 'team', 'trainee', 'tc'].includes(user.role)) return { give: [], take: [], scope: personScope(null, user, []), fields: { give: [], take: [] } };
   const [access, pods] = await Promise.all([loadAccess(db), refreshPods(db)]);
-  return { ...personAccess(access, user, pods), scope: personScope(access, user, pods), fields: personFields(access, user, pods) };
+  return { ...personAccess(access, user, pods), scope: personScope(access, user, pods), fields: personFields(access, user, pods), leadsFrom: personLeadsFrom(access, user) };
 }
 
 // Has this person been given any of these pages (beyond their role)?

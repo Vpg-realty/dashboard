@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
     // D1 takes at most 100 values per query.
     for (let i = 0; i < ids.length; i += 90) {
       const part = ids.slice(i, i + 90);
-      existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, verdict, done_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
+      existing.push(...(await db.prepare(`SELECT id, holder, kind, ext_id, sub, contact, verdict, done_at, created_at FROM alerts WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part).all()).results);
     }
   }
   // An owner's tick on a duplicate covers every pod's copy (owners see one —
@@ -68,7 +68,7 @@ export async function onRequestPost(context) {
     if (groups.length) {
       const have = new Set(list.map((x) => x.id));
       const more = [];
-      for (const g of groups) more.push(...(await db.prepare("SELECT id, holder, kind, ext_id, sub, contact, done_at FROM alerts WHERE kind = 'dupe' AND ext_id LIKE ?").bind(`${g}|%`).all()).results.filter((x) => !have.has(x.id) && dupeGroup(x) === g));
+      for (const g of groups) more.push(...(await db.prepare("SELECT id, holder, kind, ext_id, sub, contact, done_at, created_at FROM alerts WHERE kind = 'dupe' AND ext_id LIKE ?").bind(`${g}|%`).all()).results.filter((x) => !have.has(x.id) && dupeGroup(x) === g));
       if (more.length) {
         existing = [...list, ...more];
         b = { ...b, action: 'doneMany', ids: existing.map((x) => x.id) };

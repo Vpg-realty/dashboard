@@ -8,6 +8,7 @@ import Panel from '../shell/Panel.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { readSetting, writeSetting, settingsUsers } from '../utils/dashApi.js';
 import { usePods } from '../shell/pods.js';
+import { azDate } from '../../scripts/scorecard-lib.mjs';
 import { ACCESS_ROLES, accessPages, roleHas, defaultFor, accessRoleOf, SCOPE_AREAS, SCOPE_LEVELS, roleScope, scopeDefault, FIELD_SETS, roleField, fieldDefault } from '../shell/access.js';
 
 const ROLE_WORD = { podlead: 'Pod Lead', manager: 'Manager', team: 'Rep', trainee: 'Trainee', tc: 'TC' };
@@ -19,8 +20,13 @@ const tidy = (v) => {
     for (const [who, m] of Object.entries(v?.[k] || {})) if (Object.keys(m || {}).length) out[k][who] = m;
     for (const part of ['scope', 'fields']) for (const [who, m] of Object.entries(v?.[part]?.[k] || {})) if (Object.keys(m || {}).length) out[part][k][who] = m;
   }
+  // When a person's wider Leads Spotted view starts — kept only while they
+  // have their own Leads Spotted setting.
+  const from = Object.fromEntries(Object.entries(v?.leadsFrom || {}).filter(([who]) => out.scope.people[who]?.leads));
+  if (Object.keys(from).length) out.leadsFrom = from;
   return out;
 };
+const fmtDay = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const LEVEL_WORD = Object.fromEntries(SCOPE_LEVELS.map((l) => [l.id, l.label]));
 // Mine / My Pod / Everyone as one small switch (Phase 2 — whose data).
 function LevelSwitch({ value, changed, onPick, label, extra }) {
@@ -73,6 +79,7 @@ export default function AccessView() {
       }
     };
     for (const k of ['roles', 'people']) { diff(a[k], b[k]); diff(a.scope[k], b.scope[k]); diff(a.fields[k], b.fields[k]); }
+    for (const who of new Set([...Object.keys(a.leadsFrom || {}), ...Object.keys(b.leadsFrom || {})])) if (a.leadsFrom?.[who] !== b.leadsFrom?.[who]) n++;
     return n;
   })();
   const setRole = (role, page) => setDraft((d) => {
@@ -106,6 +113,13 @@ export default function AccessView() {
     const next = clone(d);
     next.scope ||= {}; next.scope.people ||= {}; next.scope.people[email] ||= {};
     if (lvl === null) delete next.scope.people[email][area]; else next.scope.people[email][area] = lvl;
+    // A wider Leads Spotted view starts fresh on the day it's given (Luke,
+    // Nov 17): other reps' older leads stay out of their list.
+    if (area === 'leads') {
+      next.leadsFrom ||= {};
+      if (lvl === null) delete next.leadsFrom[email];
+      else if (!next.leadsFrom[email]) next.leadsFrom[email] = azDate();
+    }
     return next;
   });
   const people = users.filter((u) => u.status !== 'inactive' && ['manager', 'team', 'trainee', 'tc'].includes(u.role));
@@ -238,7 +252,7 @@ export default function AccessView() {
         {!changedPeople.length && !P && <div className="px-4 py-4 text-[13.5px] text-zinc-500">Nobody has their own changes yet.</div>}
         {changedPeople.map(([email, m, sc, fl]) => {
           const u = byEmail[email];
-          const data = Object.entries(sc).map(([k, v]) => `${areaLabel(k)}: ${LEVEL_WORD[v]}`);
+          const data = Object.entries(sc).map(([k, v]) => `${areaLabel(k)}: ${LEVEL_WORD[v]}${k === 'leads' && td.leadsFrom?.[email] ? ` · from ${fmtDay(td.leadsFrom[email])}` : ''}`);
           const flds = Object.entries(fl).map(([k, v]) => `${v ? '+' : '−'} ${setLabel(k)}`);
           const gives = Object.entries(m).filter(([, v]) => v).map(([k]) => pages.find((p) => p.id === k)?.label || k);
           const takes = Object.entries(m).filter(([, v]) => !v).map(([k]) => pages.find((p) => p.id === k)?.label || k);
@@ -317,7 +331,7 @@ export default function AccessView() {
               return (
                 <div key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-2 border-t border-tan-100">
                   <span className="flex-1 min-w-[180px] text-[14px] font-semibold text-navy-800">{a.label}
-                    <span className={`block text-[12px] font-normal ${own ? 'text-sky-800' : 'text-zinc-500'}`}>{own ? `Set for ${P.name}: ${LEVEL_WORD[own]}` : `From their role: ${LEVEL_WORD[fromRole]}`}</span>
+                    <span className={`block text-[12px] font-normal ${own ? 'text-sky-800' : 'text-zinc-500'}`}>{own ? `Set for ${P.name}: ${LEVEL_WORD[own]}${a.id === 'leads' && draft.leadsFrom?.[P.email] ? ` · other reps' leads from ${fmtDay(draft.leadsFrom[P.email])}` : ''}` : `From their role: ${LEVEL_WORD[fromRole]}`}</span>
                   </span>
                   <LevelSwitch value={own || null} changed={!!own} label={`${P.name} · ${a.label}`} onPick={(l) => setPersonScope(P.email, a.id, l)}
                     extra={<button type="button" aria-pressed={!own} onClick={() => setPersonScope(P.email, a.id, null)} className={`h-7 px-2 rounded-md text-[12px] font-semibold ${!own ? 'bg-navy-700 text-white' : 'text-zinc-600 hover:bg-white'}`}>Role</button>} />

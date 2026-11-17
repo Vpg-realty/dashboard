@@ -99,7 +99,7 @@ PUT `/api/settings/access` (owners; `checkAccess`, `forgetAccess`). A person's v
 
 ### Phase 2 — Whose Data
 
-- Areas `SCOPE_AREAS`: Home, Pipeline · Contracted Deals, Pipeline · Opportunities, Calendar, Alerts · Leads Spotted (spotted + duplicate leads, see and grade), Alerts · Everything Else, Team Scorecard. Levels `SCOPE_LEVELS`: Mine / My Pod (the pod they lead, else the one they're in — `podFor` / `podMates`) / Everyone.
+- Areas `SCOPE_AREAS`: Home, Pipeline · Contracted Deals, Pipeline · Opportunities, Calendar, Alerts · Leads Spotted (spotted + duplicate leads, see and grade; a person's own setting stamps `leadsFrom: { email: date }` in the access row the day it's given — other reps' leads count from then — shown as "from <date>"), Alerts · Everything Else, Team Scorecard. Levels `SCOPE_LEVELS`: Mine / My Pod (the pod they lead, else the one they're in — `podFor` / `podMates`) / Everyone.
 - Defaults `SCOPE_DEFAULT` = the site's behaviour: Contracted Deals everyone; Opportunities / Calendar / both Alerts rows / Home a rep's own, a pod lead's pod, the TC everyone (Alerts: her own tasks); Team Scorecard everyone who has the page.
 - `personScope` → `currentUser.scope` → /api/me `access.scope`; browser reads `scopeLevel(me, area)` / `scopeReps(me, area)` (src/shell/scope.js) on Home, PipelinePage, ScorecardView. Alerts is enforced on the server (`scopeOf` in edge/alerts.js — see docs/alerts.md); the others filter files every teammate already loads.
 
