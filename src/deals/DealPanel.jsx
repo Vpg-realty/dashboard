@@ -635,7 +635,7 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                                 <span className="font-medium">Change the IP end date</span>
                                 {ISO.test(merged.accepted || '') ? (
                                   <input type="date" value={merged.ddEnd || ''} min={merged.accepted} onChange={(e) => { const v = e.target.value; if (ISO.test(v)) setField('ddDays', Math.round((Date.parse(v) - Date.parse(merged.accepted)) / 86_400_000)); }}
-                                    className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-[13px] text-navy-800" />
+                                    className="h-8 rounded-md border border-[#e6ddcc] bg-white px-2 text-[13px] text-navy-800" />
                                 ) : <span className="text-zinc-400">set the contract acceptance date first</span>}
                                 <span className="text-zinc-400">sets the IP days · sent to GHL on save</span>
                               </div>
