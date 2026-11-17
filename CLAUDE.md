@@ -2418,6 +2418,11 @@ From the approved mock-ups (S2 and C1). Overrides older deal panel notes.
   IP end's time zone (AZ / PT / MT / CT / ET under the time; nothing stored =
   the state's zone shown as picked) and Cancellation reason while the list
   has ≤ 5. Table cells keep dropdowns.
+  **Deal type tiles** (Luke, Nov 17 — option A of the canvas): Deal type is
+  a full-width row of all seven types right under Stage (`SWITCH_MAX`
+  dealType 8), then a small "Property & Contract" title over the boxes
+  (address, acq, state, contract acceptance, COE, price, listing, retrade,
+  original price — `groupGrid`'s flatMap adds the title).
   **Tan boxes** (Luke, Nov 17: "the tan or beige surround … right now it is
   grey"): every input, switch, dropdown and time picker in the deals pages
   has the proposal's tan border `#e6ddcc` (hover tan-300) instead of grey —
