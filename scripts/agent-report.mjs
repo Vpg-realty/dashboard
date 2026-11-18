@@ -176,6 +176,9 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
         if (!messages.length && contacts.length > 50) throw new Error(`no messages came back for ${contacts.length} contacts`);
         const r = lowResponseLocation({ ...data, label: labels[loc] || loc });
         const CH = 350; const parts = Math.ceil(r.rows.length / CH);
+        // A rerun replaces the sub-account's list: clear the old pieces first
+        // (the page reads every piece of a sub-account).
+        await d1('DELETE FROM settings WHERE key LIKE ?', [`${key}:${loc}:%`]);
         for (let i = 0; i < parts; i++) await put(`${key}:${loc}:${i}`, r.rows.slice(i * CH, (i + 1) * CH));
         await put(`${key}:${loc}`, { label: r.label, count: r.count, rows: r.rows.length, parts, messages: messages.length, cols: ROW_COLS, at: new Date().toISOString() });
         st.done.push(loc); delete st.errors[loc];
