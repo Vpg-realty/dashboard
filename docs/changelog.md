@@ -4,6 +4,9 @@ One dated line per change, newest first: date — area: what changed (who
 asked). Before Nov 17, 2026 the record is the running notes in
 docs/history.md.
 
+- Nov 18, 2026 — Platform / counts: sub-account hand-offs keep earlier
+  offers / contracts / opps with the rep who did them; Nov 17 hand-offs
+  replayed (Sam's TN offer back to Sam) (Luke).
 - Nov 17, 2026 — Alerts: a wider Leads Spotted view starts on the day it's
   given; Spencer starts fresh from Nov 17 (Luke).
 - Nov 17, 2026 — Settings › Access / Alerts: Whose Data's Alerts row split

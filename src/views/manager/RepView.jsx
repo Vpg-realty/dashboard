@@ -157,7 +157,9 @@ export default function RepView({ repId, onPickRep, onBack, withTeam, self, brea
   const frozenWk = range?.kind === 'week' ? sc.weeks[range.from]?.reps?.[rep.id] : null;
   const speed = !range ? { ok: m.speedOk, total: m.speedTotal } : { ok: frozenWk?.speedOk ?? null, total: frozenWk?.speedTotal ?? null };
   const speedSub = range && !frozenWk ? 'week not on record' : range && range.from < SPEED_FROM ? 'not in the score before Oct 12' : `target ${Math.round(SPEED_TARGET * 100)}% · a CRM item`;
-  const markets = rep.markets.map((id) => ({
+  // Plus a state handed to someone else this month (its earlier work stays
+  // the rep's — server/stickyCounts.js hand-offs).
+  const markets = [...new Set([...rep.markets, ...pairs.filter((p) => p.handedOff).map((p) => p.marketId)])].map((id) => ({
     id, name: MARKETS.find((x) => x.id === id)?.name || id,
     m: (() => {
       const mm = range ? rangeMetrics(history, rep.id, id, range) || none : metrics(pairs.filter((p) => p.marketId === id));

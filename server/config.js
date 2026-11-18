@@ -46,6 +46,15 @@ export const MANUAL_CONTRACTS = manualContracts;
 // repo is public).
 export const MANUAL_OFFERS = [1, 2, 3].map((n) => ({ rep: 'danni_brown', mkt: 'AZ', id: `manual-offer:danni_brown:2026-11-02:${n}`, at: '2026-11-02T19:00:00Z' }));
 
+// Hand-offs made before the hand-off rule shipped (server/stickyCounts.js,
+// Luke Nov 18): Settings › Sub-Accounts saved these at 12:12 PM Arizona on
+// Nov 17 — the work logged before then goes back to the rep who did it.
+export const HANDOFF_SEEDS = [
+  { loc: 'LptMkyGQ5oJrf1ZgdWwV', from: 'sam_mackenzie', to: 'wilson', at: '2026-11-17T19:12:52Z' },
+  { loc: '9qFG0hfeVy6kaSL28RMd', from: 'anthony', to: 'brandon', at: '2026-11-17T19:12:52Z' },
+  { loc: 'eEX8JLPz2SRzGXWuRWm7', from: 'spencer_brown', to: 'danni_brown', at: '2026-11-17T19:12:52Z' },
+];
+
 // Stage names → canonical stage keys used by the dashboard.
 // Fuzzy-matched at runtime so minor name drift in GHL doesn't break the board.
 export const STAGE_ALIASES = {

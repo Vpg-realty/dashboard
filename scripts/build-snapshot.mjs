@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { buildSnapshot, parseTokens, countConfigured } from '../server/snapshot.js';
 import { applyStickyCounts } from '../server/stickyCounts.js';
-import { EXCLUDED_OPP_IDS, MANUAL_CANCELS, MANUAL_CONTRACTS, MANUAL_OFFERS } from '../server/config.js';
+import { EXCLUDED_OPP_IDS, MANUAL_CANCELS, MANUAL_CONTRACTS, MANUAL_OFFERS, HANDOFF_SEEDS, SUBACCOUNTS } from '../server/config.js';
 import { keepCallsMonotonic } from '../server/calls.js';
 import { fetchState } from './state-source.mjs';
 
@@ -176,7 +176,7 @@ const snapshot = await buildSnapshot({ tokens, prevPairs: prev?.pairs || [] });
 }
 
 const prevOppState = await loadPrevOppState();
-const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date(), excluded: EXCLUDED_OPP_IDS, manualCancels: MANUAL_CANCELS, manualContracts: MANUAL_CONTRACTS, manualOffers: MANUAL_OFFERS });
+const sticky = applyStickyCounts({ pairs: snapshot.pairs, prevState: prevOppState, now: new Date(), excluded: EXCLUDED_OPP_IDS, manualCancels: MANUAL_CANCELS, manualContracts: MANUAL_CONTRACTS, manualOffers: MANUAL_OFFERS, locOf: Object.fromEntries(SUBACCOUNTS.map((x) => [`${x.repId}|${x.marketId}`, x.locationId])), seeds: HANDOFF_SEEDS });
 snapshot.pairs = sticky.pairs;
 fs.mkdirSync(path.dirname(STATE_OUT), { recursive: true });
 fs.writeFileSync(STATE_OUT, JSON.stringify(sticky.state));
