@@ -23,6 +23,8 @@
 //     live behaviour, so this can't regress.
 //   - Counts become fully accurate once a complete period of runs has accrued.
 
+import { emptyPair } from './aggregate.js';
+
 const OFFER_RANK = 3; // offer_submitted — see STAGE_RANK in aggregate.js
 const UC_RANK = 5;    // under_contract
 const CLOSED_RANK = 8;
@@ -48,6 +50,16 @@ function monthKey(now) {
 
 const pairKey = (p) => `${p.repId}|${p.marketId}`;
 
+// Hand-offs (Luke, Nov 18: Sam's Tennessee offer went to Wilson when the
+// sub-account was handed over the same day). Work logged before a sub-account
+// changes hands stays with the rep who did it for that week / month: their
+// old pair lives on as a "ghost" (counts only — opps opened, offers,
+// contracts, cancels — no deals) until the month is over, and the new owner's
+// counts start at the hand-off. A hand-off is seen when a pair key appears
+// whose sub-account (`loc`) was under another rep on the last run; `at` = the
+// old pair's last pull. `seeds` (server/config.js HANDOFF_SEEDS) replay a
+// hand-off that happened before this rule shipped.
+
 // Pure. Takes the fresh snapshot pairs (each carrying _oppRanks), the previous
 // run's persisted state, and now; returns { pairs (sticky, _oppRanks stripped),
 // state (to persist for the next run) }.
@@ -64,7 +76,7 @@ function periodStartsMs(now) {
 // this week / month are taken back once (it reached the contract band at
 // `started`, so that crossing — and the offer one, which happens at or
 // before it — counted in any period that began before then).
-export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [], manualContracts = [], manualOffers = [] }) {
+export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded = new Set(), manualCancels = [], manualContracts = [], manualOffers = [], locOf = {}, seeds = [] }) {
   const { weekMs, monthMs } = periodStartsMs(now);
   // Cancellations are kept from the start of last month.
   const lm = new Date(monthMs); lm.setMonth(lm.getMonth() - 1);
@@ -85,6 +97,9 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
 
   const newPairs = [];
   const statePairs = {};
+  const currentKeys = new Set(pairs.map(pairKey));
+  // Ghosts made this run: { key, from, to, at, entry }.
+  const ghostsNew = [];
 
   for (const p of pairs) {
     const key = pairKey(p);
@@ -111,7 +126,38 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
     const currMap = {};
     for (const o of curr) currMap[o.id] = o.r;
 
-    const prev = prevState?.pairs?.[key];
+    let prev = prevState?.pairs?.[key];
+    if (prev?.ghost) prev = null; // the old owner got it back — start over
+    const loc = locOf[key] || prev?.loc || null;
+    let handoffAt = prev?.handoffAt || null;
+    if (!prev && prevState?.pairs) {
+      // A sub-account under another rep on the last run = a hand-off.
+      const orphan = Object.entries(prevState.pairs).find(([k, e]) => k !== key && !currentKeys.has(k) && !e.ghost
+        && (loc && e.loc ? e.loc === loc : k.split('|')[1] === p.marketId));
+      if (orphan) {
+        const [okey, e] = orphan;
+        handoffAt = e.at || now.getTime();
+        ghostsNew.push({ key: okey, to: p.repId, at: handoffAt, entry: e });
+        // Keep the sub-account's history (no re-seeding, no repeat banners);
+        // the counts start fresh below.
+        prev = { at: e.at, ranks: e.ranks, started: e.started, cancelled: {}, manualAdded: {}, offerIds: {}, contractIds: {}, openedIds: {}, offersWeek: 0, offersMonth: 0, contractsWeek: 0, contractsMonth: 0 };
+      }
+    }
+    // A hand-off from before this rule (replayed once from `seeds`): split
+    // what this pair already counted at the hand-off time.
+    const seed = !handoffAt && prev ? seeds.find((x) => x.loc === loc && x.to === p.repId && !prevState?.pairs?.[`${x.from}|${p.marketId}`]) : null;
+    if (seed && Date.parse(seed.at) >= keepFromMs) {
+      const H = Date.parse(seed.at);
+      const before = (m, f = (v) => v) => Object.fromEntries(Object.entries(m || {}).filter(([, v]) => f(v) < H));
+      const cancelledBefore = Object.fromEntries(Object.entries(prev.cancelled || {}).filter(([, c]) => c.at < H));
+      const g = { offerIds: before(prev.offerIds), contractIds: before(prev.contractIds), openedIds: before(prev.openedIds), cancelled: cancelledBefore };
+      g.offersWeek = countIn(g.offerIds, weekMs); g.offersMonth = countIn(g.offerIds, monthMs);
+      g.contractsWeek = countIn(g.contractIds, weekMs); g.contractsMonth = countIn(g.contractIds, monthMs);
+      ghostsNew.push({ key: `${seed.from}|${p.marketId}`, to: p.repId, at: H, entry: g });
+      handoffAt = H;
+      prev = { ...prev, cancelled: Object.fromEntries(Object.entries(prev.cancelled || {}).filter(([, c]) => c.at >= H)) };
+    }
+    if (handoffAt && handoffAt < keepFromMs) handoffAt = null;
     const prevRanks = prev?.ranks || null;
 
     // Instantaneous breadcrumb counts from aggregate.js — the seeds / floor.
@@ -334,11 +380,54 @@ export function applyStickyCounts({ pairs, prevState, now = new Date(), excluded
       contractsMonth = Math.min(contractsMonth, room(monthMs) + capContracts.manualM);
     }
 
+    // Handed over in the period: the new owner counts only from the hand-off
+    // (what came before is the old owner's ghost).
+    let openedW = oppsOpenedWeek, openedM = oppsOpenedMonth, cancelOut = cancelList, cancW = cancelsWeek, cancM = cancelsMonth;
+    if (handoffAt) {
+      for (const m of [offerIds, contractIds, openedIds]) for (const [id, t] of Object.entries(m)) if (t < handoffAt) delete m[id];
+      for (const [id, c] of Object.entries(cancelled)) if (c.at < handoffAt) delete cancelled[id];
+      const manualIn = (from) => manualContracts.filter((mc) => `${mc.rep}|${mc.mkt}` === key && Date.parse(mc.at) >= Math.max(from, handoffAt)).length;
+      offersWeek = countIn(offerIds, weekMs); offersMonth = countIn(offerIds, monthMs);
+      contractsWeek = countIn(contractIds, weekMs) + manualIn(weekMs); contractsMonth = countIn(contractIds, monthMs) + manualIn(monthMs);
+      openedW = countIn(openedIds, weekMs); openedM = countIn(openedIds, monthMs);
+      cancelOut = cancelList.filter((c) => c.at >= handoffAt);
+      cancW = cancelOut.filter((c) => c.at >= weekMs).length; cancM = cancelOut.filter((c) => c.at >= monthMs).length;
+    }
+
     // Strip the internal per-opp lists — they must never reach the browser.
     // eslint-disable-next-line no-unused-vars
     const { _oppRanks, _lost, ...clean } = p;
-    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), oppsOpenedWeek, oppsOpenedMonth, offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek, cancelsMonth, cancels: cancelList });
-    statePairs[key] = { at: now.getTime(), ranks: currMap, started, cancelled, manualAdded, offerIds, contractIds, openedIds, offersWeek, offersMonth, contractsWeek, contractsMonth };
+    newPairs.push({ ...clean, ...(p.deals ? { deals } : {}), oppsOpenedWeek: openedW, oppsOpenedMonth: openedM, offersWeek, offersMonth, contractsWeek, contractsMonth, cancelsWeek: cancW, cancelsMonth: cancM, cancels: cancelOut });
+    statePairs[key] = { at: now.getTime(), ...(loc ? { loc } : {}), ...(handoffAt ? { handoffAt } : {}), ranks: currMap, started, cancelled, manualAdded, offerIds, contractIds, openedIds, offersWeek, offersMonth, contractsWeek, contractsMonth };
+  }
+
+  // Ghosts: made this run, or carried from the last one (key no longer a live
+  // pair). Counts reset with the week / month; dropped once nothing is left.
+  const ghosts = [...ghostsNew.map((g) => ({ ...g, fresh: true })),
+    ...Object.entries(prevState?.pairs || {}).filter(([k, e]) => e.ghost && !currentKeys.has(k) && !ghostsNew.some((g) => g.key === k)).map(([k, e]) => ({ key: k, to: e.to, at: e.at, entry: e }))];
+  for (const g of ghosts) {
+    const e = g.entry;
+    const [repId, marketId] = g.key.split('|');
+    const w = (n) => (weekReset ? 0 : n || 0);
+    const m = (n) => (monthReset ? 0 : n || 0);
+    const offerIds = keepIds(e.offerIds), contractIds = keepIds(e.contractIds), openedIds = keepIds(e.openedIds);
+    const cancels = Object.entries(e.cancelled || {}).map(([id, c]) => ({ id, ...c })).filter((c) => c.at >= keepFromMs).sort((a, b) => a.at - b.at);
+    const entry = {
+      ghost: true, to: g.to, at: g.at, offerIds, contractIds, openedIds,
+      cancelled: Object.fromEntries(cancels.map(({ id, ...c }) => [id, c])),
+      offersWeek: Math.max(w(e.offersWeek), countIn(offerIds, weekMs)), offersMonth: Math.max(m(e.offersMonth), countIn(offerIds, monthMs)),
+      contractsWeek: Math.max(w(e.contractsWeek), countIn(contractIds, weekMs)), contractsMonth: Math.max(m(e.contractsMonth), countIn(contractIds, monthMs)),
+    };
+    const pub = {
+      ...emptyPair(repId, marketId), handedOff: { to: g.to, at: new Date(g.at).toISOString() },
+      oppsOpenedWeek: countIn(openedIds, weekMs), oppsOpenedMonth: countIn(openedIds, monthMs),
+      offersWeek: entry.offersWeek, offersMonth: entry.offersMonth, contractsWeek: entry.contractsWeek, contractsMonth: entry.contractsMonth,
+      cancelsWeek: cancels.filter((c) => c.at >= weekMs).length, cancelsMonth: cancels.filter((c) => c.at >= monthMs).length, cancels,
+    };
+    const anything = pub.oppsOpenedMonth || pub.offersMonth || pub.contractsMonth || pub.cancelsMonth || pub.oppsOpenedWeek || pub.offersWeek || pub.contractsWeek;
+    if (!anything) continue;
+    newPairs.push(pub);
+    statePairs[g.key] = entry;
   }
 
   return {
