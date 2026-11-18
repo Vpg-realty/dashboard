@@ -623,3 +623,74 @@ export function closersLocation({ contacts, opps, messages, label, repNames = []
   }
   return { label, rows };
 }
+
+// Reply rate by automated text in a row (Luke, Nov 18: "for agents who have
+// replied at least once, what % reply to the 1st, 2nd, 3rd, 4th, 5th and 6th
+// automated text in a row since their last reply? Split by reply level (1, 2,
+// 3–5, 6+). Use the same reply rules"). All message history.
+//   reply level  the agent's reply rounds before that text (`replyRounds`
+//                rules: a new round only after we send something; texts,
+//                emails and any call from them; auto-replies, tapbacks and
+//                bare stop words left out) — all history, not cut at a lead
+//   automated    an outbound text (SMS) not typed by a person; texts within
+//                30 min of the previous automated text are one send
+//   in a row     the 1st, 2nd … automated send since the agent's last reply;
+//                typed texts and calls from us neither count nor reset it
+//                (as on the low-response list); a reply starts over at 1
+//   replied      a real reply (`realReply`) within 3 days and before the next
+//                automated send; same day = within 24 h; a stop request first
+//                = STOP, not a reply
+// cells[level][pos - 1] = [sent, replied, same day, stop]; pos 10 = 10+.
+export const STREAK_LEVELS = ['1', '2', '3-5', '6+'];
+export const STREAK_MAX = 10;
+const levelOf = (n) => (n <= 2 ? String(n) : n <= 5 ? '3-5' : '6+');
+const isText = (m) => /SMS/i.test(m.messageType || 'SMS') && !isCall(m);
+export function streaksLocation({ contacts, messages, label }) {
+  const byContact = new Map();
+  for (const m of messages) {
+    if (!m.contactId) continue;
+    if (!byContact.has(m.contactId)) byContact.set(m.contactId, []);
+    byContact.get(m.contactId).push(m);
+  }
+  const cells = Object.fromEntries(STREAK_LEVELS.map((l) => [l, Array.from({ length: STREAK_MAX }, () => [0, 0, 0, 0])]));
+  let agents = 0;
+  const isAutoText = (m) => m.direction === 'outbound' && isText(m) && !isManual(m) && !!m.body;
+  for (const c of contacts) {
+    const tags = (c.tags || []).map((t) => String(t).toLowerCase());
+    if (!tags.some((t) => AGENT_TAG.test(t))) continue;
+    const msgs = (byContact.get(c.id) || []).sort((a, b) => Date.parse(a.dateAdded) - Date.parse(b.dateAdded));
+    let rounds = 0; let inRun = false; let streak = 0; let prevAuto = 0; let counted = false;
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      const at = Date.parse(m.dateAdded);
+      if (m.direction === 'inbound') {
+        const body = m.body || '';
+        const skip = /SMS|text/i.test(m.messageType || 'SMS') && body && (isAutoReply(body) || isGhlStop(body) || isTapback(body));
+        if (!skip && !inRun) { rounds++; inRun = true; }
+        if (realReply(m)) streak = 0;
+        continue;
+      }
+      if (m.direction !== 'outbound') continue;
+      inRun = false;
+      if (!isAutoText(m)) continue;
+      const starts = at - prevAuto > 30 * 60_000;
+      prevAuto = at;
+      if (!starts || rounds < 1) continue;
+      streak++;
+      if (!counted) { agents++; counted = true; }
+      let reply = null; let stop = false;
+      for (let j = i + 1; j < msgs.length; j++) {
+        const x = msgs[j]; const t = Date.parse(x.dateAdded);
+        if (t - at > 3 * DAY) break;
+        if (isAutoText(x) && t - at > 30 * 60_000) break; // the next send takes over
+        if (isStop(x)) { stop = true; break; }
+        if (realReply(x)) { reply = t; break; }
+      }
+      const cell = cells[levelOf(rounds)][Math.min(streak, STREAK_MAX) - 1];
+      cell[0]++;
+      if (reply != null) { cell[1]++; if (reply - at <= DAY) cell[2]++; }
+      if (stop) cell[3]++;
+    }
+  }
+  return { label, agents, cells, messages: messages.length, at: new Date().toISOString() };
+}

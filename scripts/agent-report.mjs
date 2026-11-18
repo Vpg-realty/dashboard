@@ -9,7 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import { ghlFetch } from '../server/ghl.js';
 import { tokensFrom } from '../edge/alertsSync.js';
-import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, textsLocation, closersLocation, CLOSER_COLS, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
+import { analyzeLocation, timingLocation, listsLocation, lowResponseLocation, textsLocation, closersLocation, streaksLocation, CLOSER_COLS, ROW_COLS, totalOf, REPORT_VERSION } from '../server/agentReport.js';
 import { MARKET_TZ } from '../server/messaging.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -86,6 +86,10 @@ const JOBS = [
   // back with deals (Luke, Nov 10) — all history. Rows in chunks
   // (agent_closers:<location>:<n>), the index in agent_closers:<location>.
   { key: 'agent_closers', since: 0, kind: 'closers' },
+  // Reply rate by automated text in a row since the last reply, by reply
+  // level (Luke, Nov 18) — all history, one small row per sub-account
+  // (agent_streaks:<location>).
+  { key: 'agent_streaks', since: 0, kind: 'streaks' },
 ];
 
 async function main() {
@@ -157,6 +161,15 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
         await save();
         continue;
       }
+      if (kind === 'streaks') {
+        if (!messages.length && contacts.length > 50) throw new Error(`no messages came back for ${contacts.length} contacts`);
+        const r = streaksLocation({ ...data, label: labels[loc] || loc });
+        await put(`${key}:${loc}`, r);
+        st.done.push(loc); delete st.errors[loc];
+        log(`${key} ${r.label}: ${r.agents} agents`);
+        await save();
+        continue;
+      }
       if (kind === 'lowresp') {
         // A sub-account with agents but no message history is a failed
         // export, not an empty list — retried on the next run (3 tries).
@@ -184,7 +197,7 @@ async function runJob({ key, since, kind, also, from }, d1, secrets) {
     }
     await save();
   }
-  if ((kind === 'lists' || kind === 'lowresp' || kind === 'texts' || kind === 'closers') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
+  if ((kind === 'lists' || kind === 'lowresp' || kind === 'texts' || kind === 'closers' || kind === 'streaks') && locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {
     st.finished = new Date().toISOString(); await save(); log(`${key} finished`); return;
   }
   if (locs.every((l) => st.done.includes(l) || (st.errors[l]?.tries || 0) >= 3)) {

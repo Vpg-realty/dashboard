@@ -94,3 +94,8 @@ Luke's confirmed rules (`server/agentPause.js`): in an automation now (nurture /
 
 - DNC alerts can also add "internal - do not automate" (Stop Automations answer) — see docs/alerts.md.
 - The `ghl_push` queue, push-ghl.mjs and `ghl_push.lastError` — docs/platform.md.
+
+## Reply rate by automated text in a row (Luke, Nov 18)
+
+One-off job `agent_streaks` (`streaksLocation`, server/agentReport.js; all message history; one row per sub-account `agent_streaks:<location>` = `{label, agents, cells, messages}`). For agents who have replied at least once: `cells[level][pos-1] = [sent, replied, same day, stop]`, level = reply rounds before that text (1 / 2 / 3-5 / 6+, the reply rules above, all history — not cut at a lead), pos = the 1st, 2nd … automated text (SMS not typed by a person; within 30 min of the previous automated text = one send) since their last reply, 10 = 10+. Typed texts and calls from us neither count nor reset the run; a real reply starts over. Replied = a real reply within 3 days and before the next automated send; same day = 24 h; a stop request first = STOP. Read once by Claude into a table for Luke.
+

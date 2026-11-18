@@ -4,6 +4,8 @@ One dated line per change, newest first: date — area: what changed (who
 asked). Before Nov 17, 2026 the record is the running notes in
 docs/history.md.
 
+- Nov 18, 2026 — Agent follow-up: one-off job for reply % by automated text
+  in a row since the last reply, by reply level (Luke).
 - Nov 18, 2026 — Agent follow-up: the reply rules written down as the one
   definition for any reply-based tags (Luke).
 - Nov 18, 2026 — Platform / counts: sub-account hand-offs keep earlier
