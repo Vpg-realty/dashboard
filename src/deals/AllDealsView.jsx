@@ -182,7 +182,11 @@ export default function AllDealsView() {
   const cols = keys.filter((k) => k !== 'ghlStage').map((k) => F[k]).filter((f) => (s.fields ? s.fields.includes(f.key) : s.owner || !f.secret));
 
   const ghl = useMemo(() => ghlDeals(), [s.deals]); // eslint-disable-line react-hooks/exhaustive-deps
-  const withNeed = useMemo(() => s.deals.map((d) => ({ ...d, _need: missingKeys(d, who, today) })), [s.deals, who, today]);
+  // Reps and managers (Luke, Nov 19): only the deals they're on — a pod lead
+  // also their pod's — read only. The server marks them `mine` / `pod`.
+  const repView = s.deals.some((d) => 'mine' in d);
+  const base = useMemo(() => (repView ? s.deals.filter((d) => d.mine || d.pod) : s.deals), [s.deals, repView]);
+  const withNeed = useMemo(() => base.map((d) => ({ ...d, _need: missingKeys(d, who, today) })), [base, who, today]);
   const byId = useMemo(() => new Map(withNeed.map((d) => [d.id, d])), [withNeed]);
   const sorted = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -254,7 +258,7 @@ export default function AllDealsView() {
   }, [needOnly]);
   const past = useMemo(() => ({ buyer: pastValues(s.raw, 'buyer'), title: pastValues(s.raw, 'title') }), [s.raw]);
   if (s.status !== 'ready' && s.status !== 'refreshing') return <Loading s={s} />;
-  const opts = (k) => [...new Set(s.deals.map((d) => d[k]).filter(Boolean))].sort();
+  const opts = (k) => [...new Set(base.map((d) => d[k]).filter(Boolean))].sort();
   const total = (f) => (f.type === 'money' && !['price', 'asking', 'vpgAssign', 'finalAssign'].includes(f.key) ? rows.reduce((t, d) => t + (typeof d[f.key] === 'number' && !(NEEDS_BUYER.has(f.key) && noBuyer(d)) ? d[f.key] : 0), 0) : null);
   const toggleGroup = (g) => {
     const next = groups.includes(g) ? groups.filter((x) => x !== g) : [...groups, g];
@@ -340,7 +344,7 @@ export default function AllDealsView() {
         {!s.readOnly && <button onClick={() => openNew({ status: 'UNDER_CONTRACT', dealType: 'WHOLESALE' })} className={primaryCls}>+ New deal</button>}
       </>} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <PeriodBar deals={s.deals} defaultKey="y:2026" showCompare={false} />
+        <PeriodBar deals={base} defaultKey="y:2026" showCompare={false} />
         <span className="w-px h-5 bg-zinc-200 mx-0.5" />
         <span className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-0.5" role="group" aria-label="Stage">
           {STATUS_KEYS.map((x) => {

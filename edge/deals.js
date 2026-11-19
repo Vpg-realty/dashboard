@@ -15,6 +15,7 @@ import { FIELD, FIELDS, SECRET_KEYS, BOOKS_KEYS, STATUS_KEYS, forTc, forRep, rep
 import { ZONE_KEYS } from '../src/deals/ddTime.js';
 import { isTimelines } from '../src/deals/rules.js';
 import { withPeopleNames } from './subChanges.js';
+import { getPods } from './pods.js';
 
 import roster from '../subaccounts.json' with { type: 'json' };
 
@@ -74,12 +75,26 @@ const repName = (u) => roster.reps.find((r) => r.id === u?.rep_id)?.name || null
 // May this person see this deal? Owners / the TC: all; reps: open ones
 // (Pending or Assigned — math.js isOpen).
 export function canSeeDeal(u, deal) {
-  return !isRepView(u) || isOpen(deal);
+  // Reps / managers: every open deal, plus any deal of theirs — and a pod
+  // lead's pod's — at any stage (Luke, Nov 19: closed deals opened as a bare
+  // GHL view).
+  return !isRepView(u) || isOpen(deal) || isMine(u, deal) || inPod(u, deal);
 }
 // Is the deal one of theirs (acq. manager or dispo member)? For "Only mine".
 export function isMine(u, deal) {
   const n = String(repName(u) || '').toLowerCase();
   return !!n && [deal.acq, deal.dispoMember].some((x) => String(x || '').trim().toLowerCase() === n);
+}
+
+// A pod lead's pod: a deal whose acq. manager or dispo member is one of
+// their reps (Settings › Team pod leads; getPods is refreshed by the deals
+// endpoints).
+export function inPod(u, deal) {
+  if (!u?.rep_id) return false;
+  const pod = getPods().find((p) => p.lead === u.rep_id);
+  if (!pod) return false;
+  const names = new Set(pod.reps.map((id) => String(roster.reps.find((r) => r.id === id)?.name || '').toLowerCase()).filter(Boolean));
+  return [deal.acq, deal.dispoMember].some((x) => names.has(String(x || '').trim().toLowerCase()));
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -174,7 +189,7 @@ export async function cancelTimes(db) {
 // What this person may receive.
 export function shape(deal, user) {
   if (isOwner(user)) return deal;
-  const d = isRepView(user) ? { ...forRep(deal), mine: isMine(user, deal) } : forTc(deal);
+  const d = isRepView(user) ? { ...forRep(deal), mine: isMine(user, deal), pod: inPod(user, deal) } : forTc(deal);
   // Settings › Access, Phase 3 (Nov 3): field sets given / taken for this
   // person — read only. Commissions and profit never (not in FIELD_SETS).
   const fs = user?.fieldSets;

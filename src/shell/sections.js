@@ -84,11 +84,13 @@ export const SECTIONS = [
     // sees everything except commission and profit — enforced server-side).
     // Owners and the TC only since Oct 19 (Luke's site map; reps and managers
     // had Active read-only from Oct 14 — their deals are on Pipeline / Calendar).
-    head: 'Deals & Money', id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc'],
+    head: 'Deals & Money', id: 'deals', label: 'Deals', icon: 'deals', roles: ['owner', 'tc', 'team', 'manager'],
     tabs: [
-      { id: 'active', label: 'Active', view: 'deals-active', scroll: true },
-      // Order: Active, All Deals, TC List, Map (Luke, Oct 20).
-      { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc'] },
+      { id: 'active', label: 'Active', view: 'deals-active', scroll: true, roles: ['owner', 'tc'] },
+      // Order: Active, All Deals, TC List, Map (Luke, Oct 20). Reps and
+      // managers get All Deals only — their own deals (a pod lead also their
+      // pod's), read only (Luke, Nov 19).
+      { id: 'all', label: 'All Deals', view: 'deals-all', phone: DESK, roles: ['owner', 'tc', 'team', 'manager'] },
       { id: 'tc', label: 'TC List', view: 'deals-tc', scroll: true, roles: ['owner', 'tc'] },
       // Where the sheet and GHL disagree, with Update GHL / Update site (Luke, Nov 4).
       { id: 'sync', label: 'GHL Sync Review', view: 'deals-sync', scroll: true, roles: ['owner', 'tc'] },

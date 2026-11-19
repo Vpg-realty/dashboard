@@ -4,6 +4,8 @@ import StageChip from '../shell/StageChip.jsx';
 import { money, shortDate, primaryCls } from './format.js';
 import { CoeChip } from './ui.jsx';
 import MismatchList from './Mismatch.jsx';
+import { STAGE_STATUS } from './math.js';
+import { stageKey } from '../shell/stages.js';
 import { mismatchRow } from './mismatchRow.js';
 import CloseButton from '../shell/CloseButton';
 
@@ -38,7 +40,10 @@ export default function GhlPanel({ g, canAdd, onAdd, onClose, loading, ended }) 
               </div>
             ))}
           </div>
-          {ended ? (
+          {ended && STAGE_STATUS[stageKey(g.stage)] === String(ended).toUpperCase() ? (
+            // Finished in both — nothing to fix (Luke, Nov 19: it said "Move it to Closed in GHL" on a closed deal).
+            <div className="rounded-xl border border-tan-200 bg-white px-4 py-3.5 text-zinc-600">{String(ended).toUpperCase() === 'COMPLETE' ? 'Closed' : 'Cancelled'} in the deal tracker and in GHL. Only the people on this deal, their pod lead and the owners open its full details.</div>
+          ) : ended ? (
             // Luke, Oct 16 (10869 Waltman): finished in the tracker, still open in GHL.
             <MismatchList rows={[mismatchRow({ key: 'status', tracker: ended, stage: g.stage })]} />
           ) : (
