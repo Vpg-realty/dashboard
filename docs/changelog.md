@@ -4,6 +4,10 @@ One dated line per change, newest first: date — area: what changed (who
 asked). Before Nov 17, 2026 the record is the running notes in
 docs/history.md.
 
+- Nov 19, 2026 — Deals: reps and managers get All Deals (their own deals, a
+  pod lead's pod's too, read only) and can open their own closed / cancelled
+  deals; the GHL panel no longer says "move it to Closed" when both agree
+  (Luke).
 - Nov 18, 2026 — Agent follow-up: Low-Response Agents list rerun (Luke).
 - Nov 18, 2026 — Agent follow-up: one-off job for reply % by automated text
   in a row since the last reply, by reply level (Luke).
