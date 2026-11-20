@@ -4,6 +4,8 @@ One dated line per change, newest first: date — area: what changed (who
 asked). Before Nov 17, 2026 the record is the running notes in
 docs/history.md.
 
+- Nov 20, 2026 — Deals: reps and managers see the deal panel in the editors'
+  boxes and switches, locked, instead of plain text (Luke).
 - Nov 19, 2026 — Deals: reps and managers get All Deals (their own deals, a
   pod lead's pod's too, read only) and can open their own closed / cancelled
   deals; the GHL panel no longer says "move it to Closed" when both agree

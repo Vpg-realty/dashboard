@@ -680,6 +680,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                             </div>
                           ) : f.key === 'links' && ro ? (
                             <LinkList value={value} address={merged.address} />
+                          ) : ro && !locked && f.key !== 'notes' && f.key !== 'title' && fro(f.key) ? (
+                            // View only (Luke, Nov 19): the same boxes and switches, locked.
+                            <Input f={f} view lists={s.lists} deal={merged} value={value} onChange={() => {}} />
                           ) : fro(f.key) || locked ? (
                             <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'} tabular-nums`}>{text(value)}</div>
                           ) : (
@@ -735,7 +738,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                     <Switch value={na ? null : on ? 'Y' : 'N'} disabled={na} clearable={false} label={`${label} EMD paid?`}
                       options={[{ value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]}
                       onChange={(x) => setField('emdPaidBy', combine(side === 'vpg' ? x === 'Y' : vpg, side === 'buyer' ? x === 'Y' : buyer))} />
-                  ) : <div className={`${ro ? 'text-[14.5px] font-semibold text-navy-900' : 'min-h-8 flex items-center text-[14px] font-medium text-zinc-500'}`}>{na ? 'N/A · no EMD' : on ? 'Yes' : 'No'}</div>}
+                  ) : ro ? (
+                    <Switch view value={na ? null : on ? 'Y' : 'N'} label={`${label} EMD paid?`} options={[{ value: 'Y', label: 'Yes' }, { value: 'N', label: 'No' }]} onChange={() => {}} />
+                  ) : <div className="min-h-8 flex items-center text-[14px] font-medium text-zinc-500">{na ? 'N/A · no EMD' : on ? 'Yes' : 'No'}</div>}
                 </div>
                 {keys(ks)}
               </div>

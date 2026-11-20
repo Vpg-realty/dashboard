@@ -88,12 +88,12 @@ function NumberInput({ f, value, onChange, base, autoFocus, disabled }) {
 }
 
 // End time: a time picker; older free text it can't read stays visible.
-function TimeInput({ value, onChange, autoFocus, disabled, deal }) {
+function TimeInput({ value, onChange, autoFocus, disabled, deal, view }) {
   const p = parseEndTime(value, deal?.state);
   const unread = value && !p.time;
   return (
     <div className="flex flex-col gap-1">
-      <TimePicker value={p.time || null} onChange={(t) => onChange(t || null)} autoFocus={autoFocus} disabled={disabled} />
+      <TimePicker value={p.time || null} onChange={(t) => onChange(t || null)} autoFocus={autoFocus} disabled={disabled} view={view} />
       {value && value !== p.time && (
         <span className="text-[11.5px] text-zinc-500">{unread ? 'Typed in the sheet (not read):' : 'From the sheet:'} “{value}”</span>
       )}
@@ -102,18 +102,22 @@ function TimeInput({ value, onChange, autoFocus, disabled, deal }) {
 }
 
 const BASE = 'w-full h-8 rounded-md border border-[#e6ddcc] bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 hover:border-tan-300 focus:outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-200 disabled:bg-zinc-50 disabled:text-zinc-500';
+// View only (Luke, Nov 19: reps see the same boxes and switches, locked): no
+// greyed look, no hover, the normal text colour.
+const VIEW = 'w-full h-8 rounded-md border border-[#e6ddcc] bg-white px-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 cursor-default disabled:bg-white disabled:text-zinc-900 disabled:opacity-100';
 
 // `inline`: a dropdown opens in place (table cells). `deal`: the deal being
 // edited (for the end time / time zone defaults).
-export function Input({ f, value, onChange, lists, disabled, past, autoFocus, inline, deal }) {
-  const base = BASE;
+export function Input({ f, value, onChange, lists, disabled: off, past, autoFocus, inline, deal, view }) {
+  const disabled = off || view;
+  const base = view ? VIEW : BASE;
   const v = value ?? '';
-  if (past) return <PickOrType value={value} onChange={onChange} options={past} base={base} autoFocus={autoFocus} inline={inline} />;
+  if (past && !view) return <PickOrType value={value} onChange={onChange} options={past} base={base} autoFocus={autoFocus} inline={inline} />;
   if (f.type === 'longtext') {
     return <textarea value={v} autoFocus={autoFocus} disabled={disabled} placeholder="—" rows={Math.min(5, Math.max(2, String(v).split('\n').length))} onChange={(e) => onChange(dashToNull(e.target.value))} className={`${base} h-auto py-1.5 leading-snug`} />;
   }
   if (f.type === 'money' || f.type === 'number') return <NumberInput f={f} value={value} onChange={onChange} base={base} autoFocus={autoFocus} disabled={disabled} />;
-  if (f.type === 'time') return <TimeInput value={value} onChange={onChange} autoFocus={autoFocus} disabled={disabled} deal={deal} />;
+  if (f.type === 'time') return <TimeInput value={value} onChange={onChange} autoFocus={autoFocus} disabled={disabled} deal={deal} view={view} />;
   if (f.type === 'date') {
     const text = v && !ISO.test(v);
     return (
@@ -134,7 +138,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     if (shown.length >= 2 && all.length <= (SWITCH_MAX[f.key] || 4)) {
       // Time zone: nothing stored = the state's zone, shown as picked.
       const zone = f.key === 'ddEndTz' && !v && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
-      return <Switch value={v || zone || null} disabled={disabled} label={f.label} onChange={(x) => onChange(x)} clearable={f.key !== 'status' && f.key !== 'ddEndTz'}
+      return <Switch value={v || zone || null} disabled={disabled} view={view} label={f.label} onChange={(x) => onChange(x)} clearable={f.key !== 'status' && f.key !== 'ddEndTz'}
         options={all.map((o) => ({ value: o, label: SWITCH_WORD[f.key]?.[o] || pretty(f.key, o), title: f.key === 'ddEndTz' ? `${zoneLabel(o)}${zone === o ? ' · the state’s zone' : ''}` : undefined }))} />;
     }
   }
@@ -144,6 +148,7 @@ export function Input({ f, value, onChange, lists, disabled, past, autoFocus, in
     const fallback = f.key === 'ddEndTz' && deal ? endTimeOf({ ...deal, ddEndTz: null }).zone : null;
     return (
       <SearchSelect value={v || null} disabled={disabled} autoFocus={autoFocus} inline={inline} onChange={(x) => onChange(x || null)}
+        buttonClass={view ? 'w-full h-8 flex items-center gap-1.5 rounded-md border border-[#e6ddcc] bg-white px-2 text-left text-[13px] text-zinc-900 cursor-default' : undefined}
         placeholder={fallback ? `${zoneLabel(fallback)} · state` : '—'} sort={!KEEP_ORDER.has(f.key)}
         options={all.map((o) => ({ value: o, label: pretty(f.key, o) }))} />
     );
