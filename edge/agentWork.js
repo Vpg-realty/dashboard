@@ -151,3 +151,17 @@ export async function mark(db, user, b) {
   if (row.outcome === 'tier1' && b.outcome !== 'tier1') tierOff();
   return { run: [save(b.outcome), ...pushes] };
 }
+
+// The sidebar badges (Luke, Nov 20: "numbers similar to the alerts that show
+// how many they have left for each"): this person's open rows per list — one
+// indexed count on agent_work (loc), once per page load.
+export async function countFor(db, user) {
+  const locs = user?.rep_id ? locsOf(user.rep_id) : [];
+  if (!locs.length) return { parked: 0, tier1: 0 };
+  await ensure(db);
+  const done = [...DONE];
+  const rows = (await db.prepare(`SELECT list, COUNT(*) AS n FROM agent_work WHERE loc IN (${locs.map(() => '?').join(',')}) AND (outcome IS NULL OR outcome NOT IN (${done.map(() => '?').join(',')})) GROUP BY list`).bind(...locs, ...done).all()).results || [];
+  const out = { parked: 0, tier1: 0 };
+  for (const r of rows) if (r.list in out) out[r.list] = r.n;
+  return out;
+}
