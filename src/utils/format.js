@@ -9,7 +9,8 @@ export const formatCurrency = (n) =>
 export const formatCompactCurrency = (n) => {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n}`;
+  // Under $1K: to the cent, rounded up (Luke, Nov 20 — "need $725.909…/day").
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.ceil(Math.round(n * 1e6) / 1e4) / 100);
 };
 
 export const formatNumber = (n) =>
