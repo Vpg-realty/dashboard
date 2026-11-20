@@ -611,6 +611,9 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
     setUserOpen(next);
     if (id) writeOpen(id, next);
   };
+  // A status tile opens its part of the panel (Luke, Nov 20) — only when this
+  // person has that section.
+  const tileGo = (sid, key) => (secs.some((x) => x.id === sid) ? () => (key ? goField(key) : showSec(sid)) : undefined);
   const showSec = (sid) => {
     setForced((x) => (x.includes(sid) ? x : [...x, sid]));
     setTimeout(() => { const el = bodyRef.current?.querySelector(`#deal-s-${sid}`); if (el) { bodyRef.current.scrollTo({ top: el.offsetTop - 12, behavior: 'smooth' }); setOnSec(sid); } }, 30);
@@ -935,16 +938,16 @@ export default function DealPanel({ id, initial, onClose, onCreated, focus, tab:
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${TILE_TONE[ts.band[0]].pill}`}><span className="w-1.5 h-1.5 rounded-full bg-current" />{ts.band[1]}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <StatusTile icon="pen" label="Contracted">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
-                <StatusTile icon="arrow" label="Assigned at">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
-                <StatusTile icon="trend" label="Gross" tone={grossOk ? 'ok' : emLost ? 'bad' : 'plain'} word={emLost ? 'EM lost' : undefined}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : emLost ? <span className="text-[#B42318]">{money(emLoss)}</span> : dash}</StatusTile>
+                <StatusTile icon="pen" label="Contracted" onClick={tileGo('contract', 'price')} title="Open the contracted price">{retradePending(merged) ? <span className="text-amber-700 text-[14px]" title="Retraded — type in the new contracted price">Re-enter</span> : money(merged.price)}</StatusTile>
+                <StatusTile icon="arrow" label="Assigned at" onClick={tileGo('dispo')} title="Open Selling It">{vpg ? money(merged.vpgAssign) : <span className="text-zinc-400 font-medium text-[14px]">no buyer yet</span>}</StatusTile>
+                <StatusTile icon="trend" label="Gross" onClick={tileGo('money')} title="Open the money" tone={grossOk ? 'ok' : emLost ? 'bad' : 'plain'} word={emLost ? 'EM lost' : undefined}>{grossOk ? <span className="text-[#15803d]">{money(merged.grossAssign)}</span> : emLost ? <span className="text-[#B42318]">{money(emLoss)}</span> : dash}</StatusTile>
               </div>
               {/* Row 2, in the order things happen (Nov 17): inspection, EMD, title, COE. */}
               <div className="mt-2 grid grid-cols-4 gap-2">
-                <StatusTile icon="search" label="Inspection" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
-                <StatusTile icon="shield" label="EMD" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
+                <StatusTile icon="search" label="Inspection" onClick={tileGo('ip')} title="Open the inspection period" tone={ts.ip[0]} word={ts.ip[1]}>{merged.accepted || merged.ddEnd ? <IpSpan d={merged} /> : dash}</StatusTile>
+                <StatusTile icon="shield" label="EMD" onClick={tileGo('emd')} title="Open earnest money" tone={ts.emd[0]} word={ts.emd[1]}>{merged.emd ? money(merged.emd) : dash}</StatusTile>
                 <StatusTile icon="doc" label="Title" tone={ts.title[0]} word={ts.title[1]} onClick={() => showSec('title')} title={String(merged.title || '').trim() || 'No title company yet — open Title & Closing'}>{String(merged.title || '').trim() ? <span className="text-[14.5px]">{clip(merged.title, 26)}</span> : dash}</StatusTile>
-                <StatusTile icon="cal" label="COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
+                <StatusTile icon="cal" label="COE" onClick={tileGo('contract', 'coe')} title="Open the COE" tone={ts.coe[0]} word={ts.coe[1]}>{merged.coe ? shortDate(merged.coe) : dash}</StatusTile>
               </div>
             </div>
           </div>
