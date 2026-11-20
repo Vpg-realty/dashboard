@@ -207,3 +207,4 @@ Tab **Files & Claude Review** (`DealFiles.jsx`). Owners and the TC upload, chang
 - The site never writes other GHL fields than those listed; GHL's own later changes to these fields never reach the site (only stage moves).
 - Old stored values still read: `PENDING` status, `emdStatus`, old IP end free text, `dispoTeam` (ignored), PENDING in EMD paid by.
 - Deal panel open-state key is `open2` (the old key held the combined EMD & Inspection card).
+- **Status tiles are buttons** (Luke, Nov 20): Contracted → the contracted price, Assigned at → Selling It, Gross → The Money, Inspection → Inspection Period, EMD → Earnest Money, Title → Title & Closing, COE → the COE field (`tileGo` in DealPanel.jsx; a tile stays plain when the person doesn't have that section).
