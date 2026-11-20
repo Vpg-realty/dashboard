@@ -15,6 +15,7 @@ import SideRail, { RAIL_GRID } from '../shell/SideRail.jsx';
 import MarketChips from '../shell/MarketChips.jsx';
 import SearchSelect from '../deals/SearchSelect.jsx';
 import { ALL_REPS } from '../data/config.js';
+import { setFollowupCount } from './count.js';
 
 const api = (q, body) => call(`agent-work${q ? `?${q}` : ''}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {});
 // Older answers (Nov 8 – 9) still read as done.
@@ -60,6 +61,11 @@ export default function AgentFollowUp() {
   const key = (r) => `${r.loc}|${r.list}|${r.contact}`;
   const open = (list) => rows.filter((r) => r.list === list && !DONE.has(r.outcome));
   const done = rows.filter((r) => DONE.has(r.outcome));
+  // Keep the sidebar badges in step with the person's own list.
+  const ownList = !!d?.rep && d.rep === me?.rep_id;
+  const leftParked = ownList ? open('parked').length : null;
+  const leftTier1 = ownList ? open('tier1').length : null;
+  useEffect(() => { if (leftParked != null) setFollowupCount({ parked: leftParked, tier1: leftTier1 }); }, [leftParked, leftTier1]);
   const progressFirst = !!d?.progress && (!d.rep || view === 'team');
   const pick = progressFirst ? 'team' : view || 'parked';
   const shown = pick === 'done' ? done : pick === 'tier1' ? open('tier1') : open('parked');

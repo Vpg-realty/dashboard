@@ -2,6 +2,8 @@
 //   GET  [?rep=<repId>] → the person's own list (or a rep's they may see:
 //        owners anyone, a pod lead their pod), plus the team's / pod's
 //        progress for owners and pod leads.
+//   GET  ?count=1 → { parked, tier1 } open rows on the person's own lists
+//        (the sidebar badges).
 //   POST { action: mark | undo, loc, list, contact, outcome? } — outcome
 //        complete | ignore (Call Back) or tier1 | ignore (Make Tier 1); only
 //        the rep whose list it is; never while viewing as. Tag as Tier 1
@@ -9,7 +11,7 @@
 // Usage: a rep's load reads their own rows (~50–200); an owner's progress
 // reads the whole table once (~1.9k rows) per load — a few dozen loads a day.
 import { currentUser, json } from '../../edge/auth.js';
-import { load, mark } from '../../edge/agentWork.js';
+import { load, mark, countFor } from '../../edge/agentWork.js';
 
 const ROLES = ['owner', 'manager', 'team', 'trainee'];
 
@@ -17,7 +19,10 @@ export async function onRequestGet(context) {
   const user = await currentUser(context);
   if (!user) return json({ error: 'not signed in' }, 401);
   if (!ROLES.includes(user.role)) return json({ error: 'not available' }, 403);
-  const rep = new URL(context.request.url).searchParams.get('rep');
+  const url = new URL(context.request.url);
+  // ?count=1 — the sidebar badges: this person's open rows per list.
+  if (url.searchParams.get('count')) return json(await countFor(context.env.DB, user));
+  const rep = url.searchParams.get('rep');
   return json(await load(context.env.DB, user, { rep }));
 }
 

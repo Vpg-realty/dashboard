@@ -25,6 +25,7 @@ import BooksView from '../finance/BooksView.jsx';
 import PastQuizzes from '../quiz/PastQuizzes.jsx';
 import AgentFollowUp from '../followup/AgentFollowUp.jsx';
 import LowResponse from '../followup/LowResponse.jsx';
+import { useFollowupCount } from '../followup/count.js';
 import UsageView from '../settings/UsageView.jsx';
 import QuizView, { QuizHost } from '../quiz/QuizView.jsx';
 import TargetsView from '../settings/TargetsView.jsx';
@@ -130,6 +131,22 @@ function AlertDot({ leads, tasks, unseen, collapsed, phone }) {
   );
 }
 
+// Agent Follow-Up (Luke, Nov 20): how many agents are left on each list —
+// sky = Call Back · Parked, amber = Make Tier 1? — like the Alerts badges.
+function FollowupDot({ c, collapsed, phone }) {
+  if (!c || (!c.parked && !c.tier1)) return null;
+  const pos = collapsed || phone ? 'absolute -top-1 right-0' : 'ml-auto';
+  const pill = (n, cls, title) => n > 0 && (
+    <span title={title} className={`min-w-[18px] h-[18px] px-1 rounded-full grid place-items-center text-[10.5px] font-bold text-white tabular-nums ${cls}`}>{n > 99 ? '99+' : n}</span>
+  );
+  return (
+    <span className={`${pos} flex items-center gap-0.5 shrink-0`}>
+      {pill(c.parked, 'bg-sky-600', `${c.parked} parked agent${c.parked === 1 ? '' : 's'} to call back`)}
+      {!(collapsed || phone) || !c.parked ? pill(c.tier1, 'bg-amber-500', `${c.tier1} agent${c.tier1 === 1 ? '' : 's'} to review for Tier 1`) : null}
+    </span>
+  );
+}
+
 function useStoredFlag(key, initial) {
   const [v, setV] = useState(() => { try { const s = localStorage.getItem(key); return s == null ? initial : s === '1'; } catch { return initial; } });
   const set = (x) => { setV(x); try { localStorage.setItem(key, x ? '1' : '0'); } catch { /* private mode */ } };
@@ -164,6 +181,8 @@ export default function AppShell({ me }) {
   const owe = alertCounts?.owe || 0;
   const leadsN = alertCounts?.leads || 0;
   const tasksN = alertCounts?.tasks ?? owe;
+  // Agent Follow-Up badges — only for someone with a rep and the section.
+  const followup = useFollowupCount(!!me.rep_id && sections.some((x) => x.id === 'followup'));
 
   // Keep the address bar on the page actually shown (old or forbidden links).
   const canonical = hrefOf(section, tab);
@@ -196,8 +215,9 @@ export default function AppShell({ me }) {
         className={`relative flex items-center gap-2.5 h-8 rounded-lg font-medium transition-colors ${collapsed ? 'justify-center px-0' : 'px-2.5'} ${on ? 'bg-white text-navy-700 shadow-[0_0_0_1px_var(--color-tan-200),0_1px_2px_rgba(27,56,95,0.06)]' : 'text-zinc-600 hover:bg-tan-100 hover:text-navy-700'}`}>
         {on && <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded-r bg-tan-500" />}
         <Icon name={s.icon} className={on ? 'text-navy-700' : 'text-tan-600/80'} />
-        {!collapsed && s.label}
+        {!collapsed && <span className="min-w-0 truncate whitespace-nowrap">{s.label}</span>}
         {s.id === 'alerts' && <AlertDot leads={leadsN} tasks={tasksN} unseen={unseen} collapsed={collapsed} />}
+        {s.id === 'followup' && <FollowupDot c={followup} collapsed={collapsed} />}
       </a>
     );
   };
@@ -205,7 +225,7 @@ export default function AppShell({ me }) {
   return (
     <div className="h-app flex bg-tan-50 text-[14px] text-zinc-950 antialiased">
       {/* Sidebar (desktop) */}
-      <aside className={`relative hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[232px] px-2.5'} py-3 transition-[width]`}>
+      <aside className={`relative hidden md:flex flex-col shrink-0 ${collapsed ? 'w-[60px] px-2' : 'w-[244px] px-2.5'} py-3 transition-[width]`}>
         <div className={`flex items-center gap-2.5 h-9 mb-3 ${collapsed ? 'justify-center' : 'px-1.5'}`}>
           <Logo />
           {!collapsed && (
@@ -246,7 +266,7 @@ export default function AppShell({ me }) {
               <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} title={collapsed ? s.label : 'Suggest a change or see what others asked for'}
                 className={`relative flex items-center gap-2.5 h-9 mb-1 rounded-lg font-semibold ring-1 ring-inset transition-colors ${collapsed ? 'justify-center px-0' : 'px-2.5'} ${on ? 'bg-tan-500 text-white ring-tan-600' : 'bg-tan-100 text-tan-700 ring-tan-200 hover:bg-tan-200 hover:text-navy-800'}`}>
                 <Icon name={s.icon} className={on ? 'text-white' : 'text-tan-600'} />
-                {!collapsed && s.label}
+                {!collapsed && <span className="min-w-0 truncate whitespace-nowrap">{s.label}</span>}
               </a>
             );
           })}
@@ -343,6 +363,7 @@ export default function AppShell({ me }) {
           <a key={s.id} {...linkProps(hrefOf(s, s.tabs?.[0]))} className={`relative flex flex-col items-center gap-1 text-[11px] font-medium ${s.id === section.id ? 'text-navy-700' : 'text-zinc-500'}`}>
             <Icon name={s.icon} size={20} />{s.label}
             {s.id === 'alerts' && <AlertDot leads={leadsN} tasks={tasksN} unseen={unseen} phone />}
+            {s.id === 'followup' && <FollowupDot c={followup} phone />}
           </a>
         ))}
         <button onClick={() => setPalette(true)} className="flex flex-col items-center gap-1 text-[11px] font-medium text-zinc-500"><Icon name="search" size={20} />Search</button>

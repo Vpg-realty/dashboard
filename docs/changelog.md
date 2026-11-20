@@ -4,6 +4,8 @@ One dated line per change, newest first: date — area: what changed (who
 asked). Before Nov 17, 2026 the record is the running notes in
 docs/history.md.
 
+- Nov 20, 2026 — Agent Follow-Up: sidebar badges with how many agents are
+  left on each list (Luke).
 - Nov 20, 2026 — Deals: every deal status tile opens its part of the panel
   (Luke).
 - Nov 20, 2026 — Deals: reps and managers see the deal panel in the editors'
